@@ -1,17 +1,21 @@
-struct VertexShaderOutput
+cbuffer WVP : register(b0)
 {
-    float4 position : SV_POSITION; // Position in clip space
+    matrix wvpMatrix;
 };
 
 struct VertexShaderInput
 {
-    float4 position : POSITION0; // Position in object space
+    float4 position : POSITION0;
+};
+
+struct VertexShaderOutput
+{
+    float4 position : SV_POSITION;
 };
 
 VertexShaderOutput main(VertexShaderInput input)
 {
     VertexShaderOutput output;
-    // Transform the position from object space to clip space
-    output.position = input.position; // Assuming identity transformation for simplicity
+    output.position = mul(input.position, wvpMatrix); // ← 行列を使って変換
     return output;
 }
