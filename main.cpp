@@ -1,3 +1,5 @@
+#include "Matrix.h"
+#include "Vector3.h"
 #include <Windows.h>
 #include <cassert>
 #include <chrono>
@@ -12,7 +14,6 @@
 #include <locale>
 #include <string>
 #include <strsafe.h>
-#include <vector>
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -107,7 +108,6 @@ IDxcBlob* CompileShader(
 	shaderResult->Release(); // コンパイル結果の解放
 	return shaderBlob;       // コンパイル結果のBlobを返す
 }
-
 
 ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
 	assert(device != nullptr);
@@ -350,13 +350,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT; // 入力アセンブラーでの使用を許可
 
 	// RootParameterの設定。複数設定できるので配列、今回は結果1つだけなので長さ1の配列
-	D3D12_ROOT_PARAMETER rootParameters[1] = {};
+	D3D12_ROOT_PARAMETER rootParameters[2] = {};
 	// ルートパラメーターの設定
-	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;    // ルートパラメーターのタイプ（CBV）
-	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // シェーダーの可視性（ピクセルシェーダー）
-	rootParameters[0].Descriptor.ShaderRegister = 0;                    // シェーダーレジスタのインデックス
-	descriptionRootSignature.pParameters = rootParameters;              // ルートパラメーターの配列
-	descriptionRootSignature.NumParameters = _countof(rootParameters);  // ルートパラメーターの数
+	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;     // ルートパラメーターのタイプ（CBV）
+	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;  // シェーダーの可視性（ピクセルシェーダー）
+	rootParameters[0].Descriptor.ShaderRegister = 0;                     // シェーダーレジスタのインデックス
+	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;     // ルートパラメーターのタイプ（CBV）
+	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX; // シェーダーの可視性（バーテックスシェーダー）
+	rootParameters[1].Descriptor.ShaderRegister = 0;                     // シェーダーレジスタのインデックス
+	descriptionRootSignature.pParameters = rootParameters;               // ルートパラメーターの配列
+	descriptionRootSignature.NumParameters = _countof(rootParameters);   // ルートパラメーターの数
+
+	// WVP用のリソースを作る。Matrix4x4
+	ID3D12Resource* wvpResorce = CreateBufferResource(device, sizeof(Matrix4x4));
+	// データを書き込む
+	Matrix4x4* wvpData = nullptr;
+	// M書き込むためのアドレスを取得
+	wvpResorce->Map(0, nullptr, reinterpret_cast<void**>(&wvpData));
+	// 初期値を設定
+	*wvpData = MakeIdentity4x4(); // 単位行列を設定
 
 	// シリアライズしてバイナリにする
 	ID3DBlob* signatureBlob = nullptr;
@@ -447,14 +459,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 実際に頂点リソースを生成
 	// 出力リソース
 	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(Vector4) * 3);
-	hr= device->CreateCommittedResource(
-		&uploadHeapProperties, // ヒーププロパティ
-		D3D12_HEAP_FLAG_NONE,  // ヒープフラグ
-		&vertexResourceDesc,    // リソースの説明
-		D3D12_RESOURCE_STATE_GENERIC_READ, // リソースの初期状態
-		nullptr, // 初期化用のクリア値（今回はなし）
-		IID_PPV_ARGS(&vertexResource) // 出力リソース
-	);
 	assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
 
 	// マテリアル用のリソースを作
@@ -463,7 +467,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// マテリアルリソースにデータを書き込む
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 	// マテリアルの色を設定
-	materialData[0] = Vector4(1.0f, 0.0f, 0.0f,1.0f); // 赤色
+	materialData[0] = Vector4(1.0f, 0.0f, 0.0f, 1.0f); // 赤色
 
 	// 頂点バッファビューの作成
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
@@ -479,9 +483,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 書き込むためのアドレスを取得
 	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 	// 頂点データを設定
-	vertexData[0] = Vector4(-0.5f, -0.5f, 1.0f); // 左
-	vertexData[1] = Vector4(0.0f, 0.5f, 1.0f);   // 上
-	vertexData[2] = Vector4(0.5f, -0.5f, 1.0f);  // 右
+	vertexData[0] = Vector4(-0.5f, -0.5f, 0.0f); // 左
+	vertexData[1] = Vector4(0.0f, 0.5f, 0.0f);   // 上
+	vertexData[2] = Vector4(0.5f, -0.5f, 0.0f);  // 右
 
 	// ビューポート
 	D3D12_VIEWPORT viewport{};
@@ -553,8 +557,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	commandList->SetGraphicsRootSignature(rootSignature);
 	// ルートパラメーターの設定
 	commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress()); // マテリアルリソースの設定
-	commandList->SetPipelineState(graphicsPipelineState);     // パイプラインステートの設定
-	commandList->IASetVertexBuffers(0, 1, &vertexBufferView); // 頂点バッファの設定
+	// マテリアルCBufferの場所を設定
+	commandList->SetGraphicsRootConstantBufferView(1, wvpResorce->GetGPUVirtualAddress()); // WVPリソースの設定
+	commandList->SetPipelineState(graphicsPipelineState);                                  // パイプラインステートの設定
+	commandList->IASetVertexBuffers(0, 1, &vertexBufferView);                              // 頂点バッファの設定
 	// 形状の設定
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // トポロジの設定
 	// 描画コマンドの発行
@@ -592,6 +598,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	hr = commandList->Reset(commandAllocator, nullptr); // コマンドリストをリセット
 	assert(SUCCEEDED(hr));
 
+	// Trsnsformの変数を作る
+	Transforms transforms{
+	    {1.0f, 1.0f, 1.0f}, // スケール
+	    {0.0f, 0.0f, 0.0f}, // 回転
+	    {0.0f, 0.0f, 0.0f}  // 平行移動
+	};
+	Vector3 cameraPosition = {0.0f, 0.00f, -5.00f};
+	Vector3 cameraRotate = {0.0f, 0.0f, 0.0f};
 	// メッセージループ
 	MSG msg{};
 	while (msg.message != WM_QUIT) {
@@ -604,7 +618,58 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// メッセージがない場合は、ここでアプリケーションの処理を行う
 			// 例えば、描画処理など
 			//
-			// 現在の時刻
+			
+
+			transforms.rotate.y += 0.03f; // Y軸回転を更新
+			Matrix4x4 worldMatrix = MakeAffineMatrix(transforms.scale, transforms.rotate, transforms.translate);
+			Matrix4x4 cameraMatrix = MakeAffineMatrix(Vector3{1.0f, 1.0f, 1.0f}, cameraRotate, cameraPosition);
+			Matrix4x4 viewMatrix = Inverse(cameraMatrix);
+			Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
+			Matrix4x4 wvpMatrix = Multiply(Multiply(worldMatrix, viewMatrix), projectionMatrix);
+			*wvpData = wvpMatrix;
+			// コマンドリストのリセット
+			commandAllocator->Reset();
+			commandList->Reset(commandAllocator, graphicsPipelineState);
+
+			// バリア設定（PRESENT → RENDER_TARGET）
+			backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+			barrier.Transition.pResource = swapChainResources[backBufferIndex];
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			commandList->ResourceBarrier(1, &barrier);
+
+			// クリア処理と描画
+			commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, nullptr);
+			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
+			commandList->RSSetViewports(1, &viewport);
+			commandList->RSSetScissorRects(1, &scissorRect);
+			commandList->SetGraphicsRootSignature(rootSignature);
+			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(1, wvpResorce->GetGPUVirtualAddress());
+			commandList->SetPipelineState(graphicsPipelineState);
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			commandList->DrawInstanced(3, 1, 0, 0);
+
+			// バリア設定（RENDER_TARGET → PRESENT）
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+			commandList->ResourceBarrier(1, &barrier);
+
+			// コマンド送信とPresent
+			commandList->Close();
+			ID3D12CommandList* cmdLists[] = {commandList};
+			commandQueue->ExecuteCommandLists(1, cmdLists);
+			swapChain->Present(1, 0);
+
+			// フェンスでGPU完了待ち（簡略化）
+			fenceValue++;
+			commandQueue->Signal(fence, fenceValue);
+			if (fence->GetCompletedValue() < fenceValue) {
+				fence->SetEventOnCompletion(fenceValue, fenceEvent);
+				WaitForSingleObject(fenceEvent, INFINITE);
+			}
+
 		}
 	}
 
