@@ -52,7 +52,6 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -74,7 +73,6 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -88,6 +86,13 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="extenals\imgui\imgui.cpp" />
+    <ClCompile Include="extenals\imgui\imgui_demo.cpp" />
+    <ClCompile Include="extenals\imgui\imgui_draw.cpp" />
+    <ClCompile Include="extenals\imgui\imgui_impl_dx12.cpp" />
+    <ClCompile Include="extenals\imgui\imgui_impl_win32.cpp" />
+    <ClCompile Include="extenals\imgui\imgui_tables.cpp" />
+    <ClCompile Include="extenals\imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix.cpp" />
     <ClCompile Include="Vector.cpp" />
@@ -107,8 +112,27 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="extenals\imgui\imconfig.h" />
+    <ClInclude Include="extenals\imgui\imgui.h" />
+    <ClInclude Include="extenals\imgui\imgui_impl_dx12.h" />
+    <ClInclude Include="extenals\imgui\imgui_impl_win32.h" />
+    <ClInclude Include="extenals\imgui\imgui_internal.h" />
+    <ClInclude Include="extenals\imgui\imstb_rectpack.h" />
+    <ClInclude Include="extenals\imgui\imstb_textedit.h" />
+    <ClInclude Include="extenals\imgui\imstb_truetype.h" />
     <ClInclude Include="Matrix.h" />
     <ClInclude Include="Vector3.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="extenals\imgui\LICENSE.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="extenals\DirectXTex\DirectXTex_Desktop_2019_Win10.vcxproj">
+      <Project>{371b9fa9-4c90-4ac6-a123-aced756d6c77}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Object3D.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
