@@ -302,6 +302,18 @@ ID3D12Resource* CreateDepthStenecilTextureResource(ID3D12Device* device, int32_t
 	return resource;
 }
 
+D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, uint32_t descriptorSize, uint32_t index) {
+	D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	handleCPU.ptr += (descriptorSize * index);
+	return handleCPU;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, uint32_t descriptorSize, uint32_t index) {
+	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	handleGPU.ptr += (descriptorSize * index);
+	return handleGPU;
+}
+
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	CoInitializeEx(0, COINIT_MULTITHREADED);
 	SetUnhandledExceptionFilter(ExportDump); // 例外ハンドラーを設定
@@ -648,11 +660,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
 #pragma region マテリアルの描画に必要なデータの作成
 	const float pi = 3.1415f;                         // 円周率
-	const uint32_t kSubdivision = 16;                // 球の細分化数
+	const uint32_t kSubdivision = 20;                 // 球の細分化数
 	const float kLonEvery = 2.0f * pi / kSubdivision; // 経度の間隔(φd)
 	const float kLatEvery = pi / kSubdivision;        // 緯度の間隔(θd)
-	uint32_t latIndex = 16;
-	uint32_t lonIndex = 16;
+	uint32_t latIndex = 20;
+	uint32_t lonIndex = 20;
 	uint32_t startIndex = (latIndex * kSubdivision + lonIndex) * 6;
 	Vector2 tex{};
 	// マテリアル用のリソースを作る
@@ -677,12 +689,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 	// 頂点データを設定
 	for (int latIndex = 0; latIndex < kSubdivision; latIndex++) {
-		float latA = -pi / 2.0f + latIndex * kLatEvery;// (θ)
+		float latA = -pi / 2.0f + latIndex * kLatEvery; // (θ)
 		float latB = latA + kLatEvery;
 		for (int lonIndex = 0; lonIndex < kSubdivision; lonIndex++) {
 			uint32_t start = (latIndex * kSubdivision + lonIndex) * 6;
 
-			float lonA = lonIndex * kLonEvery;// (φ)
+			float lonA = lonIndex * kLonEvery; // (φ)
 			float lonB = lonA + kLonEvery;
 
 			// 座標計算（4頂点：a,b,c,d）
@@ -712,6 +724,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// Sprite用の頂点リソースをつくる
 	ID3D12Resource* vertexResourceSprite = CreateBufferResource(device, sizeof(VertexData) * 6);
+	assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
+
+#pragma region スプライトの描画に必要なデータの作成
 	// 頂点バッファビューを作成する
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferBiewSprite{};
 	// リソースの先頭のアドレスから使う
@@ -752,6 +767,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         {0.0f, 0.0f, 0.0f}
     };
 
+#pragma endregion
 	// ビューポート
 	D3D12_VIEWPORT viewport{};
 	// クライアント領域のサイズに合わせる
@@ -780,6 +796,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 
+#pragma region uvCheckerの読み込み
 	DirectX::ScratchImage mipImage = LoadTexture("Resources/uvChecker.png");
 	const DirectX::TexMetadata& metaData = mipImage.GetMetadata();
 	// テクスチャリソースの生成
@@ -794,14 +811,42 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;                      // テクスチャの次元
 	srvDesc.Texture2D.MipLevels = UINT(metaData.mipLevels);                     // ミップレベルの数
 
-	// SRVを生成するためのディスクリプタヒープを取得
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	const uint32_t descroptorSizeSRV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	const uint32_t descroptorSizeRTV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	const uint32_t descroptorSizeDSV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
-	textureSrvHandleCPU.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV); // SRVのオフセット
-	textureSrvHandleGPU.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV); // SRVのオフセット
+	// SRVを生成するためのディスクリプタヒープを取得
+	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 1);
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 1);
+
 	// SRVを生成
 	device->CreateShaderResourceView(textureResource, &srvDesc, textureSrvHandleCPU); // テクスチャリソースにSRVを設定
+
+#pragma endregion
+
+#pragma region 別の画像の読み込み
+	DirectX::ScratchImage mipImage2 = LoadTexture("Resources/switch.png");
+	const DirectX::TexMetadata& metaData2 = mipImage2.GetMetadata();
+	// テクスチャリソースの生成
+	ID3D12Resource* textureResource2 = CreateTextureResource(device, metaData2);
+	// テクスチャにデータをアップロード
+	UploadTextureData(textureResource2, mipImage2);
+
+	// metaDataを基にSRVを生成
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2{};
+	srvDesc2.Format = metaData2.format;                                          // テクスチャのフォーマット
+	srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // シェーダーコンポーネントのマッピング
+	srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;                      // テクスチャの次元
+	srvDesc2.Texture2D.MipLevels = UINT(metaData2.mipLevels);                    // ミップレベルの数
+
+	// SRVを生成するためのディスクリプタヒープを取得
+	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 2);
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 2);
+
+	// SRVを生成
+	device->CreateShaderResourceView(textureResource2, &srvDesc2, textureSrvHandleCPU2); // テクスチャリソースにSRVを設定
+
+#pragma endregion
 
 	// スワップチェーンからリソースをもらう
 	ID3D12Resource* swapChainResources[2] = {nullptr};
@@ -855,6 +900,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	commandList->OMSetRenderTargets(1, &rtvHandles[0], false, &dsvHandle);
 
+	bool useTexture = true;
+
 	MSG msg = {};
 	while (msg.message != WM_QUIT) {
 		// メッセージを取得
@@ -886,7 +933,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
 			ImGui::DragFloat3("camera rotate", &cameraRotate.x, 0.1f);
 			ImGui::DragFloat3("sprite pos", &transformSprite.translate.x, 0.3f);
-
+			ImGui::Checkbox("useTexture", &useTexture);
 			// ImGuiのウィンドウを作成
 			ImGui::ShowDemoWindow(); // デモウィンドウを表示
 			ImGui::Render();         // ImGuiの描画を実行
@@ -921,13 +968,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootSignature(rootSignature);
 			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResorce->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+			commandList->SetGraphicsRootDescriptorTable(2, useTexture?textureSrvHandleGPU2:textureSrvHandleGPU);
 			commandList->SetPipelineState(graphicsPipelineState);
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			commandList->DrawInstanced(startIndex, 1, 0, 0);
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferBiewSprite);
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			commandList->DrawInstanced(6, 1, 0, 0);
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
