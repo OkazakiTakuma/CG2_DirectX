@@ -41,6 +41,14 @@ Vector3 Normalize(const Vector3& v) {
 	return normalize;
 }
 
+Vector3 NormalizeReturnVector(const Vector3& v) {
+	float length = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+	if (length == 0.0f) {
+		return Vector3(0.0f, 0.0f, 0.0f); // 零ベクトルはそのまま返すか、適宜ハンドリング
+	}
+	return Vector3(v.x / length, v.y / length, v.z / length);
+}
+
 void VectorScreenPrintf(int posX, int posY, const Vector3& vector, const char* label) {
 	const int kColumnWidth = 60;
 

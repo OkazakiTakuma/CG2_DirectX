@@ -18,7 +18,9 @@ float Dot(const Vector3& v1, const Vector3& v2);
 float Length(const Vector3& v);
 // 正規化
 Vector3 Normalize(const Vector3& v);
-// 数値の表記
+Vector3 NormalizeReturnVector(const Vector3& v);
+
+	// 数値の表記
 void VectorScreenPrintf(int x, int y, const Vector3& vector, const char* label);
 // クロス積
 Vector3 Cross(const Vector3& v1, const Vector3& v2);
