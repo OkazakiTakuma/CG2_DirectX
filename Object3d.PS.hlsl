@@ -31,10 +31,10 @@ PixelShaderOutput main(VertexShaderOutput input)
     if (gMaterial.enableLighting!= 0)
     {
         // 光と法線の内積 → cosθ 相当
-        float cosLight = saturate(dot(normalize(input.normal), -gDirectionalLight.direction));
-
+        float NdotL = saturate(dot(normalize(input.normal), -gDirectionalLight.direction));
+        float cos = pow(NdotL * 0.5f + 0.5f, 2.0f);
         // ライトによる色変化
-        output.color = gMaterial.color * textureColor * gDirectionalLight.color * cosLight * gDirectionalLight.intensity;
+        output.color = gMaterial.color * textureColor * gDirectionalLight.color * cos * gDirectionalLight.intensity;
       
     }
     else
