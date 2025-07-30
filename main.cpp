@@ -1,4 +1,5 @@
 #include "Matrix.h"
+#include "Screen.h"
 #include "Vector3.h"
 #include "extenals/DirectXTex/DirectXTex.h"
 #include <Windows.h>
@@ -37,12 +38,7 @@ struct Vector4 {
 	Vector4 operator-(const Vector4& other) const { return Vector4(x - other.x, y - other.y, z - other.z, w - other.w); }
 };
 
-struct Vector2 {
-	float x, y;
-	Vector2(float x = 0.0f, float y = 0.0f) : x(x), y(y) {}
-	Vector2 operator+(const Vector2& other) const { return Vector2(x + other.x, y + other.y); }
-	Vector2 operator-(const Vector2& other) const { return Vector2(x - other.x, y - other.y); }
-};
+
 
 struct VertexData {
 	Vector4 position;
@@ -52,6 +48,8 @@ struct VertexData {
 struct Material {
 	Vector4 color;          // 色
 	int32_t enableLighting; // ライティングの有効化フラグ
+	float padding[3];          // パディング
+	Matrix4x4 uvTransform;  // UV変換行列
 };
 
 struct TransformationMatrix {
@@ -716,16 +714,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 書き込むためのアドレスを取得
 	indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
 
-	// スプライト用のマテリアルリソースを作成
-	ID3D12Resource* materialResourceSprite = CreateBufferResource(device, sizeof(Material) * kSubdivision * kSubdivision * 6);
-	assert(SUCCEEDED(hr)); // マテリアルリソースの生成が成功したか確認
-	Material* materialDataSprite = nullptr;
-	// スプライト用のマテリアルリソースにデータを書き込む
-	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
-	// スプライトの色を設定
-	materialDataSprite->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
-	materialDataSprite->enableLighting = false;                  // ライティングを無効化
-
+	
 	// 頂点バッファビューの作成
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
 	// リソースの先頭のアドレスから使う
@@ -787,6 +776,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// マテリアルの色を設定
 	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 赤色
 	materialData->enableLighting = true;                   // ライティングを有効化
+	materialData->uvTransform = MakeIdentity4x4();
 
 #pragma endregion
 
@@ -849,6 +839,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	vertexDataSprite[3].texcoord = {1.0f, 0.0f};
 	vertexDataSprite[3].normal = {0.0f, 0.0f, -1.0f};
 
+	// スプライト用のマテリアルリソースを作成
+	ID3D12Resource* materialResourceSprite = CreateBufferResource(device, sizeof(Material) * kSubdivision * kSubdivision * 6);
+	assert(SUCCEEDED(hr)); // マテリアルリソースの生成が成功したか確認
+	Material* materialDataSprite = nullptr;
+	// スプライト用のマテリアルリソースにデータを書き込む
+	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
+	// スプライトの色を設定
+	materialDataSprite->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
+	materialDataSprite->enableLighting = false;                  // ライティングを無効化
+	materialDataSprite->uvTransform = MakeIdentity4x4();
+
+
 	// Sprite用のTransformationMatrix用リソースを作る
 	ID3D12Resource* transformationMatrixResourceSprite = CreateBufferResource(device, sizeof(Matrix4x4));
 	// データを書き込む
@@ -862,7 +864,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         {0.0f, 0.0f, 0.0f},
         {0.0f, 0.0f, 0.0f}
     };
-
+	Transforms uvTransformSprite{
+	    {1.0f, 1.0f, 1.0f},
+        {0.0f, 0.0f, 0.0f},
+        {0.0f, 0.0f, 0.0f}
+    };
 #pragma endregion
 	// ビューポート
 	D3D12_VIEWPORT viewport{};
@@ -1030,6 +1036,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
 			ImGui::DragFloat3("camera rotate", &cameraRotate.x, 0.1f);
 			ImGui::DragFloat3("sprite pos", &transformSprite.translate.x, 0.3f);
+			ImGui::DragFloat2("UV translate", &uvTransformSprite.translate.x, 0.01f,-10.0f,10.0f);
+			ImGui::DragFloat2("UV scale", &uvTransformSprite.scale.x, 0.01f, 0.0f, 10.0f);
+			ImGui::SliderAngle("UV rotate", &uvTransformSprite.rotate.z);
 			ImGui::Checkbox("useTexture", &useTexture);
 			ImGui::DragFloat3("Light Direction", &directionallightData->direction.x, 0.1f);
 			directionallightData->direction = NormalizeReturnVector(directionallightData->direction); // 正規化
@@ -1037,6 +1046,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// ImGuiのウィンドウを作成
 			ImGui::ShowDemoWindow(); // デモウィンドウを表示
 			ImGui::Render();         // ImGuiの描画を実行
+
+			Matrix4x4 uvTransformSpriteMatrix = MakeAffineMatrix(uvTransformSprite.scale, uvTransformSprite.rotate, uvTransformSprite.translate);
+			uvTransformSpriteMatrix = Multiply(uvTransformSpriteMatrix, MakeRotateZMatrix(uvTransformSprite.rotate.z));
+			uvTransformSpriteMatrix = Multiply(uvTransformSpriteMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
+			// UV変換行列をマテリアルに設定
+			materialDataSprite->uvTransform = uvTransformSpriteMatrix;
 
 #pragma region コマンドリストのリセット
 
