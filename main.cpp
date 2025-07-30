@@ -679,7 +679,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	                                                            // 実際に頂点リソースを生成
 	                                                            // 頂点リソースにデータを書き込む
 	                                                            // 出力リソース
-#pragma region マテリアルの描画に必要なデータの作成
 	// 平行光のバッファにデータを入れる
 	ID3D12Resource* lightResource = CreateBufferResource(device, sizeof(DirectionalLight));
 	assert(SUCCEEDED(hr)); // ライトリソースの生成が成功したか確認
@@ -691,6 +690,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	directionallightData->direction = NormalizeReturnVector(Vector3(0.0f, -1.0f, 0.0f));
 	directionallightData->intensity = 1.0f;
 
+#pragma region マテリアルの描画に必要なデータの作成
 	const float pi = 3.1415f;                         // 円周率
 	const uint32_t kSubdivision = 20;                 // 球の細分化数
 	const float kLonEvery = 2.0f * pi / kSubdivision; // 経度の間隔(φd)
@@ -755,11 +755,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			vertexData[start + 4] = {d, uv_d};
 			vertexData[start + 5] = {c, uv_c};
 
-			vertexData[start + 0].normal =(Vector3(a.x, a.y, a.z)); // 法線ベクトル
-		/*	float coslightA = Dot(Vector3(a.x, a.y, a.z), directionallightData->direction);
-			float coslightB = Dot(Vector3(b.x, b.y, b.z), directionallightData->direction);
-			float coslightC = Dot(Vector3(c.x, c.y, c.z), directionallightData->direction);
-			float coslightD = Dot(Vector3(d.x, d.y, d.z), directionallightData->direction);*/
+			vertexData[start + 0].normal = (Vector3(a.x, a.y, a.z)); // 法線ベクトル
+			                                                         /*	float coslightA = Dot(Vector3(a.x, a.y, a.z), directionallightData->direction);
+			                                                             float coslightB = Dot(Vector3(b.x, b.y, b.z), directionallightData->direction);
+			                                                             float coslightC = Dot(Vector3(c.x, c.y, c.z), directionallightData->direction);
+			                                                             float coslightD = Dot(Vector3(d.x, d.y, d.z), directionallightData->direction);*/
 
 			vertexData[start + 1].normal = (Vector3(b.x, b.y, b.z));
 			vertexData[start + 2].normal = (Vector3(c.x, c.y, c.z));
@@ -782,16 +782,43 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 通常は Unmap は省略して OK（UPLOAD ヒープ）
 
 	// Sprite用の頂点リソースをつくる
+
+#pragma region スプライトの描画に必要なデータの作成
+#pragma region インデックスを使った描画
+	ID3D12Resource* indexResourceSprite = CreateBufferResource(device, sizeof(uint32_t) * 6);
+	D3D12_INDEX_BUFFER_VIEW indexBufferViewSprite{};
+	assert(SUCCEEDED(hr)); // インデックスリソースの生成が成功したか確認
+	// リソースの先頭のアドレスから使う
+	indexBufferViewSprite.BufferLocation = indexResourceSprite->GetGPUVirtualAddress(); // GPU仮想アドレス
+	// 使用するリソースのサイズはインデックスのサイズ * インデックス数
+	indexBufferViewSprite.SizeInBytes = sizeof(uint32_t) * 6; // インデックスバッファのサイズ
+	// インデックスはuint32_t型
+	indexBufferViewSprite.Format = DXGI_FORMAT_R32_UINT; // 1インデックスのサイズ
+
+	uint32_t* indexDataSprite = nullptr;
+	// 書き込むためのアドレスを取得
+	indexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&indexDataSprite));
+	// インデックスデータを設定
+	
+	// 三角形1枚目のインデックスを設定
+	indexDataSprite[0] = 0; // 三角形1枚目の1頂点目
+	indexDataSprite[1] = 1; // 三角形1枚目の2頂点目
+	indexDataSprite[2] = 2; // 三角形1枚目の3頂点目
+
+	// 三角形2枚目のインデックスを設定
+	indexDataSprite[3] = 1; // 三角形2枚目の1頂点目
+	indexDataSprite[4] = 3; // 三角形2枚目の2頂点目
+	indexDataSprite[5] = 2; // 三角形2枚目の3頂点目
+#pragma endregion
 	ID3D12Resource* vertexResourceSprite = CreateBufferResource(device, sizeof(VertexData) * 6);
 	assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
 
-#pragma region スプライトの描画に必要なデータの作成
 	// 頂点バッファビューを作成する
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferBiewSprite{};
 	// リソースの先頭のアドレスから使う
 	vertexBufferBiewSprite.BufferLocation = vertexResourceSprite->GetGPUVirtualAddress();
 	// リソースの頂点のサイズは頂点6つ分
-	vertexBufferBiewSprite.SizeInBytes = sizeof(VertexData) * 6;
+	vertexBufferBiewSprite.SizeInBytes = sizeof(VertexData) * 4;
 	// 1頂点あたりのサイズ
 	vertexBufferBiewSprite.StrideInBytes = sizeof(VertexData);
 
@@ -807,17 +834,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	vertexDataSprite[2].position = {640.0f, 360.0f, -1.0f, 1.0f};
 	vertexDataSprite[2].texcoord = {1.0f, 1.0f};
 	vertexDataSprite[2].normal = {0.0f, 0.0f, -1.0f};
-
-	// 三角形2枚目
-	vertexDataSprite[3].position = {0.0f, 0.0f, -1.0f, 1.0f};
-	vertexDataSprite[3].texcoord = {0.0f, 0.0f};
+	vertexDataSprite[3].position = {640.0f, 0.0f, -1.0f, 1.0f};
+	vertexDataSprite[3].texcoord = {1.0f, 0.0f};
 	vertexDataSprite[3].normal = {0.0f, 0.0f, -1.0f};
-	vertexDataSprite[4].position = {640.0f, 0.0f, -1.0f, 1.0f};
-	vertexDataSprite[4].texcoord = {1.0f, 0.0f};
-	vertexDataSprite[4].normal = {0.0f, 0.0f, -1.0f};
-	vertexDataSprite[5].position = {640.0f, 360.0f, -1.0f, 1.0f};
-	vertexDataSprite[5].texcoord = {1.0f, 1.0f};
-	vertexDataSprite[5].normal = {0.0f, 0.0f, -1.0f};
+	
 
 	// Sprite用のTransformationMatrix用リソースを作る
 	ID3D12Resource* transformationMatrixResourceSprite = CreateBufferResource(device, sizeof(Matrix4x4));
@@ -1045,10 +1065,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			commandList->DrawInstanced(startIndex, 1, 0, 0);
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferBiewSprite);
+			// インデックスを使った描画
+			commandList->IASetIndexBuffer(&indexBufferViewSprite);
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(3, textureSrvHandleGPU);
-			commandList->DrawInstanced(6, 1, 0, 0);
+			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
