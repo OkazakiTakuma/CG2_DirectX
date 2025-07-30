@@ -5,6 +5,7 @@ struct Material
 {
     float4 color; // Color of the material
     int enableLighting; // Flag to enable lighting
+    float4x4 uvTransform; // UV transformation matrix   
 };
 
 struct DirectionalLight
@@ -24,11 +25,11 @@ struct PixelShaderOutput
 
 PixelShaderOutput main(VertexShaderOutput input)
 {
-  
-    float4 textureColor = gTexture.Sample(gSampler, input.texcoord);
+    float4 transformedUV = mul(float4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
+    float4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
 
     PixelShaderOutput output;
-    if (gMaterial.enableLighting!= 0)
+    if (gMaterial.enableLighting != 0)
     {
         // 光と法線の内積 → cosθ 相当
         float NdotL = saturate(dot(normalize(input.normal), -gDirectionalLight.direction));
