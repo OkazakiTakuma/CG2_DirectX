@@ -13,66 +13,57 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="imgui">
+      <UniqueIdentifier>{a8cab938-6bd9-42de-9de2-60d768547e12}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="math3d">
+      <UniqueIdentifier>{67dae37b-0388-479a-8241-8558212dc6d3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="extenals\imgui\imgui.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>imgui</Filter>
     </ClCompile>
     <ClCompile Include="extenals\imgui\imgui_demo.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>imgui</Filter>
     </ClCompile>
     <ClCompile Include="extenals\imgui\imgui_draw.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>imgui</Filter>
     </ClCompile>
     <ClCompile Include="extenals\imgui\imgui_impl_dx12.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>imgui</Filter>
     </ClCompile>
     <ClCompile Include="extenals\imgui\imgui_impl_win32.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>imgui</Filter>
     </ClCompile>
     <ClCompile Include="extenals\imgui\imgui_tables.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>imgui</Filter>
     </ClCompile>
     <ClCompile Include="extenals\imgui\imgui_widgets.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>imgui</Filter>
     </ClCompile>
-    <ClCompile Include="Matrix.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="Engine\3d\Matrix.cpp">
+      <Filter>math3d</Filter>
     </ClCompile>
-    <ClCompile Include="Vector.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="Engine\3d\Screen.cpp">
+      <Filter>math3d</Filter>
     </ClCompile>
-    <ClCompile Include="Screen.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="Engine\3d\Vector.cpp">
+      <Filter>math3d</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Object3d.PS.hlsl">
+    <FxCompile Include="Resources\Shader\Object3d.PS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="Object3d.VS.hlsl">
+    <FxCompile Include="Resources\Shader\Object3d.VS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="extenals\imgui\imconfig.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="extenals\imgui\imgui.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="extenals\imgui\imgui_impl_dx12.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="extenals\imgui\imgui_impl_win32.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="extenals\imgui\imgui_internal.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="extenals\imgui\imstb_rectpack.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -82,21 +73,36 @@
     <ClInclude Include="extenals\imgui\imstb_truetype.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="Matrix.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="extenals\imgui\imconfig.h">
+      <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="Vector3.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="extenals\imgui\imgui.h">
+      <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="Screen.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="extenals\imgui\imgui_impl_dx12.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="extenals\imgui\imgui_impl_win32.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="extenals\imgui\imgui_internal.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\3d\Matrix.h">
+      <Filter>math3d</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\3d\Screen.h">
+      <Filter>math3d</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\3d\Vector3.h">
+      <Filter>math3d</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="extenals\imgui\LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Object3D.hlsli">
+    <None Include="Resources\Shader\Object3D.hlsli">
       <Filter>リソース ファイル</Filter>
     </None>
   </ItemGroup>
