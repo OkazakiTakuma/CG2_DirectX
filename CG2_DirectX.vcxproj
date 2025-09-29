@@ -133,18 +133,21 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="extenals\imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="extenals\imgui\imgui_tables.cpp" />
     <ClCompile Include="extenals\imgui\imgui_widgets.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="Matrix.cpp" />
-    <ClCompile Include="Screen.cpp" />
-    <ClCompile Include="Vector.cpp" />
+    <ClCompile Include="main.cpp">
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
+      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
+    </ClCompile>
+    <ClCompile Include="Engine\3d\Matrix.cpp" />
+    <ClCompile Include="Engine\3d\Screen.cpp" />
+    <ClCompile Include="Engine\3d\Vector.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Object3d.PS.hlsl">
+    <FxCompile Include="Resources\Shader\Object3d.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="Object3d.VS.hlsl">
+    <FxCompile Include="Resources\Shader\Object3d.VS.hlsl">
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </DeploymentContent>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -165,9 +168,9 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="extenals\imgui\imstb_rectpack.h" />
     <ClInclude Include="extenals\imgui\imstb_textedit.h" />
     <ClInclude Include="extenals\imgui\imstb_truetype.h" />
-    <ClInclude Include="Matrix.h" />
-    <ClInclude Include="Screen.h" />
-    <ClInclude Include="Vector3.h" />
+    <ClInclude Include="Engine\3d\Matrix.h" />
+    <ClInclude Include="Engine\3d\Screen.h" />
+    <ClInclude Include="Engine\3d\Vector3.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="extenals\imgui\LICENSE.txt" />
@@ -178,7 +181,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Object3D.hlsli" />
+    <None Include="Resources\Shader\Object3D.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
