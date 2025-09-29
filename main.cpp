@@ -887,39 +887,39 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region モデルの描画に必要なデータの作成
-	// モデルの読み込み
-	ModelData modelData = LoadObjFile("Resources", "plane.obj");
+	//// モデルの読み込み
+	//ModelData modelData = LoadObjFile("Resources", "plane.obj");
 
-	ID3D12Resource* vertexResourceModel = CreateBufferResource(device, sizeof(VertexData) * modelData.vertices.size());
-	assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
+	//ID3D12Resource* vertexResourceModel = CreateBufferResource(device, sizeof(VertexData) * modelData.vertices.size());
+	//assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
 
-	// 頂点バッファビューの作成
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewModel{};
-	// リソースの先頭のアドレスから使う
-	vertexBufferViewModel.BufferLocation = vertexResourceModel->GetGPUVirtualAddress(); // GPU仮想アドレス
-	// 使用するリソースのサイズは頂点のサイズ * 頂点数
-	vertexBufferViewModel.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size()); // 頂点バッファのサイズ
-	// 1頂点のサイズ
-	vertexBufferViewModel.StrideInBytes = sizeof(VertexData); // 1頂点のサイズ
+	//// 頂点バッファビューの作成
+	//D3D12_VERTEX_BUFFER_VIEW vertexBufferViewModel{};
+	//// リソースの先頭のアドレスから使う
+	//vertexBufferViewModel.BufferLocation = vertexResourceModel->GetGPUVirtualAddress(); // GPU仮想アドレス
+	//// 使用するリソースのサイズは頂点のサイズ * 頂点数
+	//vertexBufferViewModel.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size()); // 頂点バッファのサイズ
+	//// 1頂点のサイズ
+	//vertexBufferViewModel.StrideInBytes = sizeof(VertexData); // 1頂点のサイズ
 
-	VertexData* vertexDataModel = nullptr;
-	// 書き込むためのアドレスを取得
-	vertexResourceModel->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataModel));
-	std::memcpy(vertexDataModel, modelData.vertices.data(), sizeof(VertexData) * modelData.vertices.size());
+	//VertexData* vertexDataModel = nullptr;
+	//// 書き込むためのアドレスを取得
+	//vertexResourceModel->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataModel));
+	//std::memcpy(vertexDataModel, modelData.vertices.data(), sizeof(VertexData) * modelData.vertices.size());
 
-	uint32_t* indexDataModel = nullptr;
-	// 書き込むためのアドレスを取得
-	ID3D12Resource* indexResourceModel = CreateBufferResource(device, sizeof(uint32_t) * modelData.vertices.size());
+	//uint32_t* indexDataModel = nullptr;
+	//// 書き込むためのアドレスを取得
+	//ID3D12Resource* indexResourceModel = CreateBufferResource(device, sizeof(uint32_t) * modelData.vertices.size());
 
-	// マテリアル用のリソースを作る
-	ID3D12Resource* materialResourceModel = CreateBufferResource(device, sizeof(Material));
-	Material* materialDataModel = nullptr;
-	// マテリアルリソースにデータを書き込む
-	materialResourceModel->Map(0, nullptr, reinterpret_cast<void**>(&materialDataModel));
-	// マテリアルの色を設定
-	materialDataModel->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 赤色
-	materialDataModel->enableLighting = true;                   // ライティングを有効化
-	materialDataModel->uvTransform = MakeIdentity4x4();
+	//// マテリアル用のリソースを作る
+	//ID3D12Resource* materialResourceModel = CreateBufferResource(device, sizeof(Material));
+	//Material* materialDataModel = nullptr;
+	//// マテリアルリソースにデータを書き込む
+	//materialResourceModel->Map(0, nullptr, reinterpret_cast<void**>(&materialDataModel));
+	//// マテリアルの色を設定
+	//materialDataModel->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 赤色
+	//materialDataModel->enableLighting = true;                   // ライティングを有効化
+	//materialDataModel->uvTransform = MakeIdentity4x4();
 
 #pragma endregion
 
@@ -1089,26 +1089,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region 別の画像の読み込み
-	DirectX::ScratchImage mipImage3 = LoadTexture(modelData.material.textureFilePath);
-	const DirectX::TexMetadata& metaData3 = mipImage3.GetMetadata();
-	// テクスチャリソースの生成
-	ID3D12Resource* textureResource3 = CreateTextureResource(device, metaData3);
-	// テクスチャにデータをアップロード
-	UploadTextureData(textureResource3, mipImage3);
+	//DirectX::ScratchImage mipImage3 = LoadTexture(modelData.material.textureFilePath);
+	//const DirectX::TexMetadata& metaData3 = mipImage3.GetMetadata();
+	//// テクスチャリソースの生成
+	//ID3D12Resource* textureResource3 = CreateTextureResource(device, metaData3);
+	//// テクスチャにデータをアップロード
+	//UploadTextureData(textureResource3, mipImage3);
 
-	// metaDataを基にSRVを生成
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc3{};
-	srvDesc3.Format = metaData3.format;                                          // テクスチャのフォーマット
-	srvDesc3.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // シェーダーコンポーネントのマッピング
-	srvDesc3.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;                      // テクスチャの次元
-	srvDesc3.Texture2D.MipLevels = UINT(metaData3.mipLevels);                    // ミップレベルの数
+	//// metaDataを基にSRVを生成
+	//D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc3{};
+	//srvDesc3.Format = metaData3.format;                                          // テクスチャのフォーマット
+	//srvDesc3.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // シェーダーコンポーネントのマッピング
+	//srvDesc3.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;                      // テクスチャの次元
+	//srvDesc3.Texture2D.MipLevels = UINT(metaData3.mipLevels);                    // ミップレベルの数
 
-	// SRVを生成するためのディスクリプタヒープを取得
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU3 = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU3 = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
+	//// SRVを生成するためのディスクリプタヒープを取得
+	//D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU3 = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
+	//D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU3 = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
 
-	// SRVを生成
-	device->CreateShaderResourceView(textureResource3, &srvDesc3, textureSrvHandleCPU3); // テクスチャリソースにSRVを設定
+	//// SRVを生成
+	//device->CreateShaderResourceView(textureResource3, &srvDesc3, textureSrvHandleCPU3); // テクスチャリソースにSRVを設定
 
 #pragma endregion
 	// スワップチェーンからリソースをもらう
@@ -1281,7 +1281,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->DrawIndexedInstanced(startIndex, 1, 0, 0, 0);
 
 			// モデルの描画
-			commandList->SetGraphicsRootConstantBufferView(0, materialResourceModel->GetGPUVirtualAddress());
+		/*	commandList->SetGraphicsRootConstantBufferView(0, materialResourceModel->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(3,textureSrvHandleGPU3);
@@ -1295,7 +1295,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(3, textureSrvHandleGPU);
-			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);*/
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
