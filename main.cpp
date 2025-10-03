@@ -740,6 +740,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D12_BLEND_DESC blendDesc{};
 	// すべての色要素を書き込む
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	blendDesc.RenderTarget[0].BlendEnable = true;                               // ブレンドを有効にする
+	blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;                 // ソースのブレンドファクター
+	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;                     // ブレンドの演算
+	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;            // デスティネーションのブレンドファクター
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;                 // デスティネーションのアルファブレンドファクター
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;               // アルファブレンドの演算
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;               // デスティネーションのアルファブレンドファクター
 
 	// RasterizerStateの設定
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
@@ -905,38 +912,38 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// モデルの読み込み
 
-	//ModelData modelData = LoadObjFile("Resources", "plane.obj");
+	ModelData modelData = LoadObjFile("Resources", "fence.obj");
 
-	//Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceModel = CreateBufferResource(device.Get(), sizeof(VertexData) * modelData.vertices.size());
-	//assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceModel = CreateBufferResource(device.Get(), sizeof(VertexData) * modelData.vertices.size());
+	assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
 
-	//// 頂点バッファビューの作成
-	//D3D12_VERTEX_BUFFER_VIEW vertexBufferViewModel{};
-	//// リソースの先頭のアドレスから使う
-	//vertexBufferViewModel.BufferLocation = vertexResourceModel->GetGPUVirtualAddress(); // GPU仮想アドレス
-	//// 使用するリソースのサイズは頂点のサイズ * 頂点数
-	//vertexBufferViewModel.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size()); // 頂点バッファのサイズ
-	//// 1頂点のサイズ
-	//vertexBufferViewModel.StrideInBytes = sizeof(VertexData); // 1頂点のサイズ
+	// 頂点バッファビューの作成
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewModel{};
+	// リソースの先頭のアドレスから使う
+	vertexBufferViewModel.BufferLocation = vertexResourceModel->GetGPUVirtualAddress(); // GPU仮想アドレス
+	// 使用するリソースのサイズは頂点のサイズ * 頂点数
+	vertexBufferViewModel.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size()); // 頂点バッファのサイズ
+	// 1頂点のサイズ
+	vertexBufferViewModel.StrideInBytes = sizeof(VertexData); // 1頂点のサイズ
 
-	//VertexData* vertexDataModel = nullptr;
-	//// 書き込むためのアドレスを取得
-	//vertexResourceModel->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataModel));
-	//std::memcpy(vertexDataModel, modelData.vertices.data(), sizeof(VertexData) * modelData.vertices.size());
+	VertexData* vertexDataModel = nullptr;
+	// 書き込むためのアドレスを取得
+	vertexResourceModel->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataModel));
+	std::memcpy(vertexDataModel, modelData.vertices.data(), sizeof(VertexData) * modelData.vertices.size());
 
-	//uint32_t* indexDataModel = nullptr;
-	//// 書き込むためのアドレスを取得
-	//Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceModel = CreateBufferResource(device.Get(), sizeof(uint32_t) * modelData.vertices.size());
+	uint32_t* indexDataModel = nullptr;
+	// 書き込むためのアドレスを取得
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceModel = CreateBufferResource(device.Get(), sizeof(uint32_t) * modelData.vertices.size());
 
-	//// マテリアル用のリソースを作る
-	//Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceModel = CreateBufferResource(device.Get(), sizeof(Material));
-	//Material* materialDataModel = nullptr;
-	//// マテリアルリソースにデータを書き込む
-	//materialResourceModel->Map(0, nullptr, reinterpret_cast<void**>(&materialDataModel));
-	//// マテリアルの色を設定
-	//materialDataModel->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 赤色
-	//materialDataModel->enableLighting = true;                   // ライティングを有効化
-	//materialDataModel->uvTransform = MakeIdentity4x4();
+	// マテリアル用のリソースを作る
+	Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceModel = CreateBufferResource(device.Get(), sizeof(Material));
+	Material* materialDataModel = nullptr;
+	// マテリアルリソースにデータを書き込む
+	materialResourceModel->Map(0, nullptr, reinterpret_cast<void**>(&materialDataModel));
+	// マテリアルの色を設定
+	materialDataModel->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 赤色
+	materialDataModel->enableLighting = true;                   // ライティングを有効化
+	materialDataModel->uvTransform = MakeIdentity4x4();
 
 #pragma endregion
 
@@ -1106,26 +1113,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region 別の画像の読み込み
-	//DirectX::ScratchImage mipImage3 = LoadTexture(modelData.material.textureFilePath);
-	//const DirectX::TexMetadata& metaData3 = mipImage3.GetMetadata();
-	//// テクスチャリソースの生成
-	//Microsoft::WRL::ComPtr<ID3D12Resource> textureResource3 = CreateTextureResource(device, metaData3);
-	//// テクスチャにデータをアップロード
-	//UploadTextureData(textureResource3, mipImage3);
+	DirectX::ScratchImage mipImage3 = LoadTexture(modelData.material.textureFilePath);
+	const DirectX::TexMetadata& metaData3 = mipImage3.GetMetadata();
+	// テクスチャリソースの生成
+	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource3 = CreateTextureResource(device, metaData3);
+	// テクスチャにデータをアップロード
+	UploadTextureData(textureResource3, mipImage3);
 
-	//// metaDataを基にSRVを生成
-	//D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc3{};
-	//srvDesc3.Format = metaData3.format;                                          // テクスチャのフォーマット
-	//srvDesc3.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // シェーダーコンポーネントのマッピング
-	//srvDesc3.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;                      // テクスチャの次元
-	//srvDesc3.Texture2D.MipLevels = UINT(metaData3.mipLevels);                    // ミップレベルの数
+	// metaDataを基にSRVを生成
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc3{};
+	srvDesc3.Format = metaData3.format;                                          // テクスチャのフォーマット
+	srvDesc3.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // シェーダーコンポーネントのマッピング
+	srvDesc3.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;                      // テクスチャの次元
+	srvDesc3.Texture2D.MipLevels = UINT(metaData3.mipLevels);                    // ミップレベルの数
 
-	//// SRVを生成するためのディスクリプタヒープを取得
-	//D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU3 = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
-	//D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU3 = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
+	// SRVを生成するためのディスクリプタヒープを取得
+	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU3 = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU3 = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
 
-	//// SRVを生成
-	//device->CreateShaderResourceView(textureResource3, &srvDesc3, textureSrvHandleCPU3); // テクスチャリソースにSRVを設定
+	// SRVを生成
+	device->CreateShaderResourceView(textureResource3.Get(), &srvDesc3, textureSrvHandleCPU3); // テクスチャリソースにSRVを設定
 
 #pragma endregion
 	// スワップチェーンからリソースをもらう
@@ -1242,6 +1249,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::SliderAngle("sphere rotate x", &transform.rotate.x);
 			ImGui::SliderAngle("sphere rotate y", &transform.rotate.y);
 			ImGui::SliderAngle("sphere rotate z", &transform.rotate.z);
+			ImGui::ColorEdit4("sphere color", &materialData->color.x, 1.0f); // クリアカラーの編集
 			ImGui::DragFloat3("sprite pos", &transformSprite.translate.x, 0.3f);
 			ImGui::ColorEdit4("sprite color", &materialDataSprite->color.x, 1.0f); // クリアカラーの編集
 			ImGui::DragFloat2("UV translate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
@@ -1302,21 +1310,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			// モデルの描画
 
-			/*commandList->SetGraphicsRootConstantBufferView(0, materialResourceModel->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(0, materialResourceModel->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(3,textureSrvHandleGPU3);
-			commandList->SetPipelineState(graphicsPipelineState);
+			commandList->SetPipelineState(graphicsPipelineState.Get());
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewModel);
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
-
+			
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferBiewSprite);
 			commandList->IASetIndexBuffer(&indexBufferViewSprite);
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(3, textureSrvHandleGPU);
-			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);*/
+			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
