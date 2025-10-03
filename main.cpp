@@ -33,6 +33,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "dxcompiler.lib")
 
+
 struct Vector4 {
 	float x, y, z, w;
 	Vector4(float x = 0.0f, float y = 0.0f, float z = 0.0f, float w = 1.0f) : x(x), y(y), z(z), w(w) {}
@@ -72,6 +73,8 @@ struct ModelData {
 	std::vector<VertexData> vertices; // 頂点データ
 	MaterialData material;
 };
+
+
 
 // Windowsアプリケーションのエントリポイント
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
@@ -481,11 +484,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	OutputDebugStringA("Hello, World!\n");
 
 	// DXGIファクトリーの生成
-	IDXGIFactory6* dxgiFactory = nullptr;
+	Microsoft::WRL::ComPtr<IDXGIFactory6> dxgiFactory = nullptr;
 	HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory));
 	assert(SUCCEEDED(hr));
 	// DXGIファクトリーのバージョンを確認
-	IDXGIAdapter4* useAdapter = nullptr;
+	Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdapter = nullptr;
 
 	// アダプターの列挙
 	for (UINT i = 0; dxgiFactory->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&useAdapter)) != DXGI_ERROR_NOT_FOUND; ++i) {
@@ -593,7 +596,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(SUCCEEDED(hr));
 
 	// スワップチェーンの生成
-	IDXGISwapChain4* swapChain = nullptr;
+	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain = nullptr;
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
 	swapChainDesc.Width = kClientWidth;                          // スワップチェーンの幅
 	swapChainDesc.Height = kClientHeight;                        // スワップチェーンの高さ
@@ -609,7 +612,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	    &swapChainDesc,                                 // スワップチェーンの設定
 	    nullptr,                                        // オプション（nullptrでデフォルト）
 	    nullptr,                                        // 共有リソース（nullptrで共有しない）
-	    reinterpret_cast<IDXGISwapChain1**>(&swapChain) // スワップチェーンの出力
+	    reinterpret_cast<Microsoft::WRL::ComPtr<IDXGISwapChain1>*>(&swapChain) // スワップチェーンの出力
 	);
 	assert(SUCCEEDED(hr));
 
@@ -1353,7 +1356,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	CoUninitialize();  // COMの終了処理
 
 	// リソースリークチェック
-	IDXGIDebug* debug;
+	Microsoft::WRL::ComPtr<IDXGIDebug> debug;
 	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))) {
 		debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
 		debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);

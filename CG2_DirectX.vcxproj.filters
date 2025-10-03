@@ -109,6 +109,9 @@
     <ClInclude Include="extenals\imgui\imstb_truetype.h">
       <Filter>externals</Filter>
     </ClInclude>
+    <ClInclude Include="Release.h">
+      <Filter>ソース ファイル\engine\base</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="extenals\imgui\LICENSE.txt" />
