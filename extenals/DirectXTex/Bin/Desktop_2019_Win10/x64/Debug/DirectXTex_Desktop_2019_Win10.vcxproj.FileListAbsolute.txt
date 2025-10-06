@@ -1,0 +1,2 @@
+C:\Users\81807\source\repos\CG2_DirectX\extenals\DirectXTex\Bin\Desktop_2019_Win10\x64\Debug\DirectXTex.lib
+C:\Users\81807\source\repos\CG2_DirectX\x64\Release\Project\extenals\DirectXTex\Bin\Desktop_2019_Win10\x64\Debug\DirectXTex.lib

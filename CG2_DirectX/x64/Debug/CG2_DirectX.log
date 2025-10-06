@@ -1,0 +1,45 @@
+﻿  main.cpp
+  ResourceObject.cpp
+C:\Users\81807\source\repos\CG2_DirectX\x64\Release\Project\main.cpp(1227,68): warning C4244: '引数': 'float' から 'ImGuiColorEditFlags' への変換です。データが失われる可能性があります。
+C:\Users\81807\source\repos\CG2_DirectX\x64\Release\Project\main.cpp(1231,69): warning C4244: '引数': 'float' から 'ImGuiColorEditFlags' への変換です。データが失われる可能性があります。
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um\combaseapi.h(357,15): error C2440: 'static_cast': 'T *' から 'IUnknown *' に変換できません。
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um\combaseapi.h(357,15): error C2440:         with
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um\combaseapi.h(357,15): error C2440:         [
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um\combaseapi.h(357,15): error C2440:             T=Microsoft::WRL::ComPtr<ID3D12Resource>
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um\combaseapi.h(357,15): error C2440:         ]
+  (ソース ファイル 'main.cpp' をコンパイルしています)
+      C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um\combaseapi.h(357,15):
+      指示された型は関連がありません。変換には reinterpret_cast、C スタイル キャストまたはかっこで囲まれた関数スタイル キャストが必要です。
+      C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um\combaseapi.h(357,15):
+      テンプレートインスタンス化コンテキスト (最初に最も古いもの) は
+          C:\Users\81807\source\repos\CG2_DirectX\x64\Release\Project\main.cpp(218,6):
+          コンパイル対象の関数 テンプレート インスタンス化 'void **IID_PPV_ARGS_Helper<Microsoft::WRL::ComPtr<ID3D12Resource>>(T **)' のリファレンスを確認してください
+          with
+          [
+              T=Microsoft::WRL::ComPtr<ID3D12Resource>
+          ]
+  
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\winrt\wrl\client.h(252,45): error C2440: '初期化中': 'U *' から 'ID3D12Resource *' に変換できません。
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\winrt\wrl\client.h(252,45): error C2440:         with
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\winrt\wrl\client.h(252,45): error C2440:         [
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\winrt\wrl\client.h(252,45): error C2440:             U=Microsoft::WRL::ComPtr<ID3D12Resource>
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\winrt\wrl\client.h(252,45): error C2440:         ]
+  (ソース ファイル 'main.cpp' をコンパイルしています)
+      C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\winrt\wrl\client.h(252,45):
+      指示された型は関連がありません。変換には reinterpret_cast、C スタイル キャストまたはかっこで囲まれた関数スタイル キャストが必要です。
+      C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\winrt\wrl\client.h(252,45):
+      テンプレートインスタンス化コンテキスト (最初に最も古いもの) は
+          C:\Users\81807\source\repos\CG2_DirectX\x64\Release\Project\main.cpp(1046,20):
+          コンパイル対象の関数 テンプレート インスタンス化 'Microsoft::WRL::ComPtr<ID3D12Resource>::ComPtr<Microsoft::WRL::ComPtr<ID3D12Resource>>(U *) noexcept' のリファレンスを確認してください
+          with
+          [
+              U=Microsoft::WRL::ComPtr<ID3D12Resource>
+          ]
+              C:\Users\81807\source\repos\CG2_DirectX\x64\Release\Project\main.cpp(1046,19):
+              'WinMain' の 'Microsoft::WRL::ComPtr<ID3D12Resource>::ComPtr' への最初の参照を参照してください
+  
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\winrt\wrl\client.h(252,45): error C2439: 'Microsoft::WRL::ComPtr<ID3D12Resource>::ptr_': 指定されたメンバーは初期化できません。
+  (ソース ファイル 'main.cpp' をコンパイルしています)
+      C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\winrt\wrl\client.h(216,20):
+      'Microsoft::WRL::ComPtr<ID3D12Resource>::ptr_' の宣言を確認してください
+  
