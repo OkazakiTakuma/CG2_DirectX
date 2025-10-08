@@ -20,7 +20,9 @@
 #include <sstream>
 #include <string>
 #include <strsafe.h>
-#include <wrl.h> // ← まだ使っていなくても DirectXTex が内部で使います
+#include <wrl.h>
+#define DIRECTINPUT_VERSION 0x0800
+#include <dinput.h>
 
 #include "extenals/imgui/imgui.h"
 #include "extenals/imgui/imgui_impl_dx12.h"
@@ -33,6 +35,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg
 #pragma comment(lib, "Dbghelp.lib")
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "dxcompiler.lib")
+#pragma comment(lib, "dinput8.lib")
 
 struct Vector4 {
 	float x, y, z, w;
@@ -548,6 +551,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		infoQueue->PushStorageFilter(&filter);
 	}
 #endif // Debug
+
+	// DirectInputの初期化
+	IDirectInput8* directInput = nullptr;
+	hr = DirectInput8Create(GetModuleHandle(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput, nullptr);
+	assert(SUCCEEDED(hr));
+
+	// キーボードデバイスの生成
+	IDirectInputDevice8* keyboard = nullptr;
+	hr = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
+	assert(SUCCEEDED(hr));
+
+	// 入力データ形式のセット
+	hr = keyboard->SetDataFormat(&c_dfDIKeyboard);
+	assert(SUCCEEDED(hr));
+
+	// 排他制御レベルのセット
+	hr = keyboard->SetCooperativeLevel(hwnd, DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
+	assert(SUCCEEDED(hr));
+
+
 
 	// 初期値0でFenceを生成
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence = nullptr;
@@ -1197,6 +1220,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		} else {
+			// キーボード情報の取得開始
+			keyboard->Acquire();
+			// キーボードの状態を取得
+			BYTE key[256] = {};
+			BYTE preKey[256] = {};
+			keyboard->GetDeviceState(sizeof(key), key);
+
+
+			if (key[DIK_0]) {
+				OutputDebugStringA("Hit 0\n");
+			}
 
 			// ImGuiのフレーム開始
 			ImGui_ImplDX12_NewFrame();
