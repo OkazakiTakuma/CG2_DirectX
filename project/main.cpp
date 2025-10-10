@@ -835,42 +835,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	hr = device->CreateGraphicsPipelineState(&graphicsPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
 	assert(SUCCEEDED(hr)); // パイプラインステートの生成が成功したか確認
 
-	// 1. 各BlendModeごとにPSOを作成しておく
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineStates[4]; // Normal, Add, Subtract, Multiply
-
-	for (int i = 0; i < 4; ++i) {
-	    D3D12_BLEND_DESC blendDesc = {};
-	    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	    blendDesc.RenderTarget[0].BlendEnable = TRUE;
-	    switch (i) {
-	    case 0: // Normal
-	        blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	        blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	        blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	        break;
-	    case 1: // Add
-	        blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	        blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	        blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
-	        break;
-	    case 2: // Subtract
-	        blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	        blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_REV_SUBTRACT;
-	        blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
-	        break;
-	    case 3: // Multiply
-	        blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	        blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	        blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_SRC_COLOR;
-	        break;
-	    }
-	    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-	    blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	    blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
-
-	   
-	}
-
+	
 	// 頂点リソース用のヒープの設定
 	D3D12_HEAP_PROPERTIES uploadHeapProperties{};
 	uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD; // アップロード用のヒープタイプ
