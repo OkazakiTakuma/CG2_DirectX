@@ -154,6 +154,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\3d\Screen.cpp" />
     <ClCompile Include="Engine\3d\Vector.cpp" />
     <ClCompile Include="Resource.cpp" />
+    <ClCompile Include="WinApp.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Resources\Shader\Object3d.PS.hlsl">
@@ -187,6 +188,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\3d\Vector3.h" />
     <ClInclude Include="Input.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="WinApp.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="extenals\imgui\LICENSE.txt" />
