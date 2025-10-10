@@ -1242,15 +1242,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			DispatchMessage(&msg);
 		} else {
 			// キーボード情報の取得開始
-			keyboard->Acquire();
-			// キーボードの状態を取得
-			BYTE key[256] = {};
-			BYTE preKey[256] = {};
-			keyboard->GetDeviceState(sizeof(key), key);
-
-			if (key[DIK_0]) {
+		
+			/*if (key[DIK_0]) {
 				OutputDebugStringA("Hit 0\n");
-			}
+			}*/
 
 			// ImGuiのフレーム開始
 			ImGui_ImplDX12_NewFrame();
