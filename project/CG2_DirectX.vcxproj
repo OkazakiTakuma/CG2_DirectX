@@ -145,6 +145,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="extenals\imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="extenals\imgui\imgui_tables.cpp" />
     <ClCompile Include="extenals\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="Input.cpp" />
     <ClCompile Include="main.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
@@ -184,6 +185,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\3d\Matrix.h" />
     <ClInclude Include="Engine\3d\Screen.h" />
     <ClInclude Include="Engine\3d\Vector3.h" />
+    <ClInclude Include="Input.h" />
     <ClInclude Include="Resource.h" />
   </ItemGroup>
   <ItemGroup>
