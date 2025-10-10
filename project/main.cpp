@@ -44,6 +44,16 @@ struct Vector4 {
 	Vector4 operator-(const Vector4& other) const { return Vector4(x - other.x, y - other.y, z - other.z, w - other.w); }
 };
 
+enum BlendMode {
+	kBlendModeNone,
+	kBlendModeNormal,
+	kBlendModeAdd,
+	kBlendModeSubtract,
+	kBlendModeMultiply,
+	kBlendModeScreen,
+	kBlendCountblend,
+};
+
 struct VertexData {
 	Vector4 position;
 	Vector2 texcoord;
@@ -471,8 +481,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	Microsoft::WRL::ComPtr<ID3D12Debug1> debugController1 = nullptr;
 	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController1)))) {
-		debugController1->EnableDebugLayer();                // デバッグレイヤーを有効化
-		debugController1->SetEnableGPUBasedValidation(TRUE); // GPUベースの検証を有効化
+		debugController1->EnableDebugLayer();
+		debugController1->SetEnableGPUBasedValidation(TRUE);
 	}
 #endif
 
@@ -569,8 +579,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 排他制御レベルのセット
 	hr = keyboard->SetCooperativeLevel(hwnd, DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
 	assert(SUCCEEDED(hr));
-
-
 
 	// 初期値0でFenceを生成
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence = nullptr;
@@ -752,15 +760,40 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// BlendStateの設定
 	D3D12_BLEND_DESC blendDesc{};
 	// すべての色要素を書き込む
+	BlendMode blendMode = BlendMode::kBlendModeNormal;
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	blendDesc.RenderTarget[0].BlendEnable = true;                    // ブレンドを有効にする
-	blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;      // ソースのブレンドファクター
-	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;          // ブレンドの演算
-	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA; // デスティネーションのブレンドファクター
-	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;       // デスティネーションのアルファブレンドファクター
-	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;     // アルファブレンドの演算
-	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;     // デスティネーションのアルファブレンドファクター
+	blendDesc.RenderTarget[0].BlendEnable = TRUE; // ブレンドを無効にする
 
+	switch (blendMode) {
+	case BlendMode::kBlendModeNormal:
+		// すべての色要素を書き込む
+		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;      // ソースのブレンドファクター
+		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;          // ブレンドの演算
+		blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA; // デスティネーションのブレンドファクター
+		break;
+	case BlendMode::kBlendModeAdd:
+		// すべての色要素を書き込む
+		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA; // ソースのブレンドファクター
+		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD; // ブレンドの演算
+		blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;  // デスティネーションのブレンドファクター
+		break;
+	case BlendMode::kBlendModeSubtract:
+		// すべての色要素を書き込む
+		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;      // ソースのブレンドファクター
+		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_REV_SUBTRACT; // ブレンドの演算
+		blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;           // デスティネーションのブレンドファクター
+		break;
+	case BlendMode::kBlendModeMultiply:
+		// すべての色要素を書き込む
+		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;  // ソースのブレンドファクター
+		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;      // ブレンドの演算
+		blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_SRC_COLOR; // デスティネーションのブレンドファクター
+		break;
+	};
+
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;   // デスティネーションのアルファブレンドファクター
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD; // アルファブレンドの演算
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO; // デスティネーションのアルファブレンドファクター
 	// RasterizerStateの設定
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
 	// 裏面（時計回り）を表示しない
@@ -801,6 +834,42 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState = nullptr;
 	hr = device->CreateGraphicsPipelineState(&graphicsPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
 	assert(SUCCEEDED(hr)); // パイプラインステートの生成が成功したか確認
+
+	// 1. 各BlendModeごとにPSOを作成しておく
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineStates[4]; // Normal, Add, Subtract, Multiply
+
+	for (int i = 0; i < 4; ++i) {
+	    D3D12_BLEND_DESC blendDesc = {};
+	    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	    blendDesc.RenderTarget[0].BlendEnable = TRUE;
+	    switch (i) {
+	    case 0: // Normal
+	        blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	        blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	        blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	        break;
+	    case 1: // Add
+	        blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	        blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	        blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+	        break;
+	    case 2: // Subtract
+	        blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	        blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_REV_SUBTRACT;
+	        blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+	        break;
+	    case 3: // Multiply
+	        blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	        blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	        blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_SRC_COLOR;
+	        break;
+	    }
+	    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+	    blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	    blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+
+	   
+	}
 
 	// 頂点リソース用のヒープの設定
 	D3D12_HEAP_PROPERTIES uploadHeapProperties{};
@@ -1213,6 +1282,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	ResourceObject depthStencilResource = CreateDepthStenecilTextureResource(device, kClientWidth, kClientHeight);
 
+	int currentMode = static_cast<int>(blendMode); // 初期値
+
 	while (msg.message != WM_QUIT) {
 		// メッセージを取得
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
@@ -1226,7 +1297,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			BYTE key[256] = {};
 			BYTE preKey[256] = {};
 			keyboard->GetDeviceState(sizeof(key), key);
-
 
 			if (key[DIK_0]) {
 				OutputDebugStringA("Hit 0\n");
@@ -1258,6 +1328,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(0.0f, 0.0f, float(kClientWidth), float(kClientHeight), 0.0f, 100.0f);
 			Matrix4x4 wvpMatrixSprite = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
 			*transformationMatrixDataSprite = wvpMatrixSprite;
+			const char* modeNames[] = {"Normal", "Add", "Sub", "Multiply"};
+			//ImGui::Combo("Select Mode", &currentMode, modeNames, 4);
+			// もしくは
+			 ImGui::Combo("Select Mode", &currentMode, modeNames, std::size(modeNames));
+			// enumに戻す場合
+			blendMode = static_cast<BlendMode>(currentMode);
+			
 			ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
 			ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
 			ImGui::SliderAngle("camera rotate y", &cameraRotate.y);
@@ -1284,6 +1361,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// ImGuiのウィンドウを作成
 			ImGui::ShowDemoWindow(); // デモウィンドウを表示
 			ImGui::Render();         // ImGuiの描画を実行
+
 
 			Matrix4x4 uvTransformSpriteMatrix = MakeAffineMatrix(uvTransformSprite.scale, uvTransformSprite.rotate, uvTransformSprite.translate);
 			uvTransformSpriteMatrix = Multiply(uvTransformSpriteMatrix, MakeRotateZMatrix(uvTransformSprite.rotate.z));
@@ -1315,7 +1393,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// 描画用のDescriptorHeapを設定
 			Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeaps[] = {srvDescriptorHeap};
 			commandList->SetDescriptorHeaps(1, descriptorHeaps->GetAddressOf()); // ディスクリプタヒープの設定
-
 			commandList->RSSetViewports(1, &viewport);
 			commandList->RSSetScissorRects(1, &scissorRect);
 			commandList->SetGraphicsRootSignature(rootSignature.Get());
@@ -1348,6 +1425,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootDescriptorTable(3, textureSrvHandleGPU);
 			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
+
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
 			// バリア設定（RENDER_TARGET → PRESENT）
@@ -1378,20 +1456,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	CloseHandle(fenceEvent); // イベントハンドルを閉じる
 
-#ifdef DEBUG
-	debugController1->Release();
-#endif                 // DEBUG
 	CloseWindow(hwnd); // ウィンドウを閉じる
 	CoUninitialize();  // COMの終了処理
 
-	// リソースリークチェック
-	Microsoft::WRL::ComPtr<IDXGIDebug> debug;
-	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))) {
-		debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
-		debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
-		debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
-		debug->Release();
-	}
-
-	return 0;
 }
