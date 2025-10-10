@@ -6,7 +6,6 @@
 #pragma comment(lib, "dinput8.lib")
 #pragma comment(lib, "dxguid.lib")
 
-
 using namespace Microsoft::WRL;
 
 void Input::Initialize(HINSTANCE hinstance, HWND hwnd) {
@@ -30,9 +29,33 @@ void Input::Initialize(HINSTANCE hinstance, HWND hwnd) {
 };
 
 void Input::Update() {
+
+	memcpy(preKey, key, sizeof(key));
 	// キーボード情報の取得開始
 	keyboard->Acquire();
 	// キーボードの状態を取得
-	BYTE key[256] = {};
+
 	keyboard->GetDeviceState(sizeof(key), key);
+}
+
+bool Input::PushKey(BYTE keyNumber) {
+	if (key[keyNumber]) {
+		return true;
+	}
+	return false;
+}
+
+bool Input::TriggerKey(BYTE keyNumber) {
+	if (key[keyNumber] && !preKey[keyNumber]) {
+		return true;
+	}
+
+	return false;
+}
+
+bool Input::ReleaseKey(BYTE keyNumber) {
+	if (!key[keyNumber] && preKey[keyNumber]) {
+		return true;
+	}
+	return false;
 }

@@ -1242,10 +1242,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			DispatchMessage(&msg);
 		} else {
 			// キーボード情報の取得開始
+			input->Update();
 		
-			/*if (key[DIK_0]) {
+			if (input->TriggerKey(DIK_0)) {
 				OutputDebugStringA("Hit 0\n");
-			}*/
+			}
 
 			// ImGuiのフレーム開始
 			ImGui_ImplDX12_NewFrame();
