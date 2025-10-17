@@ -63,9 +63,6 @@
     <ClCompile Include="Engine\3d\Vector.cpp">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
-      <Filter>ソース ファイル\engine\base</Filter>
-    </ClCompile>
     <ClCompile Include="Resource.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -75,12 +72,19 @@
     <ClCompile Include="WinApp.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Resources\Shader\Object3d.PS.hlsl">
       <Filter>リソース ファイル\shader</Filter>
     </FxCompile>
     <FxCompile Include="Resources\Shader\Object3d.VS.hlsl">
+      <Filter>リソース ファイル\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\Particle.PS.hlsl">
+      <Filter>リソース ファイル\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\Particle.VS.hlsl">
       <Filter>リソース ファイル\shader</Filter>
     </FxCompile>
   </ItemGroup>
@@ -133,6 +137,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\Shader\Object3D.hlsli">
+      <Filter>リソース ファイル\shader</Filter>
+    </None>
+    <None Include="Resources\Shader\Particle.hlsli">
       <Filter>リソース ファイル\shader</Filter>
     </None>
   </ItemGroup>

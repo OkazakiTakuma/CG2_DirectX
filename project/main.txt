@@ -620,7 +620,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[3].DescriptorTable.pDescriptorRanges = descriptorRange;
 	rootParameters[3].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
-	
+	/*rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParameters[4].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing;
+	rootParameters[4].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing);*/
 	descriptionRootSignature.pParameters = rootParameters;             // ルートパラメーターの配列
 	descriptionRootSignature.NumParameters = _countof(rootParameters); // ルートパラメーターの数
 
