@@ -2,8 +2,10 @@
 #include "Engine/3d/Screen.h"
 #include "Engine/3d/Vector3.h"
 #include "Engine/base/Input.h"
+#include "Engine/base/Logger.h"
 #include "Engine/base/Resource.h"
 #include "Engine/base/WinApp.h"
+#include "Engine/base/StringUtility.h"
 #include "extenals/DirectXTex/DirectXTex.h"
 #include <Windows.h>
 #include <cassert>
@@ -35,6 +37,9 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg
 #pragma comment(lib, "Dbghelp.lib")
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "dxcompiler.lib")
+
+using namespace Logger;
+using namespace StringUtility;
 
 struct Vector4 {
 	float x, y, z, w;
@@ -85,26 +90,7 @@ struct ModelData {
 	MaterialData material;
 };
 
-std::string ConvertString(const std::wstring& wstr) {
-	if (wstr.empty())
-		return {};
 
-	int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, wstr.data(), (int)wstr.size(), nullptr, 0, nullptr, nullptr);
-	std::string result(sizeNeeded, 0);
-	WideCharToMultiByte(CP_UTF8, 0, wstr.data(), (int)wstr.size(), result.data(), sizeNeeded, nullptr, nullptr);
-	return result;
-}
-
-std::wstring ConvertString(const std::string& str) {
-	if (str.empty())
-		return {};
-	int sizeNeeded = MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.size(), nullptr, 0);
-	std::wstring result(sizeNeeded, 0);
-	MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.size(), result.data(), sizeNeeded);
-	return result;
-}
-
-void Log(const std::string& message) { OutputDebugStringA(message.c_str()); }
 
 IDxcBlob* CompileShader(
     // CompieするShaderのファイルパス
