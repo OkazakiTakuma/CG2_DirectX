@@ -1,9 +1,9 @@
 #include "Engine/3d/Matrix.h"
 #include "Engine/3d/Screen.h"
 #include "Engine/3d/Vector3.h"
-#include "Input.h"
-#include "Resource.h"
-#include "WinApp.h"
+#include "Engine/base/Input.h"
+#include "Engine/base/Resource.h"
+#include "Engine/base/WinApp.h"
 #include "extenals/DirectXTex/DirectXTex.h"
 #include <Windows.h>
 #include <cassert>
