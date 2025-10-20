@@ -4,6 +4,7 @@
 #include "Engine/base/Input.h"
 #include "Engine/base/Resource.h"
 #include "Engine/base/WinApp.h"
+#include"Engine/base/Logger.h"
 #include "extenals/DirectXTex/DirectXTex.h"
 #include <Windows.h>
 #include <cassert>
@@ -35,6 +36,8 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg
 #pragma comment(lib, "Dbghelp.lib")
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "dxcompiler.lib")
+
+using namespace Logger;
 
 struct Vector4 {
 	float x, y, z, w;
@@ -104,7 +107,6 @@ std::wstring ConvertString(const std::string& str) {
 	return result;
 }
 
-void Log(const std::string& message) { OutputDebugStringA(message.c_str()); }
 
 IDxcBlob* CompileShader(
     // CompieするShaderのファイルパス

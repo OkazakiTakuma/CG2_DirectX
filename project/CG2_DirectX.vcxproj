@@ -146,6 +146,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="extenals\imgui\imgui_tables.cpp" />
     <ClCompile Include="extenals\imgui\imgui_widgets.cpp" />
     <ClCompile Include="Engine\base\Input.cpp" />
+    <ClCompile Include="Engine\base\Logger.cpp" />
     <ClCompile Include="main.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
@@ -189,6 +190,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\base\Input.h" />
     <ClInclude Include="Engine\base\Resource.h" />
     <ClInclude Include="Engine\base\WinApp.h" />
+    <ClInclude Include="Engine\base\Logger.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="extenals\imgui\LICENSE.txt" />
