@@ -1,7 +1,5 @@
-#include <algorithm>
 #include <string>
-#include <debugapi.h>
-
+#include <dxgidebug.h>
 namespace Logger {
 void Log(const std::string& messeage);
 }
