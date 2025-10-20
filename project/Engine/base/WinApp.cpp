@@ -1,8 +1,8 @@
 #include "WinApp.h"
 #include "Resource.h"
-#include "extenals/imgui/imgui.h"
-#include "extenals/imgui/imgui_impl_dx12.h"
-#include "extenals/imgui/imgui_impl_win32.h"
+#include "../../extenals/imgui/imgui.h"
+#include "../../extenals/imgui/imgui_impl_dx12.h"
+#include "../../extenals/imgui/imgui_impl_win32.h"
 
 // ウィンドウプロシージャ
 

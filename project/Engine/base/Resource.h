@@ -1,8 +1,8 @@
 #pragma once
-#include "Engine/3d/Matrix.h"
-#include "Engine/3d/Screen.h"
-#include "Engine/3d/Vector3.h"
-#include "extenals/DirectXTex/DirectXTex.h"
+#include "../3d/Matrix.h"
+#include "../3d/Screen.h"
+#include "../3d/Vector3.h"
+#include "../../extenals/DirectXTex/DirectXTex.h"
 #include <Windows.h>
 #include <cassert>
 #include <chrono>
@@ -22,9 +22,9 @@
 #include <strsafe.h>
 #include <wrl.h> // ← まだ使っていなくても DirectXTex が内部で使います
 
-#include "extenals/imgui/imgui.h"
-#include "extenals/imgui/imgui_impl_dx12.h"
-#include "extenals/imgui/imgui_impl_win32.h"
+#include "../../extenals/imgui/imgui.h"
+#include "../../extenals/imgui/imgui_impl_dx12.h"
+#include "../../extenals/imgui/imgui_impl_win32.h"
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
 #pragma comment(lib, "DirectXTex.lib")
