@@ -825,8 +825,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> instancingrootSignature = nullptr;
 	hr = device->CreateRootSignature(
 	    0,                                     // シグネチャのバージョン
-	    signatureBlob->GetBufferPointer(),     // シリアライズされたバイナリのポインタ
-	    signatureBlob->GetBufferSize(),        // バイナリのサイズ
+	    instancingsignatureBlob->GetBufferPointer(),     // シリアライズされたバイナリのポインタ
+	    instancingsignatureBlob->GetBufferSize(),        // バイナリのサイズ
 	    IID_PPV_ARGS(&instancingrootSignature) // 生成したルートシグネチャを受け取る
 	);
 	assert(SUCCEEDED(hr)); // ルートシグネチャの生成が成功したか確認
@@ -1097,13 +1097,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
 
 	// 頂点バッファビューを作成する
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferBiewSprite{};
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSprite{};
 	// リソースの先頭のアドレスから使う
-	vertexBufferBiewSprite.BufferLocation = vertexResourceSprite->GetGPUVirtualAddress();
+	vertexBufferViewSprite.BufferLocation = vertexResourceSprite->GetGPUVirtualAddress();
 	// リソースの頂点のサイズは頂点4つ分
-	vertexBufferBiewSprite.SizeInBytes = sizeof(VertexData) * 4;
+	vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 4;
 	// 1頂点あたりのサイズ
-	vertexBufferBiewSprite.StrideInBytes = sizeof(VertexData);
+	vertexBufferViewSprite.StrideInBytes = sizeof(VertexData);
 
 	VertexData* vertexDataSprite = nullptr;
 	vertexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSprite));
@@ -1465,7 +1465,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetDescriptorHeaps(1, descriptorHeaps->GetAddressOf()); // ディスクリプタヒープの設定
 			commandList->RSSetViewports(1, &viewport);
 			commandList->RSSetScissorRects(1, &scissorRect);
-			commandList->SetGraphicsRootSignature(rootSignature.Get());
+			commandList->SetGraphicsRootSignature(instancingrootSignature.Get());
 			// インデックスを使った描画
 			/*commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResorce->GetGPUVirtualAddress());
@@ -1479,16 +1479,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			// モデルの描画
 
-		/*	commandList->SetGraphicsRootConstantBufferView(0, instancingmaterialResourceModel->GetGPUVirtualAddress());
+			/*commandList->SetGraphicsRootConstantBufferView(0, instancingmaterialResourceModel->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(1, textureSrvHandleGPU);
-			commandList->SetPipelineState(instancinggraphicsPipelineState.Get());*/
-		/*	commandList->IASetVertexBuffers(0, 1, &instancingvertexBufferViewModel);
+			commandList->SetPipelineState(instancinggraphicsPipelineState.Get());
+			commandList->IASetVertexBuffers(0, 1, &instancingvertexBufferViewModel);
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);*/
 
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferBiewSprite);
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
 			commandList->IASetIndexBuffer(&indexBufferViewSprite);
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
@@ -1496,7 +1496,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			commandList->SetPipelineState(instancinggraphicsPipelineState.Get());
 
-			commandList->DrawIndexedInstanced(6, kNumInstace, 0, 0, 0);
+			commandList->DrawIndexedInstanced(UINT(modelData.vertices.size()), kNumInstace, 0, 0, 0);
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
