@@ -1,2 +1,3 @@
 C:\Users\81807\Source\Repos\CG2_DirectXa\project\extenals\DirectXTex\Bin\Desktop_2019_Win10\x64\Development\DirectXTex.lib
 C:\Users\81807\Source\Repos\CG2_DirectXb\project\extenals\DirectXTex\Bin\Desktop_2019_Win10\x64\Development\DirectXTex.lib
+C:\Users\81807\Source\Repos\CG2_DirectXc\project\extenals\DirectXTex\Bin\Desktop_2019_Win10\x64\Development\DirectXTex.lib
