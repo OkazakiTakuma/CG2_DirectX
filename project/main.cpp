@@ -440,16 +440,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		DXGI_ADAPTER_DESC3 adapterDesc{};
 		hr = useAdapter->GetDesc3(&adapterDesc);
 		assert(SUCCEEDED(hr));
+
 		// ソフトウェアアダプターはスキップ
 		if (adapterDesc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE) {
-
 			std::wstring wdesc(adapterDesc.Description);
-			std::string desc(wdesc.begin(), wdesc.end()); // ※ 日本語は文字化けする可能性あり
-			Log("Use Adapter: " + desc + "\n");
-			break;
+			std::string desc(wdesc.begin(), wdesc.end());
+			Log("Skipped WARP Adapter: " + desc + "\n");
+			useAdapter = nullptr;
+			continue; // ← break ではなく continue にする
 		}
-		useAdapter = nullptr;
+
+		// 有効なアダプターを見つけたらループを抜ける
+		break;
 	}
+
 	assert(useAdapter != nullptr);
 
 	Microsoft::WRL::ComPtr<ID3D12Device> device = nullptr;
@@ -1036,7 +1040,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 頂点バッファビューの作成
 	D3D12_VERTEX_BUFFER_VIEW instancingvertexBufferViewModel{};
 	// リソースの先頭のアドレスから使う
-	instancingvertexBufferViewModel.BufferLocation = vertexResourceModel->GetGPUVirtualAddress(); // GPU仮想アドレス
+	instancingvertexBufferViewModel.BufferLocation = instancingvertexResourceModel->GetGPUVirtualAddress(); // GPU仮想アドレス
 	// 使用するリソースのサイズは頂点のサイズ * 頂点数
 	instancingvertexBufferViewModel.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size()); // 頂点バッファのサイズ
 	// 1頂点のサイズ
@@ -1475,21 +1479,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			// モデルの描画
 
-			commandList->SetGraphicsRootConstantBufferView(0, materialResourceModel->GetGPUVirtualAddress());
+		/*	commandList->SetGraphicsRootConstantBufferView(0, instancingmaterialResourceModel->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootDescriptorTable(1, textureSrvHandleGPU3);
-			commandList->SetPipelineState(instancinggraphicsPipelineState.Get());
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewModel);
+			commandList->SetGraphicsRootDescriptorTable(1, textureSrvHandleGPU);
+			commandList->SetPipelineState(instancinggraphicsPipelineState.Get());*/
+		/*	commandList->IASetVertexBuffers(0, 1, &instancingvertexBufferViewModel);
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
+			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);*/
 
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferBiewSprite);
 			commandList->IASetIndexBuffer(&indexBufferViewSprite);
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(1, instanceSrvHandleGPU);
-			commandList->DrawIndexedInstanced(UINT(modelData.vertices.size()), kNumInstace, 0, 0, 0);
+
+			commandList->SetPipelineState(instancinggraphicsPipelineState.Get());
+
+			commandList->DrawIndexedInstanced(6, kNumInstace, 0, 0, 0);
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
