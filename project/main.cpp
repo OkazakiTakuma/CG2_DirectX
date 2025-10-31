@@ -930,7 +930,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instancinggraphicsPipelineStateDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK; // サンプルマスク
 	// 実際に生成
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> instancinggraphicsPipelineState = nullptr;
-	hr = device->CreateGraphicsPipelineState(&instancinggraphicsPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
+	hr = device->CreateGraphicsPipelineState(&instancinggraphicsPipelineStateDesc, IID_PPV_ARGS(&instancinggraphicsPipelineState));
 	assert(SUCCEEDED(hr)); // パイプラインステートの生成が成功したか確認
 
 #pragma endregion InstancingPSOの設定
@@ -1505,11 +1505,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			swapChain->Present(1, 0);
 
 			// フェンスでGPU完了待ち（簡略化）
-			fenceValue++;
-			commandQueue->Signal(fence.Get(), fenceValue);
-			if (fence->GetCompletedValue() < fenceValue) {
-				fence->SetEventOnCompletion(fenceValue, fenceEvent);
-				WaitForSingleObject(fenceEvent, INFINITE);
+
+			if (fence && fenceEvent) {
+				fenceValue++;
+				commandQueue->Signal(fence.Get(), fenceValue);
+				if (fence->GetCompletedValue() < fenceValue) {
+					fence->SetEventOnCompletion(fenceValue, fenceEvent);
+					WaitForSingleObject(fenceEvent, INFINITE);
+				}
+			} else {
+				Log("Fence or fenceEvent is null");
 			}
 #pragma endregion
 		}
