@@ -1,24 +1,23 @@
 #pragma once
+#include "../../extenals/DirectXTex/DirectXTex.h"
+#include "../../extenals/imgui/imgui.h"
+#include "../../extenals/imgui/imgui_impl_dx12.h"
+#include "../../extenals/imgui/imgui_impl_win32.h"
 #include "../3d/Matrix.h"
 #include "../3d/Screen.h"
 #include "../3d/Vector3.h"
 #include "../base/Logger.h"
 #include "../base/StringUtility.h"
 #include "../base/WinApp.h"
-#include "../../extenals/imgui/imgui.h"
-#include "../../extenals/imgui/imgui_impl_dx12.h"
-#include "../../extenals/imgui/imgui_impl_win32.h"
-#include<array>
+#include <array>
 #include <cassert>
 #include <d3d12.h>
+#include <dxcapi.h>
 #include <dxgi1_6.h>
 #include <wrl.h>
-#include <dxcapi.h>
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxcompiler.lib")
-
-
 
 class DirectXCommon {
 public:
@@ -31,12 +30,12 @@ public:
 
 	void Initialize(WinApp* winApp);
 
-	Microsoft::WRL::ComPtr<ID3D12Device> GetDevice() { return device; }
+	Microsoft::WRL::ComPtr<ID3D12Device> GetDevice() { return device.Get(); }
 	IDxcCompiler3* GetDxcCompiler() { return dxcCompiler; }
 	IDxcUtils* GetDxcUtils() { return dxcUtils; }
 	IDxcIncludeHandler* GetIncludeHandler() { return includeHandler; }
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetCommandList() { return commandList; }
-	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> GetCommandAllocator() { return commandAllocator; }
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetCommandList() { return commandList.Get(); }
+	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> GetCommandAllocator() { return commandAllocator.Get(); }
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetSRVCPUDescriptorHandle(uint32_t index);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUDescriptorHandle(uint32_t index);
@@ -47,6 +46,26 @@ public:
 	// 描画後処理
 	void PostDraw();
 
+	Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(const std::wstring& filepath, const wchar_t* profile);
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferResource(size_t sizeInBytes);
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, const DirectX::TexMetadata& metaData);
+
+	void UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImage);
+
+	DirectX::ScratchImage LoadTexture(const std::string& filepath);
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStenecilTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, int32_t width, int32_t height);
+
+	static D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index);
+
+	static D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index);
+
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetSRVDescriptorHeap() { return srvDescriptorHeap; }
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetRTVDescriptorHeap() { return rtvDescriptorHeap; }
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetDSVDescriptorHeap() { return dsvDescriptorHeap; }
+	
 private:
 	// D3D12デバイスの生成
 	void CreateDevice();
@@ -73,8 +92,6 @@ private:
 
 	void CreateImGui();
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStenecilTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, int32_t width, int32_t height);
-
 	WinApp* winApp = nullptr;
 
 	// DXGIファクトリーの生成
@@ -97,7 +114,7 @@ private:
 	// DepthStenecilResourceをウィンドウサイズで作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStenecilResource;
 	// リソースの生成
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = nullptr;
 	// ディスクリプタヒープの生成
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap;
@@ -128,9 +145,4 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
 
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
-	
-
-	static D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index);
-
-	static D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index);
 };
