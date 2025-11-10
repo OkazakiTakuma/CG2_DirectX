@@ -31,8 +31,21 @@ public:
 
 	void Initialize(WinApp* winApp);
 
+	Microsoft::WRL::ComPtr<ID3D12Device> GetDevice() { return device; }
+	IDxcCompiler3* GetDxcCompiler() { return dxcCompiler; }
+	IDxcUtils* GetDxcUtils() { return dxcUtils; }
+	IDxcIncludeHandler* GetIncludeHandler() { return includeHandler; }
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetCommandList() { return commandList; }
+	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> GetCommandAllocator() { return commandAllocator; }
+
 	D3D12_CPU_DESCRIPTOR_HANDLE GetSRVCPUDescriptorHandle(uint32_t index);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUDescriptorHandle(uint32_t index);
+
+	// 描画前処理
+	void PreDraw();
+
+	// 描画後処理
+	void PostDraw();
 
 private:
 	// D3D12デバイスの生成
@@ -60,6 +73,8 @@ private:
 
 	void CreateImGui();
 
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStenecilTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, int32_t width, int32_t height);
+
 	WinApp* winApp = nullptr;
 
 	// DXGIファクトリーの生成
@@ -77,8 +92,6 @@ private:
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
 	// WVP用のリソースを作る。Matrix4x4
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResorceModel;
-	// DepthStenecilResourceをウィンドウサイズで作成
-	Microsoft::WRL::ComPtr<ID3D12Resource> depthStenecilResourceModel;
 	// WVP用のリソースを作る。Matrix4x4
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResorce;
 	// DepthStenecilResourceをウィンドウサイズで作成
@@ -95,9 +108,12 @@ private:
 	// RTVの設定
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
 	// スワップチェーンからリソースをもらう
-	std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, 2> swapChainResources;
+	Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources[2] = {nullptr};
 	// 初期値0でFenceを生成
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence = nullptr;
+	uint16_t fenceValue = 0;
+	// FenceのSignal用のイベントハンドルを生成
+	HANDLE fenceEvent;
 	// ビューポート
 	D3D12_VIEWPORT viewport{};
 	// シザー矩形
@@ -108,6 +124,10 @@ private:
 	IDxcUtils* dxcUtils = nullptr;
 	// インクルードハンドラの生成
 	IDxcIncludeHandler* includeHandler = nullptr;
+	// RTVを2つ作るからディスクリプタも2つ
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
+
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
 	
 
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index);
