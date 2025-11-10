@@ -15,6 +15,9 @@
 #include <dxcapi.h>
 #include <dxgi1_6.h>
 #include <wrl.h>
+#include <chrono>
+#include <format>
+#include <thread>
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxcompiler.lib")
@@ -92,6 +95,10 @@ private:
 
 	void CreateImGui();
 
+	void InitializeFixFPS();
+
+	void UpdateFixFPS();
+
 	WinApp* winApp = nullptr;
 
 	// DXGIファクトリーの生成
@@ -145,4 +152,7 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
 
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
+
+	// FPS制限用
+	std::chrono::steady_clock::time_point reference_;
 };

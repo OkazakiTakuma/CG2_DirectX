@@ -1,5 +1,5 @@
 #include "DirectXCommon.h"
-#include <format>
+
 using namespace Logger;
 using namespace StringUtility;
 
@@ -21,6 +21,8 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap
 void DirectXCommon::Initialize(WinApp* winApp) {
 	assert(winApp);
 	this->winApp = winApp;
+	// 各種初期化処理
+	InitializeFixFPS();
 	CreateDevice();
 	CreateCommand();
 	CreateSwapChain();
@@ -97,6 +99,8 @@ void DirectXCommon::PostDraw() {
 		fence->SetEventOnCompletion(fenceValue, fenceEvent);
 		WaitForSingleObject(fenceEvent, INFINITE);
 	}
+	UpdateFixFPS();
+
 	hr = commandAllocator->Reset();
 	assert(SUCCEEDED(hr));
 	hr = commandList->Reset(commandAllocator.Get(), nullptr);
@@ -156,7 +160,6 @@ Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(const std::wstring
 	return shaderBlob;       // コンパイル結果のBlobを返す
 }
 
-
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateBufferResource(size_t sizeInBytes) {
 	assert(device != nullptr);
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
@@ -213,7 +216,6 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(cons
 	assert(SUCCEEDED(hr));
 	return resource;
 }
-
 
 void DirectXCommon::UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImage) {
 
@@ -281,8 +283,6 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDepthStenecilTexture
 
 	return resource;
 }
-
-
 
 void DirectXCommon::CreateDevice() {
 	HRESULT hr;
@@ -535,3 +535,24 @@ void DirectXCommon::CreateImGui() {
 	);
 }
 
+void DirectXCommon::InitializeFixFPS() { reference_ = std::chrono::high_resolution_clock::now(); }
+
+void DirectXCommon::UpdateFixFPS() {
+	const std::chrono::microseconds kMinTime(uint64_t(1000000.0f / 60.0f));
+	const std::chrono::microseconds kMinCheckTime(uint64_t(1000000.0f / 65.0f));
+	// 経過時間を取得
+	std::chrono::steady_clock::time_point now = std::chrono::high_resolution_clock::now();
+	// 経過時間
+	std::chrono::microseconds elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - reference_);
+
+	// 最低時間未満なら待機
+	if (elapsed < kMinTime) {
+		// 経過時間が最低時間に達するまでループ
+		while (std::chrono::steady_clock::now()-reference_<kMinTime) {
+			std::this_thread::sleep_for(std::chrono::microseconds(1));
+		}
+	}
+	// 現在の時間を記録
+	reference_ = std::chrono::high_resolution_clock::now();
+
+}

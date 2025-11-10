@@ -4,6 +4,8 @@
 #include "../../extenals/imgui/imgui_impl_dx12.h"
 #include "../../extenals/imgui/imgui_impl_win32.h"
 
+#pragma comment(lib, "winmm.lib")
+
 // ウィンドウプロシージャ
 
 // Windowsアプリケーションのエントリポイント
@@ -57,6 +59,8 @@ void WinApp::Initialize() {
 
 	// ウィンドウの表示
 	ShowWindow(hwnd, SW_SHOW);
+
+	timeBeginPeriod(1); // タイマーの精度を1msに設定
 };
 
 void WinApp::Update() {}
