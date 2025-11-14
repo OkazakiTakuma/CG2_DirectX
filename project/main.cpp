@@ -775,7 +775,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D12_ROOT_SIGNATURE_DESC instancingdescriptionRootSignature{};
 	instancingdescriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT; // 入力アセンブラーでの使用を許可
 	// RootParameterの設定。複数設定できるので配列、今回は結果1つだけなので長さ1の配列
-	D3D12_ROOT_PARAMETER instancingrootParameters[2] = {};
+	D3D12_ROOT_PARAMETER instancingrootParameters[5] = {};
 	// ルートパラメーターの設定
 	instancingrootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;    // ルートパラメーターのタイプ（CBV）
 	instancingrootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // シェーダーの可視性（ピクセルシェーダー）
@@ -784,6 +784,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instancingrootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	instancingrootParameters[1].DescriptorTable.pDescriptorRanges = instancingdescriptorRange;
 	instancingrootParameters[1].DescriptorTable.NumDescriptorRanges = _countof(instancingdescriptorRange);
+	instancingrootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;     // ルートパラメーターのタイプ（CBV）
+	instancingrootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX; // シェーダーの可視性（バーテックスシェーダー）
+	instancingrootParameters[2].Descriptor.ShaderRegister = 1;                     // シェーダーレジスタのインデックス
+	instancingrootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;     // ルートパラメーターのタイプ（CBV）
+	instancingrootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;  // シェーダーの可視性（ピクセルシェーダー）
+	instancingrootParameters[3].Descriptor.ShaderRegister = 2;                     // シェーダーレジスタのインデックス
+	instancingrootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	instancingrootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	instancingrootParameters[4].DescriptorTable.pDescriptorRanges = descriptorRange;
+	instancingrootParameters[4].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
 	instancingdescriptionRootSignature.pParameters = instancingrootParameters;             // ルートパラメーターの配列
 	instancingdescriptionRootSignature.NumParameters = _countof(instancingrootParameters); // ルートパラメーターの数
 #pragma endregion InstancingRootParameter設定
@@ -1150,6 +1160,88 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         {0.0f, 0.0f, 0.0f},
         {0.0f, 0.0f, 0.0f}
     };
+	// ディスクリプタヒープの生成
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
+#pragma endregion
+
+	#pragma region スプライトの描画に必要なデータの作成
+	Microsoft::WRL::ComPtr<ID3D12Resource> instanindexResourceSprite = CreateBufferResource(device.Get(), sizeof(uint32_t) * 6);
+	D3D12_INDEX_BUFFER_VIEW instancingindexBufferViewSprite{};
+	assert(SUCCEEDED(hr)); // インデックスリソースの生成が成功したか確認
+	// リソースの先頭のアドレスから使う
+	instancingindexBufferViewSprite.BufferLocation = indexResourceSprite->GetGPUVirtualAddress(); // GPU仮想アドレス
+	// 使用するリソースのサイズはインデックスのサイズ * インデックス数
+	instancingindexBufferViewSprite.SizeInBytes = sizeof(uint32_t) * 6; // インデックスバッファのサイズ
+	// インデックスはuint32_t型
+	instancingindexBufferViewSprite.Format = DXGI_FORMAT_R32_UINT; // 1インデックスのサイズ
+
+	uint32_t* instancingindexDataSprite = nullptr;
+	// 書き込むためのアドレスを取得
+	indexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&instancingindexDataSprite));
+	// インデックスデータを設定
+
+	// 三角形1枚目のインデックスを設定
+	instancingindexDataSprite[0] = 0; // 三角形1枚目の1頂点目
+	instancingindexDataSprite[1] = 1; // 三角形1枚目の2頂点目
+	instancingindexDataSprite[2] = 2; // 三角形1枚目の3頂点目
+
+	// 三角形2枚目のインデックスを設定
+	instancingindexDataSprite[3] = 1; // 三角形2枚目の1頂点目
+	instancingindexDataSprite[4] = 3; // 三角形2枚目の2頂点目
+	instancingindexDataSprite[5] = 2; // 三角形2枚目の3頂点目
+	Microsoft::WRL::ComPtr<ID3D12Resource> instancingvertexResourceSprite = CreateBufferResource(device.Get(), sizeof(VertexData) * 6);
+	assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
+
+	// 頂点バッファビューを作成する
+	D3D12_VERTEX_BUFFER_VIEW instancingvertexBufferViewSprite{};
+	// リソースの先頭のアドレスから使う
+	instancingvertexBufferViewSprite.BufferLocation = instancingvertexResourceSprite->GetGPUVirtualAddress();
+	// リソースの頂点のサイズは頂点4つ分
+	instancingvertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 4;
+	// 1頂点あたりのサイズ
+	instancingvertexBufferViewSprite.StrideInBytes = sizeof(VertexData);
+
+	VertexData* instancingvertexDataSprite = nullptr;
+	instancingvertexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&instancingvertexDataSprite));
+	// 三角形1枚目
+	instancingvertexDataSprite[0].position = {0.0f, 0.0f, 0.0f, 1.0f};
+	instancingvertexDataSprite[0].texcoord = {0.0f, 1.0f};
+	instancingvertexDataSprite[0].normal = {0.0f, 0.0f, 0.0f};
+	instancingvertexDataSprite[1].position = {0.0f, 360.0f, 0.0f, 1.0f};
+	instancingvertexDataSprite[1].texcoord = {0.0f, 0.0f};
+	instancingvertexDataSprite[1].normal = {0.0f, 0.0f, -1.0f};
+	instancingvertexDataSprite[2].position = {360.0f, 0.0f, 0.0f, 1.0f};
+	instancingvertexDataSprite[2].texcoord = {1.0f, 1.0f};
+	instancingvertexDataSprite[2].normal = {0.0f, 0.0f, -1.0f};
+	instancingvertexDataSprite[3].position = {360.0f, 360.0f, 0.0f, 1.0f};
+	instancingvertexDataSprite[3].texcoord = {1.0f, 0.0f};
+	instancingvertexDataSprite[3].normal = {0.0f, 0.0f, -1.0f};
+
+	// スプライト用のマテリアルリソースを作成
+	Microsoft::WRL::ComPtr<ID3D12Resource> instancingmaterialResourceSprite = CreateBufferResource(device.Get(), sizeof(Material) * 20 * 20 * 6);
+	assert(SUCCEEDED(hr)); // マテリアルリソースの生成が成功したか確認
+	Material* instancingmaterialDataSprite = nullptr;
+	// スプライト用のマテリアルリソースにデータを書き込む
+	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&instancingmaterialDataSprite));
+	// スプライトの色を設定
+	instancingmaterialDataSprite->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
+	instancingmaterialDataSprite->enableLighting = false;                  // ライティングを無効化
+	instancingmaterialDataSprite->uvTransform = MakeIdentity4x4();
+
+	// Sprite用のTransformationMatrix用リソースを作る
+	Microsoft::WRL::ComPtr<ID3D12Resource> instancingtransformationMatrixResourceSprite = CreateBufferResource(device.Get(), sizeof(Matrix4x4));
+	// データを書き込む
+	const uint32_t kNumInstace = 10;
+	Microsoft::WRL::ComPtr<ID3D12Resource> instanceResource = CreateBufferResource(device.Get(), sizeof(TransformationMatrix) * kNumInstace);
+	TransformationMatrix* instanceData = nullptr;
+	instanceResource->Map(0, nullptr, reinterpret_cast<void**>(&instanceData));
+	for (int i = 0; i < kNumInstace; i++) {
+		instanceData[i].WVP = MakeIdentity4x4();
+		instanceData[i].world = MakeIdentity4x4();
+	}
+	
 #pragma endregion
 	// ビューポート
 	D3D12_VIEWPORT viewport{};
@@ -1169,10 +1261,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	scissorRect.right = WinApp::kClientWidth;   // シザー矩形の右端
 	scissorRect.bottom = WinApp::kClientHeight; // シザー矩形の下端
 
-	// ディスクリプタヒープの生成
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
+	
 
 #pragma region uvCheckerの読み込み
 	DirectX::ScratchImage mipImage = LoadTexture("Resources/uvChecker.png");
@@ -1206,14 +1295,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 
-	const uint32_t kNumInstace = 10;
-	Microsoft::WRL::ComPtr<ID3D12Resource> instanceResource = CreateBufferResource(device.Get(), sizeof(TransformationMatrix) * kNumInstace);
-	TransformationMatrix* instanceData = nullptr;
-	instanceResource->Map(0, nullptr, reinterpret_cast<void**>(&instanceData));
-	for (int i = 0; i < kNumInstace; i++) {
-		instanceData[i].WVP = MakeIdentity4x4();
-		instanceData[i].world = MakeIdentity4x4();
-	}
+
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC instanceSrvDesc{};
 	instanceSrvDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -1479,21 +1561,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			// モデルの描画
 
-			/*commandList->SetGraphicsRootConstantBufferView(0, instancingmaterialResourceModel->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootDescriptorTable(1, textureSrvHandleGPU);
+			commandList->SetGraphicsRootConstantBufferView(0, instancingmaterialResourceModel->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(2, wvpResorceModel->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(3, lightResource->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootDescriptorTable(4, instanceSrvHandleGPU);
 			commandList->SetPipelineState(instancinggraphicsPipelineState.Get());
 			commandList->IASetVertexBuffers(0, 1, &instancingvertexBufferViewModel);
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);*/
+			commandList->DrawInstanced(UINT(modelData.vertices.size()), kNumInstace, 0, 0);
 
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
-			commandList->IASetIndexBuffer(&indexBufferViewSprite);
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootDescriptorTable(1, instanceSrvHandleGPU);
+			commandList->SetGraphicsRootConstantBufferView(2, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootDescriptorTable(4, textureSrvHandleGPU);
 
+			commandList->IASetIndexBuffer(&indexBufferViewSprite);
+			commandList->IASetVertexBuffers(0, 1, &instancingvertexBufferViewSprite);
 			commandList->SetPipelineState(instancinggraphicsPipelineState.Get());
 
 			commandList->DrawIndexedInstanced(UINT(modelData.vertices.size()), kNumInstace, 0, 0, 0);
