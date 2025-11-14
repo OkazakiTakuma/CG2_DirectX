@@ -1161,9 +1161,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         {0.0f, 0.0f, 0.0f}
     };
 	// ディスクリプタヒープの生成
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
+	
 #pragma endregion
 
 	#pragma region スプライトの描画に必要なデータの作成
@@ -1206,16 +1204,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	VertexData* instancingvertexDataSprite = nullptr;
 	instancingvertexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&instancingvertexDataSprite));
 	// 三角形1枚目
-	instancingvertexDataSprite[0].position = {0.0f, 0.0f, 0.0f, 1.0f};
+	instancingvertexDataSprite[0].position = {-1.0f, -1.0f, 0.0f, 1.0f};
 	instancingvertexDataSprite[0].texcoord = {0.0f, 1.0f};
 	instancingvertexDataSprite[0].normal = {0.0f, 0.0f, 0.0f};
-	instancingvertexDataSprite[1].position = {0.0f, 360.0f, 0.0f, 1.0f};
+	instancingvertexDataSprite[1].position = {-1.0f, 1.0f, 0.0f, 1.0f};
 	instancingvertexDataSprite[1].texcoord = {0.0f, 0.0f};
 	instancingvertexDataSprite[1].normal = {0.0f, 0.0f, -1.0f};
-	instancingvertexDataSprite[2].position = {360.0f, 0.0f, 0.0f, 1.0f};
+	instancingvertexDataSprite[2].position = {1.0f, -1.0f, 0.0f, 1.0f};
 	instancingvertexDataSprite[2].texcoord = {1.0f, 1.0f};
 	instancingvertexDataSprite[2].normal = {0.0f, 0.0f, -1.0f};
-	instancingvertexDataSprite[3].position = {360.0f, 360.0f, 0.0f, 1.0f};
+	instancingvertexDataSprite[3].position = {1.0f, 1.0f, 0.0f, 1.0f};
 	instancingvertexDataSprite[3].texcoord = {1.0f, 0.0f};
 	instancingvertexDataSprite[3].normal = {0.0f, 0.0f, -1.0f};
 
@@ -1224,15 +1222,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(SUCCEEDED(hr)); // マテリアルリソースの生成が成功したか確認
 	Material* instancingmaterialDataSprite = nullptr;
 	// スプライト用のマテリアルリソースにデータを書き込む
-	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&instancingmaterialDataSprite));
+	instancingmaterialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&instancingmaterialDataSprite));
 	// スプライトの色を設定
 	instancingmaterialDataSprite->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
 	instancingmaterialDataSprite->enableLighting = false;                  // ライティングを無効化
 	instancingmaterialDataSprite->uvTransform = MakeIdentity4x4();
 
-	// Sprite用のTransformationMatrix用リソースを作る
-	Microsoft::WRL::ComPtr<ID3D12Resource> instancingtransformationMatrixResourceSprite = CreateBufferResource(device.Get(), sizeof(Matrix4x4));
-	// データを書き込む
+
 	const uint32_t kNumInstace = 10;
 	Microsoft::WRL::ComPtr<ID3D12Resource> instanceResource = CreateBufferResource(device.Get(), sizeof(TransformationMatrix) * kNumInstace);
 	TransformationMatrix* instanceData = nullptr;
@@ -1243,6 +1239,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	}
 	
 #pragma endregion
+
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 	// ビューポート
 	D3D12_VIEWPORT viewport{};
 	// クライアント領域のサイズに合わせる
@@ -1503,6 +1503,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::SliderAngle("sphere rotate y", &transform.rotate.y);
 			ImGui::SliderAngle("sphere rotate z", &transform.rotate.z);
 			ImGui::DragFloat3("sprite pos", &transformSprite.translate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate", &instanceTransform[0].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate", &instanceTransform[1].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate", &instanceTransform[2].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate", &instanceTransform[3].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate", &instanceTransform[4].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate", &instanceTransform[5].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate", &instanceTransform[6].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate", &instanceTransform[7].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate", &instanceTransform[8].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate", &instanceTransform[9].rotate.x, 0.3f);
+
+
 			ImGui::ColorEdit4("sprite color", &materialDataSprite->color.x, 1.0f); // クリアカラーの編集
 			ImGui::DragFloat2("UV translate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
 			ImGui::DragFloat2("UV scale", &uvTransformSprite.scale.x, 0.01f, 0.0f, 10.0f);
@@ -1570,8 +1582,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			commandList->DrawInstanced(UINT(modelData.vertices.size()), kNumInstace, 0, 0);
 
-			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(2, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(0, instancingmaterialResourceSprite->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(2, instanceResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(4, textureSrvHandleGPU);
 
 			commandList->IASetIndexBuffer(&indexBufferViewSprite);
