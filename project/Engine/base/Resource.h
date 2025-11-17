@@ -1,7 +1,7 @@
 #pragma once
 #include "../3d/Matrix.h"
 #include "../3d/Screen.h"
-#include "../3d/Vector3.h"
+#include "../3d/Vector.h"
 #include "../../extenals/DirectXTex/DirectXTex.h"
 #include <Windows.h>
 #include <cassert>

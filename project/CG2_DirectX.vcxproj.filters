@@ -124,7 +124,7 @@
     <ClInclude Include="Engine\3d\Screen.h">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\Vector3.h">
+    <ClInclude Include="Engine\3d\Vector.h">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClInclude>
     <ClInclude Include="extenals\imgui\imstb_rectpack.h">

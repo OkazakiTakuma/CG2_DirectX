@@ -1,1 +1,96 @@
 #include "Sprite.h"
+
+void Sprite::Initialize(SpriteCommon* spriteCommon) {
+	this->spriteCommon = spriteCommon;
+#pragma region スプライトの描画に必要なデータの作成
+#pragma region インデックスを使った描画
+	indexResource = spriteCommon->GetDxCommon()->CreateBufferResource(sizeof(uint32_t) * 6);
+
+	assert(SUCCEEDED(hr)); // インデックスリソースの生成が成功したか確認
+	// リソースの先頭のアドレスから使う
+	indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress(); // GPU仮想アドレス
+	// 使用するリソースのサイズはインデックスのサイズ * インデックス数
+	indexBufferView.SizeInBytes = sizeof(uint32_t) * 6; // インデックスバッファのサイズ
+	// インデックスはuint32_t型
+	indexBufferView.Format = DXGI_FORMAT_R32_UINT; // 1インデックスのサイズ
+
+	// 書き込むためのアドレスを取得
+	indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
+#pragma endregion
+	vertexResource = spriteCommon->GetDxCommon()->CreateBufferResource(sizeof(VertexData) * 4);
+	assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
+
+	// 頂点バッファビューを作成する
+
+	// リソースの先頭のアドレスから使う
+	vertexBufferview.BufferLocation = vertexResource->GetGPUVirtualAddress();
+	// リソースの頂点のサイズは頂点4つ分
+	vertexBufferview.SizeInBytes = sizeof(VertexData) * 4;
+	// 1頂点あたりのサイズ
+	vertexBufferview.StrideInBytes = sizeof(VertexData);
+
+	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+
+	// スプライト用のマテリアルリソースを作成
+	materialResource = spriteCommon->GetDxCommon()->CreateBufferResource(sizeof(Material) * 6);
+	assert(SUCCEEDED(hr)); // マテリアルリソースの生成が成功したか確認
+
+	// スプライト用のマテリアルリソースにデータを書き込む
+	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+	// スプライトの色を設定
+	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
+	materialData->enableLighting = false;                  // ライティングを無効化
+	materialData->uvTransform = MakeIdentity4x4();
+
+	// Sprite用のTransformationMatrix用リソースを作る
+	transformationMatrixResource = spriteCommon->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
+	// データを書き込む
+	transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
+	// 単位行列を入れておく
+	transformationMatrixData->WVP = MakeIdentity4x4();
+	transformationMatrixData->world = MakeIdentity4x4();
+
+#pragma endregion
+}
+void Sprite::Update() {
+	// インデックスデータを設定
+
+	// 三角形1枚目のインデックスを設定
+	indexData[0] = 0; // 三角形1枚目の1頂点目
+	indexData[1] = 1; // 三角形1枚目の2頂点目
+	indexData[2] = 2; // 三角形1枚目の3頂点目
+
+	// 三角形2枚目のインデックスを設定
+	indexData[3] = 1; // 三角形2枚目の1頂点目
+	indexData[4] = 3; // 三角形2枚目の2頂点目
+	indexData[5] = 2; // 三角形2枚目の3頂点目
+
+	// 三角形1枚目
+	vertexData[0].position = {0.0f, 360.0f, -1.0f, 1.0f};
+	vertexData[0].texcoord = {0.0f, 1.0f};
+	vertexData[0].normal = {0.0f, 0.0f, -1.0f};
+	vertexData[1].position = {0.0f, 0.0f, -1.0f, 1.0f};
+	vertexData[1].texcoord = {0.0f, 0.0f};
+	vertexData[1].normal = {0.0f, 0.0f, -1.0f};
+	vertexData[2].position = {640.0f, 360.0f, -1.0f, 1.0f};
+	vertexData[2].texcoord = {1.0f, 1.0f};
+	vertexData[2].normal = {0.0f, 0.0f, -1.0f};
+	vertexData[3].position = {640.0f, 0.0f, -1.0f, 1.0f};
+	vertexData[3].texcoord = {1.0f, 0.0f};
+	vertexData[3].normal = {0.0f, 0.0f, -1.0f};
+
+	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+	Matrix4x4 viewMatrix = MakeIdentity4x4();
+	Matrix4x4 projectionMatrix = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
+	Matrix4x4 wvpMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
+	transformationMatrixData->WVP = wvpMatrix;
+}
+void Sprite::Draw(D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU) {
+
+	spriteCommon->GetDxCommon()->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferview);
+	spriteCommon->GetDxCommon()->GetCommandList()->IASetIndexBuffer(&indexBufferView);
+	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
+	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootDescriptorTable(3, textureSrvHandleGPU);
+	spriteCommon->GetDxCommon()->GetCommandList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
+};
