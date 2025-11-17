@@ -8,6 +8,8 @@
 #include "Engine/base/Resource.h"
 #include "Engine/base/WinApp.h"
 #include "Engine/base/StringUtility.h"
+#include "Engine/2d/SpriteCommon.h"
+#include "Engine/2d/Sprite.h"
 #include "extenals/DirectXTex/DirectXTex.h"
 #include <Windows.h>
 #include <cassert>
@@ -249,6 +251,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	input->Initialize(winApp);
 	DirectXCommon* dxCommon = new DirectXCommon();
 	dxCommon->Initialize(winApp);
+	SpriteCommon* spriteCommon = new SpriteCommon();
+	spriteCommon->Initialize(dxCommon);
 
 	//	assert(SUCCEEDED(hr));
 	D3D12_DESCRIPTOR_RANGE descriptorRange[1] = {};
@@ -869,29 +873,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region コマンドリストのリセット
 
 			dxCommon->PreDraw();
-			dxCommon->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());
-			dxCommon->GetCommandList()->SetPipelineState(graphicsPipelineState.Get());
-			// インデックスを使った描画
-			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
-			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(1, wvpResorce->GetGPUVirtualAddress());
-			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
-			dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(3, useTexture ? textureSrvHandleGPU2 : textureSrvHandleGPU);
-			dxCommon->GetCommandList()->SetPipelineState(graphicsPipelineState.Get());
-			dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferView);
-			dxCommon->GetCommandList()->IASetIndexBuffer(&indexBufferView);
-			dxCommon->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			dxCommon->GetCommandList()->DrawIndexedInstanced(startIndex, 1, 0, 0, 0);
+			//dxCommon->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());
+			//dxCommon->GetCommandList()->SetPipelineState(graphicsPipelineState.Get());
+			//// インデックスを使った描画
+			//dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+			//dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(1, wvpResorce->GetGPUVirtualAddress());
+			//dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
+			//dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(3, useTexture ? textureSrvHandleGPU2 : textureSrvHandleGPU);
+			//dxCommon->GetCommandList()->SetPipelineState(graphicsPipelineState.Get());
+			//dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferView);
+			//dxCommon->GetCommandList()->IASetIndexBuffer(&indexBufferView);
+			//dxCommon->GetCommandList()->DrawIndexedInstanced(startIndex, 1, 0, 0, 0);
 
 			// モデルの描画
-
-			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResourceModel->GetGPUVirtualAddress());
+			spriteCommon->SetDraw();
+		/*	dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResourceModel->GetGPUVirtualAddress());
 			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
 			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
 			dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(3, textureSrvHandleGPU3);
 			dxCommon->GetCommandList()->SetPipelineState(graphicsPipelineState.Get());
 			dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferViewModel);
-			dxCommon->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			dxCommon->GetCommandList()->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
+			dxCommon->GetCommandList()->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);*/
 			dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferBiewSprite);
 			dxCommon->GetCommandList()->IASetIndexBuffer(&indexBufferViewSprite);
 			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
