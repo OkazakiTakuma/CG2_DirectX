@@ -138,6 +138,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Engine\base\D3DResouceLeakCheker.cpp" />
     <ClCompile Include="Engine\base\DirectXCommon.cpp" />
     <ClCompile Include="extenals\imgui\imgui.cpp" />
     <ClCompile Include="extenals\imgui\imgui_demo.cpp" />
@@ -178,6 +179,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\base\D3DResouceLeakCheker.h" />
     <ClInclude Include="Engine\base\DirectXCommon.h" />
     <ClInclude Include="extenals\imgui\imconfig.h" />
     <ClInclude Include="extenals\imgui\imgui.h" />
