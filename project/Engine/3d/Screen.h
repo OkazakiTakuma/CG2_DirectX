@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include <math.h>
+#include "Vector.h"
 
 /// <summary>
 /// 3x3の行列
@@ -8,13 +9,7 @@ struct Matrix3x3 {
 
 	float m[3][3];
 };
-/// <summary>
-/// 2次元ベクトル
-/// </summary>
-struct Vector2 {
-	float x;
-	float y;
-};
+
 /// <summary>
 /// アファイン行列を作る関数
 /// </summary>

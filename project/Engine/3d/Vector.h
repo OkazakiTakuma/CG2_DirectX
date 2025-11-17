@@ -24,3 +24,18 @@ Vector3 NormalizeReturnVector(const Vector3& v);
 void VectorScreenPrintf(int x, int y, const Vector3& vector, const char* label);
 // クロス積
 Vector3 Cross(const Vector3& v1, const Vector3& v2);
+struct Vector4 {
+	float x, y, z, w;
+	Vector4(float x = 0.0f, float y = 0.0f, float z = 0.0f, float w = 1.0f) : x(x), y(y), z(z), w(w) {}
+	Vector4 operator+(const Vector4& other) const { return Vector4(x + other.x, y + other.y, z + other.z, w + other.w); }
+	Vector4 operator-(const Vector4& other) const { return Vector4(x - other.x, y - other.y, z - other.z, w - other.w); }
+};
+
+
+/// <summary>
+/// 2次元ベクトル
+/// </summary>
+struct Vector2 {
+	float x;
+	float y;
+};
