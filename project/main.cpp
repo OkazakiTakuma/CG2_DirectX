@@ -792,8 +792,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instancingrootParameters[3].Descriptor.ShaderRegister = 2;                     // シェーダーレジスタのインデックス
 	instancingrootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	instancingrootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	instancingrootParameters[4].DescriptorTable.pDescriptorRanges = descriptorRange;
-	instancingrootParameters[4].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
+	instancingrootParameters[4].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing;
+	instancingrootParameters[4].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing);
 	instancingdescriptionRootSignature.pParameters = instancingrootParameters;             // ルートパラメーターの配列
 	instancingdescriptionRootSignature.NumParameters = _countof(instancingrootParameters); // ルートパラメーターの数
 #pragma endregion InstancingRootParameter設定

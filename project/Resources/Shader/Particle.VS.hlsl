@@ -6,7 +6,7 @@ struct TransformationMatrix
     float4x4 WVP;
     float4x4 world;
 };
-ConstantBuffer<TransformationMatrix> gTransformationMatrix : register(b1); // Material constant buffer
+StructuredBuffer<TransformationMatrix> gTransformationMatrices : register(t1); // Material constant buffer
 
 struct VertexShaderInput
 {
@@ -17,11 +17,11 @@ struct VertexShaderInput
 
 };
 
-VertexShaderOutput main(VertexShaderInput input)
+VertexShaderOutput main(VertexShaderInput input,int instanceID : SV_InstanceID)
 {
     VertexShaderOutput output;
-    output.position = mul(input.position, gTransformationMatrix.WVP); // ← 行列を使って変換
+    output.position = mul(input.position, gTransformationMatrices[instanceID].WVP); // ← 行列を使って変換
     output.texcoord = input.texcoord;
-    output.normal = normalize(mul(input.normal, (float3x3) gTransformationMatrix.world));
+    output.normal = normalize(mul(input.normal, (float3x3) gTransformationMatrices[instanceID].world));
     return output;
 }
