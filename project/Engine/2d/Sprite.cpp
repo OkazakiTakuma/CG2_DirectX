@@ -49,6 +49,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon) {
 	// 単位行列を入れておく
 	transformationMatrixData->WVP = MakeIdentity4x4();
 	transformationMatrixData->world = MakeIdentity4x4();
+	size = {640.0f, 360.0f};
 
 #pragma endregion
 }
@@ -66,24 +67,30 @@ void Sprite::Update() {
 	indexData[5] = 2; // 三角形2枚目の3頂点目
 
 	// 三角形1枚目
-	vertexData[0].position = {0.0f, 360.0f, -1.0f, 1.0f};
+	vertexData[0].position = {0.0f, 1.0f, 0.0f, 1.0f};
 	vertexData[0].texcoord = {0.0f, 1.0f};
 	vertexData[0].normal = {0.0f, 0.0f, -1.0f};
-	vertexData[1].position = {0.0f, 0.0f, -1.0f, 1.0f};
+	vertexData[1].position = {0.0f, 0.0f, 0.0f, 1.0f};
 	vertexData[1].texcoord = {0.0f, 0.0f};
 	vertexData[1].normal = {0.0f, 0.0f, -1.0f};
-	vertexData[2].position = {640.0f, 360.0f, -1.0f, 1.0f};
+	vertexData[2].position = {1.0f, 1.0f, 0.0f, 1.0f};
 	vertexData[2].texcoord = {1.0f, 1.0f};
 	vertexData[2].normal = {0.0f, 0.0f, -1.0f};
-	vertexData[3].position = {640.0f, 0.0f, -1.0f, 1.0f};
+	vertexData[3].position = {1.0f, 0.0f, 0.0f, 1.0f};
 	vertexData[3].texcoord = {1.0f, 0.0f};
 	vertexData[3].normal = {0.0f, 0.0f, -1.0f};
 
+	// スプライトのサイズを反映
+	transform.scale = {size.x, size.y, 1.0f};
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = MakeIdentity4x4();
 	Matrix4x4 projectionMatrix = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
 	Matrix4x4 wvpMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 	transformationMatrixData->WVP = wvpMatrix;
+	Matrix4x4 uvTransformMatrix = MakeAffineMatrix(uvTransform.scale, uvTransform.rotate, uvTransform.translate);
+	
+	// UV変換行列をマテリアルに設定
+	materialData->uvTransform = uvTransformMatrix;
 }
 void Sprite::Draw(D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU) {
 

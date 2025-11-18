@@ -29,9 +29,15 @@ public:
 	void Initialize(SpriteCommon* spriteCommon);
 	void Update();
 	void Draw(D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU);
-	Transforms& GetTransform() { return transform; }
-	Transforms& GetUVTransform() { return uvTransform; }
-	Material* GetMaterial() { return materialData; }
+	const Transforms& GetTransform() { return transform; };
+	void SetTransform(const Transforms& newTransform) { transform = newTransform; }
+	const Transforms& GetUVTransform() { return uvTransform; }
+	void SetUVTransform(const Transforms& newUVTransform) { uvTransform = newUVTransform; }
+	const Vector4& GetColor() const { return materialData->color; }
+	void SetColor(const Vector4& newColor) { materialData->color = newColor; }
+	const Vector2 GetSize() const { return size; }
+	void SetSize(const Vector2& newSize) { size = newSize; }
+	
 
 private:
 	uint32_t* indexData = nullptr;
@@ -55,4 +61,5 @@ private:
     };
 	SpriteCommon* spriteCommon = nullptr;
 	TransformationMatrix* transformationMatrixData;
+	Vector2 size;
 };
