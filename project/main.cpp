@@ -1573,20 +1573,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			// モデルの描画
 
-			commandList->SetGraphicsRootConstantBufferView(0, instancingmaterialResourceModel->GetGPUVirtualAddress());
+			/*commandList->SetGraphicsRootConstantBufferView(0, instancingmaterialResourceModel->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(2, wvpResorceModel->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(3, lightResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(4, instanceSrvHandleGPU);
 			commandList->SetPipelineState(instancinggraphicsPipelineState.Get());
 			commandList->IASetVertexBuffers(0, 1, &instancingvertexBufferViewModel);
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			commandList->DrawInstanced(UINT(modelData.vertices.size()), kNumInstace, 0, 0);
+			commandList->DrawInstanced(UINT(modelData.vertices.size()), kNumInstace, 0, 0);*/
 
 			commandList->SetGraphicsRootConstantBufferView(0, instancingmaterialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(2, instanceResource->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootDescriptorTable(4, textureSrvHandleGPU);
+			commandList->SetGraphicsRootDescriptorTable(1, textureSrvHandleGPU);
 
-			commandList->IASetIndexBuffer(&indexBufferViewSprite);
+			commandList->IASetIndexBuffer(&instancingindexBufferViewSprite);
 			commandList->IASetVertexBuffers(0, 1, &instancingvertexBufferViewSprite);
 			commandList->SetPipelineState(instancinggraphicsPipelineState.Get());
 

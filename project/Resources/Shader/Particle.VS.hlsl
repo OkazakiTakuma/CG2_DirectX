@@ -6,7 +6,7 @@ struct TransformationMatrix
     float4x4 WVP;
     float4x4 world;
 };
-StructuredBuffer<TransformationMatrix> gTransformationMatrices : register(t1); // Material constant buffer
+StructuredBuffer<TransformationMatrix> gTransformationMatrices : register(t0); // Material constant buffer
 
 struct VertexShaderInput
 {
