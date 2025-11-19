@@ -25,37 +25,14 @@ struct PixelShaderOutput
 
 PixelShaderOutput main(VertexShaderOutput input)
 {
+    PixelShaderOutput output;
     float4 transformedUV = mul(float4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
-    if (textureColor.a == 0.0)
+    output.color = textureColor * gMaterial.color;
+    if(output.color.a = 0)
     {
-        discard; // 透明度が低いピクセルは描画しない
+        discard;
     }
-    if (textureColor.a <= 0.5)
-    {
-        discard; // 透明度が低いピクセルは描画しない
-    }
-
-    PixelShaderOutput output;
-    if (gMaterial.enableLighting != 0)
-    {
-        // 光と法線の内積 → cosθ 相当
-        float NdotL = saturate(dot(normalize(input.normal), -gDirectionalLight.direction));
-        float cos = pow(NdotL * 0.5f + 0.5f, 2.0f);
-        // ライトによる色変化
-        output.color.rgb = gMaterial.color.rgb * textureColor.rgb * gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity;
-        output.color.a = gMaterial.color.a * textureColor.a;
-        if (output.color.a == 0.0)
-        {
-            discard; // 透明度が低いピクセルは描画しない
-        }
-    
-      
-    }
-    else
-    {
-        // ライティングなしで色をそのまま合成
-        output.color = gMaterial.color * textureColor;
-    }
+   
     return output;
 }
