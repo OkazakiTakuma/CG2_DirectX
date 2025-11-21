@@ -1307,8 +1307,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instanceSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 	instanceSrvDesc.Buffer.NumElements = kNumInstance;
 	instanceSrvDesc.Buffer.StructureByteStride = sizeof(TransformationMatrix);
-	D3D12_CPU_DESCRIPTOR_HANDLE instanceSrvHandleCPU = GetCPUDescriptorHandle(instancingsrvDescriptorHeap, descroptorSizeSRV, 0);
-	D3D12_GPU_DESCRIPTOR_HANDLE instanceSrvHandleGPU = GetGPUDescriptorHandle(instancingsrvDescriptorHeap, descroptorSizeSRV, 0);
+	D3D12_CPU_DESCRIPTOR_HANDLE instanceSrvHandleCPU = GetCPUDescriptorHandle(instancingsrvDescriptorHeap, descroptorSizeSRV, 1);
+	D3D12_GPU_DESCRIPTOR_HANDLE instanceSrvHandleGPU = GetGPUDescriptorHandle(instancingsrvDescriptorHeap, descroptorSizeSRV, 1);
 	// SRVを生成
 
 	// ここで instanceBuffer を SRV に設定
@@ -1408,8 +1408,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	};
 	int instanceCount = 10;
 
-	Vector3 cameraPosition = {0.0f, 0.0f, -10.00f};
-	Vector3 cameraRotate = {0.0f, 0.0f, 0.0f};
+	Vector3 cameraPosition = {0.0f, 4.0f, 10.00f};
+	Vector3 cameraRotate = {0.3f, 3.14f, 0.0f};
 	const float clearColor[4] = {0.1f, 0.25f, 0.5f, 1.0f}; // 青色
 	// メッセージループ
 
@@ -1510,6 +1510,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::SliderAngle("sphere rotate y", &transform.rotate.y);
 			ImGui::SliderAngle("sphere rotate z", &transform.rotate.z);
 			ImGui::DragFloat3("sprite pos", &transformSprite.translate.x, 0.3f);
+			ImGui::DragFloat3("sprite translate", &instanceTransform[0].translate.x, 0.3f);
+			ImGui::DragFloat3("sprite translate", &instanceTransform[1].translate.x, 0.3f);
+			ImGui::DragFloat3("sprite translate", &instanceTransform[2].translate.x, 0.3f);
+			ImGui::DragFloat3("sprite translate", &instanceTransform[3].translate.x, 0.3f);
+			ImGui::DragFloat3("sprite translate", &instanceTransform[4].translate.x, 0.3f);
+			ImGui::DragFloat3("sprite translate", &instanceTransform[5].translate.x, 0.3f);
+			ImGui::DragFloat3("sprite translate", &instanceTransform[6].translate.x, 0.3f);
+			ImGui::DragFloat3("sprite translate", &instanceTransform[7].translate.x, 0.3f);
+			ImGui::DragFloat3("sprite translate", &instanceTransform[8].translate.x, 0.3f);
+			ImGui::DragFloat3("sprite translate", &instanceTransform[9].translate.x, 0.3f);
 			ImGui::DragFloat3("sprite rotate", &instanceTransform[0].rotate.x, 0.3f);
 			ImGui::DragFloat3("sprite rotate", &instanceTransform[1].rotate.x, 0.3f);
 			ImGui::DragFloat3("sprite rotate", &instanceTransform[2].rotate.x, 0.3f);
@@ -1569,6 +1579,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(2, instanceResource->GetGPUVirtualAddress());
 			auto srvStart = instancingsrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 			commandList->SetGraphicsRootDescriptorTable(1, srvStart);
+			commandList->SetGraphicsRootDescriptorTable(4, srvStart);
+
 
 
 			commandList->IASetIndexBuffer(&instancingindexBufferViewSprite);
