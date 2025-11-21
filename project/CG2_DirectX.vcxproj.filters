@@ -92,8 +92,12 @@
     <FxCompile Include="Resources\Shader\Object3d.VS.hlsl">
       <Filter>リソース ファイル\shader</Filter>
     </FxCompile>
-    <FxCompile Include="Resources\Shader\Particle.PS.hlsl" />
-    <FxCompile Include="Resources\Shader\Particle.VS.hlsl" />
+    <FxCompile Include="Resources\Shader\Particle.PS.hlsl">
+      <Filter>リソース ファイル\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\Particle.VS.hlsl">
+      <Filter>リソース ファイル\shader</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="extenals\imgui\imconfig.h">
@@ -149,12 +153,14 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="extenals\imgui\LICENSE.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="Resources\Shader\Object3D.hlsli">
       <Filter>リソース ファイル\shader</Filter>
     </None>
-    <None Include="Resources\Shader\Particle.hlsli" />
+    <None Include="Resources\Shader\Particle.hlsli">
+      <Filter>リソース ファイル\shader</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="extenals\imgui\LICENSE.txt" />
   </ItemGroup>
 </Project>

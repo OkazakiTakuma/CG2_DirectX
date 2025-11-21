@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DEFECTS>
+  <DEFECT>
+    <SFA>
+      <FILEPATH>C:\Users\81807\source\repos\CG2_DirectXa\project\extenals\DirectXTex\</FILEPATH>
+      <FILENAME>BC.h</FILENAME>
+      <LINE>135</LINE>
+      <COLUMN>12</COLUMN>
+    </SFA>
+    <DEFECTCODE>26816</DEFECTCODE>
+    <DESCRIPTION>ポインターは、スタックに割り当てられているメモリを指しています。</DESCRIPTION>
+    <FUNCTION>DirectX::HDRColorA::Clamp</FUNCTION>
+    <DECORATED>?Clamp@HDRColorA@DirectX@@QEAAAEAV12@MM@Z</DECORATED>
+    <FUNCLINE>129</FUNCLINE>
+    <PATH></PATH>
+  </DEFECT>
+  <DEFECT>
+    <SFA>
+      <FILEPATH>C:\Users\81807\source\repos\CG2_DirectXa\project\extenals\DirectXTex\</FILEPATH>
+      <FILENAME>BC6HBC7.cpp</FILENAME>
+      <LINE>504</LINE>
+      <COLUMN>12</COLUMN>
+    </SFA>
+    <DEFECTCODE>26816</DEFECTCODE>
+    <DESCRIPTION>ポインターは、スタックに割り当てられているメモリを指しています。</DESCRIPTION>
+    <FUNCTION>`anonymous-namespace'::INTColor::Clamp</FUNCTION>
+    <DECORATED>?Clamp@INTColor@?A0xf725a8dc@@QEAAAEAV12@HH@Z</DECORATED>
+    <FUNCLINE>499</FUNCLINE>
+    <PATH></PATH>
+  </DEFECT>
+</DEFECTS>
