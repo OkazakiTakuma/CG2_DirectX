@@ -17,7 +17,7 @@ struct VertexShaderInput
 
 };
 
-VertexShaderOutput main(VertexShaderInput input,int instanceID : SV_InstanceID)
+VertexShaderOutput main(VertexShaderInput input,uint32_t instanceID : SV_InstanceID)
 {
     VertexShaderOutput output;
     output.position = mul(input.position, gTransformationMatrices[instanceID].WVP); // ← 行列を使って変換

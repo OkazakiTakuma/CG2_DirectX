@@ -25,7 +25,7 @@ void Input::Initialize(WinApp* winApp) {
 	assert(SUCCEEDED(hr));
 
 	// 排他制御レベルのセット
-	hr = keyboard->SetCooperativeLevel(winApp->GetHwnd(), DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
+	hr = keyboard->SetCooperativeLevel(winApp->GetHwnd(), DISCL_FOREGROUND|DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
 	assert(SUCCEEDED(hr));
 };
 
