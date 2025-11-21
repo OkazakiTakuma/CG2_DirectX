@@ -1288,8 +1288,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// SRVを生成するためのディスクリプタヒープを取得
 	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 1);
 	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 1);
-	D3D12_CPU_DESCRIPTOR_HANDLE instancingtextureSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 4);
-	D3D12_GPU_DESCRIPTOR_HANDLE instancingtextureSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 4);
 
 	// SRVを生成
 	device->CreateShaderResourceView(textureResource.Get(), &srvDesc, textureSrvHandleCPU); // テクスチャリソースにSRVを設定
@@ -1310,8 +1308,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instanceSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 	instanceSrvDesc.Buffer.NumElements = kNumInstace;
 	instanceSrvDesc.Buffer.StructureByteStride = sizeof(TransformationMatrix);
-	D3D12_CPU_DESCRIPTOR_HANDLE instanceSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
-	D3D12_GPU_DESCRIPTOR_HANDLE instanceSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
+	D3D12_CPU_DESCRIPTOR_HANDLE instanceSrvHandleCPU = GetCPUDescriptorHandle(instancingsrvDescriptorHeap, descroptorSizeSRV, 2);
+	D3D12_GPU_DESCRIPTOR_HANDLE instanceSrvHandleGPU = GetGPUDescriptorHandle(instancingsrvDescriptorHeap, descroptorSizeSRV, 2);
+	// SRVを生成
+	device->CreateShaderResourceView(textureResource.Get(), &instanceSrvDesc, instanceSrvHandleCPU); // テクスチャリソースにSRVを設定
+
+	
 
 	Transforms instanceTransform[kNumInstace];
 	for (int i = 0; i < kNumInstace; i++) {
@@ -1324,7 +1326,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	DirectX::ScratchImage mipImage2 = LoadTexture("Resources/monsterBall.png");
 	const DirectX::TexMetadata& metaData2 = mipImage2.GetMetadata();
 	// テクスチャリソースの生成
-	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource2 = CreateTextureResource(device, metaData2);
+	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource2 = CreateTextureResource(device, mipImage2.GetMetadata());
 	// テクスチャにデータをアップロード
 	UploadTextureData(textureResource2, mipImage2);
 
@@ -1336,8 +1338,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	srvDesc2.Texture2D.MipLevels = UINT(metaData2.mipLevels);                    // ミップレベルの数
 
 	// SRVを生成するためのディスクリプタヒープを取得
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 2);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 2);
+	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
 
 	// SRVを生成
 	device->CreateShaderResourceView(textureResource2.Get(), &srvDesc2, textureSrvHandleCPU2); // テクスチャリソースにSRVを設定
@@ -1360,8 +1362,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	srvDesc3.Texture2D.MipLevels = UINT(metaData3.mipLevels);                    // ミップレベルの数
 
 	// SRVを生成するためのディスクリプタヒープを取得
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU3 = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU3 = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 3);
+	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU3 = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 4);
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU3 = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 4);
 
 	// SRVを生成
 	device->CreateShaderResourceView(textureResource3.Get(), &srvDesc3, textureSrvHandleCPU3); // テクスチャリソースにSRVを設定
@@ -1541,7 +1543,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region コマンドリストのリセット
 		
 		
-			commandList->Reset(commandAllocator.Get(), instancinggraphicsPipelineState.Get());
 			// 書き込むバックバッファのインデックスを取得
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 			// TransitionBarrierの設定
@@ -1609,6 +1610,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Microsoft::WRL::ComPtr<ID3D12CommandList> cmdLists[] = {commandList};
 			commandQueue->ExecuteCommandLists(1, cmdLists->GetAddressOf());
 			swapChain->Present(1, 0);
+			commandList->Reset(commandAllocator.Get(), instancinggraphicsPipelineState.Get());
 			commandAllocator->Reset();
 			// フェンスでGPU完了待ち（簡略化）
 
