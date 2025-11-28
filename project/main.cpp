@@ -13,7 +13,6 @@
 #include <codecvt>
 #include <cstdint>
 #include <d3d12.h>
-
 #include <dbghelp.h>
 #include <dxcapi.h>
 #include <dxgi1_6.h>
@@ -26,7 +25,7 @@
 #include <string>
 #include <strsafe.h>
 #include <wrl.h>
-
+#include <random>
 #include "extenals/imgui/imgui.h"
 #include "extenals/imgui/imgui_impl_dx12.h"
 #include "extenals/imgui/imgui_impl_win32.h"
@@ -76,6 +75,13 @@ struct TransformationMatrix {
 	Matrix4x4 world;
 };
 
+struct ParticleForGPU {
+	Matrix4x4 WVP;
+	Matrix4x4 world;
+	Vector4 color;
+};
+
+
 struct DirectionalLight {
 	Vector4 color;     // 光の色
 	Vector3 direction; // 光の方向
@@ -90,6 +96,26 @@ struct ModelData {
 	std::vector<VertexData> vertices; // 頂点データ
 	MaterialData material;
 };
+
+struct Particle {
+	Transforms transform; // SRT情報
+	Vector3 velocity;     // 速度
+	Vector4 color;        // 色
+};
+
+
+Particle MakeNewParticle(std::mt19937& randomEngine) {
+	Particle particle{};
+	std::uniform_real_distribution<float> distribution(-1.0f, 1.0f);
+	particle.transform.scale = {1.0f, 1.0f, 1.0f};
+	particle.transform.rotate = {0.0f, 0.0f, 0.0f};
+	particle.transform.translate = {distribution(randomEngine), distribution(randomEngine), distribution(randomEngine)};
+	particle.velocity = {distribution(randomEngine), distribution(randomEngine), distribution(randomEngine)};
+	std::uniform_real_distribution<float> colorDistribution(0.0f, 1.0f);
+	particle.color = {colorDistribution(randomEngine), colorDistribution(randomEngine), colorDistribution(randomEngine), 1.0f};
+		
+	return particle;
+}
 
 IDxcBlob* CompileShader(
     // CompieするShaderのファイルパス
@@ -584,7 +610,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptorRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	
 	// RootSignatureの設定
 	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT; // 入力アセンブラーでの使用を許可
@@ -781,12 +806,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instancingrootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	instancingrootParameters[1].DescriptorTable.pDescriptorRanges = instancingdescriptorRange;
 	instancingrootParameters[1].DescriptorTable.NumDescriptorRanges = _countof(instancingdescriptorRange);
-	instancingrootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;     // ルートパラメーターのタイプ（CBV）
-	instancingrootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX; // シェーダーの可視性（バーテックスシェーダー）
-	instancingrootParameters[2].Descriptor.ShaderRegister = 1;                     // シェーダーレジスタのインデックス
-	instancingrootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;     // ルートパラメーターのタイプ（CBV）
-	instancingrootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;  // シェーダーの可視性（ピクセルシェーダー）
-	instancingrootParameters[3].Descriptor.ShaderRegister = 2;                     // シェーダーレジスタのインデックス
+	instancingrootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;             // ルートパラメーターのタイプ（CBV）
+	instancingrootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;         // シェーダーの可視性（バーテックスシェーダー）
+	instancingrootParameters[2].Descriptor.ShaderRegister = 1;                             // シェーダーレジスタのインデックス
+	instancingrootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;             // ルートパラメーターのタイプ（CBV）
+	instancingrootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;          // シェーダーの可視性（ピクセルシェーダー）
+	instancingrootParameters[3].Descriptor.ShaderRegister = 2;                             // シェーダーレジスタのインデックス
 	instancingdescriptionRootSignature.pParameters = instancingrootParameters;             // ルートパラメーターの配列
 	instancingdescriptionRootSignature.NumParameters = _countof(instancingrootParameters); // ルートパラメーターの数
 #pragma endregion InstancingRootParameter設定
@@ -1181,7 +1206,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 三角形2枚目のインデックスを設定
 	instancingindexDataSprite[3] = 1; // 三角形2枚目の1頂点目
 	instancingindexDataSprite[4] = 3; // 三角形2枚目の2頂点目
-	instancingindexDataSprite[5] = 2; // 三角形2枚目の3頂点目
+	instancingindexDataSprite[5] = 2; // 三角形2枚目の3頂vertex目
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingvertexResourceSprite = CreateBufferResource(device.Get(), sizeof(VertexData) * 6);
 	assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
 
@@ -1279,12 +1304,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region InstanceResourceの作成
 	const uint32_t kNumInstance = 10;
-	Microsoft::WRL::ComPtr<ID3D12Resource> instanceResource = CreateBufferResource(device.Get(), sizeof(TransformationMatrix) * kNumInstance);
-	TransformationMatrix* instanceData = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> instanceResource = CreateBufferResource(device.Get(), sizeof(ParticleForGPU) * kNumInstance);
+	ParticleForGPU* instanceData = nullptr;
 	instanceResource->Map(0, nullptr, reinterpret_cast<void**>(&instanceData));
 	for (int i = 0; i < kNumInstance; i++) {
 		instanceData[i].WVP = MakeIdentity4x4();
 		instanceData[i].world = MakeIdentity4x4();
+		instanceData[i].color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 	}
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> instancingrtvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> instancingsrvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
@@ -1297,7 +1323,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instanceSrvDesc.Buffer.FirstElement = 0;
 	instanceSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 	instanceSrvDesc.Buffer.NumElements = kNumInstance;
-	instanceSrvDesc.Buffer.StructureByteStride = sizeof(TransformationMatrix);
+	instanceSrvDesc.Buffer.StructureByteStride = sizeof(ParticleForGPU);
 	D3D12_CPU_DESCRIPTOR_HANDLE instanceSrvHandleCPU = GetCPUDescriptorHandle(instancingsrvDescriptorHeap, descroptorSizeSRV, 1);
 	D3D12_GPU_DESCRIPTOR_HANDLE instanceSrvHandleGPU = GetGPUDescriptorHandle(instancingsrvDescriptorHeap, descroptorSizeSRV, 1);
 	// SRVを生成
@@ -1306,19 +1332,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	D3D12_GPU_DESCRIPTOR_HANDLE instancetextureSrvHandleGPU = instancingsrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
-
 	// SRVを生成
 	device->CreateShaderResourceView(textureResource.Get(), &srvDesc, instancetextureSrvHandleCPU); // テクスチャリソースにSRVを設定
-
 
 	// ここで instanceBuffer を SRV に設定
 	device->CreateShaderResourceView(instanceResource.Get(), &instanceSrvDesc, instanceSrvHandleCPU);
 
-	Transforms instanceTransform[kNumInstance];
+	std::random_device seedGenerator;
+	std::mt19937 randomEngine(seedGenerator());
+	Particle particles[kNumInstance];
 	for (int i = 0; i < kNumInstance; i++) {
-		instanceTransform[i].scale = {1.0f, 1.0f, 1.0f};
-		instanceTransform[i].rotate = {0.0f, 0.0f, 0.0f};
-		instanceTransform[i].translate = {i * 0.1f, i * 0.1f, i * 0.1f};
+		particles[i] = MakeNewParticle(randomEngine);
+		instanceData[i].color = particles[i].color;
 	}
 #pragma endregion
 
@@ -1436,7 +1461,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ResourceObject depthStencilResource = CreateDepthStenecilTextureResource(device, WinApp::kClientWidth, WinApp::kClientHeight);
 
 	int currentMode = static_cast<int>(blendMode); // 初期値
-
+	const float kDeltaTime = 1.0f / 60.0f;
 	while (msg.message != WM_QUIT) {
 		// メッセージを取得
 		if (winApp->ProcessMessage()) {
@@ -1474,7 +1499,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
 
 			for (int i = 0; i < kNumInstance; i++) {
-				Matrix4x4 worldMatrix = MakeAffineMatrix(instanceTransform[i].scale, instanceTransform[i].rotate, instanceTransform[i].translate);
+				Vector3 move= particles[i].velocity * kDeltaTime;
+				particles[i].transform.translate = particles[i].transform.translate + move;
+				Matrix4x4 worldMatrix = MakeAffineMatrix(particles[i].transform.scale, particles[i].transform.rotate, particles[i].transform.translate);
 				Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrixModel, projectionMatrixModel));
 				instanceData[i].WVP = worldViewProjectionMatrix;
 				instanceData[i].world = worldMatrix;
@@ -1510,26 +1537,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::SliderAngle("sphere rotate y", &transform.rotate.y);
 			ImGui::SliderAngle("sphere rotate z", &transform.rotate.z);
 			ImGui::DragFloat3("sprite pos", &transformSprite.translate.x, 0.3f);
-			ImGui::DragFloat3("sprite translate0", &instanceTransform[0].translate.x, 0.1f);
-			ImGui::DragFloat3("sprite translate1", &instanceTransform[1].translate.x, 0.1f);
-			ImGui::DragFloat3("sprite translate2", &instanceTransform[2].translate.x, 0.1f);
-			ImGui::DragFloat3("sprite translate3", &instanceTransform[3].translate.x, 0.1f);
-			ImGui::DragFloat3("sprite translate4", &instanceTransform[4].translate.x, 0.1f);
-			ImGui::DragFloat3("sprite translate5", &instanceTransform[5].translate.x, 0.1f);
-			ImGui::DragFloat3("sprite translate6", &instanceTransform[6].translate.x, 0.1f);
-			ImGui::DragFloat3("sprite translate7", &instanceTransform[7].translate.x, 0.1f);
-			ImGui::DragFloat3("sprite translate8", &instanceTransform[8].translate.x, 0.1f);
-			ImGui::DragFloat3("sprite translate9", &instanceTransform[9].translate.x, 0.1f);
-			ImGui::DragFloat3("sprite rotate0", &instanceTransform[0].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate1", &instanceTransform[1].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate2", &instanceTransform[2].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate3", &instanceTransform[3].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate4", &instanceTransform[4].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate5", &instanceTransform[5].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate6", &instanceTransform[6].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate7", &instanceTransform[7].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate8", &instanceTransform[8].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate9", &instanceTransform[9].rotate.x, 0.3f);
 
 			ImGui::ColorEdit4("sprite color", &materialDataSprite->color.x, 1.0f); // クリアカラーの編集
 			ImGui::DragFloat2("UV translate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
@@ -1572,16 +1579,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ID3D12DescriptorHeap* descriptorHeaps[] = {instancingsrvDescriptorHeap.Get()};
 			commandList->SetDescriptorHeaps(1, descriptorHeaps); // ディスクリプタヒープの設定
 			commandList->RSSetViewports(1, &viewport);
-			commandList->RSSetScissorRects(1, &scissorRect)
-				;
+			commandList->RSSetScissorRects(1, &scissorRect);
 			commandList->SetGraphicsRootSignature(instancingrootSignature.Get());
 			commandList->SetGraphicsRootConstantBufferView(0, instancingmaterialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(2, instanceResource->GetGPUVirtualAddress());
 			auto srvStart = instancingsrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 			commandList->SetGraphicsRootDescriptorTable(1, srvStart);
-			//commandList->SetGraphicsRootDescriptorTable(4, srvStart);
-
-
+			// commandList->SetGraphicsRootDescriptorTable(4, srvStart);
 
 			commandList->IASetIndexBuffer(&instancingindexBufferViewSprite);
 			commandList->IASetVertexBuffers(0, 1, &instancingvertexBufferViewSprite);

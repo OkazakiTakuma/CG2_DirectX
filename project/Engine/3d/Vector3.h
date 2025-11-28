@@ -12,6 +12,7 @@ Vector3 operator-(const Vector3& v1, const Vector3& v2) ;
 // スカラー倍
 Vector3 Multiply(float scalar, const Vector3& v);
 Vector3 operator*(float scalar, const Vector3& v);
+Vector3 operator*(const Vector3& v, float scalar);
 // 内積
 float Dot(const Vector3& v1, const Vector3& v2);
 // 長さ (ノルム)

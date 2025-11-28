@@ -24,6 +24,7 @@ Vector3 Multiply(float scalar, const Vector3& v) {
 }
 
 Vector3 operator*(float scalar, const Vector3& v) { return Multiply(scalar, v); }
+Vector3 operator*(const Vector3& v, float scalar) { return Multiply(scalar, v); }
 
 float Dot(const Vector3& v1, const Vector3& v2) { return (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z); }
 
