@@ -1,5 +1,6 @@
 #include "Engine/2d/Sprite.h"
 #include "Engine/2d/SpriteCommon.h"
+#include "Engine/2d/TextureManager.h"
 #include "Engine/3d/Matrix.h"
 #include "Engine/3d/Screen.h"
 #include "Engine/3d/Vector.h"
@@ -44,6 +45,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg
 
 using namespace Logger;
 using namespace StringUtility;
+using namespace Microsoft::WRL;
 
 enum BlendMode {
 	kBlendModeNone,
@@ -226,20 +228,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	input->Initialize(winApp);
 	DirectXCommon* dxCommon = new DirectXCommon();
 	dxCommon->Initialize(winApp);
+	TextureManager::GetInstance()->Initialize();
 	SpriteCommon* spriteCommon = new SpriteCommon();
 	spriteCommon->Initialize(dxCommon);
 	Sprite* sprite = new Sprite();
-	sprite->Initialize(spriteCommon);
+	sprite->Initialize(spriteCommon, "Resources/uvChecker.png");
+
 	std::vector<Sprite*> sprites;
 	for (int i = 0; i < 5; i++) {
 		Sprite* sprits = new Sprite();
-		sprits->Initialize(spriteCommon);
+		sprits->Initialize(spriteCommon, "Resources/monsterball.png");
 		sprites.push_back(sprits);
 		Transforms transform;
 		transform.scale = {50.0f, 50.0f, 1.0f};
 		transform.translate = {100.0f + i * 90.0f, 200.0f, 0.0f};
 		sprits->SetTransform(transform);
-
 	}
 
 	//	//	assert(SUCCEEDED(hr));
@@ -587,56 +590,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//
 	// #pragma endregion
 
-#pragma region uvCheckerの読み込み
-	DirectX::ScratchImage mipImage = dxCommon->LoadTexture("Resources/uvChecker.png");
-	const DirectX::TexMetadata& metaData = mipImage.GetMetadata();
-	// テクスチャリソースの生成
-	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource = dxCommon->CreateTextureResource(dxCommon->GetDevice(), metaData);
-	// テクスチャにデータをアップロード
-	dxCommon->UploadTextureData(textureResource, mipImage);
-
-	// metaDataを基にSRVを生成
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = metaData.format;                                           // テクスチャのフォーマット
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // シェーダーコンポーネントのマッピング
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;                      // テクスチャの次元
-	srvDesc.Texture2D.MipLevels = UINT(metaData.mipLevels);                     // ミップレベルの数
-
-	const uint32_t descroptorSizeSRV = dxCommon->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	const uint32_t descroptorSizeRTV = dxCommon->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	const uint32_t descroptorSizeDSV = dxCommon->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-
-	// SRVを生成するためのディスクリプタヒープを取得
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = GetCPUDescriptorHandle(dxCommon->GetSRVDescriptorHeap(), descroptorSizeSRV, 1);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = GetGPUDescriptorHandle(dxCommon->GetSRVDescriptorHeap(), descroptorSizeSRV, 1);
-
-	// SRVを生成
-	dxCommon->GetDevice()->CreateShaderResourceView(textureResource.Get(), &srvDesc, textureSrvHandleCPU); // テクスチャリソースにSRVを設定
-
-#pragma endregion
-
-#pragma region 別の画像の読み込み
-	DirectX::ScratchImage mipImage2 = dxCommon->LoadTexture("Resources/monsterBall.png");
-	const DirectX::TexMetadata& metaData2 = mipImage2.GetMetadata();
-	// テクスチャリソースの生成
-	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource2 = dxCommon->CreateTextureResource(dxCommon->GetDevice(), metaData2);
-	// テクスチャにデータをアップロード
-	dxCommon->UploadTextureData(textureResource2, mipImage2);
-
-	// metaDataを基にSRVを生成
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2{};
-	srvDesc2.Format = metaData2.format;                                          // テクスチャのフォーマット
-	srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // シェーダーコンポーネントのマッピング
-	srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;                      // テクスチャの次元
-	srvDesc2.Texture2D.MipLevels = UINT(metaData2.mipLevels);                    // ミップレベルの数
-
-	// SRVを生成するためのディスクリプタヒープを取得
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 = GetCPUDescriptorHandle(dxCommon->GetSRVDescriptorHeap(), descroptorSizeSRV, 2);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = GetGPUDescriptorHandle(dxCommon->GetSRVDescriptorHeap(), descroptorSizeSRV, 2);
-
-	// SRVを生成
-	dxCommon->GetDevice()->CreateShaderResourceView(textureResource2.Get(), &srvDesc2, textureSrvHandleCPU2); // テクスチャリソースにSRVを設定
-
 #pragma endregion
 
 #pragma region 別の画像の読み込み
@@ -730,7 +683,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				s->SetSize({100.0f, 100.0f});
 			}
 
-
 			const char* modeNames[] = {"Normal", "Add", "Sub", "Multiply"};
 			// ImGui::Combo("Select Mode", &currentMode, modeNames, 4);
 			//  もしくは
@@ -784,8 +736,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// directionallightData->direction = NormalizeReturnVector(directionallightData->direction); // 正規化
 			// ImGui::SliderFloat("intensity", &directionallightData->intensity, 0.0f, 1.0f);
 			//  ImGuiのウィンドウを作成
-			ImGui::Render();         // ImGuiの描画を実行
-			
+			ImGui::Render(); // ImGuiの描画を実行
+
 			sprite->SetTransform(trsprite);
 			sprite->SetUVTransform(trspriteUV);
 			sprite->SetColor(spriteColor);
@@ -808,9 +760,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			// モデルの描画
 			spriteCommon->SetDraw();
-			sprite->Draw(textureSrvHandleGPU);
+			sprite->Draw();
 			for (Sprite* s : sprites) {
-				s->Draw(textureSrvHandleGPU);
+				s->Draw();
 			}
 			/*	dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResourceModel->GetGPUVirtualAddress());
 			    dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
@@ -833,12 +785,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ImGui::DestroyContext(); // ImGuiのコンテキストを破棄
 
 	delete Checker;
-	delete input;  // DirectInputオブジェクトの解放
+	delete input; // DirectInputオブジェクトの解放
 	for (Sprite* s : sprites) {
 		delete s;
 	}
 	delete sprite; // スプライトの解放
 	delete spriteCommon;
+	TextureManager::GetInstance()->Finalize();
 	delete dxCommon;    // DirectXCommonの解放
 	winApp->Finalize(); // ウィンドウの終了処理
 	delete winApp;      // ウィンドウクラスの解放

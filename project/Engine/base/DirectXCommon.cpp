@@ -3,6 +3,8 @@
 using namespace Logger;
 using namespace StringUtility;
 
+const uint32_t DirectXCommon::kMaxSRVCount = 512;
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors, bool shaderVisible) {
@@ -183,7 +185,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateBufferResource(size_
 	return resource;
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, const DirectX::TexMetadata& metaData) {
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(const DirectX::TexMetadata& metaData) {
 	assert(device != nullptr);
 
 	// バッファリソースの設定
@@ -205,12 +207,12 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(cons
 	// リソースの設定
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
 	HRESULT hr = device->CreateCommittedResource(
-	    &heapProperties,                   // ヒープのプロパティ
-	    D3D12_HEAP_FLAG_NONE,              // ヒープのフラグ
-	    &resourceDesc,                     // リソースの設定
-	    D3D12_RESOURCE_STATE_GENERIC_READ, // 初期状態
-	    nullptr,                           // クリア値はなし
-	    IID_PPV_ARGS(&resource)            // リソースのポインタを取得
+	    &heapProperties,                // ヒープのプロパティ
+	    D3D12_HEAP_FLAG_NONE,           // ヒープのフラグ
+	    &resourceDesc,                  // リソースの設定
+	    D3D12_RESOURCE_STATE_COPY_DEST, // 初期状態
+	    nullptr,                        // クリア値はなし
+	    IID_PPV_ARGS(&resource)         // リソースのポインタを取得
 	);
 
 	assert(SUCCEEDED(hr));
@@ -235,18 +237,6 @@ void DirectXCommon::UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resourc
 		);
 		assert(SUCCEEDED(hr));
 	}
-}
-
-DirectX::ScratchImage DirectXCommon::LoadTexture(const std::string& filepath) {
-	DirectX::ScratchImage image{};
-	HRESULT hr = DirectX::LoadFromWICFile(ConvertString(filepath).c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
-	assert(SUCCEEDED(hr));
-
-	DirectX::ScratchImage mipImage{};
-	hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImage);
-	assert(SUCCEEDED(hr));
-
-	return mipImage;
 }
 
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDepthStenecilTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, int32_t width, int32_t height) {
@@ -435,7 +425,7 @@ void DirectXCommon::CreateDescriptorHeap() {
 	descroptorSizeRTV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	descroptorSizeDSV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
-	srvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 100, true);
+	srvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, kMaxSRVCount, true);
 	rtvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 	dsvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 }
