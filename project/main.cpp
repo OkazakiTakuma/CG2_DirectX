@@ -584,12 +584,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptorRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing[1] = {};
-	descriptorRangeForInstancing[0].BaseShaderRegister = 0;
-	descriptorRangeForInstancing[0].NumDescriptors = 1;
-	descriptorRangeForInstancing[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	descriptorRangeForInstancing[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
+	
 	// RootSignatureの設定
 	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT; // 入力アセンブラーでの使用を許可
@@ -777,13 +772,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D12_ROOT_SIGNATURE_DESC instancingdescriptionRootSignature{};
 	instancingdescriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT; // 入力アセンブラーでの使用を許可
 	// RootParameterの設定。複数設定できるので配列、今回は結果1つだけなので長さ1の配列
-	D3D12_ROOT_PARAMETER instancingrootParameters[5] = {};
+	D3D12_ROOT_PARAMETER instancingrootParameters[4] = {};
 	// ルートパラメーターの設定
 	instancingrootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;    // ルートパラメーターのタイプ（CBV）
 	instancingrootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // シェーダーの可視性（ピクセルシェーダー）
 	instancingrootParameters[0].Descriptor.ShaderRegister = 0;                    // シェーダーレジスタのインデックス
 	instancingrootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	instancingrootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	instancingrootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	instancingrootParameters[1].DescriptorTable.pDescriptorRanges = instancingdescriptorRange;
 	instancingrootParameters[1].DescriptorTable.NumDescriptorRanges = _countof(instancingdescriptorRange);
 	instancingrootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;     // ルートパラメーターのタイプ（CBV）
@@ -792,10 +787,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instancingrootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;     // ルートパラメーターのタイプ（CBV）
 	instancingrootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;  // シェーダーの可視性（ピクセルシェーダー）
 	instancingrootParameters[3].Descriptor.ShaderRegister = 2;                     // シェーダーレジスタのインデックス
-	instancingrootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	instancingrootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	instancingrootParameters[4].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing;
-	instancingrootParameters[4].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing);
 	instancingdescriptionRootSignature.pParameters = instancingrootParameters;             // ルートパラメーターの配列
 	instancingdescriptionRootSignature.NumParameters = _countof(instancingrootParameters); // ルートパラメーターの数
 #pragma endregion InstancingRootParameter設定
@@ -1211,13 +1202,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instancingvertexDataSprite[0].normal = {0.0f, 0.0f, 0.0f};
 	instancingvertexDataSprite[1].position = {-1.0f, 1.0f, 0.0f, 1.0f};
 	instancingvertexDataSprite[1].texcoord = {0.0f, 0.0f};
-	instancingvertexDataSprite[1].normal = {0.0f, 0.0f, -1.0f};
+	instancingvertexDataSprite[1].normal = {0.0f, 0.0f, 1.0f};
 	instancingvertexDataSprite[2].position = {1.0f, -1.0f, 0.0f, 1.0f};
 	instancingvertexDataSprite[2].texcoord = {1.0f, 1.0f};
-	instancingvertexDataSprite[2].normal = {0.0f, 0.0f, -1.0f};
+	instancingvertexDataSprite[2].normal = {0.0f, 0.0f, 1.0f};
 	instancingvertexDataSprite[3].position = {1.0f, 1.0f, 0.0f, 1.0f};
 	instancingvertexDataSprite[3].texcoord = {1.0f, 0.0f};
-	instancingvertexDataSprite[3].normal = {0.0f, 0.0f, -1.0f};
+	instancingvertexDataSprite[3].normal = {0.0f, 0.0f, 1.0f};
 
 	// スプライト用のマテリアルリソースを作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingmaterialResourceSprite = CreateBufferResource(device.Get(), sizeof(Material) * 20 * 20 * 6);
@@ -1310,6 +1301,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D12_CPU_DESCRIPTOR_HANDLE instanceSrvHandleCPU = GetCPUDescriptorHandle(instancingsrvDescriptorHeap, descroptorSizeSRV, 1);
 	D3D12_GPU_DESCRIPTOR_HANDLE instanceSrvHandleGPU = GetGPUDescriptorHandle(instancingsrvDescriptorHeap, descroptorSizeSRV, 1);
 	// SRVを生成
+	// SRVを生成するためのディスクリプタヒープを取得
+	D3D12_CPU_DESCRIPTOR_HANDLE instancetextureSrvHandleCPU = instancingsrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
+	D3D12_GPU_DESCRIPTOR_HANDLE instancetextureSrvHandleGPU = instancingsrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+
+
+	// SRVを生成
+	device->CreateShaderResourceView(textureResource.Get(), &srvDesc, instancetextureSrvHandleCPU); // テクスチャリソースにSRVを設定
+
 
 	// ここで instanceBuffer を SRV に設定
 	device->CreateShaderResourceView(instanceResource.Get(), &instanceSrvDesc, instanceSrvHandleCPU);
@@ -1408,8 +1408,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	};
 	int instanceCount = 10;
 
-	Vector3 cameraPosition = {0.0f, 4.0f, 10.00f};
-	Vector3 cameraRotate = {0.3f, 3.14f, 0.0f};
+	Vector3 cameraPosition = {0.0f, 0.0f, -10.00f};
+	Vector3 cameraRotate = {0.0f, 0.0f, 0.0f};
 	const float clearColor[4] = {0.1f, 0.25f, 0.5f, 1.0f}; // 青色
 	// メッセージループ
 
@@ -1510,26 +1510,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::SliderAngle("sphere rotate y", &transform.rotate.y);
 			ImGui::SliderAngle("sphere rotate z", &transform.rotate.z);
 			ImGui::DragFloat3("sprite pos", &transformSprite.translate.x, 0.3f);
-			ImGui::DragFloat3("sprite translate", &instanceTransform[0].translate.x, 0.3f);
-			ImGui::DragFloat3("sprite translate", &instanceTransform[1].translate.x, 0.3f);
-			ImGui::DragFloat3("sprite translate", &instanceTransform[2].translate.x, 0.3f);
-			ImGui::DragFloat3("sprite translate", &instanceTransform[3].translate.x, 0.3f);
-			ImGui::DragFloat3("sprite translate", &instanceTransform[4].translate.x, 0.3f);
-			ImGui::DragFloat3("sprite translate", &instanceTransform[5].translate.x, 0.3f);
-			ImGui::DragFloat3("sprite translate", &instanceTransform[6].translate.x, 0.3f);
-			ImGui::DragFloat3("sprite translate", &instanceTransform[7].translate.x, 0.3f);
-			ImGui::DragFloat3("sprite translate", &instanceTransform[8].translate.x, 0.3f);
-			ImGui::DragFloat3("sprite translate", &instanceTransform[9].translate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate", &instanceTransform[0].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate", &instanceTransform[1].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate", &instanceTransform[2].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate", &instanceTransform[3].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate", &instanceTransform[4].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate", &instanceTransform[5].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate", &instanceTransform[6].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate", &instanceTransform[7].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate", &instanceTransform[8].rotate.x, 0.3f);
-			ImGui::DragFloat3("sprite rotate", &instanceTransform[9].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite translate0", &instanceTransform[0].translate.x, 0.1f);
+			ImGui::DragFloat3("sprite translate1", &instanceTransform[1].translate.x, 0.1f);
+			ImGui::DragFloat3("sprite translate2", &instanceTransform[2].translate.x, 0.1f);
+			ImGui::DragFloat3("sprite translate3", &instanceTransform[3].translate.x, 0.1f);
+			ImGui::DragFloat3("sprite translate4", &instanceTransform[4].translate.x, 0.1f);
+			ImGui::DragFloat3("sprite translate5", &instanceTransform[5].translate.x, 0.1f);
+			ImGui::DragFloat3("sprite translate6", &instanceTransform[6].translate.x, 0.1f);
+			ImGui::DragFloat3("sprite translate7", &instanceTransform[7].translate.x, 0.1f);
+			ImGui::DragFloat3("sprite translate8", &instanceTransform[8].translate.x, 0.1f);
+			ImGui::DragFloat3("sprite translate9", &instanceTransform[9].translate.x, 0.1f);
+			ImGui::DragFloat3("sprite rotate0", &instanceTransform[0].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate1", &instanceTransform[1].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate2", &instanceTransform[2].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate3", &instanceTransform[3].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate4", &instanceTransform[4].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate5", &instanceTransform[5].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate6", &instanceTransform[6].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate7", &instanceTransform[7].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate8", &instanceTransform[8].rotate.x, 0.3f);
+			ImGui::DragFloat3("sprite rotate9", &instanceTransform[9].rotate.x, 0.3f);
 
 			ImGui::ColorEdit4("sprite color", &materialDataSprite->color.x, 1.0f); // クリアカラーの編集
 			ImGui::DragFloat2("UV translate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
@@ -1579,7 +1579,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(2, instanceResource->GetGPUVirtualAddress());
 			auto srvStart = instancingsrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 			commandList->SetGraphicsRootDescriptorTable(1, srvStart);
-			commandList->SetGraphicsRootDescriptorTable(4, srvStart);
+			//commandList->SetGraphicsRootDescriptorTable(4, srvStart);
 
 
 
