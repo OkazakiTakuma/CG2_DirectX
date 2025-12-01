@@ -77,3 +77,10 @@ void TextureManager::LoadTexture(const std::string& filepath) {
 
 	dxCommon_->UploadTextureData(textureData.resource, mipImages);
 }
+
+const DirectX::TexMetadata& TextureManager::GetTextureMetadata(uint32_t textureIndex) {
+	assert(textureIndex < DirectXCommon::kMaxSRVCount);
+	assert(textureIndex < textureDatas.size());
+	TextureData& textureData = textureDatas[textureIndex];
+	return textureData.metadata;
+}

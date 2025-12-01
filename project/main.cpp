@@ -649,7 +649,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	MSG msg = {};
 
 	ResourceObject depthStencilResource = dxCommon->CreateDepthStenecilTextureResource(dxCommon->GetDevice(), WinApp::kClientWidth, WinApp::kClientHeight);
-
 	while (msg.message != WM_QUIT) {
 		// メッセージを取得
 		if (winApp->ProcessMessage()) {
@@ -728,6 +727,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Transforms trspriteUV = sprite->GetUVTransform();
 			Vector4 spriteColor = sprite->GetColor();
 			Vector2 spriteSize = sprite->GetSize();
+			Vector2 anchor = sprite->GetAnchorPoint();
+			bool isFlipX = sprite->GetIsFlipX();
+			bool isFlipY = sprite->GetIsFlipY();
+			Vector2 textureLeftTop = sprite->GetTextureLeftTop();
+			Vector2 textureSize = sprite->GetTextureSize();
+
 			ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
 			ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
 			ImGui::SliderAngle("camera rotate y", &cameraRotate.y);
@@ -736,6 +741,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::SliderAngle("sprite rotate", &trsprite.rotate.z);
 			ImGui::DragFloat2("sprite scale", &spriteSize.x, 0.3f);
 			ImGui::ColorEdit4("sprite color", &spriteColor.x, 1.0f); // クリアカラーの編集
+			ImGui::DragFloat2("anchor point", &anchor.x, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat2("texture left top", &textureLeftTop.x, 1.0f, 0.0f, 512.0f);
+			ImGui::DragFloat2("texture size", &textureSize.x, 1.0f, 0.0f, 512.0f);
+			ImGui::Checkbox("Flip X", &isFlipX);
+			ImGui::Checkbox("Flip Y", &isFlipY);
 			ImGui::DragFloat2("UV translate", &trspriteUV.translate.x, 0.01f, -10.0f, 10.0f);
 			ImGui::DragFloat2("UV scale", &trspriteUV.scale.x, 0.01f, 0.0f, 10.0f);
 			ImGui::SliderAngle("UV rotate", &trspriteUV.rotate.z);
@@ -745,11 +755,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// ImGui::SliderFloat("intensity", &directionallightData->intensity, 0.0f, 1.0f);
 			//  ImGuiのウィンドウを作成
 			ImGui::Render(); // ImGuiの描画を実行
-
+			
+			sprite->SetIsFlipX(isFlipX);
+			sprite->SetIsFlipY(isFlipY);
+			sprite->SetAnchorPoint(anchor);
 			sprite->SetTransform(trsprite);
 			sprite->SetUVTransform(trspriteUV);
 			sprite->SetColor(spriteColor);
 			sprite->SetSize(spriteSize);
+			sprite->SetTextureLeftTop(textureLeftTop);
+			sprite->SetTextureSize(textureSize);
 
 #pragma region コマンドリストのリセット
 

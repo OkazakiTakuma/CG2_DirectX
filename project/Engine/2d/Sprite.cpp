@@ -54,6 +54,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath)
 	// テクスチャの読み込み
 
 	textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(textureFilePath);
+	AdjustTextureSize();
 
 #pragma endregion
 }
@@ -70,18 +71,39 @@ void Sprite::Update() {
 	indexData[4] = 3; // 三角形2枚目の2頂点目
 	indexData[5] = 2; // 三角形2枚目の3頂点目
 
-	// 三角形1枚目
-	vertexData[0].position = {0.0f, 1.0f, 0.0f, 1.0f};
-	vertexData[0].texcoord = {0.0f, 1.0f};
+	// 頂点データを設定
+
+	// anchorPointを反映
+	float left = 0.0f - anchorPoint.x;
+	float right = 1.0f - anchorPoint.x;
+	float top = 0.0f - anchorPoint.y;
+	float bottom = 1.0f - anchorPoint.y;
+
+	if (isFlipX) {
+		std::swap(left, right);
+	}
+	if (isFlipY) {
+		std::swap(top, bottom);
+	}
+
+	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetTextureMetadata(textureIndex);
+	float uLeft = textureLeftTop.x / static_cast<float>(metadata.width);
+	float uRight = (textureLeftTop.x + textureSize.x) / static_cast<float>(metadata.width);
+	float vTop = textureLeftTop.y / static_cast<float>(metadata.height);
+	float vBottom = (textureLeftTop.y + textureSize.y) / static_cast<float>(metadata.height);
+
+
+	vertexData[0].position = {left, bottom, 0.0f, 1.0f};
+	vertexData[0].texcoord = {uLeft, vBottom};
 	vertexData[0].normal = {0.0f, 0.0f, -1.0f};
-	vertexData[1].position = {0.0f, 0.0f, 0.0f, 1.0f};
-	vertexData[1].texcoord = {0.0f, 0.0f};
+	vertexData[1].position = {left, top, 0.0f, 1.0f};
+	vertexData[1].texcoord = {uLeft, vTop};
 	vertexData[1].normal = {0.0f, 0.0f, -1.0f};
-	vertexData[2].position = {1.0f, 1.0f, 0.0f, 1.0f};
-	vertexData[2].texcoord = {1.0f, 1.0f};
+	vertexData[2].position = {right, bottom, 0.0f, 1.0f};
+	vertexData[2].texcoord = {uRight, vBottom};
 	vertexData[2].normal = {0.0f, 0.0f, -1.0f};
-	vertexData[3].position = {1.0f, 0.0f, 0.0f, 1.0f};
-	vertexData[3].texcoord = {1.0f, 0.0f};
+	vertexData[3].position = {right, top, 0.0f, 1.0f};
+	vertexData[3].texcoord = {uRight, vTop};
 	vertexData[3].normal = {0.0f, 0.0f, -1.0f};
 
 	// スプライトのサイズを反映
@@ -104,4 +126,10 @@ void Sprite::Draw() {
 	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
 	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootDescriptorTable(3, TextureManager::GetInstance()->GetSRVHandleGPU(textureIndex));
 	spriteCommon->GetDxCommon()->GetCommandList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
+}
+void Sprite::AdjustTextureSize() {
+	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetTextureMetadata(textureIndex);
+	textureSize = {static_cast<float>(metadata.width), static_cast<float>(metadata.height)};
+	size = textureSize;
+
 };
