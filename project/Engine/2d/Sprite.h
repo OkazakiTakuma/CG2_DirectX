@@ -1,15 +1,13 @@
 #pragma once
-#include "../3d/Vector.h"
 #include "../3d/Matrix.h"
+#include "../3d/Vector.h"
 #include "SpriteCommon.h"
-
 
 struct VertexData {
 	Vector4 position;
 	Vector2 texcoord;
 	Vector3 normal;
 };
-
 
 struct Material {
 	Vector4 color;          // 色
@@ -23,15 +21,19 @@ struct TransformationMatrix {
 	Matrix4x4 world;
 };
 
-
 class Sprite {
 public:
-	void Initialize(SpriteCommon* spriteCommon);
+	void Initialize(SpriteCommon* spriteCommon, std::string textureFilePath);
 	void Update();
-	void Draw(D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU);
-	Transforms& GetTransform() { return transform; }
-	Transforms& GetUVTransform() { return uvTransform; }
-	Material* GetMaterial() { return materialData; }
+	void Draw();
+	const Transforms& GetTransform() { return transform; };
+	void SetTransform(const Transforms& newTransform) { transform = newTransform; }
+	const Transforms& GetUVTransform() { return uvTransform; }
+	void SetUVTransform(const Transforms& newUVTransform) { uvTransform = newUVTransform; }
+	const Vector4& GetColor() const { return materialData->color; }
+	void SetColor(const Vector4& newColor) { materialData->color = newColor; }
+	const Vector2 GetSize() const { return size; }
+	void SetSize(const Vector2& newSize) { size = newSize; }
 
 private:
 	uint32_t* indexData = nullptr;
@@ -54,5 +56,7 @@ private:
         {0.0f, 0.0f, 0.0f}
     };
 	SpriteCommon* spriteCommon = nullptr;
-	TransformationMatrix* transformationMatrixData;
+	TransformationMatrix* transformationMatrixData = {0};
+	Vector2 size = {0, 0};
+	uint32_t textureIndex = 0;
 };

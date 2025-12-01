@@ -1,13 +1,13 @@
 #include "Sprite.h"
+#include "TextureManager.h"
 
-void Sprite::Initialize(SpriteCommon* spriteCommon) {
+void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath) {
 	this->spriteCommon = spriteCommon;
+
 #pragma region スプライトの描画に必要なデータの作成
 #pragma region インデックスを使った描画
 	indexResource = spriteCommon->GetDxCommon()->CreateBufferResource(sizeof(uint32_t) * 6);
-
-	assert(SUCCEEDED(hr)); // インデックスリソースの生成が成功したか確認
-	// リソースの先頭のアドレスから使う
+	assert(indexResource != nullptr);                                       // リソース生成が成功したか確認	// リソースの先頭のアドレスから使う
 	indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress(); // GPU仮想アドレス
 	// 使用するリソースのサイズはインデックスのサイズ * インデックス数
 	indexBufferView.SizeInBytes = sizeof(uint32_t) * 6; // インデックスバッファのサイズ
@@ -18,7 +18,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon) {
 	indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
 #pragma endregion
 	vertexResource = spriteCommon->GetDxCommon()->CreateBufferResource(sizeof(VertexData) * 4);
-	assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
+	assert(vertexResource != nullptr);
 
 	// 頂点バッファビューを作成する
 
@@ -32,8 +32,8 @@ void Sprite::Initialize(SpriteCommon* spriteCommon) {
 	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 
 	// スプライト用のマテリアルリソースを作成
-	materialResource = spriteCommon->GetDxCommon()->CreateBufferResource(sizeof(Material) * 6);
-	assert(SUCCEEDED(hr)); // マテリアルリソースの生成が成功したか確認
+	materialResource = spriteCommon->GetDxCommon()->CreateBufferResource(sizeof(Material));
+	assert(materialResource != nullptr);
 
 	// スプライト用のマテリアルリソースにデータを書き込む
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
@@ -44,11 +44,16 @@ void Sprite::Initialize(SpriteCommon* spriteCommon) {
 
 	// Sprite用のTransformationMatrix用リソースを作る
 	transformationMatrixResource = spriteCommon->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
+	assert(transformationMatrixResource != nullptr);
 	// データを書き込む
 	transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
 	// 単位行列を入れておく
 	transformationMatrixData->WVP = MakeIdentity4x4();
 	transformationMatrixData->world = MakeIdentity4x4();
+	size = {640.0f, 360.0f};
+	// テクスチャの読み込み
+
+	textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(textureFilePath);
 
 #pragma endregion
 }
@@ -66,31 +71,37 @@ void Sprite::Update() {
 	indexData[5] = 2; // 三角形2枚目の3頂点目
 
 	// 三角形1枚目
-	vertexData[0].position = {0.0f, 360.0f, -1.0f, 1.0f};
+	vertexData[0].position = {0.0f, 1.0f, 0.0f, 1.0f};
 	vertexData[0].texcoord = {0.0f, 1.0f};
 	vertexData[0].normal = {0.0f, 0.0f, -1.0f};
-	vertexData[1].position = {0.0f, 0.0f, -1.0f, 1.0f};
+	vertexData[1].position = {0.0f, 0.0f, 0.0f, 1.0f};
 	vertexData[1].texcoord = {0.0f, 0.0f};
 	vertexData[1].normal = {0.0f, 0.0f, -1.0f};
-	vertexData[2].position = {640.0f, 360.0f, -1.0f, 1.0f};
+	vertexData[2].position = {1.0f, 1.0f, 0.0f, 1.0f};
 	vertexData[2].texcoord = {1.0f, 1.0f};
 	vertexData[2].normal = {0.0f, 0.0f, -1.0f};
-	vertexData[3].position = {640.0f, 0.0f, -1.0f, 1.0f};
+	vertexData[3].position = {1.0f, 0.0f, 0.0f, 1.0f};
 	vertexData[3].texcoord = {1.0f, 0.0f};
 	vertexData[3].normal = {0.0f, 0.0f, -1.0f};
 
+	// スプライトのサイズを反映
+	transform.scale = {size.x, size.y, 1.0f};
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = MakeIdentity4x4();
 	Matrix4x4 projectionMatrix = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
 	Matrix4x4 wvpMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 	transformationMatrixData->WVP = wvpMatrix;
-}
-void Sprite::Draw(D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU) {
+	Matrix4x4 uvTransformMatrix = MakeAffineMatrix(uvTransform.scale, uvTransform.rotate, uvTransform.translate);
 
+	// UV変換行列をマテリアルに設定
+	materialData->uvTransform = uvTransformMatrix;
+}
+void Sprite::Draw() {
+	spriteCommon->GetDxCommon()->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	spriteCommon->GetDxCommon()->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferview);
 	spriteCommon->GetDxCommon()->GetCommandList()->IASetIndexBuffer(&indexBufferView);
 	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
-	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootDescriptorTable(3, textureSrvHandleGPU);
+	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootDescriptorTable(3, TextureManager::GetInstance()->GetSRVHandleGPU(textureIndex));
 	spriteCommon->GetDxCommon()->GetCommandList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 };
