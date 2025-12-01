@@ -16,6 +16,7 @@ public:
 	uint32_t GetTextureIndexByFilePath(const std::string& filepath);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVHandleGPU(uint32_t textureIndex);
 	void LoadTexture(const std::string& filepath);
+	void SetDirectXCommon(DirectXCommon* dxCommon) { dxCommon_ = dxCommon; }
 
 private:
 	static TextureManager* instance;

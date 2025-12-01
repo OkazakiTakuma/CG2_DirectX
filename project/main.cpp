@@ -229,15 +229,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	DirectXCommon* dxCommon = new DirectXCommon();
 	dxCommon->Initialize(winApp);
 	TextureManager::GetInstance()->Initialize();
+	TextureManager::GetInstance()->SetDirectXCommon(dxCommon);
+	TextureManager::GetInstance()->LoadTexture("Resources/uvChecker.png");
 	SpriteCommon* spriteCommon = new SpriteCommon();
 	spriteCommon->Initialize(dxCommon);
+
 	Sprite* sprite = new Sprite();
 	sprite->Initialize(spriteCommon, "Resources/uvChecker.png");
+	TextureManager::GetInstance()->LoadTexture("Resources/monsterball.png");
 
 	std::vector<Sprite*> sprites;
 	for (int i = 0; i < 5; i++) {
 		Sprite* sprits = new Sprite();
+		if (i==1||i==3) {
+			sprits->Initialize(spriteCommon, "Resources/uvChecker.png");
+		} else {
 		sprits->Initialize(spriteCommon, "Resources/monsterball.png");
+		}
 		sprites.push_back(sprits);
 		Transforms transform;
 		transform.scale = {50.0f, 50.0f, 1.0f};
