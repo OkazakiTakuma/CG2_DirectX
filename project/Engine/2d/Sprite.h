@@ -34,6 +34,16 @@ public:
 	void SetColor(const Vector4& newColor) { materialData->color = newColor; }
 	const Vector2 GetSize() const { return size; }
 	void SetSize(const Vector2& newSize) { size = newSize; }
+	const Vector2& GetAnchorPoint() const { return anchorPoint; }
+	void SetAnchorPoint(const Vector2& newAnchorPoint) { anchorPoint = newAnchorPoint; }
+	const bool GetIsFlipX() const { return isFlipX; }
+	void SetIsFlipX(bool flipX) { isFlipX = flipX; }
+	const bool GetIsFlipY() const { return isFlipY; }
+	void SetIsFlipY(bool flipY) { isFlipY = flipY; }
+	const Vector2& GetTextureLeftTop() const { return textureLeftTop; }
+	void SetTextureLeftTop(const Vector2& leftTop) { textureLeftTop = leftTop; }
+	const Vector2& GetTextureSize() const { return textureSize; }
+	void SetTextureSize(const Vector2& size) { textureSize = size; }
 
 private:
 	uint32_t* indexData = nullptr;
@@ -59,4 +69,10 @@ private:
 	TransformationMatrix* transformationMatrixData = {0};
 	Vector2 size = {0, 0};
 	uint32_t textureIndex = 0;
+	Vector2 anchorPoint = {0.0f, 0.0f};
+	bool isFlipX = false;
+	bool isFlipY = false;
+	Vector2 textureLeftTop = {0.0f, 0.0f};
+	Vector2 textureSize = {512.0f, 512.0f};
+	void AdjustTextureSize();
 };
