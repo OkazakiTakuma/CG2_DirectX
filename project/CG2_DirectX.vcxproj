@@ -138,6 +138,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Engine\base\D3DResouceLeakCheker.cpp" />
     <ClCompile Include="Engine\base\DirectXCommon.cpp" />
     <ClCompile Include="extenals\imgui\imgui.cpp" />
     <ClCompile Include="extenals\imgui\imgui_demo.cpp" />
@@ -158,6 +159,9 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\base\Resource.cpp" />
     <ClCompile Include="Engine\base\WinApp.cpp" />
     <ClCompile Include="Engine\base\StringUtility.cpp" />
+    <ClCompile Include="Engine\2d\SpriteCommon.cpp" />
+    <ClCompile Include="Engine\2d\Sprite.cpp" />
+    <ClCompile Include="Engine\2d\TextureManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Resources\Shader\Object3d.PS.hlsl">
@@ -178,6 +182,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\base\D3DResouceLeakCheker.h" />
     <ClInclude Include="Engine\base\DirectXCommon.h" />
     <ClInclude Include="extenals\imgui\imconfig.h" />
     <ClInclude Include="extenals\imgui\imgui.h" />
@@ -189,12 +194,15 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="extenals\imgui\imstb_truetype.h" />
     <ClInclude Include="Engine\3d\Matrix.h" />
     <ClInclude Include="Engine\3d\Screen.h" />
-    <ClInclude Include="Engine\3d\Vector3.h" />
+    <ClInclude Include="Engine\3d\Vector.h" />
     <ClInclude Include="Engine\base\Input.h" />
     <ClInclude Include="Engine\base\Resource.h" />
     <ClInclude Include="Engine\base\WinApp.h" />
     <ClInclude Include="Engine\base\Logger.h" />
     <ClInclude Include="Engine\base\StringUtility.h" />
+    <ClInclude Include="Engine\2d\SpriteCommon.h" />
+    <ClInclude Include="Engine\2d\Sprite.h" />
+    <ClInclude Include="Engine\2d\TextureManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="extenals\imgui\LICENSE.txt" />
