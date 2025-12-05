@@ -10,7 +10,7 @@ class ModelCommon {
 	// 描画前処理
 	void SetDraw();
 
-	DirectXCommon* GetDirectXCommon() { return dxCommon_; }
+	DirectXCommon* GetDxCommon() { return dxCommon_; }
 
 private:
 	DirectXCommon* dxCommon_ = nullptr;

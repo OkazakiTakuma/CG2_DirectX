@@ -4,6 +4,8 @@
 #include "Engine/3d/Matrix.h"
 #include "Engine/3d/Object3d.h"
 #include "Engine/3d/Object3dCommon.h"
+#include "Engine/3d/Model.h"
+#include "Engine/3d/ModelCommon.h"
 #include "Engine/3d/Screen.h"
 #include "Engine/3d/Vector.h"
 #include "Engine/base/D3DResouceLeakCheker.h"
@@ -159,6 +161,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	obj3dComoon->Initialize(dxCommon);
 	Object3d* object3d = new Object3d;
 	object3d->Initialize(obj3dComoon);
+	ModelCommon* modelCommon = new ModelCommon;
+	modelCommon->Initialize(dxCommon);
+	Model* model = new Model;
+	model->Initialize(modelCommon, "Resources", "plane.obj");
+	object3d->SetModel(model);
 
 
 #pragma endregion
@@ -239,13 +246,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			bool isFlipY = sprite->GetIsFlipY();
 			Vector2 textureLeftTop = sprite->GetTextureLeftTop();
 			Vector2 textureSize = sprite->GetTextureSize();
-
+			// モデルのパラメータ調整用
+			Vector3 modelPosition = object3d->GetTransformTranslate();
+			Vector3 modelRotate = object3d->GetTransformRotate();
+			Vector3 modelScale = object3d->GetTransformScale();
+			
 
 
 			ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
 			ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
 			ImGui::SliderAngle("camera rotate y", &cameraRotate.y);
 			ImGui::SliderAngle("camera rotate z", &cameraRotate.z);
+			ImGui::DragFloat3("model pos", &modelPosition.x, 0.1f);
+			ImGui::SliderAngle("model rotate x", &modelRotate.x);
+			ImGui::SliderAngle("model rotate y", &modelRotate.y);
+			ImGui::SliderAngle("model rotate z", &modelRotate.z);
+			ImGui::DragFloat3("model scale", &modelScale.x, 0.1f);
 			ImGui::DragFloat2("sprite pos", &trsprite.translate.x, 0.3f);
 			ImGui::SliderAngle("sprite rotate", &trsprite.rotate.z);
 			ImGui::DragFloat2("sprite scale", &spriteSize.x, 0.3f);
@@ -264,6 +280,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// ImGui::SliderFloat("intensity", &directionallightData->intensity, 0.0f, 1.0f);
 			//  ImGuiのウィンドウを作成
 			ImGui::Render(); // ImGuiの描画を実行
+			object3d->SetTransform(modelPosition);
+			object3d->SetTransformRotate(modelRotate);
+			object3d->SetTransformScale(modelScale);
 
 			object3d->SetCameraRotate(cameraRotate);
 			object3d->SetCameraTranslate(cameraPosition);

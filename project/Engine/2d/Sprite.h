@@ -2,7 +2,7 @@
 #include "../3d/Matrix.h"
 #include "../3d/Screen.h"
 #include "../3d/Vector.h"
-#include "../base/Brend.h"
+#include "../base/struct.h"
 #include <d3d12.h>
 #include <wrl.h>
 #include <Windows.h>

@@ -187,7 +187,7 @@
     <ClInclude Include="Engine\3d\Object3d.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\base\Brend.h">
+    <ClInclude Include="Engine\base\struct.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Engine\3d\Model.h">

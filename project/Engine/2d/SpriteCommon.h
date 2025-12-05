@@ -2,7 +2,7 @@
 #include "../base/DirectXCommon.h"
 #include "../base/Logger.h"
 #include "../base/StringUtility.h"
-#include"../base/Brend.h"
+#include"../base/struct.h"
 
 
 class SpriteCommon {
