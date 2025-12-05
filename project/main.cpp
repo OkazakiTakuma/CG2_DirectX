@@ -1353,6 +1353,96 @@ blendMode = BlendMode::kBlendModeAdd;
 		instanceData[i].color = particles[i].color;
 	}
 #pragma endregion
+	#pragma region マテリアルの描画に必要なデータの作成
+	const float pi = 3.1415f;                         // 円周率
+	const uint32_t kSubdivision = 16;                 // 球の細分化数
+	const float kLonEvery = 2.0f * pi / kSubdivision; // 経度の間隔(φd)
+	const float kLatEvery = pi / kSubdivision;        // 緯度の間隔(θd)
+	uint32_t latIndex = 16;
+	uint32_t lonIndex = 16;
+	uint32_t startIndex = (kSubdivision * kSubdivision) * 6;
+	Vector2 tex{};
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = CreateBufferResource(device.Get(), sizeof(VertexData) * kSubdivision * kSubdivision * 6);
+	assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource = CreateBufferResource(device.Get(), sizeof(uint32_t) * kSubdivision * kSubdivision * 6);
+	D3D12_INDEX_BUFFER_VIEW indexBufferView{};
+	assert(SUCCEEDED(hr)); // インデックスリソースの生成が成功したか確認
+	// リソースの先頭のアドレスから使う
+	indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress(); // GPU仮想アドレス
+	// 使用するリソースのサイズはインデックスのサイズ * インデックス数
+	indexBufferView.SizeInBytes = sizeof(uint32_t) * kSubdivision * kSubdivision * 6; // インデックスバッファのサイズ
+	// インデックスはuint32_t型
+	indexBufferView.Format = DXGI_FORMAT_R32_UINT; // 1インデックスのサイズ
+
+	uint32_t* indexData = nullptr;
+	// 書き込むためのアドレスを取得
+	indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
+
+	// 頂点バッファビューの作成
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
+	// リソースの先頭のアドレスから使う
+	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress(); // GPU仮想アドレス
+	// 使用するリソースのサイズは頂点のサイズ * 頂点数
+	vertexBufferView.SizeInBytes = sizeof(VertexData) * startIndex; // 頂点バッファのサイズ
+	// 1頂点のサイズ
+	vertexBufferView.StrideInBytes = sizeof(VertexData); // 1頂点のサイズ
+
+	VertexData* vertexData = nullptr;
+	// 書き込むためのアドレスを取得
+	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+	// 頂点データを設定
+	for (int latIndex = 0; latIndex < kSubdivision; latIndex++) {
+		float θA = -pi / 2.0f + latIndex * kLatEvery; // (θ)
+		float θB = θA + kLatEvery;
+		for (int lonIndex = 0; lonIndex < kSubdivision; lonIndex++) {
+			uint32_t start = (latIndex * kSubdivision + lonIndex) * 6;
+
+			float φA = lonIndex * kLonEvery; // (φ)
+			float φB = φA + kLonEvery;
+
+			// 座標計算（4頂点：a,b,c,d）
+			Vector4 a = {cos(θA) * cos(φA), sin(θA), cos(θA) * sin(φA), 1.0f};
+			Vector4 b = {cos(θB) * cos(φA), sin(θB), cos(θB) * sin(φA), 1.0f};
+			Vector4 c = {cos(θA) * cos(φB), sin(θA), cos(θA) * sin(φB), 1.0f};
+			Vector4 d = {cos(θB) * cos(φB), sin(θB), cos(θB) * sin(φB), 1.0f};
+
+			Vector2 uv_a = {float(lonIndex) / kSubdivision, 1.0f - float(latIndex) / kSubdivision};
+			Vector2 uv_b = {float(lonIndex) / kSubdivision, 1.0f - float(latIndex + 1) / kSubdivision};
+			Vector2 uv_c = {float(lonIndex + 1) / kSubdivision, 1.0f - float(latIndex) / kSubdivision};
+			Vector2 uv_d = {float(lonIndex + 1) / kSubdivision, 1.0f - float(latIndex + 1) / kSubdivision};
+
+			vertexData[start + 0] = {a, uv_a};
+			vertexData[start + 1] = {b, uv_b};
+			vertexData[start + 2] = {c, uv_c};
+			vertexData[start + 3] = {d, uv_d};
+			vertexData[start + 0].normal = (Vector3(a.x, a.y, a.z)); // 法線ベクトル
+			vertexData[start + 1].normal = (Vector3(b.x, b.y, b.z));
+			vertexData[start + 2].normal = (Vector3(c.x, c.y, c.z));
+			vertexData[start + 3].normal = (Vector3(d.x, d.y, d.z));
+
+			// 三角形1: a-b-c
+			indexData[start + 0] = start + 0; // 三角形1の1頂点目
+			indexData[start + 1] = start + 1; // 三角形1の2頂点目
+			indexData[start + 2] = start + 2; // 三角形1の3頂点目
+
+			// 三角形2: b-d-c
+			indexData[start + 3] = start + 1; // 三角形2の1頂点目
+			indexData[start + 4] = start + 3; // 三角形2の2頂点目
+			indexData[start + 5] = start + 2; // 三角形2の3頂点目
+		}
+	}
+	// マテリアル用のリソースを作る
+	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = CreateBufferResource(device.Get(), sizeof(Material));
+	Material* materialData = nullptr;
+	// マテリアルリソースにデータを書き込む
+	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+	// マテリアルの色を設定
+	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 赤色
+	materialData->enableLighting = true;                   // ライティングを有効化
+	materialData->uvTransform = MakeIdentity4x4();
+
+#pragma endregion
 
 #pragma region 別の画像の読み込み
 	DirectX::ScratchImage mipImage2 = LoadTexture("Resources/monsterBall.png");
@@ -1601,13 +1691,27 @@ blendMode = BlendMode::kBlendModeAdd;
 			commandList->SetGraphicsRootConstantBufferView(2, instanceResource->GetGPUVirtualAddress());
 			auto srvStart = instancingsrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 			commandList->SetGraphicsRootDescriptorTable(1, srvStart);
-			// commandList->SetGraphicsRootDescriptorTable(4, srvStart);
-
 			commandList->IASetIndexBuffer(&instancingindexBufferViewSprite);
 			commandList->IASetVertexBuffers(0, 1, &instancingvertexBufferViewSprite);
 			commandList->SetPipelineState(instancinggraphicsPipelineState.Get());
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			commandList->DrawIndexedInstanced(UINT(modelData.vertices.size()), numInstance, 0, 0, 0);
+			commandList->Reset(commandAllocator.Get(), graphicsPipelineState.Get());
+			// モデルの描画コマンド
+			Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeapsM[] = {srvDescriptorHeap};
+			commandList->SetDescriptorHeaps(1, descriptorHeapsM->GetAddressOf()); // ディスクリプタヒープの設定
+			commandList->RSSetViewports(1, &viewport);
+			commandList->RSSetScissorRects(1, &scissorRect);
+			commandList->SetGraphicsRootSignature(rootSignature.Get());
+			commandList->SetGraphicsRootConstantBufferView(0, materialResourceModel->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootDescriptorTable(3, textureSrvHandleGPU3);
+			commandList->SetPipelineState(graphicsPipelineState.Get());
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewModel);
+			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
+
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
