@@ -101,6 +101,8 @@ struct Particle {
 	Transforms transform; // SRT情報
 	Vector3 velocity;     // 速度
 	Vector4 color;        // 色
+	float lifeTimme;
+	float currentTime;
 };
 
 
@@ -113,7 +115,10 @@ Particle MakeNewParticle(std::mt19937& randomEngine) {
 	particle.velocity = {distribution(randomEngine), distribution(randomEngine), distribution(randomEngine)};
 	std::uniform_real_distribution<float> colorDistribution(0.0f, 1.0f);
 	particle.color = {colorDistribution(randomEngine), colorDistribution(randomEngine), colorDistribution(randomEngine), 1.0f};
-		
+	std::uniform_real_distribution<float> distriTime(1.0f, 50.0f);
+	particle.lifeTimme = distriTime(randomEngine); // ライフタイムを1秒から3秒の間でランダムに設定
+	particle.currentTime = 0.0f;
+	
 	return particle;
 }
 
@@ -886,6 +891,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// すべての色要素を書き込む
 	instancingblendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	instancingblendDesc.RenderTarget[0].BlendEnable = TRUE; // ブレンドを無効にする
+	// すべての色要素を書き込む
+blendMode = BlendMode::kBlendModeAdd;
 
 	switch (blendMode) {
 	case BlendMode::kBlendModeNormal:
@@ -1271,7 +1278,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	scissorRect.bottom = WinApp::kClientHeight; // シザー矩形の下端
 
 #pragma region uvCheckerの読み込み
-	DirectX::ScratchImage mipImage = LoadTexture("Resources/uvChecker.png");
+	DirectX::ScratchImage mipImage = LoadTexture("Resources/circle.png");
 	const DirectX::TexMetadata& metaData = mipImage.GetMetadata();
 	// テクスチャリソースの生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource = CreateTextureResource(device, metaData);
@@ -1303,11 +1310,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 
 #pragma region InstanceResourceの作成
-	const uint32_t kNumInstance = 10;
-	Microsoft::WRL::ComPtr<ID3D12Resource> instanceResource = CreateBufferResource(device.Get(), sizeof(ParticleForGPU) * kNumInstance);
+	const uint32_t kNumMaxInstance = 10;
+	Microsoft::WRL::ComPtr<ID3D12Resource> instanceResource = CreateBufferResource(device.Get(), sizeof(ParticleForGPU) * kNumMaxInstance);
 	ParticleForGPU* instanceData = nullptr;
 	instanceResource->Map(0, nullptr, reinterpret_cast<void**>(&instanceData));
-	for (int i = 0; i < kNumInstance; i++) {
+	for (int i = 0; i < kNumMaxInstance; i++) {
 		instanceData[i].WVP = MakeIdentity4x4();
 		instanceData[i].world = MakeIdentity4x4();
 		instanceData[i].color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -1322,7 +1329,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instanceSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 	instanceSrvDesc.Buffer.FirstElement = 0;
 	instanceSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-	instanceSrvDesc.Buffer.NumElements = kNumInstance;
+	instanceSrvDesc.Buffer.NumElements = kNumMaxInstance;
 	instanceSrvDesc.Buffer.StructureByteStride = sizeof(ParticleForGPU);
 	D3D12_CPU_DESCRIPTOR_HANDLE instanceSrvHandleCPU = GetCPUDescriptorHandle(instancingsrvDescriptorHeap, descroptorSizeSRV, 1);
 	D3D12_GPU_DESCRIPTOR_HANDLE instanceSrvHandleGPU = GetGPUDescriptorHandle(instancingsrvDescriptorHeap, descroptorSizeSRV, 1);
@@ -1340,8 +1347,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	std::random_device seedGenerator;
 	std::mt19937 randomEngine(seedGenerator());
-	Particle particles[kNumInstance];
-	for (int i = 0; i < kNumInstance; i++) {
+	Particle particles[kNumMaxInstance];
+	for (int i = 0; i < kNumMaxInstance; i++) {
 		particles[i] = MakeNewParticle(randomEngine);
 		instanceData[i].color = particles[i].color;
 	}
@@ -1498,13 +1505,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 viewMatrix = Inverse(cameraMatrix);
 			Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
 
-			for (int i = 0; i < kNumInstance; i++) {
+			uint32_t numInstance = 0;
+			for (int i = 0; i < kNumMaxInstance; i++) {
+				if (particles[i].lifeTimme<=particles[i].currentTime) {
+					continue;
+				}
 				Vector3 move= particles[i].velocity * kDeltaTime;
 				particles[i].transform.translate = particles[i].transform.translate + move;
+				particles[i].currentTime += kDeltaTime;
 				Matrix4x4 worldMatrix = MakeAffineMatrix(particles[i].transform.scale, particles[i].transform.rotate, particles[i].transform.translate);
 				Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrixModel, projectionMatrixModel));
-				instanceData[i].WVP = worldViewProjectionMatrix;
-				instanceData[i].world = worldMatrix;
+				instanceData[numInstance].WVP = worldViewProjectionMatrix;
+				instanceData[numInstance].world = worldMatrix;
+				instanceData[numInstance].color = particles[i].color;
+				float alpha = 1.0f - (particles[i].currentTime / particles[i].lifeTimme);
+				instanceData[numInstance].color.w = alpha;
+				++numInstance;
 			}
 
 			Matrix4x4 worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
@@ -1514,7 +1530,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			*transformationMatrixDataSprite = wvpMatrixSprite;
 			const char* modeNames[] = {"Normal", "Add", "Sub", "Multiply"};
 
-			for (int i = 0; i < kNumInstance; i++) {
+			for (int i = 0; i < kNumMaxInstance; i++) {
 			}
 
 			// ImGui::Combo("Select Mode", &currentMode, modeNames, 4);
@@ -1591,7 +1607,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->IASetVertexBuffers(0, 1, &instancingvertexBufferViewSprite);
 			commandList->SetPipelineState(instancinggraphicsPipelineState.Get());
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			commandList->DrawIndexedInstanced(UINT(modelData.vertices.size()), kNumInstance, 0, 0, 0);
+			commandList->DrawIndexedInstanced(UINT(modelData.vertices.size()), numInstance, 0, 0, 0);
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 

@@ -5,7 +5,7 @@ struct ParticleForGPU
 {
     float4x4 WVP;
     float4x4 world;
-    float4x4 color;
+    float4 color;
 };
 StructuredBuffer<ParticleForGPU> gParticle : register(t1); // Material constant buffer
 
