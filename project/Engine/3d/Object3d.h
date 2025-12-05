@@ -20,8 +20,9 @@ public:
 	void Update();
 	void Draw();
 	void SetModel(Model* model) { this->model = model; }
+	void SetModel(const std::string& filePath);
 	const Vector3& GetTransformTranslate() { return transform.translate; };
-	void SetTransform(const Vector3& newTransform) { transform.translate = newTransform; }
+	void SetTransformTranslate(const Vector3& newTransform) { transform.translate = newTransform; }
 	const Vector3& GetTransformRotate() { return transform.rotate; };
 	void SetTransformRotate(const Vector3& newTransformRotate) { transform.rotate = newTransformRotate; }
 	const Vector3& GetTransformScale() { return transform.scale; };

@@ -1,6 +1,7 @@
 #include "Object3d.h"
 #include "../2d/TextureManager.h"
 #include "Model.h"
+#include "ModelManager.h"
 #include "Object3dCommon.h"
 
 void Object3d::Initialize(Object3dCommon* object3dCommon) {
@@ -42,7 +43,6 @@ void Object3d::CreateDirectionalLightResource() {
 }
 
 void Object3d::Update() {
-	transform.rotate.y += 0.01f;
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 	Matrix4x4 viewMatrix = Inverse(cameraMatrix);
@@ -59,3 +59,5 @@ void Object3d::Draw() {
 		model->Draw();
 	}
 }
+
+void Object3d::SetModel(const std::string& filePath) { model = ModelManager::GetInstance()->FindModel(filePath); }

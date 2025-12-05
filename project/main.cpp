@@ -2,10 +2,11 @@
 #include "Engine/2d/SpriteCommon.h"
 #include "Engine/2d/TextureManager.h"
 #include "Engine/3d/Matrix.h"
-#include "Engine/3d/Object3d.h"
-#include "Engine/3d/Object3dCommon.h"
 #include "Engine/3d/Model.h"
 #include "Engine/3d/ModelCommon.h"
+#include "Engine/3d/ModelManager.h"
+#include "Engine/3d/Object3d.h"
+#include "Engine/3d/Object3dCommon.h"
 #include "Engine/3d/Screen.h"
 #include "Engine/3d/Vector.h"
 #include "Engine/base/D3DResouceLeakCheker.h"
@@ -50,11 +51,6 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg
 using namespace Logger;
 using namespace StringUtility;
 using namespace Microsoft::WRL;
-
-
-
-
-
 
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(const Microsoft::WRL::ComPtr<ID3D12Device>& device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors, bool shaderVisible) {
 	assert(device != nullptr);
@@ -102,7 +98,6 @@ D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr<
 	handleGPU.ptr += (descriptorSize * index);
 	return handleGPU;
 }
-
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
@@ -157,20 +152,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		transform.translate = {100.0f + i * 90.0f, 200.0f, 0.0f};
 		sprits->SetTransform(transform);
 	}
+
 	Object3dCommon* obj3dComoon = new Object3dCommon;
 	obj3dComoon->Initialize(dxCommon);
 	Object3d* object3d = new Object3d;
 	object3d->Initialize(obj3dComoon);
-	ModelCommon* modelCommon = new ModelCommon;
-	modelCommon->Initialize(dxCommon);
-	Model* model = new Model;
-	model->Initialize(modelCommon, "Resources", "plane.obj");
-	object3d->SetModel(model);
+	ModelManager::GetInstance()->Inithialize(dxCommon);
+	ModelManager::GetInstance()->LoadModel("plane.obj");
+	object3d->SetModel("plane.obj");
+	ModelManager::GetInstance()->LoadModel("axis.obj");
+	std::vector<Object3d*> axisObjects;
+	const int axisCount = 5;
+	for (int i = 0; i < axisCount; ++i) {
+		Object3d* axisObj = new Object3d();
+		axisObj->Initialize(obj3dComoon);
+		axisObj->SetModel("axis.obj");
+		// 位置をずらして配置
+		axisObj->SetTransformScale({1.0f, 1.0f, 1.0f});
+		axisObj->SetTransformTranslate({float(i) * 2.0f, float(i)*2.0f, 3.0f});
+		axisObjects.push_back(axisObj);
+	}
 
 
 #pragma endregion
-	
-
 
 	Vector3 cameraPosition = {0.0f, 0.0f, -10.00f};
 	Vector3 cameraRotate = {0.0f, 0.0f, 0.0f};
@@ -203,6 +207,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::NewFrame();
 
 			object3d->Update();
+			for (Object3d* axisObj : axisObjects) {
+				axisObj->Update();
+				axisObj->SetCameraRotate(cameraRotate);
+				axisObj->SetCameraTranslate(cameraPosition);
+			}
+			
 			sprite->Update();
 			for (Sprite* s : sprites) {
 				s->Update();
@@ -250,8 +260,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Vector3 modelPosition = object3d->GetTransformTranslate();
 			Vector3 modelRotate = object3d->GetTransformRotate();
 			Vector3 modelScale = object3d->GetTransformScale();
-			
-
 
 			ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
 			ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
@@ -280,7 +288,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// ImGui::SliderFloat("intensity", &directionallightData->intensity, 0.0f, 1.0f);
 			//  ImGuiのウィンドウを作成
 			ImGui::Render(); // ImGuiの描画を実行
-			object3d->SetTransform(modelPosition);
+			object3d->SetTransformTranslate(modelPosition);
 			object3d->SetTransformRotate(modelRotate);
 			object3d->SetTransformScale(modelScale);
 
@@ -303,7 +311,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// モデルの描画
 			obj3dComoon->SetDraw();
 			object3d->Draw();
-			
+			// 複数axis.obj描画
+			for (Object3d* axisObj : axisObjects) {
+				axisObj->Draw();
+			}
 
 			// スプライトの描画
 			spriteCommon->SetDraw();
@@ -311,7 +322,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			for (Sprite* s : sprites) {
 				s->Draw();
 			}
-		
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon->GetCommandList().Get());
 
@@ -327,11 +337,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	delete Checker;
 	delete input; // DirectInputオブジェクトの解放
-	delete object3d;
-	delete obj3dComoon;
-	for (Sprite* s : sprites) {
-		delete s;
+
+	ModelManager::GetInstance()->Finalize();
+	// --- 終了処理 ---
+	for (Object3d* axisObj : axisObjects) {
+		delete axisObj;
 	}
+
+	delete object3d;
+	delete obj3dComoon;	
 	delete sprite; // スプライトの解放
 	delete spriteCommon;
 	TextureManager::GetInstance()->Finalize();

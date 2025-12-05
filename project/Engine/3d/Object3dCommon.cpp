@@ -143,7 +143,7 @@ void Object3dCommon::CreatePipelineState() {
 	// RasterizerStateの設定
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
 	// 裏面（時計回り）を表示しない
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE; // 裏面をカリング
+	rasterizerDesc.CullMode =D3D12_CULL_MODE_BACK; // 裏面をカリング
 	// 中身を塗りつぶす
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID; // 塗りつぶしモード
 
