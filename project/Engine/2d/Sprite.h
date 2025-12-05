@@ -1,26 +1,17 @@
 #pragma once
 #include "../3d/Matrix.h"
+#include "../3d/Screen.h"
 #include "../3d/Vector.h"
-#include "SpriteCommon.h"
+#include "../base/struct.h"
+#include <d3d12.h>
+#include <wrl.h>
+#include <Windows.h>
+#include <string>
 
-struct VertexData {
-	Vector4 position;
-	Vector2 texcoord;
-	Vector3 normal;
-};
 
-struct Material {
-	Vector4 color;          // 色
-	int32_t enableLighting; // ライティングの有効化フラグ
-	float padding[3];       // パディング
-	Matrix4x4 uvTransform;  // UV変換行列
-};
 
-struct TransformationMatrix {
-	Matrix4x4 WVP;
-	Matrix4x4 world;
-};
 
+class SpriteCommon;
 class Sprite {
 public:
 	void Initialize(SpriteCommon* spriteCommon, std::string textureFilePath);
@@ -46,6 +37,18 @@ public:
 	void SetTextureSize(const Vector2& size) { textureSize = size; }
 
 private:
+	struct Material {
+		Vector4 color;          // 色
+		int32_t enableLighting; // ライティングの有効化フラグ
+		float padding[3];       // パディング
+		Matrix4x4 uvTransform;  // UV変換行列
+	};
+
+	struct TransformationMatrix {
+		Matrix4x4 WVP;
+		Matrix4x4 world;
+	};
+
 	uint32_t* indexData = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource;
 	D3D12_INDEX_BUFFER_VIEW indexBufferView{};

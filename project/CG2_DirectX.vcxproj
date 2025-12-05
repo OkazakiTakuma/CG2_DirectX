@@ -162,6 +162,11 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\2d\SpriteCommon.cpp" />
     <ClCompile Include="Engine\2d\Sprite.cpp" />
     <ClCompile Include="Engine\2d\TextureManager.cpp" />
+    <ClCompile Include="Engine\3d\Object3dCommon.cpp" />
+    <ClCompile Include="Engine\3d\Object3d.cpp" />
+    <ClCompile Include="Engine\3d\Model.cpp" />
+    <ClCompile Include="Engine\3d\ModelCommon.cpp" />
+    <ClCompile Include="Engine\3d\ModelManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Resources\Shader\Object3d.PS.hlsl">
@@ -182,6 +187,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\base\struct.h" />
     <ClInclude Include="Engine\base\D3DResouceLeakCheker.h" />
     <ClInclude Include="Engine\base\DirectXCommon.h" />
     <ClInclude Include="extenals\imgui\imconfig.h" />
@@ -203,6 +209,11 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\2d\SpriteCommon.h" />
     <ClInclude Include="Engine\2d\Sprite.h" />
     <ClInclude Include="Engine\2d\TextureManager.h" />
+    <ClInclude Include="Engine\3d\Object3dCommon.h" />
+    <ClInclude Include="Engine\3d\Object3d.h" />
+    <ClInclude Include="Engine\3d\Model.h" />
+    <ClInclude Include="Engine\3d\ModelCommon.h" />
+    <ClInclude Include="Engine\3d\ModelManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="extenals\imgui\LICENSE.txt" />

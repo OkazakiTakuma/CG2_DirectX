@@ -1,5 +1,6 @@
 #include "Sprite.h"
 #include "TextureManager.h"
+#include "SpriteCommon.h"
 
 void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath) {
 	this->spriteCommon = spriteCommon;
@@ -119,7 +120,6 @@ void Sprite::Update() {
 	materialData->uvTransform = uvTransformMatrix;
 }
 void Sprite::Draw() {
-	spriteCommon->GetDxCommon()->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	spriteCommon->GetDxCommon()->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferview);
 	spriteCommon->GetDxCommon()->GetCommandList()->IASetIndexBuffer(&indexBufferView);
 	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());

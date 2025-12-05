@@ -2,19 +2,12 @@
 #include "../base/DirectXCommon.h"
 #include "../base/Logger.h"
 #include "../base/StringUtility.h"
+#include"../base/struct.h"
 
 
 class SpriteCommon {
 public:
-	enum BlendMode {
-		kBlendModeNone,
-		kBlendModeNormal,
-		kBlendModeAdd,
-		kBlendModeSubtract,
-		kBlendModeMultiply,
-		kBlendModeScreen,
-		kBlendCountblend,
-	};
+
 	void Initialize(DirectXCommon* dxCommon);
 	DirectXCommon* GetDxCommon() const { return dxCommon_; }
 	void SetDraw();
