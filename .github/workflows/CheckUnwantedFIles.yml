@@ -7,8 +7,9 @@ on:
       - master
 env:
   UNWATED_NAME_PATTERNS: "*.pdb *.ilk *.user *.ncb
-   *.suo *.log *.dmp *.zip .imgui.ini desktop.ini dxcompiler.dll dxil.dll"
-  UNWATED_DIR_PATTERNS: "generated x64 win32 arm64 .vs ipch logs Dump"
+   *.suo *.log *.dmp *.zip .imgui.ini desktop.ini
+   dxcompiler.dll dxil.dll"
+  UNWATED_DIR_PATTERNS: "generated x64 win32 arm64 .vs bin ipch logs Dump"
 jobs:
   check-files:
     name: 不要なファイルを検索
