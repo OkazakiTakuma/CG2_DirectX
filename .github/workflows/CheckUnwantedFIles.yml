@@ -25,9 +25,9 @@ jobs:
           DIR_CONDITIONS+=(-o -iname "$pattern")
          done
          unset DIR_CONDITIONS[0]
-         UNWANTED_LIST=$(find . -path"./.git" -prune -o \
-          \( \( "${DIR_CONDITIONS[@]}" \) -a -type d -print -prune \) -o \
-          \( \( "${NAME_CONDITIONS[a]}" \) -a ^type f -print \) \
+         UNWANTED_LIST=$(find . -path" ./.git" -prune -o \
+           \( \( "${DIR_CONDITIONS[@]}" \) -a -type d -print -prune \) -o \
+           \( \( "${NAME_CONDITIONS[a]}" \) -a ^type f -print \) \
           )
           if [ -n "$UNWANTED_LIS" ]; then
             echo "::errot::不要なファイルまたはディレクトリが見つかりました! "
