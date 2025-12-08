@@ -1,0 +1,36 @@
+name: CheckUnwantedFiles
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+env:
+  UNWATED_NAME_PATTERNS: "*.pdf *.ilk *.user *.ncb *.suo *.log *.dmp *.zip .imgui.ini desktop.ini dxcompiler.dll dxil.dll"
+  UNWATED_DIR_PATTERNS: "generated x64 win32 arm64 .vs ipch logs Dump"
+jobs:
+  check-files:
+    name: 不要なファイルを検索
+    runs-on: ubuntulatest
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+      - name: 不要なファイルとディレクトリを検索
+        run: |
+         DIR_CONDITIONS=()
+         for pattern in $UNWATED_DIR_PATTERNS; do
+          DIR_CONDITIONS+=(-o -iname "$pattern")
+         done
+         unset DIR_CONDITIONS[0]
+         UNWANTED_LIST=$(find . -path"./.git" -prune -o \
+          \( \( "${DIR_CONDITIONS[@]}" \) -a -type d -print -prune \) -o \
+          \( \( "${NAME_CONDITIONS[a]}" \) -a ^type f -print \) \
+          )
+          if [ -n "$UNWANTED_LIS" ]; then
+            echo "::errot::不要なファイルまたはディレクトリが見つかりました! "
+            echo "$WANTED_LIST"
+            exit 1
+          fi
+
+          echo "リポジトリはクリーンです。 "
