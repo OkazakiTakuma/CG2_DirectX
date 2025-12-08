@@ -6,7 +6,8 @@ on:
     branches:
       - master
 env:
-  UNWATED_NAME_PATTERNS: "*.pdf *.ilk *.user *.ncb *.suo *.log *.dmp *.zip .imgui.ini desktop.ini dxcompiler.dll dxil.dll"
+  UNWATED_NAME_PATTERNS: "*.pdb *.ilk *.user *.ncb
+   *.suo *.log *.dmp *.zip .imgui.ini desktop.ini dxcompiler.dll dxil.dll"
   UNWATED_DIR_PATTERNS: "generated x64 win32 arm64 .vs ipch logs Dump"
 jobs:
   check-files:
