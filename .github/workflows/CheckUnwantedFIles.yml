@@ -41,7 +41,18 @@ jobs:
           for pattern in $UNWATED_NAME_PATTERNS; do
           NAME_CONDITIONS+=(-o -iname "$pattern")
           done
-          unset DIR_CONDITIONS[0]
+          DIR_CONDITIONS=()
+          for pattern in $UNWATED_DIR_PATTERNS; do
+            DIR_CONDITIONS+=(-o -iname "$pattern")
+          done
+          unset DIR_CONDITIONS[0]   # DIR_CONDITIONS の先頭 -o を削除
+          
+          NAME_CONDITIONS=()
+          for pattern in $UNWATED_NAME_PATTERNS; do
+            NAME_CONDITIONS+=(-o -iname "$pattern")
+          done
+          unset NAME_CONDITIONS[0]  # NAME_CONDITIONS の先頭 -o を削除
+          
           UNWANTED_LIST=$(find . -path "./.git" -prune -o \
             \( \( "${DIR_CONDITIONS[@]}" \) -a -type d -print -prune \) -o \
             \( \( "${NAME_CONDITIONS[@]}" \) -a -type f -print \) \
