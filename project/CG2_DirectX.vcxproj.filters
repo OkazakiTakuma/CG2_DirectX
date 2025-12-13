@@ -54,13 +54,13 @@
     <ClCompile Include="extenals\imgui\imgui_widgets.cpp">
       <Filter>externals\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\Matrix.cpp">
+    <ClCompile Include="Engine\math\Matrix.cpp">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClCompile>
     <ClCompile Include="Engine\3d\Screen.cpp">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\Vector.cpp">
+    <ClCompile Include="Engine\math\Vector.cpp">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
@@ -139,13 +139,13 @@
     <ClInclude Include="extenals\imgui\imgui_internal.h">
       <Filter>externals\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\Matrix.h">
+    <ClInclude Include="Engine\math\Matrix.h">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClInclude>
     <ClInclude Include="Engine\3d\Screen.h">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\Vector.h">
+    <ClInclude Include="Engine\math\Vector.h">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClInclude>
     <ClInclude Include="extenals\imgui\imstb_rectpack.h">
