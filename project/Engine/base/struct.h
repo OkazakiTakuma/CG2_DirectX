@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
-#include "../3d/Matrix.h"
+#include "Matrix.h"
 
 enum BlendMode {
 	kBlendModeNone,

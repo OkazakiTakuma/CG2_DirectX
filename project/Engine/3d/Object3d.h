@@ -1,7 +1,7 @@
 #pragma once
-#include "../3d/Matrix.h"
-#include "../3d/Screen.h"
-#include "../3d/Vector.h"
+#include "Matrix.h"
+#include "Screen.h"
+#include "Vector.h"
 #include <Windows.h>
 #include <d3d12.h>
 #include <string>

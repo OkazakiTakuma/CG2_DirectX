@@ -1,5 +1,5 @@
 #pragma once
-#include "../base/struct.h"
+#include "struct.h"
 #include "Matrix.h"
 #include <Windows.h>
 #include <wrl.h>
