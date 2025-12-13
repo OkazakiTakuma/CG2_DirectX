@@ -46,7 +46,7 @@ jobs:
           \( \( "${DIR_CONDITIONS[@]}" \) -a -type d -print -prune \) -o \
           \( \( "${NAME_CONDITIONS[@]}" \) -a -type f -print \) \
           )
-          if [ -n "$UNWANTED_LIS" ]; then
+          if [ -n "$UNWANTED_LIST" ]; then
             echo "::errot::不要なファイルまたはディレクトリが見つかりました! "
             echo "$UNWANTED_LIST"
             exit 1
