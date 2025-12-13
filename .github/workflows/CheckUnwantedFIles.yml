@@ -29,12 +29,17 @@ jobs:
     steps:
       - name: リポジトリをチェックアウト
         uses: actions/checkout@v4
-      - name: 不要なファイルとディレクトリを検（bash）
+      - name: 不要なファイルとディレクトリを検索（bash）
           # ディレクトリ条件を建築（最初の不要な-oを後で削除）  
         run: |
           DIR_CONDITIONS=()
           for pattern in $UNWATED_DIR_PATTERNS; do
           DIR_CONDITIONS+=(-o -iname "$pattern")
+          done
+          unset DIR_CONDITIONS[0]
+          NAME_CONDITIONS=()
+          for pattern in $UNWATED_NAME_PATTERNS; do
+          NAME_CONDITIONS+=(-o -iname "$pattern")
           done
           unset DIR_CONDITIONS[0]
           UNWANTED_LIST=$(find . -path" ./.git" -prune -o \
