@@ -43,13 +43,14 @@ jobs:
           done
           unset DIR_CONDITIONS[0]
           UNWANTED_LIST=$(find . -path "./.git" -prune -o \
-           \( \( "${DIR_CONDITIONS[@]}" \) -a -type d -print -prune \) -o \
-           \( \( "${NAME_CONDITIONS[@]}" \) -a -type f -print \) \
+            \( \( "${DIR_CONDITIONS[@]}" \) -a -type d -print -prune \) -o \
+            \( \( "${NAME_CONDITIONS[@]}" \) -a -type f -print \) \
           )
+          
           if [ -n "$UNWANTED_LIST" ]; then
-            echo "::errot::不要なファイルまたはディレクトリが見つかりました! "
+            echo "::error::不要なファイルまたはディレクトリが見つかりました!"
             echo "$UNWANTED_LIST"
             exit 1
           fi
-
-          echo "リポジトリはクリーンです。 "
+          
+          echo "リポジトリはクリーンです。"
