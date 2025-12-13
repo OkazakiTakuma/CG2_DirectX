@@ -1,5 +1,5 @@
 #pragma once
-#include "../base/struct.h"
+#include "struct.h"
 #include <map>
 #include <memory>
 #include <string>

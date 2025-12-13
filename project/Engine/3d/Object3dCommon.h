@@ -1,8 +1,8 @@
 #pragma once
-#include "../base/DirectXCommon.h"
-#include "../base/Logger.h"
-#include "../base/StringUtility.h"
-#include "../base/struct.h"
+#include "DirectXCommon.h"
+#include "Logger.h"
+#include "StringUtility.h"
+#include "struct.h"
 class Object3dCommon {
 public:
 	void Initialize(DirectXCommon* dxCommon);
