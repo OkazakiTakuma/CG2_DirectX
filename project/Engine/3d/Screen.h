@@ -25,7 +25,7 @@ Matrix3x3 MakeAffineMatrix(Vector2 scale, float rotate, Vector2 translate);
 /// <param name="translate">変位させる値</param>
 /// <param name="matrix">行列</param>
 /// <returns></returns>
-Vector2 Transform(Vector2 translate, Matrix3x3 matrix);
+Vector2 Transformation(Vector2 translate, Matrix3x3 matrix);
 
 /// <summary>
 /// 3x3の逆行列を求める

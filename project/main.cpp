@@ -1,20 +1,21 @@
-#include "Sprite.h"
-#include "SpriteCommon.h"
-#include "TextureManager.h"
+#include "Camera.h"
+#include "D3DResouceLeakCheker.h"
+#include "DirectXCommon.h"
+#include "Input.h"
+#include "Logger.h"
 #include "Matrix.h"
 #include "Model.h"
 #include "ModelCommon.h"
 #include "ModelManager.h"
 #include "Object3d.h"
 #include "Object3dCommon.h"
-#include "Screen.h"
-#include "Vector.h"
-#include "D3DResouceLeakCheker.h"
-#include "DirectXCommon.h"
-#include "Input.h"
-#include "Logger.h"
 #include "Resource.h"
+#include "Screen.h"
+#include "Sprite.h"
+#include "SpriteCommon.h"
 #include "StringUtility.h"
+#include "TextureManager.h"
+#include "Vector.h"
 #include "WinApp.h"
 #include "extenals/DirectXTex/DirectXTex.h"
 #include <Windows.h>
@@ -35,12 +36,10 @@
 #include <string>
 #include <strsafe.h>
 #include <wrl.h>
-
 #include "extenals/imgui/imgui.h"
 #include "extenals/imgui/imgui_impl_dx12.h"
 #include "extenals/imgui/imgui_impl_win32.h"
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
-
 #pragma comment(lib, "DirectXTex.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -52,18 +51,6 @@ using namespace Logger;
 using namespace StringUtility;
 using namespace Microsoft::WRL;
 
-Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(const Microsoft::WRL::ComPtr<ID3D12Device>& device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors, bool shaderVisible) {
-	assert(device != nullptr);
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap = nullptr;
-	// ヒープの設定
-	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
-	heapDesc.Type = type;                                                                                         // ヒープのタイプ
-	heapDesc.NumDescriptors = numDescriptors;                                                                     // ヒープに含まれるデスクリプタの数
-	heapDesc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE; // シェーダーからアクセス可能かどうか
-	HRESULT hr = device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeap));
-	assert(SUCCEEDED(hr));
-	return descriptorHeap;
-}
 
 static LONG WINAPI ExportDump(EXCEPTION_POINTERS* exception) {
 	// 時刻を取得して、時刻を名前に入れたファイルを作って、Dumpディレクトリをそこに出力する
@@ -87,17 +74,6 @@ static LONG WINAPI ExportDump(EXCEPTION_POINTERS* exception) {
 	return EXCEPTION_EXECUTE_HANDLER; // 例外を処理するためのハンドラーを返す
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index) {
-	D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	handleCPU.ptr += (descriptorSize * index);
-	return handleCPU;
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index) {
-	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
-	handleGPU.ptr += (descriptorSize * index);
-	return handleGPU;
-}
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
@@ -147,7 +123,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sprits->Initialize(spriteCommon, "Resources/monsterball.png");
 		}
 		sprites.push_back(sprits);
-		Transforms transform;
+		Transform transform;
 		transform.scale = {50.0f, 50.0f, 1.0f};
 		transform.translate = {100.0f + i * 90.0f, 200.0f, 0.0f};
 		sprits->SetTransform(transform);
@@ -155,6 +131,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	Object3dCommon* obj3dComoon = new Object3dCommon;
 	obj3dComoon->Initialize(dxCommon);
+	Camera* camera = new Camera();
+	obj3dComoon->SetDefaultCamera(camera);
 	Object3d* object3d = new Object3d;
 	object3d->Initialize(obj3dComoon);
 	ModelManager::GetInstance()->Inithialize(dxCommon);
@@ -168,16 +146,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		axisObj->Initialize(obj3dComoon);
 		axisObj->SetModel("axis.obj");
 		// 位置をずらして配置
-		axisObj->SetTransformScale({1.0f, 1.0f, 1.0f});
-		axisObj->SetTransformTranslate({float(i) * 2.0f, float(i)*2.0f, 3.0f});
+		axisObj->SetScale({1.0f, 1.0f, 1.0f});
+		axisObj->SetTranslate({float(i) * 2.0f, float(i) * 2.0f, 3.0f});
 		axisObjects.push_back(axisObj);
 	}
 
-
 #pragma endregion
 
-	Vector3 cameraPosition = {0.0f, 0.0f, -10.00f};
-	Vector3 cameraRotate = {0.0f, 0.0f, 0.0f};
 	const float clearColor[4] = {0.1f, 0.25f, 0.5f, 1.0f}; // 青色
 	                                                       // メッセージループ
 
@@ -206,13 +181,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
 
+			camera->Update();
 			object3d->Update();
 			for (Object3d* axisObj : axisObjects) {
 				axisObj->Update();
-				axisObj->SetCameraRotate(cameraRotate);
-				axisObj->SetCameraTranslate(cameraPosition);
 			}
-			
+
 			sprite->Update();
 			for (Sprite* s : sprites) {
 				s->Update();
@@ -225,8 +199,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 				// ImGuiツリーで折りたたみ可能にする
 				if (ImGui::TreeNode(("Sprite " + std::to_string(i)).c_str())) {
-					Transforms tr = s->GetTransform();
-					Transforms uv = s->GetUVTransform();
+					Transform tr = s->GetTransform();
+					Transform uv = s->GetUVTransform();
 					Vector4 color = s->GetColor();
 					Vector2 size = s->GetSize();
 
@@ -246,9 +220,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 					ImGui::TreePop();
 				}
 			}
+			Vector3 cameraPosition = camera->GetTranslate();
+			Vector3 cameraRotate = camera->GetRotate();
 
-			Transforms trsprite = sprite->GetTransform();
-			Transforms trspriteUV = sprite->GetUVTransform();
+			Transform trsprite = sprite->GetTransform();
+			Transform trspriteUV = sprite->GetUVTransform();
 			Vector4 spriteColor = sprite->GetColor();
 			Vector2 spriteSize = sprite->GetSize();
 			Vector2 anchor = sprite->GetAnchorPoint();
@@ -257,9 +233,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Vector2 textureLeftTop = sprite->GetTextureLeftTop();
 			Vector2 textureSize = sprite->GetTextureSize();
 			// モデルのパラメータ調整用
-			Vector3 modelPosition = object3d->GetTransformTranslate();
-			Vector3 modelRotate = object3d->GetTransformRotate();
-			Vector3 modelScale = object3d->GetTransformScale();
+			Vector3 modelPosition = object3d->GetTranslate();
+			Vector3 modelRotate = object3d->GetRotate();
+			Vector3 modelScale = object3d->GetScale();
 
 			ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
 			ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
@@ -282,18 +258,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat2("UV translate", &trspriteUV.translate.x, 0.01f, -10.0f, 10.0f);
 			ImGui::DragFloat2("UV scale", &trspriteUV.scale.x, 0.01f, 0.0f, 10.0f);
 			ImGui::SliderAngle("UV rotate", &trspriteUV.rotate.z);
-			// ImGui::ColorEdit4("lighr color", &directionallightData->color.x, 1.0f); // クリアカラーの編
-			// ImGui::DragFloat3("light direction", &directionallightData->direction.x, 0.1f);
-			// directionallightData->direction = NormalizeReturnVector(directionallightData->direction); // 正規化
-			// ImGui::SliderFloat("intensity", &directionallightData->intensity, 0.0f, 1.0f);
 			//  ImGuiのウィンドウを作成
 			ImGui::Render(); // ImGuiの描画を実行
-			object3d->SetTransformTranslate(modelPosition);
-			object3d->SetTransformRotate(modelRotate);
-			object3d->SetTransformScale(modelScale);
-
-			object3d->SetCameraRotate(cameraRotate);
-			object3d->SetCameraTranslate(cameraPosition);
+			camera->SetTranslate(cameraPosition);
+			camera->SetRotate(cameraRotate);
+			object3d->SetTranslate(modelPosition);
+			object3d->SetRotate(modelRotate);
+			object3d->SetScale(modelScale);
 
 			sprite->SetIsFlipX(isFlipX);
 			sprite->SetIsFlipY(isFlipY);
@@ -345,7 +316,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	}
 
 	delete object3d;
-	delete obj3dComoon;	
+	delete obj3dComoon;
 	delete sprite; // スプライトの解放
 	delete spriteCommon;
 	TextureManager::GetInstance()->Finalize();

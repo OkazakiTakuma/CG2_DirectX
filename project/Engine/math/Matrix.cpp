@@ -237,7 +237,7 @@ Matrix4x4 MakeAffineMatrix(Vector3 scale, Vector3 rotate, Vector3 translate) {
 	affineMatrix.m[3][3] = 1.0f;
 	return affineMatrix;
 }
-Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
+Vector3 Transformation(const Vector3& vector, const Matrix4x4& matrix) {
 	Vector3 result{};
 
 	result.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + 1.0f * matrix.m[3][0];

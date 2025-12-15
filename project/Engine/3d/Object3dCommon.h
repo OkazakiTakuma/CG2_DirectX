@@ -3,11 +3,14 @@
 #include "Logger.h"
 #include "StringUtility.h"
 #include "struct.h"
+#include"Camera.h"
 class Object3dCommon {
 public:
 	void Initialize(DirectXCommon* dxCommon);
 	void SetDraw();
 	DirectXCommon* GetDxCommon() const { return dxCommon_; }
+	void SetDefaultCamera(Camera* cmr) { defaultCamera = cmr; }
+	Camera* GetDefaultCamera() { return defaultCamera; }
 
 private:
 	DirectXCommon* dxCommon_ = nullptr;
@@ -19,6 +22,7 @@ private:
 		Vector3 normal;   // 法線ベクトル
 		Vector2 uv;       // uv座標
 	};
+	Camera* defaultCamera = nullptr;
 
 	void CreateRootSignature();
 
