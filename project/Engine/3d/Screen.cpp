@@ -1,7 +1,7 @@
 #include "Screen.h"
 #include <assert.h>
 #include <math.h>
-Vector2 Transform(Vector2 vector, Matrix3x3 matrix) {
+Vector2 Transformation(Vector2 vector, Matrix3x3 matrix) {
 	Vector2 result;
 
 	result.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + 1.0f * matrix.m[2][0];
@@ -128,7 +128,7 @@ Vector2 ScreenPoint(Vector2 scale, float rotate, Vector2 position, Matrix3x3 cam
 	wvpVpMatrix = Multply(wvpVpMatrix, orthoMatrix);
 	wvpVpMatrix = Multply(wvpVpMatrix, viewPortMatrix);
 
-	Vector2 screenPosition = Transform(size, wvpVpMatrix);
+	Vector2 screenPosition = Transformation(size, wvpVpMatrix);
 	return screenPosition;
 }
 
@@ -149,9 +149,9 @@ void DrawShaft(Matrix3x3 cameraMatrix, int kWindowsWidih, int kWindowsHeight) {
 	Matrix3x3 wvpVpLineMatrix = Multply(lineMatrix, viewMatrix);
 	wvpVpLineMatrix = Multply(wvpVpLineMatrix, orthoMatrix);
 	wvpVpLineMatrix = Multply(wvpVpLineMatrix, viewPortMatrix);
-	Vector2 lineTop = Transform(top, wvpVpLineMatrix);
-	Vector2 lineRight = Transform(right, wvpVpLineMatrix);
-	Vector2 lineLeft = Transform(left, wvpVpLineMatrix);
-	Vector2 lineBottom = Transform(bottom, wvpVpLineMatrix);
+	Vector2 lineTop = Transformation(top, wvpVpLineMatrix);
+	Vector2 lineRight = Transformation(right, wvpVpLineMatrix);
+	Vector2 lineLeft = Transformation(left, wvpVpLineMatrix);
+	Vector2 lineBottom = Transformation(bottom, wvpVpLineMatrix);
 
 }

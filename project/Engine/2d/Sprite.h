@@ -17,10 +17,10 @@ public:
 	void Initialize(SpriteCommon* spriteCommon, std::string textureFilePath);
 	void Update();
 	void Draw();
-	const Transforms& GetTransform() { return transform; };
-	void SetTransform(const Transforms& newTransform) { transform = newTransform; }
-	const Transforms& GetUVTransform() { return uvTransform; }
-	void SetUVTransform(const Transforms& newUVTransform) { uvTransform = newUVTransform; }
+	const Transform& GetTransform() { return transform; };
+	void SetTransform(const Transform& newTransform) { transform = newTransform; }
+	const Transform& GetUVTransform() { return uvTransform; }
+	void SetUVTransform(const Transform& newUVTransform) { uvTransform = newUVTransform; }
 	const Vector4& GetColor() const { return materialData->color; }
 	void SetColor(const Vector4& newColor) { materialData->color = newColor; }
 	const Vector2 GetSize() const { return size; }
@@ -58,12 +58,12 @@ private:
 	Material* materialData = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource;
-	Transforms transform{
+	Transform transform{
 	    {1.0f, 1.0f, 1.0f},
         {0.0f, 0.0f, 0.0f},
         {0.0f, 0.0f, 0.0f}
     };
-	Transforms uvTransform{
+	Transform uvTransform{
 	    {1.0f, 1.0f, 1.0f},
         {0.0f, 0.0f, 0.0f},
         {0.0f, 0.0f, 0.0f}

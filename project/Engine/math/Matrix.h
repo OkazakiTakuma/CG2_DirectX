@@ -11,7 +11,7 @@ struct Matrix4x4 {
 /// <summary>
 /// SRTの変換を行うための構造体
 /// </summary>
-struct Transforms {
+struct Transform {
 	Vector3 scale;   // 拡大縮小
 	Vector3 rotate;  // 回転
 	Vector3 translate; // 平行移動
@@ -53,7 +53,7 @@ Matrix4x4 MakeRotateXYZMatrix(Vector3 radiun);
 // アフィン変換
 Matrix4x4 MakeAffineMatrix(Vector3 scale, Vector3 rotate, Vector3 translate);
 // 座標変換
-Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix);
+Vector3 Transformation(const Vector3& vector, const Matrix4x4& matrix);
 /// <summary>
 /// 正射影行列を作る関数
 /// </summary>
