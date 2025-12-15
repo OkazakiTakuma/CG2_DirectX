@@ -171,6 +171,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\3d\Model.cpp" />
     <ClCompile Include="Engine\3d\ModelCommon.cpp" />
     <ClCompile Include="Engine\3d\ModelManager.cpp" />
+    <ClCompile Include="Engine\base\SrvManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Resources\Shader\Object3d.PS.hlsl">
@@ -219,6 +220,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\3d\Model.h" />
     <ClInclude Include="Engine\3d\ModelCommon.h" />
     <ClInclude Include="Engine\3d\ModelManager.h" />
+    <ClInclude Include="Engine\base\SrvManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="extenals\imgui\LICENSE.txt" />
