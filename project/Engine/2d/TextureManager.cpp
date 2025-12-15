@@ -1,13 +1,16 @@
 // TextureManager.cpp
 #include "TextureManager.h"
-#include "../base/StringUtility.h"
+#include "StringUtility.h"
 
 TextureManager* TextureManager::instance = nullptr;
 using namespace StringUtility;
 
 uint32_t TextureManager::kSRVIndexTop = 1;
 
-void TextureManager::Initialize() { textureDatas.reserve(DirectXCommon::kMaxSRVCount); }
+void TextureManager::Initialize(SrvManager* srv) {
+	textureDatas.reserve(SrvManager::kMaxSRVCount);
+	srvManager = srv;
+}
 
 TextureManager* TextureManager::GetInstance() {
 	if (instance == nullptr) {
@@ -24,29 +27,17 @@ void TextureManager::Finalize() {
 void TextureManager::Rerease() {}
 
 uint32_t TextureManager::GetTextureIndexByFilePath(const std::string& filepath) {
-	auto it = std::find_if(textureDatas.begin(), textureDatas.end(), [&](TextureData& texturedata) { return texturedata.filePath == filepath; });
-	if (it != textureDatas.end()) {
-		uint32_t textureIndex = static_cast<uint32_t>(std::distance(textureDatas.begin(), it));
-		return textureIndex;
-	}
+	assert(srvManager->IsOverAllocated());
 	assert(0);
 	return 0;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE TextureManager::GetSRVHandleGPU(uint32_t textureIndex) {
-	assert(textureIndex < DirectXCommon::kMaxSRVCount);
-	assert(textureIndex < textureDatas.size());
-
-	TextureData& textureData = textureDatas[textureIndex];
-	return textureData.srvHandleGPU;
-}
 
 void TextureManager::LoadTexture(const std::string& filepath) {
-	auto it = std::find_if(textureDatas.begin(), textureDatas.end(), [&](TextureData& texturedata) { return texturedata.filePath == filepath; });
-	if (it != textureDatas.end()) {
+	if (textureDatas.contains(filepath)){
 		return;
 	}
-	assert(textureDatas.size() + kSRVIndexTop < DirectXCommon::kMaxSRVCount);
+	assert(srvManager->IsOverAllocated());
 
 	DirectX::ScratchImage image{};
 	DirectX::ScratchImage mipImages{};
@@ -57,16 +48,13 @@ void TextureManager::LoadTexture(const std::string& filepath) {
 	hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
 	assert(SUCCEEDED(hr));
 
-	textureDatas.resize(textureDatas.size() + 1);
 
-	TextureData& textureData = textureDatas.back();
-	textureData.filePath = filepath;
+	TextureData& textureData = textureDatas[filepath];
 	textureData.metadata = mipImages.GetMetadata();
 	textureData.resource = dxCommon_->CreateTextureResource(textureData.metadata);
-
-	uint32_t srvIndex = static_cast<uint32_t>(textureDatas.size() - 1) + kSRVIndexTop;
-	textureData.srvHandleCPU = dxCommon_->GetSRVCPUDescriptorHandle(srvIndex);
-	textureData.srvHandleGPU = dxCommon_->GetSRVGPUDescriptorHandle(srvIndex);
+	textureData.srvIndex = srvManager->Allcate();
+	textureData.srvHandleCPU = srvManager->GetCPUDescriptorHandle(textureData.srvIndex);
+	textureData.srvHandleGPU = srvManager->GetGPUDescriptorHandle(textureData.srvIndex);
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = textureData.metadata.format;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -78,9 +66,3 @@ void TextureManager::LoadTexture(const std::string& filepath) {
 	dxCommon_->UploadTextureData(textureData.resource, mipImages);
 }
 
-const DirectX::TexMetadata& TextureManager::GetTextureMetadata(uint32_t textureIndex) {
-	assert(textureIndex < DirectXCommon::kMaxSRVCount);
-	assert(textureIndex < textureDatas.size());
-	TextureData& textureData = textureDatas[textureIndex];
-	return textureData.metadata;
-}

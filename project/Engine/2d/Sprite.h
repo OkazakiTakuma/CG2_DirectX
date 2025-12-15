@@ -48,7 +48,7 @@ private:
 		Matrix4x4 WVP;
 		Matrix4x4 world;
 	};
-
+	std::string filepath;
 	uint32_t* indexData = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource;
 	D3D12_INDEX_BUFFER_VIEW indexBufferView{};

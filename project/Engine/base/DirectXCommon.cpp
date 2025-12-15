@@ -3,7 +3,6 @@
 using namespace Logger;
 using namespace StringUtility;
 
-const uint32_t DirectXCommon::kMaxSRVCount = 512;
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
@@ -39,9 +38,7 @@ void DirectXCommon::Initialize(WinApp* winApp) {
 	CreateImGui();
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetSRVCPUDescriptorHandle(uint32_t index) { return GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, index); }
 
-D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetSRVGPUDescriptorHandle(uint32_t index) { return GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, index); }
 
 void DirectXCommon::PreDraw() {
 	dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
@@ -67,8 +64,6 @@ void DirectXCommon::PreDraw() {
 	commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 	commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	//  描画用のDescriptorHeapを設定
-	ID3D12DescriptorHeap* heaps[] = {srvDescriptorHeap.Get()};
-	commandList->SetDescriptorHeaps(_countof(heaps), heaps);
 	commandList->RSSetViewports(1, &viewport);
 	commandList->RSSetScissorRects(1, &scissorRect);
 }
@@ -421,11 +416,9 @@ void DirectXCommon::CreateDepthBuffer() {
 }
 
 void DirectXCommon::CreateDescriptorHeap() {
-	descroptorSizeSRV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	descroptorSizeRTV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	descroptorSizeDSV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
-	srvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, kMaxSRVCount, true);
 	rtvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 	dsvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 }
@@ -511,18 +504,18 @@ void DirectXCommon::CreateDXCompiler() {
 }
 
 void DirectXCommon::CreateImGui() {
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();                  // ImGuiのコンテキストを作成
-	ImGui::StyleColorsDark();                // ImGuiのスタイルをダークに設定
-	ImGui_ImplWin32_Init(winApp->GetHwnd()); // ImGuiのWin32バックエンドを初期化
-	ImGui_ImplDX12_Init(
-	    device.Get(),
-	    swapChainDesc.BufferCount,                               // スワップチェーンのバッファ数
-	    rtvDesc.Format,                                          // レンダーターゲットビューのフォーマット
-	    srvDescriptorHeap.Get(),                                 // レンダーターゲットビューのディスクリプタヒープ
-	    srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), // CPUディスクリプタハンドル
-	    srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()  // GPUディスクリプタハンドル
-	);
+	//IMGUI_CHECKVERSION();
+	//ImGui::CreateContext();                  // ImGuiのコンテキストを作成
+	//ImGui::StyleColorsDark();                // ImGuiのスタイルをダークに設定
+	//ImGui_ImplWin32_Init(winApp->GetHwnd()); // ImGuiのWin32バックエンドを初期化
+	//ImGui_ImplDX12_Init(
+	//    device.Get(),
+	//    swapChainDesc.BufferCount,                               // スワップチェーンのバッファ数
+	//    rtvDesc.Format,                                          // レンダーターゲットビューのフォーマット
+	//    srvDescriptorHeap.Get(),                                 // レンダーターゲットビューのディスクリプタヒープ
+	//    srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), // CPUディスクリプタハンドル
+	//    srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()  // GPUディスクリプタハンドル
+	//);
 }
 
 void DirectXCommon::InitializeFixFPS() { reference_ = std::chrono::high_resolution_clock::now(); }

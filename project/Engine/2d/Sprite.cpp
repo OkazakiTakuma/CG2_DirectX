@@ -55,6 +55,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath)
 	// テクスチャの読み込み
 
 	textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(textureFilePath);
+	filepath = textureFilePath;
 	AdjustTextureSize();
 
 #pragma endregion
@@ -87,7 +88,7 @@ void Sprite::Update() {
 		std::swap(top, bottom);
 	}
 
-	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetTextureMetadata(textureIndex);
+	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetTextureMetadata(filepath);
 	float uLeft = textureLeftTop.x / static_cast<float>(metadata.width);
 	float uRight = (textureLeftTop.x + textureSize.x) / static_cast<float>(metadata.width);
 	float vTop = textureLeftTop.y / static_cast<float>(metadata.height);
@@ -124,11 +125,11 @@ void Sprite::Draw() {
 	spriteCommon->GetDxCommon()->GetCommandList()->IASetIndexBuffer(&indexBufferView);
 	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
-	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootDescriptorTable(3, TextureManager::GetInstance()->GetSRVHandleGPU(textureIndex));
+	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootDescriptorTable(3, TextureManager::GetInstance()->GetSRVHandleGPU(filepath));
 	spriteCommon->GetDxCommon()->GetCommandList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 }
 void Sprite::AdjustTextureSize() {
-	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetTextureMetadata(textureIndex);
+	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetTextureMetadata(filepath);
 	textureSize = {static_cast<float>(metadata.width), static_cast<float>(metadata.height)};
 	size = textureSize;
 
