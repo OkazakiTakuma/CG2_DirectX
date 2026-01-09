@@ -27,7 +27,7 @@ struct ModelData {
 	MaterialData material;
 };
 struct Particle {
-	Transforms transform; // SRT情報
+	Transform transform; // SRT情報
 	Vector3 velocity;     // 速度
 	Vector4 color;        // 色
 	float lifeTimme;
