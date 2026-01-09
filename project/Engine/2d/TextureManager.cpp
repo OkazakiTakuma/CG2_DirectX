@@ -1,6 +1,7 @@
 // TextureManager.cpp
 #include "TextureManager.h"
 #include "StringUtility.h"
+#include "ParticleManager.h"
 
 TextureManager* TextureManager::instance = nullptr;
 using namespace StringUtility;
@@ -23,6 +24,7 @@ void TextureManager::Finalize() {
 	delete instance;
 	instance = nullptr;
 }
+
 
 void TextureManager::Rerease() {}
 

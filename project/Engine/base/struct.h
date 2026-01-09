@@ -33,3 +33,9 @@ struct Particle {
 	float lifeTimme;
 	float currentTime;
 };
+struct Emitter {
+	Transform transform; // エミッタの位置情報
+	uint32_t count;       // パーティクルの数
+	float frequency;      // 発生頻度（秒間）
+	float frequencyTimer; // 発生頻度タイマー
+};
