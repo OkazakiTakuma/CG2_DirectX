@@ -21,6 +21,7 @@ struct VertexShaderInput
 VertexShaderOutput main(VertexShaderInput input,uint32_t instanceID : SV_InstanceID)
 {
     VertexShaderOutput output;
+    
     output.position = mul(input.position, gParticle[instanceID].WVP); // ← 行列を使って変換
     output.texcoord = input.texcoord;
     output.normal = normalize(mul(input.normal, (float3x3) gParticle[instanceID].world));

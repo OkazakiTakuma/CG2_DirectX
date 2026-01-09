@@ -7,6 +7,9 @@
 #include "Engine/base/StringUtility.h"
 #include "Engine/base/WinApp.h"
 #include "extenals/DirectXTex/DirectXTex.h"
+#include "extenals/imgui/imgui.h"
+#include "extenals/imgui/imgui_impl_dx12.h"
+#include "extenals/imgui/imgui_impl_win32.h"
 #include <Windows.h>
 #include <cassert>
 #include <chrono>
@@ -21,14 +24,12 @@
 #include <fstream>
 #include <locale>
 #include <math.h>
+#include <numbers>
+#include <random>
 #include <sstream>
 #include <string>
 #include <strsafe.h>
 #include <wrl.h>
-#include <random>
-#include "extenals/imgui/imgui.h"
-#include "extenals/imgui/imgui_impl_dx12.h"
-#include "extenals/imgui/imgui_impl_win32.h"
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
 #pragma comment(lib, "DirectXTex.lib")
@@ -81,7 +82,6 @@ struct ParticleForGPU {
 	Vector4 color;
 };
 
-
 struct DirectionalLight {
 	Vector4 color;     // 光の色
 	Vector3 direction; // 光の方向
@@ -105,6 +105,12 @@ struct Particle {
 	float currentTime;
 };
 
+struct Emitter {
+	Transforms transform; // エミッタの位置情報
+	uint32_t count;       // パーティクルの数
+	float frequency;      // 発生頻度（秒間）
+	float frequencyTimer; // 発生頻度タイマー
+};
 
 Particle MakeNewParticle(std::mt19937& randomEngine) {
 	Particle particle{};
@@ -118,8 +124,15 @@ Particle MakeNewParticle(std::mt19937& randomEngine) {
 	std::uniform_real_distribution<float> distriTime(1.0f, 50.0f);
 	particle.lifeTimme = distriTime(randomEngine); // ライフタイムを1秒から3秒の間でランダムに設定
 	particle.currentTime = 0.0f;
-	
+
 	return particle;
+}
+std::list<Particle> Emit(const Emitter& emitter, std::mt19937& randomEngine) {
+	std::list<Particle> newParticles;
+	for (uint32_t i = 0; i < emitter.count; i++) {
+		newParticles.push_back(MakeNewParticle(randomEngine));
+	}
+	return newParticles;
 }
 
 IDxcBlob* CompileShader(
@@ -891,8 +904,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// すべての色要素を書き込む
 	instancingblendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	instancingblendDesc.RenderTarget[0].BlendEnable = TRUE; // ブレンドを無効にする
-	// すべての色要素を書き込む
-blendMode = BlendMode::kBlendModeAdd;
+	                                                        // すべての色要素を書き込む
+	blendMode = BlendMode::kBlendModeAdd;
 
 	switch (blendMode) {
 	case BlendMode::kBlendModeNormal:
@@ -1344,16 +1357,17 @@ blendMode = BlendMode::kBlendModeAdd;
 
 	// ここで instanceBuffer を SRV に設定
 	device->CreateShaderResourceView(instanceResource.Get(), &instanceSrvDesc, instanceSrvHandleCPU);
-
+	Matrix4x4 backToFlontMatrix = MakeRotateYMatrix(std::numbers::pi_v<float>);
 	std::random_device seedGenerator;
 	std::mt19937 randomEngine(seedGenerator());
-	Particle particles[kNumMaxInstance];
-	for (int i = 0; i < kNumMaxInstance; i++) {
-		particles[i] = MakeNewParticle(randomEngine);
-		instanceData[i].color = particles[i].color;
-	}
+	std::list<Particle> particles;
+	Emitter emitter;
+	emitter.count = 3;
+	emitter.frequency = 0.5f;
+	emitter.frequencyTimer = 0.0f;
+
 #pragma endregion
-	#pragma region マテリアルの描画に必要なデータの作成
+#pragma region マテリアルの描画に必要なデータの作成
 	const float pi = 3.1415f;                         // 円周率
 	const uint32_t kSubdivision = 16;                 // 球の細分化数
 	const float kLonEvery = 2.0f * pi / kSubdivision; // 経度の間隔(φd)
@@ -1531,7 +1545,7 @@ blendMode = BlendMode::kBlendModeAdd;
 	int instanceCount = 10;
 
 	Vector3 cameraPosition = {0.0f, 0.0f, -10.00f};
-	Vector3 cameraRotate = {0.0f, 0.0f, 0.0f};
+	Vector3 cameraRotate = {0, 0, 0.0f};
 	const float clearColor[4] = {0.1f, 0.25f, 0.5f, 1.0f}; // 青色
 	// メッセージループ
 
@@ -1552,6 +1566,7 @@ blendMode = BlendMode::kBlendModeAdd;
 	commandList->OMSetRenderTargets(1, &rtvHandles[0], false, &dsvHandle);
 
 	bool useTexture = true;
+	bool usebillboard = false;
 
 	MSG msg = {};
 
@@ -1578,10 +1593,13 @@ blendMode = BlendMode::kBlendModeAdd;
 			ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
-
+			Transforms cameraTransform{
+			    {1.0f, 1.0f, 1.0f},
+                cameraRotate, cameraPosition
+            };
 			Matrix4x4 worldMatrixModel = MakeAffineMatrix(transformModel.scale, transformModel.rotate, transformModel.translate);
-			Matrix4x4 cameraMatrixModel = MakeAffineMatrix(Vector3{1.0f, 1.0f, 1.0f}, cameraRotate, cameraPosition);
-			Matrix4x4 viewMatrixModel = Inverse(cameraMatrixModel);
+			Matrix4x4 cameraMatrix = MakeAffineMatrix(Vector3{1.0f, 1.0f, 1.0f}, cameraRotate, cameraPosition);
+			Matrix4x4 viewMatrixModel = Inverse(cameraMatrix);
 			Matrix4x4 projectionMatrixModel = MakePerspectiveFovMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
 			Matrix4x4 wvpMatrixModel = Multiply(worldMatrixModel, Multiply(viewMatrixModel, projectionMatrixModel));
 			wvpDataModel->WVP = wvpMatrixModel;
@@ -1591,26 +1609,47 @@ blendMode = BlendMode::kBlendModeAdd;
 			Matrix4x4 wvpMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 			wvpData->WVP = wvpMatrix;
 			wvpData->world = worldMatrix;*/
-			Matrix4x4 cameraMatrix = MakeAffineMatrix(Vector3{1.0f, 1.0f, 1.0f}, cameraRotate, cameraPosition);
 			Matrix4x4 viewMatrix = Inverse(cameraMatrix);
 			Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
+			Matrix4x4 billboardMatrix = Multiply(backToFlontMatrix, cameraMatrix);
+			billboardMatrix.m[3][0] = 0.0f;
+			billboardMatrix.m[3][1] = 0.0f;
+			billboardMatrix.m[3][2] = 0.0f;
 
 			uint32_t numInstance = 0;
-			for (int i = 0; i < kNumMaxInstance; i++) {
-				if (particles[i].lifeTimme<=particles[i].currentTime) {
+			for (std::list<Particle>::iterator particleIterator = particles.begin(); particleIterator != particles.end();) {
+				if ((*particleIterator).lifeTimme <= (*particleIterator).currentTime) {
+					particleIterator = particles.erase(particleIterator);
 					continue;
 				}
-				Vector3 move= particles[i].velocity * kDeltaTime;
-				particles[i].transform.translate = particles[i].transform.translate + move;
-				particles[i].currentTime += kDeltaTime;
-				Matrix4x4 worldMatrix = MakeAffineMatrix(particles[i].transform.scale, particles[i].transform.rotate, particles[i].transform.translate);
-				Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrixModel, projectionMatrixModel));
-				instanceData[numInstance].WVP = worldViewProjectionMatrix;
-				instanceData[numInstance].world = worldMatrix;
-				instanceData[numInstance].color = particles[i].color;
-				float alpha = 1.0f - (particles[i].currentTime / particles[i].lifeTimme);
-				instanceData[numInstance].color.w = alpha;
-				++numInstance;
+				Vector3 move = (*particleIterator).velocity * kDeltaTime;
+				(*particleIterator).transform.translate = (*particleIterator).transform.translate + move;
+				(*particleIterator).currentTime += kDeltaTime;
+				Matrix4x4 scaleMatrix = MakeScaleMatrix((*particleIterator).transform.scale);
+				Matrix4x4 translateMatrix = MakeTranslateMatrix((*particleIterator).transform.translate);
+				Matrix4x4 worldMatrix = MakeAffineMatrix((*particleIterator).transform.scale, (*particleIterator).transform.rotate, (*particleIterator).transform.translate);
+
+				if (usebillboard) {
+					worldMatrix = scaleMatrix * billboardMatrix * translateMatrix;
+				}
+				Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
+				
+				emitter.frequencyTimer += kDeltaTime;
+				if (emitter.frequency<= emitter.frequencyTimer) {
+					particles.splice(particles.end(), Emit(emitter, randomEngine));
+					emitter.frequencyTimer -= emitter.frequency;
+				}
+				
+				if (numInstance < kNumMaxInstance) {
+
+					instanceData[numInstance].WVP = worldViewProjectionMatrix;
+					instanceData[numInstance].world = worldMatrix;
+					instanceData[numInstance].color = (*particleIterator).color;
+					float alpha = 1.0f - ((*particleIterator).currentTime / (*particleIterator).lifeTimme);
+					instanceData[numInstance].color.w = alpha;
+					++numInstance;
+				}
+				++particleIterator;
 			}
 
 			Matrix4x4 worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
@@ -1633,6 +1672,11 @@ blendMode = BlendMode::kBlendModeAdd;
 			ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
 			ImGui::SliderAngle("camera rotate y", &cameraRotate.y);
 			ImGui::SliderAngle("camera rotate z", &cameraRotate.z);
+			ImGui::Checkbox("usebillboard", &usebillboard);
+			if (ImGui::Button("Add Particle")){
+				particles.splice(particles.end(),Emit(emitter,randomEngine));
+			}
+
 			ImGui::DragFloat3("model pos", &transformModel.translate.x, 0.3f);
 			ImGui::SliderAngle("model rotate x", &transformModel.rotate.x);
 			ImGui::SliderAngle("model rotate y", &transformModel.rotate.y);
@@ -1710,8 +1754,7 @@ blendMode = BlendMode::kBlendModeAdd;
 			commandList->SetPipelineState(graphicsPipelineState.Get());
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewModel);
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
-
+			//commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 

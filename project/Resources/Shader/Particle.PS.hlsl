@@ -25,9 +25,19 @@ struct PixelShaderOutput
 
 PixelShaderOutput main(VertexShaderOutput input)
 {
-    PixelShaderOutput output;
+    
     float4 transformedUV = mul(float4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
+    if (textureColor.a == 0.0)
+    {
+        discard; // 透明度が低いピクセルは描画しない
+    }
+    if (textureColor.a <= 0.5)
+    {
+        discard; // 透明度が低いピクセルは描画しない
+    }
+
+    PixelShaderOutput output;
     output.color = textureColor * input.color;
     if(output.color.a == 0)
     {
