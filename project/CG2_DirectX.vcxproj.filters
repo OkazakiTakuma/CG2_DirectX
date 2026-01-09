@@ -117,6 +117,9 @@
     <ClCompile Include="Engine\base\SrvManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Engine\2d\ParticleManager.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Resources\Shader\Object3d.PS.hlsl">
@@ -125,6 +128,8 @@
     <FxCompile Include="Resources\Shader\Object3d.VS.hlsl">
       <Filter>リソース ファイル\shader</Filter>
     </FxCompile>
+    <FxCompile Include="Resources\Shader\Particle.PS.hlsl" />
+    <FxCompile Include="Resources\Shader\Particle.VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="extenals\imgui\imconfig.h">
@@ -214,6 +219,9 @@
     <ClInclude Include="Engine\base\SrvManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Engine\2d\ParticleManager.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="extenals\imgui\LICENSE.txt" />
@@ -222,5 +230,6 @@
     <None Include="Resources\Shader\Object3D.hlsli">
       <Filter>リソース ファイル\shader</Filter>
     </None>
+    <None Include="Resources\Shader\Particle.hlsli" />
   </ItemGroup>
 </Project>

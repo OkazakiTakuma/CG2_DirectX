@@ -26,3 +26,10 @@ struct ModelData {
 	std::vector<VertexData> vertices; // 頂点データ
 	MaterialData material;
 };
+struct Particle {
+	Transforms transform; // SRT情報
+	Vector3 velocity;     // 速度
+	Vector4 color;        // 色
+	float lifeTimme;
+	float currentTime;
+};
