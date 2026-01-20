@@ -54,7 +54,7 @@ void TextureManager::LoadTexture(const std::string& filepath) {
 	TextureData& textureData = textureDatas[filepath];
 	textureData.metadata = mipImages.GetMetadata();
 	textureData.resource = dxCommon_->CreateTextureResource(textureData.metadata);
-	textureData.srvIndex = srvManager->Allcate();
+	textureData.srvIndex = srvManager->Allocate();
 	textureData.srvHandleCPU = srvManager->GetCPUDescriptorHandle(textureData.srvIndex);
 	textureData.srvHandleGPU = srvManager->GetGPUDescriptorHandle(textureData.srvIndex);
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};

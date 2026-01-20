@@ -7,7 +7,7 @@ void SrvManager::Initialize(DirectXCommon* dxcommon) {
 	descriptrSize = dxCommon->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
-uint32_t SrvManager::Allcate() {
+uint32_t SrvManager::Allocate() {
 	assert(kMaxSRVCount < useIndex);
 	uint32_t index = useIndex;
 	useIndex++;
@@ -60,6 +60,6 @@ void SrvManager::preDraw() {
 	dxCommon->GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
 }
 
-void SrvManager::SetGraphicsRootDescriptrTable(UINT rootParameterIndex, uint32_t srvIndex) {
+void SrvManager::SetGraphicsRootDescriptorTable(UINT rootParameterIndex, uint32_t srvIndex) {
 	dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(rootParameterIndex, GetGPUDescriptorHandle(srvIndex));
 }

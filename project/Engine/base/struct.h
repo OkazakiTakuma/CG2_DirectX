@@ -30,7 +30,7 @@ struct Particle {
 	Transform transform; // SRT情報
 	Vector3 velocity;     // 速度
 	Vector4 color;        // 色
-	float lifeTimme;
+	float lifeTime;
 	float currentTime;
 };
 struct Emitter {
@@ -38,4 +38,9 @@ struct Emitter {
 	uint32_t count;       // パーティクルの数
 	float frequency;      // 発生頻度（秒間）
 	float frequencyTimer; // 発生頻度タイマー
+};
+struct ParticleForGPU {
+	Matrix4x4 WVP;
+	Matrix4x4 world;
+	Vector4 color;
 };

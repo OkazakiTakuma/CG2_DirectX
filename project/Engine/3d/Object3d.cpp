@@ -18,17 +18,14 @@ void Object3d::Initialize(Object3dCommon* object3dCommon) {
 
 void Object3d::CreateWVPResource() {
 	wvpResorceModel = object3dCommon_->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
-	assert(SUCCEEDED(hr)); // WVPリソースの生成が成功したか確認
 	// データを書き込む
 	wvpResorceModel->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrix));
-	assert(SUCCEEDED(hr));
 	transformationMatrix->WVP = MakeIdentity4x4();
 	transformationMatrix->world = MakeIdentity4x4();
 }
 
 void Object3d::CreateDirectionalLightResource() {
 	lightResource = object3dCommon_->GetDxCommon()->CreateBufferResource(sizeof(DirectionalLight));
-	assert(SUCCEEDED(hr)); // ライトリソースの生成が成功したか確認
 	DirectionalLight* directionallightData = nullptr;
 	lightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionallightData));
 

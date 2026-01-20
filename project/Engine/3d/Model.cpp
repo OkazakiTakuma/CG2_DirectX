@@ -117,7 +117,6 @@ MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, c
 
 void Model::CreateVertexdata() {
 	vertexResource = modelCommon_->GetDxCommon()->CreateBufferResource(sizeof(VertexData) * modelData.vertices.size());
-	assert(SUCCEEDED(hr)); // 頂点リソースの生成が成功したか確認
 
 	// 頂点バッファビューの作成
 

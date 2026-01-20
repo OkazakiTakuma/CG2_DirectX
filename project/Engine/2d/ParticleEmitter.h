@@ -1,23 +1,22 @@
 #pragma once
-#pragma once
-#include "DirectXTex.h"
-#include "d3dx12.h"
-#include "DirectXCommon.h"
-#include "SrvManager.h"
-#include "struct.h"
-#include "TextureManager.h"
-#include <numbers>
-#include <random>
+#include "struct.h" // Emitter構造体が定義されている前提
 #include <string>
-#include <vector>
-#include <list>
-#include "ParticleManager.h"
+
+// 前方宣言 (ParticleManager.hをincludeすると循環参照の可能性がある場合)
+// class ParticleManager;
+
 class ParticleEmitter {
 public:
-	Emitter data;          // あなたの構造体そのまま
-	std::string groupName; // ParticleManager のグループ名
-	
-	bool isActive = true;
+	// コンストラクタ
+	// name: ParticleManagerに登録したグループ名
+	// emitterData: 射出頻度や位置などの設定データ
+	ParticleEmitter(const std::string& name, const Emitter& emitterData);
 
 	void Update(float deltaTime);
+	void Emit();
+
+private:
+	Emitter data;          // 射出設定（位置、数、頻度など）
+	std::string groupName; // ParticleManager で管理しているグループのキー
+	bool isActive = true;
 };

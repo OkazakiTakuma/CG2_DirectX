@@ -9,6 +9,7 @@
 #include "ModelManager.h"
 #include "Object3d.h"
 #include "Object3dCommon.h"
+#include "ParticleManager.h"
 #include "Resource.h"
 #include "Screen.h"
 #include "Sprite.h"
@@ -22,6 +23,8 @@
 #include "extenals/imgui/imgui.h"
 #include "extenals/imgui/imgui_impl_dx12.h"
 #include "extenals/imgui/imgui_impl_win32.h"
+#include "struct.h"
+
 #include <Windows.h>
 #include <cassert>
 #include <chrono>
@@ -153,7 +156,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		axisObj->SetTranslate({float(i) * 2.0f, float(i) * 2.0f, 3.0f});
 		axisObjects.push_back(axisObj);
 	}
+	// 1. 初期化
+	ParticleManager::GetInstance()->Initialize(dxCommon, srvManager);
 
+	// 2. グループ作成（テクスチャロード）
+	ParticleManager::GetInstance()->CreateParticleGroup("Smoke", "Resources/uvChecker.png");
+	ParticleManager::GetInstance()->CreateParticleGroup("Fire", "Resources/uvChecker.png");
+	ParticleManager::GetInstance()->SetCamera(camera);	
 	const float clearColor[4] = {0.1f, 0.25f, 0.5f, 1.0f}; // 青色
 	                                                       // メッセージループ
 
@@ -176,12 +185,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			if (input->TriggerKey(DIK_0)) {
 				OutputDebugStringA("Hit 0\n");
 			}
-
+			if (input->TriggerKey(DIK_SPACE)) {
+				ParticleManager::GetInstance()->Emit("Smoke", {0,0,0}, 10);
+			}
 			// ImGuiのフレーム開始
 			/*ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();*/
-
+			// 更新
+			ParticleManager::GetInstance()->Update();
 			camera->Update();
 			object3d->Update();
 			for (Object3d* axisObj : axisObjects) {
@@ -200,25 +212,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 				// ImGuiツリーで折りたたみ可能にする
 				/*if (ImGui::TreeNode(("Sprite " + std::to_string(i)).c_str())) {
-					Transform tr = s->GetTransform();
-					Transform uv = s->GetUVTransform();
-					Vector4 color = s->GetColor();
-					Vector2 size = s->GetSize();
+				    Transform tr = s->GetTransform();
+				    Transform uv = s->GetUVTransform();
+				    Vector4 color = s->GetColor();
+				    Vector2 size = s->GetSize();
 
-					ImGui::DragFloat2("Position", &tr.translate.x, 0.3f);
-					ImGui::SliderAngle("Rotation", &tr.rotate.z);
-					ImGui::DragFloat2("Scale", &size.x, 0.3f);
-					ImGui::ColorEdit4("Color", &color.x);
-					ImGui::DragFloat2("UV Translate", &uv.translate.x, 0.01f, -10.0f, 10.0f);
-					ImGui::DragFloat2("UV Scale", &uv.scale.x, 0.01f, 0.0f, 10.0f);
-					ImGui::SliderAngle("UV Rotate", &uv.rotate.z);
+				    ImGui::DragFloat2("Position", &tr.translate.x, 0.3f);
+				    ImGui::SliderAngle("Rotation", &tr.rotate.z);
+				    ImGui::DragFloat2("Scale", &size.x, 0.3f);
+				    ImGui::ColorEdit4("Color", &color.x);
+				    ImGui::DragFloat2("UV Translate", &uv.translate.x, 0.01f, -10.0f, 10.0f);
+				    ImGui::DragFloat2("UV Scale", &uv.scale.x, 0.01f, 0.0f, 10.0f);
+				    ImGui::SliderAngle("UV Rotate", &uv.rotate.z);
 
-					s->SetTransform(tr);
-					s->SetUVTransform(uv);
-					s->SetColor(color);
-					s->SetSize(size);
+				    s->SetTransform(tr);
+				    s->SetUVTransform(uv);
+				    s->SetColor(color);
+				    s->SetSize(size);
 
-					ImGui::TreePop();
+				    ImGui::TreePop();
 				}*/
 			}
 			Vector3 cameraPosition = camera->GetTranslate();
@@ -238,29 +250,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Vector3 modelRotate = object3d->GetRotate();
 			Vector3 modelScale = object3d->GetScale();
 
-			//ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
-			//ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
-			//ImGui::SliderAngle("camera rotate y", &cameraRotate.y);
-			//ImGui::SliderAngle("camera rotate z", &cameraRotate.z);
-			//ImGui::DragFloat3("model pos", &modelPosition.x, 0.1f);
-			//ImGui::SliderAngle("model rotate x", &modelRotate.x);
-			//ImGui::SliderAngle("model rotate y", &modelRotate.y);
-			//ImGui::SliderAngle("model rotate z", &modelRotate.z);
-			//ImGui::DragFloat3("model scale", &modelScale.x, 0.1f);
-			//ImGui::DragFloat2("sprite pos", &trsprite.translate.x, 0.3f);
-			//ImGui::SliderAngle("sprite rotate", &trsprite.rotate.z);
-			//ImGui::DragFloat2("sprite scale", &spriteSize.x, 0.3f);
-			//ImGui::ColorEdit4("sprite color", &spriteColor.x, 1.0f); // クリアカラーの編集
-			//ImGui::DragFloat2("anchor point", &anchor.x, 0.01f, 0.0f, 1.0f);
-			//ImGui::DragFloat2("texture left top", &textureLeftTop.x, 1.0f, 0.0f, 512.0f);
-			//ImGui::DragFloat2("texture size", &textureSize.x, 1.0f, 0.0f, 512.0f);
-			//ImGui::Checkbox("Flip X", &isFlipX);
-			//ImGui::Checkbox("Flip Y", &isFlipY);
-			//ImGui::DragFloat2("UV translate", &trspriteUV.translate.x, 0.01f, -10.0f, 10.0f);
-			//ImGui::DragFloat2("UV scale", &trspriteUV.scale.x, 0.01f, 0.0f, 10.0f);
-			//ImGui::SliderAngle("UV rotate", &trspriteUV.rotate.z);
+			// ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
+			// ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
+			// ImGui::SliderAngle("camera rotate y", &cameraRotate.y);
+			// ImGui::SliderAngle("camera rotate z", &cameraRotate.z);
+			// ImGui::DragFloat3("model pos", &modelPosition.x, 0.1f);
+			// ImGui::SliderAngle("model rotate x", &modelRotate.x);
+			// ImGui::SliderAngle("model rotate y", &modelRotate.y);
+			// ImGui::SliderAngle("model rotate z", &modelRotate.z);
+			// ImGui::DragFloat3("model scale", &modelScale.x, 0.1f);
+			// ImGui::DragFloat2("sprite pos", &trsprite.translate.x, 0.3f);
+			// ImGui::SliderAngle("sprite rotate", &trsprite.rotate.z);
+			// ImGui::DragFloat2("sprite scale", &spriteSize.x, 0.3f);
+			// ImGui::ColorEdit4("sprite color", &spriteColor.x, 1.0f); // クリアカラーの編集
+			// ImGui::DragFloat2("anchor point", &anchor.x, 0.01f, 0.0f, 1.0f);
+			// ImGui::DragFloat2("texture left top", &textureLeftTop.x, 1.0f, 0.0f, 512.0f);
+			// ImGui::DragFloat2("texture size", &textureSize.x, 1.0f, 0.0f, 512.0f);
+			// ImGui::Checkbox("Flip X", &isFlipX);
+			// ImGui::Checkbox("Flip Y", &isFlipY);
+			// ImGui::DragFloat2("UV translate", &trspriteUV.translate.x, 0.01f, -10.0f, 10.0f);
+			// ImGui::DragFloat2("UV scale", &trspriteUV.scale.x, 0.01f, 0.0f, 10.0f);
+			// ImGui::SliderAngle("UV rotate", &trspriteUV.rotate.z);
 			////  ImGuiのウィンドウを作成
-			//ImGui::Render(); // ImGuiの描画を実行
+			// ImGui::Render(); // ImGuiの描画を実行
 			camera->SetTranslate(cameraPosition);
 			camera->SetRotate(cameraRotate);
 			object3d->SetTranslate(modelPosition);
@@ -285,17 +297,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			object3d->Draw();
 			// 複数axis.obj描画
 			for (Object3d* axisObj : axisObjects) {
-				axisObj->Draw();
+		//		axisObj->Draw();
 			}
 
 			// スプライトの描画
 			spriteCommon->SetDraw();
-			sprite->Draw();
+		//	sprite->Draw();
 			for (Sprite* s : sprites) {
-				s->Draw();
+			//	s->Draw();
 			}
-
-			//ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon->GetCommandList().Get());
+			ParticleManager::GetInstance()->Draw(camera);
+			// ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon->GetCommandList().Get());
 
 			dxCommon->PostDraw();
 
@@ -303,9 +315,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 	}
 	// ImGuiの終了処理
-	//ImGui_ImplDX12_Shutdown();
-	//ImGui_ImplWin32_Shutdown();
-	//ImGui::DestroyContext(); // ImGuiのコンテキストを破棄
+	// ImGui_ImplDX12_Shutdown();
+	// ImGui_ImplWin32_Shutdown();
+	// ImGui::DestroyContext(); // ImGuiのコンテキストを破棄
 
 	delete Checker;
 	delete input; // DirectInputオブジェクトの解放
@@ -315,7 +327,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	for (Object3d* axisObj : axisObjects) {
 		delete axisObj;
 	}
-	
+
 	delete object3d;
 	delete obj3dComoon;
 	delete sprite; // スプライトの解放
