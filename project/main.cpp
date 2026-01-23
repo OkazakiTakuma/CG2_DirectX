@@ -64,13 +64,15 @@ struct VertexData {
 	Vector2 texcoord;
 	Vector3 normal;
 };
+// --- main.cpp ---
 struct Material {
-	Vector4 color;          // 色
-	int32_t enableLighting; // ライティングの有効化フラグ
-	float padding[3];       // パディング
-	Matrix4x4 uvTransform;  // UV変換行列
+	Vector4 color;          // 16
+	int32_t enableLighting; // 4
+	float padding[3];       // 12
+	Matrix4x4 uvTransform;  // 64
+	float shininess;        // 4
+	float padding2[3];      // 12 (合計112バイト)
 };
-
 struct TransformationMatrix {
 	Matrix4x4 WVP;
 	Matrix4x4 world;
@@ -80,6 +82,11 @@ struct ParticleForGPU {
 	Matrix4x4 WVP;
 	Matrix4x4 world;
 	Vector4 color;
+};
+
+struct CameraForGpu {
+	
+	Vector3 worldPosition;
 };
 
 struct DirectionalLight {
@@ -632,7 +639,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT; // 入力アセンブラーでの使用を許可
 	// RootParameterの設定。複数設定できるので配列、今回は結果1つだけなので長さ1の配列
-	D3D12_ROOT_PARAMETER rootParameters[4] = {};
+	D3D12_ROOT_PARAMETER rootParameters[5] = {};
 	// ルートパラメーターの設定
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;     // ルートパラメーターのタイプ（CBV）
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;  // シェーダーの可視性（ピクセルシェーダー）
@@ -643,10 +650,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;     // ルートパラメーターのタイプ（CBV）
 	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;  // シェーダーの可視性（ピクセルシェーダー）
 	rootParameters[2].Descriptor.ShaderRegister = 2;                     // シェーダーレジスタのインデックス
-	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	rootParameters[3].DescriptorTable.pDescriptorRanges = descriptorRange;
-	rootParameters[3].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
+	rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[4].DescriptorTable.pDescriptorRanges = descriptorRange;
+	rootParameters[4].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
+	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;   // ルートパラメーターのタイプ（CBV）
+	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // シェーダーの可視性（ピクセルシェーダー）
+	rootParameters[3].Descriptor.ShaderRegister = 3;                    // シェーダーレジスタのインデックス
 	descriptionRootSignature.pParameters = rootParameters;             // ルートパラメーターの配列
 	descriptionRootSignature.NumParameters = _countof(rootParameters); // ルートパラメーターの数
 #pragma endregion RootParameter設定
@@ -1012,8 +1022,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// 値を設定（白くて上から照らす光）
 	directionallightData->color = {1.0f, 1.0f, 1.0f, 1.0f};
-	directionallightData->direction = NormalizeReturnVector(Vector3(0.0f, -1.0f, 0.0f));
+	directionallightData->direction = NormalizeReturnVector(Vector3(1.0f, -1.0f, 1.0f));
 	directionallightData->intensity = 1.0f;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource = CreateBufferResource(device, sizeof(CameraForGpu));
+	assert(SUCCEEDED(hr)); // カメラリソースの生成が成功したか確認
+	CameraForGpu* cameraData = nullptr;
+	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
+	cameraData->worldPosition = Vector3(0.0f, 0.0f, -10.0f); // カメラの位置
+
+
+	// マテリアルの光沢度設定
 
 	// WVP用のリソースを作る。Matrix4x4
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResorceModel = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
@@ -1078,6 +1097,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialDataModel->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 赤色
 	materialDataModel->enableLighting = true;                   // ライティングを有効化
 	materialDataModel->uvTransform = MakeIdentity4x4();
+	materialDataModel->shininess = 20.0f; // 値が大きいほど光沢が鋭くなる
+
 
 #pragma endregion
 
@@ -1455,6 +1476,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 赤色
 	materialData->enableLighting = true;                   // ライティングを有効化
 	materialData->uvTransform = MakeIdentity4x4();
+	materialData->shininess = 20.0f; // 値が大きいほど光沢が鋭くなる
 
 #pragma endregion
 
@@ -1544,6 +1566,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	};
 	int instanceCount = 10;
 
+	float shiininess = 20.0f;
 	Vector3 cameraPosition = {0.0f, 0.0f, -10.00f};
 	Vector3 cameraRotate = {0, 0, 0.0f};
 	const float clearColor[4] = {0.1f, 0.25f, 0.5f, 1.0f}; // 青色
@@ -1615,6 +1638,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			billboardMatrix.m[3][0] = 0.0f;
 			billboardMatrix.m[3][1] = 0.0f;
 			billboardMatrix.m[3][2] = 0.0f;
+
+			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+			Matrix4x4 scameraMatrix = MakeAffineMatrix(Vector3{1.0f, 1.0f, 1.0f}, cameraRotate, cameraPosition);
+			Matrix4x4 sviewMatrix = Inverse(cameraMatrix);
+			Matrix4x4 sprojectionMatrix = MakePerspectiveFovMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
+			Matrix4x4 wvpMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
+			wvpData->WVP = wvpMatrix;
+			wvpData->world = worldMatrix;
+			cameraData->worldPosition = cameraPosition;
 
 			uint32_t numInstance = 0;
 			for (std::list<Particle>::iterator particleIterator = particles.begin(); particleIterator != particles.end();) {
@@ -1692,6 +1724,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat2("UV translate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
 			ImGui::DragFloat2("UV scale", &uvTransformSprite.scale.x, 0.01f, 0.0f, 10.0f);
 			ImGui::SliderAngle("UV rotate", &uvTransformSprite.rotate.z);
+			ImGui::DragFloat("shinnness", &shiininess, 1.0f, 1.0f, 100.0f);
 			ImGui::ColorEdit4("lighr color", &directionallightData->color.x, 1.0f); // クリアカラーの編
 			ImGui::DragFloat3("light direction", &directionallightData->direction.x, 0.1f);
 			directionallightData->direction = NormalizeReturnVector(directionallightData->direction); // 正規化
@@ -1700,6 +1733,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::ShowDemoWindow(); // デモウィンドウを表示
 			ImGui::Render();         // ImGuiの描画を実行
 
+			// UV変換行列の計算
+			materialData->shininess = shiininess;
 			Matrix4x4 uvTransformSpriteMatrix = MakeAffineMatrix(uvTransformSprite.scale, uvTransformSprite.rotate, uvTransformSprite.translate);
 			uvTransformSpriteMatrix = Multiply(uvTransformSpriteMatrix, MakeRotateZMatrix(uvTransformSprite.rotate.z));
 			uvTransformSpriteMatrix = Multiply(uvTransformSpriteMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
@@ -1747,14 +1782,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->RSSetViewports(1, &viewport);
 			commandList->RSSetScissorRects(1, &scissorRect);
 			commandList->SetGraphicsRootSignature(rootSignature.Get());
-			commandList->SetGraphicsRootConstantBufferView(0, materialResourceModel->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(1, wvpResorce->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootDescriptorTable(3, textureSrvHandleGPU3);
+			commandList->SetGraphicsRootConstantBufferView(3, cameraResource->GetGPUVirtualAddress()); // b3 ★追加
+			commandList->SetGraphicsRootDescriptorTable(4, useTexture ? textureSrvHandleGPU2 : textureSrvHandleGPU);
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 			commandList->SetPipelineState(graphicsPipelineState.Get());
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewModel);
+
+			commandList->IASetIndexBuffer(&indexBufferView);
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			//commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
+			commandList->DrawIndexedInstanced(startIndex, 1, 0, 0, 0);
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
