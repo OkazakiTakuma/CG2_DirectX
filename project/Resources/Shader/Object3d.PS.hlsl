@@ -39,8 +39,9 @@ PixelShaderOutput main(VertexShaderOutput input)
     float4 transformedUV = mul(float4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
     float3 reflectLight = reflect(gDirectionalLight.direction, normalize(input.normal));
-    float RdotE = dot(reflectLight, toEye);
-    float specularPow = pow(saturate(RdotE), gMaterial.shininess);
+    float3 halfVector = normalize(-gDirectionalLight.direction + toEye);
+    float NdotH = saturate(dot(normalize(input.normal), halfVector));
+    float specularPow = pow(saturate(NdotH), gMaterial.shininess);
     if(textureColor.a == 0.0)
     {
         discard; // 透明度が低いピクセルは描画しない
