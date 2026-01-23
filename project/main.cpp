@@ -85,8 +85,17 @@ struct ParticleForGPU {
 };
 
 struct CameraForGpu {
-	
+
 	Vector3 worldPosition;
+};
+
+struct PointLight {
+	Vector4 color;    // 16バイト
+	Vector3 position; // 12バイト
+	float intensity;  // 4バイト
+	float radius;     // 4バイト
+	float decay;      // 4バイト
+	float padding[2]; // 8バイト（合計48バイト。16バイトアライメント調整用）
 };
 
 struct DirectionalLight {
@@ -639,8 +648,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT; // 入力アセンブラーでの使用を許可
 	// RootParameterの設定。複数設定できるので配列、今回は結果1つだけなので長さ1の配列
-	D3D12_ROOT_PARAMETER rootParameters[5] = {};
-	// ルートパラメーターの設定
+	D3D12_ROOT_PARAMETER rootParameters[6] = {};                         // ルートパラメーターの設定
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;     // ルートパラメーターのタイプ（CBV）
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;  // シェーダーの可視性（ピクセルシェーダー）
 	rootParameters[0].Descriptor.ShaderRegister = 0;                     // シェーダーレジスタのインデックス
@@ -654,9 +662,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[4].DescriptorTable.pDescriptorRanges = descriptorRange;
 	rootParameters[4].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
-	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;   // ルートパラメーターのタイプ（CBV）
+	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;    // ルートパラメーターのタイプ（CBV）
 	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // シェーダーの可視性（ピクセルシェーダー）
 	rootParameters[3].Descriptor.ShaderRegister = 3;                    // シェーダーレジスタのインデックス
+	rootParameters[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[5].Descriptor.ShaderRegister = 4;                   // b4
 	descriptionRootSignature.pParameters = rootParameters;             // ルートパラメーターの配列
 	descriptionRootSignature.NumParameters = _countof(rootParameters); // ルートパラメーターの数
 #pragma endregion RootParameter設定
@@ -1031,8 +1042,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
 	cameraData->worldPosition = Vector3(0.0f, 0.0f, -10.0f); // カメラの位置
 
-
 	// マテリアルの光沢度設定
+
+	// ... DirectionalLight のリソース作成付近 ...
+
+	// PointLight 用のリソース作成
+	Microsoft::WRL::ComPtr<ID3D12Resource> pointLightResource = CreateBufferResource(device, sizeof(PointLight));
+
+	// データを書き込むためのポインタ取得
+	PointLight* pointLightData = nullptr;
+	pointLightResource->Map(0, nullptr, reinterpret_cast<void**>(&pointLightData));
+
+	// 初期値の設定
+	pointLightData->color = {1.0f, 1.0f, 1.0f, 1.0f}; // 白色
+	pointLightData->position = {0.0f, 2.0f, 0.0f};    // 原点より少し上
+	pointLightData->intensity = 1.0f;
+	pointLightData->radius = 10.0f; // 半径10
+	pointLightData->decay = 1.0f;   // 線形減衰に近い設定
 
 	// WVP用のリソースを作る。Matrix4x4
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResorceModel = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
@@ -1098,7 +1124,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialDataModel->enableLighting = true;                   // ライティングを有効化
 	materialDataModel->uvTransform = MakeIdentity4x4();
 	materialDataModel->shininess = 20.0f; // 値が大きいほど光沢が鋭くなる
-
 
 #pragma endregion
 
@@ -1284,7 +1309,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instancingmaterialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&instancingmaterialDataSprite));
 	// スプライトの色を設定
 	instancingmaterialDataSprite->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
-	instancingmaterialDataSprite->enableLighting = false;                  // ライティングを無効化
+	instancingmaterialDataSprite->enableLighting = true;                  // ライティングを無効化
 	instancingmaterialDataSprite->uvTransform = MakeIdentity4x4();
 
 #pragma endregion
@@ -1567,6 +1592,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	int instanceCount = 10;
 
 	float shiininess = 20.0f;
+	Vector3 pointLightPosition = {0.0f, 5.0f, -5.0f};
 	Vector3 cameraPosition = {0.0f, 0.0f, -10.00f};
 	Vector3 cameraRotate = {0, 0, 0.0f};
 	const float clearColor[4] = {0.1f, 0.25f, 0.5f, 1.0f}; // 青色
@@ -1665,13 +1691,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 					worldMatrix = scaleMatrix * billboardMatrix * translateMatrix;
 				}
 				Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
-				
+
 				emitter.frequencyTimer += kDeltaTime;
-				if (emitter.frequency<= emitter.frequencyTimer) {
+				if (emitter.frequency <= emitter.frequencyTimer) {
 					particles.splice(particles.end(), Emit(emitter, randomEngine));
 					emitter.frequencyTimer -= emitter.frequency;
 				}
-				
+
 				if (numInstance < kNumMaxInstance) {
 
 					instanceData[numInstance].WVP = worldViewProjectionMatrix;
@@ -1705,8 +1731,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::SliderAngle("camera rotate y", &cameraRotate.y);
 			ImGui::SliderAngle("camera rotate z", &cameraRotate.z);
 			ImGui::Checkbox("usebillboard", &usebillboard);
-			if (ImGui::Button("Add Particle")){
-				particles.splice(particles.end(),Emit(emitter,randomEngine));
+			if (ImGui::Button("Add Particle")) {
+				particles.splice(particles.end(), Emit(emitter, randomEngine));
 			}
 
 			ImGui::DragFloat3("model pos", &transformModel.translate.x, 0.3f);
@@ -1725,6 +1751,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat2("UV scale", &uvTransformSprite.scale.x, 0.01f, 0.0f, 10.0f);
 			ImGui::SliderAngle("UV rotate", &uvTransformSprite.rotate.z);
 			ImGui::DragFloat("shinnness", &shiininess, 1.0f, 1.0f, 100.0f);
+			ImGui::DragFloat3("point light pos", &pointLightPosition.x, 0.1f);
 			ImGui::ColorEdit4("lighr color", &directionallightData->color.x, 1.0f); // クリアカラーの編
 			ImGui::DragFloat3("light direction", &directionallightData->direction.x, 0.1f);
 			directionallightData->direction = NormalizeReturnVector(directionallightData->direction); // 正規化
@@ -1735,6 +1762,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			// UV変換行列の計算
 			materialData->shininess = shiininess;
+			pointLightData->position = pointLightPosition;
 			Matrix4x4 uvTransformSpriteMatrix = MakeAffineMatrix(uvTransformSprite.scale, uvTransformSprite.rotate, uvTransformSprite.translate);
 			uvTransformSpriteMatrix = Multiply(uvTransformSpriteMatrix, MakeRotateZMatrix(uvTransformSprite.rotate.z));
 			uvTransformSpriteMatrix = Multiply(uvTransformSpriteMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
@@ -1786,7 +1814,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResorce->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(3, cameraResource->GetGPUVirtualAddress()); // b3 ★追加
+			commandList->SetGraphicsRootConstantBufferView(5, pointLightResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(4, useTexture ? textureSrvHandleGPU2 : textureSrvHandleGPU);
+
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 			commandList->SetPipelineState(graphicsPipelineState.Get());
 
@@ -1794,6 +1824,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			commandList->DrawIndexedInstanced(startIndex, 1, 0, 0, 0);
 
+			commandList->SetGraphicsRootDescriptorTable(4, textureSrvHandleGPU3);
+			commandList->SetPipelineState(graphicsPipelineState.Get());
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewModel);
+			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
 			// バリア設定（RENDER_TARGET → PRESENT）
