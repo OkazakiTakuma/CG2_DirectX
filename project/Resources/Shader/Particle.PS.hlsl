@@ -1,48 +1,30 @@
 #include "Particle.hlsli"
-Texture2D<float4> gTexture : register(t0);
-SamplerState gSampler : register(s0);
-struct Material
-{
-    float4 color; // Color of the material
-    int enableLighting; // Flag to enable lighting
-    float4x4 uvTransform; // UV transformation matrix   
-};
 
-struct DirectionalLight
-{
-   
-    float4 color; // Color of the light
-    float3 direction; // Direction of the light
-    float intensity; // Intensity of the light
-    
-};
-ConstantBuffer<Material> gMaterial : register(b0); // Material constant buffer
-ConstantBuffer<DirectionalLight> gDirectionalLight : register(b2); // Directional light constant buffer
+// テクスチャ (t0)
+// ※ここはグローバル領域（波括弧の外）になければなりません
+Texture2D<float4> gTexture : register(t0);
+
+// サンプラー (s0)
+SamplerState gSampler : register(s0);
+
 struct PixelShaderOutput
 {
-    float4 color : SV_Target0; // Output color of the pixel shader
+    float4 color : SV_Target0;
 };
 
 PixelShaderOutput main(VertexShaderOutput input)
 {
-    
-    float4 transformedUV = mul(float4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
-    float4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
-    if (textureColor.a == 0.0)
-    {
-        discard; // 透明度が低いピクセルは描画しない
-    }
-    if (textureColor.a <= 0.5)
-    {
-        discard; // 透明度が低いピクセルは描画しない
-    }
-
     PixelShaderOutput output;
+    
+    // 頂点色とテクスチャ色を乗算
+    float4 textureColor = gTexture.Sample(gSampler, input.texcoord);
     output.color = textureColor * input.color;
-    if (output.color.a == 0)
+    
+    // アルファテスト（透明なら描画しない）
+    if (output.color.a == 0.0)
     {
         discard;
     }
-   
+
     return output;
 }

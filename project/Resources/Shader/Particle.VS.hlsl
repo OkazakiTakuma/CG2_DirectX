@@ -1,5 +1,4 @@
-
-#include"Particle.hlsli"
+#include"particle.hlsli"
 
 
 struct ParticleForGPU

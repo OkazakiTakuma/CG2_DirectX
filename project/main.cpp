@@ -10,6 +10,7 @@
 #include "Object3d.h"
 #include "Object3dCommon.h"
 #include "ParticleManager.h"
+#include "ParticleEmitter.h"
 #include "Resource.h"
 #include "Screen.h"
 #include "Sprite.h"
@@ -138,6 +139,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Object3dCommon* obj3dComoon = new Object3dCommon;
 	obj3dComoon->Initialize(dxCommon);
 	Camera* camera = new Camera();
+	camera->SetTranslate({0.0f, 0.0f, -20.0f});
 	obj3dComoon->SetDefaultCamera(camera);
 	Object3d* object3d = new Object3d;
 	object3d->Initialize(obj3dComoon);
@@ -157,12 +159,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		axisObjects.push_back(axisObj);
 	}
 	// 1. 初期化
-	ParticleManager::GetInstance()->Initialize(dxCommon, srvManager);
-
+	// 1. パーティクルグループを作成（テクスチャのロードなどもここで行われます）
+	// 引数：グループ名, テクスチャパス
 	// 2. グループ作成（テクスチャロード）
+	ParticleManager::GetInstance()->Initialize(dxCommon, srvManager);
 	ParticleManager::GetInstance()->CreateParticleGroup("Smoke", "Resources/uvChecker.png");
 	ParticleManager::GetInstance()->CreateParticleGroup("Fire", "Resources/uvChecker.png");
-	ParticleManager::GetInstance()->SetCamera(camera);	
+	ParticleManager::GetInstance()->SetCamera(camera);
+
+	// =================================================
+	// ▼ 追加: エミッタの作成
+	// =================================================
+	// エミッタ用の座標設定
+	Transform emitterTransform;
+	emitterTransform.translate = {0.0f, 0.0f, 0.0f}; // 原点
+	emitterTransform.rotate = {0.0f, 0.0f, 0.0f};
+	emitterTransform.scale = {1.0f, 1.0f, 1.0f};
+
+	// "Smoke" グループ用のエミッタを生成
+	// (グループ名, Transform, 1回の発生数, 1秒間の発生頻度)
+	ParticleEmitter* smokeEmitter = new ParticleEmitter("Smoke", emitterTransform, 5, 60.0f);
+	// ※ここでは「1秒間に10回、1回につき5個発生」という設定にしています
 	const float clearColor[4] = {0.1f, 0.25f, 0.5f, 1.0f}; // 青色
 	                                                       // メッセージループ
 
@@ -186,14 +203,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				OutputDebugStringA("Hit 0\n");
 			}
 			if (input->TriggerKey(DIK_SPACE)) {
-				ParticleManager::GetInstance()->Emit("Smoke", {0,0,0}, 10);
 			}
 			// ImGuiのフレーム開始
 			/*ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();*/
 			// 更新
+			smokeEmitter->Update(1.0f / 60.0f);
 			ParticleManager::GetInstance()->Update();
+			camera->Update();
 			camera->Update();
 			object3d->Update();
 			for (Object3d* axisObj : axisObjects) {
@@ -294,19 +312,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			dxCommon->PreDraw();
 			// モデルの描画
 			obj3dComoon->SetDraw();
-			object3d->Draw();
+			//object3d->Draw();
 			// 複数axis.obj描画
+			ParticleManager::GetInstance()->Draw(camera);
 			for (Object3d* axisObj : axisObjects) {
 		//		axisObj->Draw();
 			}
 
 			// スプライトの描画
 			spriteCommon->SetDraw();
-		//	sprite->Draw();
 			for (Sprite* s : sprites) {
 			//	s->Draw();
 			}
-			ParticleManager::GetInstance()->Draw(camera);
 			// ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon->GetCommandList().Get());
 
 			dxCommon->PostDraw();
@@ -323,6 +340,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	delete input; // DirectInputオブジェクトの解放
 
 	ModelManager::GetInstance()->Finalize();
+
+	delete smokeEmitter;
 	// --- 終了処理 ---
 	for (Object3d* axisObj : axisObjects) {
 		delete axisObj;

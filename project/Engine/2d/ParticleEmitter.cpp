@@ -1,45 +1,40 @@
 #include "ParticleEmitter.h"
-#include "ParticleManager.h"
+#include "ParticleManager.h" // Managerの定義が必要
 
 // コンストラクタ
-// メンバ初期化子リストを使うのがC++の推奨作法です（無駄なコピーが走らないため）
-ParticleEmitter::ParticleEmitter(const std::string& name, const Emitter& emitterData) : groupName(name), data(emitterData) {}
+// 引数で受け取った値をメンバ変数に書き込む
+ParticleEmitter::ParticleEmitter(const std::string& name, const Transform& transform, uint32_t count, float frequency)
+    : groupName_(name), transform_(transform), count_(count), frequency_(frequency), frequencyTimer_(0.0f) { // タイマーは0初期化
+}
 
 void ParticleEmitter::Update(float deltaTime) {
-	if (!isActive)
-		return;
-
-	// 【重要】0除算と無限ループの防止
-	// frequency（頻度）が 0 以下だと、interval が無限大あるいは計算不能になり、
-	// 下の while ループから抜け出せなくなってフリーズします。
-	if (data.frequency <= 0.0f) {
+	// 頻度が0以下の場合は処理しない（0除算防止）
+	if (frequency_ <= 0.0f) {
 		return;
 	}
 
-	// タイマー更新（ヘッダーの変数名と合わせてください。例: frequencyTime）
-	data.frequencyTimer += deltaTime;
+	// 1. 時刻を進める
+	frequencyTimer_ += deltaTime;
 
-	// 発生間隔 = 1秒 / 頻度 (例: 10回/秒 なら 0.1秒間隔)
-	float interval = 1.0f / data.frequency;
+	// 発生間隔（閾値）を計算 (例: frequency=10 なら 0.1秒)
+	float interval = 1.0f / frequency_;
 
-	// 経過時間が間隔を超えている場合、その分だけEmitする
-	while (data.frequencyTimer >= interval) {
-		data.frequencyTimer -= interval;
+	// 2. 発生頻度より大きいなら発生（余剰時間も考慮してループ処理）
+	// ラグなどで deltaTime が長く、一度に複数回分の時間が経過した場合でも
+	// 適切な回数 Emit を呼ぶために while を使用します。
+	while (frequencyTimer_ >= interval) {
+		// 発生処理
 		Emit();
+		ParticleManager::GetInstance()->Emit(groupName_, transform_.translate, count_);
+
+		// 3. 余計に過ぎた時間込みで頻度計算をする
+		// タイマーを0にするのではなく、閾値分だけ引くことでズレを防ぐ
+		frequencyTimer_ -= interval;
 	}
 }
 
 void ParticleEmitter::Emit() {
-	// 【確認】struct.h の Emitter 構造体の定義を確認してください。
-	// もし Emitter が Transform 構造体を持っているなら、data.transform.translate になります。
-	// 直接 Vector3 を持っているなら data.translate でOKです。
-
-	// パターンA: Emitterの中にTransformがある場合 (よくある構成)
-	// ParticleManager::GetInstance()->Emit(groupName, data.transform.translate, data.count);
-
-	// パターンB: Emitterが直接座標を持っている場合 (今のコード)
-
-	ParticleManager::GetInstance()->Emit(groupName, data.transform.translate, data.count);
-
-
+	// エミッタの規定値（現在の座標）に従ってパーティクルマネージャーを呼び出す
+	// 引数：グループ名, 発生座標, 発生数
+	ParticleManager::GetInstance()->Emit(groupName_, transform_.translate, count_);
 }

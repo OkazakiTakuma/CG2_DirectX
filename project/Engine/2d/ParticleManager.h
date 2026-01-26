@@ -52,12 +52,7 @@ private:
 	SrvManager* srvManager_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState = nullptr;
-	struct VertexData {
-
-		Vector4 position; // xyz座標
-		Vector3 normal;   // 法線ベクトル
-		Vector2 uv;       // uv座標
-	};
+	
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView_;
 	std::mt19937 randomEngine_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
