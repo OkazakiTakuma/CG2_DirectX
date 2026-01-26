@@ -64,18 +64,31 @@ struct VertexData {
 	Vector2 texcoord;
 	Vector3 normal;
 };
-// --- main.cpp ---
+// Material構造体 (シェーダーに合わせて変更)
 struct Material {
-	Vector4 color;          // 16
-	int32_t enableLighting; // 4
-	float padding[3];       // 12
-	Matrix4x4 uvTransform;  // 64
-	float shininess;        // 4
-	float padding2[3];      // 12 (合計112バイト)
+	Vector4 color;
+	int32_t enableLighting;
+	int32_t enableDiffuse;  // 追加
+	int32_t enableSpecular; // 追加
+	float padding;          // 追加 (アライメント調整)
+	Matrix4x4 uvTransform;
+	float shininess;
+	float padding2[3];
+};
+
+// PointLight構造体 (追加)
+struct PointLight {
+	Vector4 color;
+	Vector3 position;
+	float intensity;
+	float radius;
+	float decay;
+	float padding[2]; // 16バイトアライメント用
 };
 struct TransformationMatrix {
 	Matrix4x4 WVP;
 	Matrix4x4 world;
+	Matrix4x4 worldInverseTranspose;
 };
 
 struct ParticleForGPU {
@@ -89,14 +102,6 @@ struct CameraForGpu {
 	Vector3 worldPosition;
 };
 
-struct PointLight {
-	Vector4 color;    // 16バイト
-	Vector3 position; // 12バイト
-	float intensity;  // 4バイト
-	float radius;     // 4バイト
-	float decay;      // 4バイト
-	float padding[2]; // 8バイト（合計48バイト。16バイトアライメント調整用）
-};
 
 struct DirectionalLight {
 	Vector4 color;     // 光の色
@@ -1065,14 +1070,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// DepthStenecilResourceをウィンドウサイズで作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStenecilResourceModel = CreateDepthStenecilTextureResource(device.Get(), WinApp::kClientWidth, WinApp::kClientHeight);
 
-	// データを書き込む
-	TransformationMatrix* wvpDataModel = nullptr;
-	// M書き込むためのアドレスを取得
-	wvpResorceModel->Map(0, nullptr, reinterpret_cast<void**>(&wvpDataModel));
-	// 初期値を設定
-
-	wvpDataModel->world = MakeIdentity4x4(); // 単位行列を設定
-	wvpDataModel->WVP = MakeIdentity4x4();   // 単位行列を設定
+	
 	// WVP用のリソースを作る。Matrix4x4
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResorce = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
 	// DepthStenecilResourceをウィンドウサイズで作成
@@ -1086,6 +1084,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	wvpData->world = MakeIdentity4x4(); // 単位行列を設定
 	wvpData->WVP = MakeIdentity4x4();   // 単位行列を設定
+	wvpData->worldInverseTranspose = Inverse(wvpData->world);
 
 #pragma region モデルの描画に必要なデータの作成
 
@@ -1121,7 +1120,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialResourceModel->Map(0, nullptr, reinterpret_cast<void**>(&materialDataModel));
 	// マテリアルの色を設定
 	materialDataModel->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 赤色
-	materialDataModel->enableLighting = true;                   // ライティングを有効化
+	materialDataModel->enableLighting = 1;
+	materialDataModel->enableDiffuse = 1;  // 初期値: 有効
+	materialDataModel->enableSpecular = 1; // 初期値: 有効                  // ライティングを有効化
 	materialDataModel->uvTransform = MakeIdentity4x4();
 	materialDataModel->shininess = 20.0f; // 値が大きいほど光沢が鋭くなる
 
@@ -1499,7 +1500,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 	// マテリアルの色を設定
 	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 赤色
-	materialData->enableLighting = true;                   // ライティングを有効化
+	materialData->enableLighting = 1;
+	materialData->enableDiffuse = 1;  // 初期値: 有効
+	materialData->enableSpecular = 1; // 初期値: 有効
 	materialData->uvTransform = MakeIdentity4x4();
 	materialData->shininess = 20.0f; // 値が大きいほど光沢が鋭くなる
 
@@ -1552,6 +1555,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	device->CreateShaderResourceView(textureResource3.Get(), &srvDesc3, textureSrvHandleCPU3); // テクスチャリソースにSRVを設定
 
 #pragma endregion
+
+	#pragma region 別の画像の読み込み
+	DirectX::ScratchImage mipImage4 = LoadTexture("Resources/uvChecker.png");
+	const DirectX::TexMetadata& metaData4 = mipImage4.GetMetadata();
+	// テクスチャリソースの生成
+	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource4 = CreateTextureResource(device, metaData4);
+	// テクスチャにデータをアップロード
+	UploadTextureData(textureResource4, mipImage4);
+
+	// metaDataを基にSRVを生成
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc4{};
+	srvDesc4.Format = metaData4.format;                                          // テクスチャのフォーマット
+	srvDesc4.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // シェーダーコンポーネントのマッピング
+	srvDesc4.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;                      // テクスチャの次元
+	srvDesc4.Texture2D.MipLevels = UINT(metaData4.mipLevels);                    // ミップレベルの数
+
+	// SRVを生成するためのディスクリプタヒープを取得
+	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU4 = GetCPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 5);
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU4 = GetGPUDescriptorHandle(srvDescriptorHeap, descroptorSizeSRV, 5);
+
+	// SRVを生成
+	device->CreateShaderResourceView(textureResource4.Get(), &srvDesc4, textureSrvHandleCPU4); // テクスチャリソースにSRVを設定
+
+#pragma endregion
+
 	// スワップチェーンからリソースをもらう
 	Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources[2] = {nullptr};
 	hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&swapChainResources[0]));
@@ -1590,7 +1618,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	    {0.0f, 0.0f, 0.0f}  // 平行移動
 	};
 	int instanceCount = 10;
-
+	static bool isLighting = true;
+	static bool isDiffuse = true;
+	static bool isSpecular = true;
 	float shiininess = 20.0f;
 	Vector3 pointLightPosition = {0.0f, 5.0f, -5.0f};
 	Vector3 cameraPosition = {0.0f, 0.0f, -10.00f};
@@ -1646,14 +1676,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			    {1.0f, 1.0f, 1.0f},
                 cameraRotate, cameraPosition
             };
-			Matrix4x4 worldMatrixModel = MakeAffineMatrix(transformModel.scale, transformModel.rotate, transformModel.translate);
-			Matrix4x4 cameraMatrix = MakeAffineMatrix(Vector3{1.0f, 1.0f, 1.0f}, cameraRotate, cameraPosition);
-			Matrix4x4 viewMatrixModel = Inverse(cameraMatrix);
-			Matrix4x4 projectionMatrixModel = MakePerspectiveFovMatrix(0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
-			Matrix4x4 wvpMatrixModel = Multiply(worldMatrixModel, Multiply(viewMatrixModel, projectionMatrixModel));
-			wvpDataModel->WVP = wvpMatrixModel;
-			wvpDataModel->world = worldMatrixModel;
-
+			Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+			
 			/*Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 			Matrix4x4 wvpMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 			wvpData->WVP = wvpMatrix;
@@ -1672,6 +1696,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 wvpMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 			wvpData->WVP = wvpMatrix;
 			wvpData->world = worldMatrix;
+			Matrix4x4 worldInverse = Inverse(worldMatrix);
+			Matrix4x4 worldInverseTranspose = Transpose(worldInverse);
+			wvpData->worldInverseTranspose = worldInverseTranspose;
+
+
 			cameraData->worldPosition = cameraPosition;
 
 			uint32_t numInstance = 0;
@@ -1735,15 +1764,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				particles.splice(particles.end(), Emit(emitter, randomEngine));
 			}
 
-			ImGui::DragFloat3("model pos", &transformModel.translate.x, 0.3f);
-			ImGui::SliderAngle("model rotate x", &transformModel.rotate.x);
-			ImGui::SliderAngle("model rotate y", &transformModel.rotate.y);
-			ImGui::SliderAngle("model rotate z", &transformModel.rotate.z);
 			ImGui::Checkbox("useTexture", &useTexture);
-			ImGui::DragFloat3("sphere pos", &transform.translate.x, 0.3f);
-			ImGui::SliderAngle("sphere rotate x", &transform.rotate.x);
-			ImGui::SliderAngle("sphere rotate y", &transform.rotate.y);
-			ImGui::SliderAngle("sphere rotate z", &transform.rotate.z);
+			ImGui::DragFloat3(" model pos", &transform.translate.x, 0.3f);
+			ImGui::SliderAngle("model rotate x", &transform.rotate.x);
+			ImGui::SliderAngle("model rotate y", &transform.rotate.y);
+			ImGui::SliderAngle("model rotate z", &transform.rotate.z);
+			ImGui::DragFloat3("sphere scale", &transform.scale.x, 0.1f);
+
+
 			ImGui::DragFloat3("sprite pos", &transformSprite.translate.x, 0.3f);
 
 			ImGui::ColorEdit4("sprite color", &materialDataSprite->color.x, 1.0f); // クリアカラーの編集
@@ -1756,13 +1784,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat3("light direction", &directionallightData->direction.x, 0.1f);
 			directionallightData->direction = NormalizeReturnVector(directionallightData->direction); // 正規化
 			ImGui::SliderFloat("intensity", &directionallightData->intensity, 0.0f, 1.0f);
-			// ImGuiのウィンドウを作成
-			ImGui::ShowDemoWindow(); // デモウィンドウを表示
+			if (ImGui::Checkbox("Enable Lighting", &isLighting)) {
+				materialData->enableLighting = isLighting ? 1 : 0;
+				materialDataModel->enableLighting = isLighting ? 1 : 0;
+			}
+
+			if (isLighting) {
+				if (ImGui::Checkbox("Enable Diffuse", &isDiffuse)) {
+					materialData->enableDiffuse = isDiffuse ? 1 : 0;
+					materialDataModel->enableDiffuse = isDiffuse ? 1 : 0;
+				}
+				if (ImGui::Checkbox("Enable Specular", &isSpecular)) {
+					materialData->enableSpecular = isSpecular ? 1 : 0;
+					materialDataModel->enableSpecular = isSpecular ? 1 : 0;
+				}
+
+			} // ImGuiのウィンドウを作成
 			ImGui::Render();         // ImGuiの描画を実行
 
 			// UV変換行列の計算
 			materialData->shininess = shiininess;
+			materialDataModel->shininess = shiininess;
 			pointLightData->position = pointLightPosition;
+		
 			Matrix4x4 uvTransformSpriteMatrix = MakeAffineMatrix(uvTransformSprite.scale, uvTransformSprite.rotate, uvTransformSprite.translate);
 			uvTransformSpriteMatrix = Multiply(uvTransformSpriteMatrix, MakeRotateZMatrix(uvTransformSprite.rotate.z));
 			uvTransformSpriteMatrix = Multiply(uvTransformSpriteMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
@@ -1829,6 +1873,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewModel);
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+			commandList->IASetIndexBuffer(&indexBufferViewSprite);
+			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootDescriptorTable(4, textureSrvHandleGPU4);
+			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
 			// バリア設定（RENDER_TARGET → PRESENT）
