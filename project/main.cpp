@@ -21,9 +21,6 @@
 #include "Vector.h"
 #include "WinApp.h"
 #include "extenals/DirectXTex/DirectXTex.h"
-#include "extenals/imgui/imgui.h"
-#include "extenals/imgui/imgui_impl_dx12.h"
-#include "extenals/imgui/imgui_impl_win32.h"
 #include "struct.h"
 
 #include <Windows.h>
@@ -44,7 +41,6 @@
 #include <string>
 #include <strsafe.h>
 #include <wrl.h>
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 #pragma comment(lib, "DirectXTex.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")

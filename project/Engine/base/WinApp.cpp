@@ -1,14 +1,14 @@
 #include "WinApp.h"
 #include "Resource.h"
-#include "../../extenals/imgui/imgui.h"
-#include "../../extenals/imgui/imgui_impl_dx12.h"
-#include "../../extenals/imgui/imgui_impl_win32.h"
+#include "../imgui/imgui.h"
+#include "../imgui/imgui_impl_dx12.h"
+#include "../imgui/imgui_impl_win32.h"
 
 // ウィンドウプロシージャ
 
 // Windowsアプリケーションのエントリポイント
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
+	if (Imgui_implWin32_W(hwnd, msg, wparam, lparam)) {
 		return true; // ImGuiが処理した場合はtrueを返す
 	}
 	switch (msg) {

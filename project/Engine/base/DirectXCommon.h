@@ -1,8 +1,5 @@
 #pragma once
 #include "../../extenals/DirectXTex/DirectXTex.h"
-#include "../../extenals/imgui/imgui.h"
-#include "../../extenals/imgui/imgui_impl_dx12.h"
-#include "../../extenals/imgui/imgui_impl_win32.h"
 #include "Matrix.h"
 #include "Screen.h"
 #include "Vector.h"

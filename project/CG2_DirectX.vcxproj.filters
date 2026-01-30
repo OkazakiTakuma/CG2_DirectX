@@ -33,27 +33,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="extenals\imgui\imgui.cpp">
-      <Filter>externals\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="extenals\imgui\imgui_demo.cpp">
-      <Filter>externals\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="extenals\imgui\imgui_draw.cpp">
-      <Filter>externals\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="extenals\imgui\imgui_impl_dx12.cpp">
-      <Filter>externals\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="extenals\imgui\imgui_impl_win32.cpp">
-      <Filter>externals\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="extenals\imgui\imgui_tables.cpp">
-      <Filter>externals\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="extenals\imgui\imgui_widgets.cpp">
-      <Filter>externals\imgui</Filter>
-    </ClCompile>
     <ClCompile Include="Engine\math\Matrix.cpp">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClCompile>
@@ -135,21 +114,6 @@
     <FxCompile Include="Resources\Shader\Particle.VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="extenals\imgui\imconfig.h">
-      <Filter>externals\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="extenals\imgui\imgui.h">
-      <Filter>externals\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="extenals\imgui\imgui_impl_dx12.h">
-      <Filter>externals\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="extenals\imgui\imgui_impl_win32.h">
-      <Filter>externals\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="extenals\imgui\imgui_internal.h">
-      <Filter>externals\imgui</Filter>
-    </ClInclude>
     <ClInclude Include="Engine\math\Matrix.h">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClInclude>
@@ -158,15 +122,6 @@
     </ClInclude>
     <ClInclude Include="Engine\math\Vector.h">
       <Filter>ソース ファイル\engine\math</Filter>
-    </ClInclude>
-    <ClInclude Include="extenals\imgui\imstb_rectpack.h">
-      <Filter>externals</Filter>
-    </ClInclude>
-    <ClInclude Include="extenals\imgui\imstb_textedit.h">
-      <Filter>externals</Filter>
-    </ClInclude>
-    <ClInclude Include="extenals\imgui\imstb_truetype.h">
-      <Filter>externals</Filter>
     </ClInclude>
     <ClInclude Include="Engine\base\Input.h">
       <Filter>ソース ファイル\engine\base</Filter>
@@ -228,9 +183,6 @@
     <ClInclude Include="Engine\2d\ParticleEmitter.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="extenals\imgui\LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\Shader\Object3D.hlsli">
