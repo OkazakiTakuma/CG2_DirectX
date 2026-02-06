@@ -311,17 +311,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			dxCommon->PreDraw();
 			// モデルの描画
 			obj3dComoon->SetDraw();
-			// object3d->Draw();
+			 object3d->Draw();
 			//  複数axis.obj描画
-			ParticleManager::GetInstance()->Draw(camera);
 			for (Object3d* axisObj : axisObjects) {
-				//		axisObj->Draw();
+						axisObj->Draw();
 			}
+			ParticleManager::GetInstance()->Draw(camera);
 
 			// スプライトの描画
 			spriteCommon->SetDraw();
+			sprite->Draw();
 			for (Sprite* s : sprites) {
-				//	s->Draw();
+					s->Draw();
 			}
 			imguiManager->Draw();
 
