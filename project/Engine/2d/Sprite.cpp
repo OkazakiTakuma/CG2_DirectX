@@ -121,6 +121,7 @@ void Sprite::Update() {
 	materialData->uvTransform = uvTransformMatrix;
 }
 void Sprite::Draw() {
+	SrvManager::GetInstance()->preDraw();
 	spriteCommon->GetDxCommon()->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferview);
 	spriteCommon->GetDxCommon()->GetCommandList()->IASetIndexBuffer(&indexBufferView);
 	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());

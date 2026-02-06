@@ -1,4 +1,5 @@
 #include "DirectXCommon.h"
+#include"SrvManager.h"
 
 using namespace Logger;
 using namespace StringUtility;
@@ -65,6 +66,8 @@ void DirectXCommon::PreDraw() {
 	//  描画用のDescriptorHeapを設定
 	commandList->RSSetViewports(1, &viewport);
 	commandList->RSSetScissorRects(1, &scissorRect);
+
+
 }
 
 void DirectXCommon::PostDraw() {

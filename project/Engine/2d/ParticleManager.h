@@ -16,7 +16,7 @@
 class Camera;
 class ParticleManager {
 public:
-	void Initialize(DirectXCommon* dxCommon, SrvManager* srv); // 初期化時にセット
+	void Initialize(DirectXCommon* dxCommon); // 初期化時にセット
 	static ParticleManager* GetInstance();
 	void Finalize();
 	void Rerease();

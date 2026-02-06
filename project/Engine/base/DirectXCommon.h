@@ -36,7 +36,8 @@ public:
 	IDxcIncludeHandler* GetIncludeHandler() { return includeHandler; }
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetCommandList() { return commandList.Get(); }
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> GetCommandAllocator() { return commandAllocator.Get(); }
-
+	Microsoft::WRL::ComPtr<ID3D12CommandQueue> GetCommandQueue() { return commandQueue.Get(); }
+	size_t GetSwapChainResourceCount() const { return _countof(swapChainResources); }
 	// 描画前処理
 	void PreDraw();
 

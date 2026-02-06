@@ -1,16 +1,19 @@
 #include "WinApp.h"
+#include "ImGuiManager.h"
 #include "Resource.h"
-#include "../imgui/imgui.h"
-#include "../imgui/imgui_impl_dx12.h"
-#include "../imgui/imgui_impl_win32.h"
-
+#ifdef USE_IMGUI
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+#endif // USE_IMGUI
 // ウィンドウプロシージャ
 
 // Windowsアプリケーションのエントリポイント
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-	if (Imgui_implWin32_W(hwnd, msg, wparam, lparam)) {
+#ifdef USE_IMGUI
+
+	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
 		return true; // ImGuiが処理した場合はtrueを返す
 	}
+#endif
 	switch (msg) {
 	case WM_DESTROY:
 		PostQuitMessage(0);

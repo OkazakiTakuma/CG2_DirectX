@@ -17,11 +17,11 @@ ParticleManager* ParticleManager::GetInstance() {
 	return instance;
 }
 
-void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srv) {
+void ParticleManager::Initialize(DirectXCommon* dxCommon) {
 
 	// 1. ポインタ保存
 	dxCommon_ = dxCommon;
-	srvManager_ = srv;
+	srvManager_ = SrvManager::GetInstance();
 
 	// 2. ランダムエンジン初期化
 	std::random_device seedGenerator;
@@ -130,6 +130,17 @@ void ParticleManager::CreateParticleGroup(const std::string& groupName, const st
 	srvManager_->CreateSRVforStructuredBuffer(group.instanceSrvIndex, group.instanceResource.Get(), srvDesc.Buffer.NumElements, srvDesc.Buffer.StructureByteStride);
 
 	group.instanceCount = 0;
+	// ID3D12Resource* texRes = TextureManager::GetInstance()->GetResource(textureFilePath);
+
+	// 【追加】テクスチャを COPY_DEST から PIXEL_SHADER_RESOURCE へ遷移させる
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Transition.pResource = TextureManager::GetInstance()->GetResource(textureFilePath).Get();
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+	dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
 }
 
 // ==========================================
@@ -273,6 +284,7 @@ void ParticleManager::CreatePipelineState() {
 
 void ParticleManager::Draw(Camera* camera) {
 	auto commandList = dxCommon_->GetCommandList();
+	SrvManager::GetInstance()->preDraw();
 
 	commandList->SetPipelineState(graphicsPipelineState.Get());
 	commandList->SetGraphicsRootSignature(rootSignature.Get());

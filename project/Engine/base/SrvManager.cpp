@@ -8,7 +8,7 @@ void SrvManager::Initialize(DirectXCommon* dxcommon) {
 }
 
 uint32_t SrvManager::Allocate() {
-	assert(kMaxSRVCount < useIndex);
+	assert(kMaxSRVCount > useIndex);
 	uint32_t index = useIndex;
 	useIndex++;
 	return index;
