@@ -155,6 +155,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Audio.cpp" />
     <ClCompile Include="Engine\2d\ParticleEmitter.cpp" />
     <ClCompile Include="Engine\3d\Camera.cpp" />
     <ClCompile Include="Engine\base\D3DResouceLeakCheker.cpp" />
@@ -212,6 +213,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Audio.h" />
     <ClInclude Include="Engine\2d\ParticleEmitter.h" />
     <ClInclude Include="Engine\3d\Camera.h" />
     <ClInclude Include="Engine\base\struct.h" />

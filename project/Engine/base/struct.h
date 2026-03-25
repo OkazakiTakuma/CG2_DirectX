@@ -2,6 +2,13 @@
 #include <string>
 #include <vector>
 #include "Matrix.h"
+#include <format>
+#include <fstream>
+#include <locale>
+#include <strsafe.h>
+#include <wrl.h>
+
+
 
 enum BlendMode {
 	kBlendModeNone,
@@ -43,4 +50,8 @@ struct ParticleForGPU {
 	Matrix4x4 WVP;
 	Matrix4x4 world;
 	Vector4 color;
+};
+struct SoundData {
+	WAVEFORMATEX wfx;
+	std::vector<BYTE> buffer;
 };

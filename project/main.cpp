@@ -1,3 +1,4 @@
+#include "Audio.h"
 #include "Camera.h"
 #include "D3DResouceLeakCheker.h"
 #include "DirectXCommon.h"
@@ -21,7 +22,6 @@
 #include "TextureManager.h"
 #include "Vector.h"
 #include "WinApp.h"
-#include "extenals/DirectXTex/DirectXTex.h"
 #include "struct.h"
 #include <Windows.h>
 #include <cassert>
@@ -29,18 +29,13 @@
 #include <codecvt>
 #include <cstdint>
 #include <d3d12.h>
-#include <dbghelp.h>
-#include <dxcapi.h>
-#include <dxgi1_6.h>
-#include <dxgidebug.h>
 #include <format>
 #include <fstream>
 #include <locale>
-#include <math.h>
-#include <sstream>
 #include <string>
 #include <strsafe.h>
 #include <wrl.h>
+
 #pragma comment(lib, "DirectXTex.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -109,16 +104,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	SrvManager::GetInstance()->Initialize(dxCommon);
 	ImGuiManager* imguiManager = new ImGuiManager();
 	imguiManager->Initialize(winApp, dxCommon);
-#pragma endregion
+
 	TextureManager::GetInstance()->Initialize(dxCommon);
 	TextureManager::GetInstance()->SetDirectXCommon(dxCommon);
-	TextureManager::GetInstance()->LoadTexture("Resources/uvChecker.png");
 	SpriteCommon* spriteCommon = new SpriteCommon();
 	spriteCommon->Initialize(dxCommon);
 
+	TextureManager::GetInstance()->LoadTexture("Resources/uvChecker.png");
+
+	TextureManager::GetInstance()->LoadTexture("Resources/monsterball.png");
 	Sprite* sprite = new Sprite();
 	sprite->Initialize(spriteCommon, "Resources/uvChecker.png");
-	TextureManager::GetInstance()->LoadTexture("Resources/monsterball.png");
+	Object3dCommon* obj3dComoon = new Object3dCommon;
+	obj3dComoon->Initialize(dxCommon);
+	ModelManager::GetInstance()->Inithialize(dxCommon);
+	ParticleManager::GetInstance()->Initialize(dxCommon);
+
+	Audio::GetInstance().Initialize();
+
+#pragma endregion
+#pragma region それぞれのリソースの生成
 
 	std::vector<Sprite*> sprites;
 	for (int i = 0; i < 5; i++) {
@@ -135,14 +140,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		sprits->SetTransform(transform);
 	}
 
-	Object3dCommon* obj3dComoon = new Object3dCommon;
-	obj3dComoon->Initialize(dxCommon);
 	Camera* camera = new Camera();
 	camera->SetTranslate({0.0f, 0.0f, -20.0f});
 	obj3dComoon->SetDefaultCamera(camera);
 	Object3d* object3d = new Object3d;
 	object3d->Initialize(obj3dComoon);
-	ModelManager::GetInstance()->Inithialize(dxCommon);
 	ModelManager::GetInstance()->LoadModel("plane.obj");
 	object3d->SetModel("plane.obj");
 	ModelManager::GetInstance()->LoadModel("axis.obj");
@@ -161,7 +163,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 1. パーティクルグループを作成（テクスチャのロードなどもここで行われます）
 	// 引数：グループ名, テクスチャパス
 	// 2. グループ作成（テクスチャロード）
-	ParticleManager::GetInstance()->Initialize(dxCommon);
 	ParticleManager::GetInstance()->CreateParticleGroup("Smoke", "Resources/uvChecker.png");
 	ParticleManager::GetInstance()->CreateParticleGroup("Fire", "Resources/uvChecker.png");
 	ParticleManager::GetInstance()->SetCamera(camera);
@@ -181,10 +182,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// ※ここでは「1秒間に10回、1回につき5個発生」という設定にしています
 	const float clearColor[4] = {0.1f, 0.25f, 0.5f, 1.0f}; // 青色
 	                                                       // メッセージループ
+#pragma endregion
 
 	bool useTexture = true;
 
 	MSG msg = {};
+	SoundData fanfare = {};
+	Audio::GetInstance().LoadWave(L"Resources/fanfare.wav", fanfare);
+	Audio::GetInstance().Play(fanfare, 0);
 
 	ResourceObject depthStencilResource = dxCommon->CreateDepthStenecilTextureResource(dxCommon->GetDevice(), WinApp::kClientWidth, WinApp::kClientHeight);
 	while (msg.message != WM_QUIT) {
@@ -220,6 +225,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				s->Update();
 				s->SetSize({100.0f, 100.0f});
 			}
+
+
 #ifdef USE_IMGUI
 
 			const char* modeNames[] = {"Normal", "Add", "Sub", "Multiply"};
@@ -311,10 +318,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			dxCommon->PreDraw();
 			// モデルの描画
 			obj3dComoon->SetDraw();
-			 object3d->Draw();
+			object3d->Draw();
 			//  複数axis.obj描画
 			for (Object3d* axisObj : axisObjects) {
-						axisObj->Draw();
+				axisObj->Draw();
 			}
 			ParticleManager::GetInstance()->Draw(camera);
 
@@ -322,7 +329,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			spriteCommon->SetDraw();
 			sprite->Draw();
 			for (Sprite* s : sprites) {
-					s->Draw();
+				s->Draw();
 			}
 			imguiManager->Draw();
 
@@ -347,7 +354,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	for (Object3d* axisObj : axisObjects) {
 		delete axisObj;
 	}
-
+	Audio::GetInstance().Finalize();
 	delete object3d;
 	delete obj3dComoon;
 	delete sprite; // スプライトの解放
