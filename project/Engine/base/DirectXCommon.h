@@ -15,6 +15,9 @@
 #include <format>
 #include <thread>
 #include <wrl.h>
+#include <xaudio2.h>
+#pragma comment(lib, "xaudio2.lib")
+
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxcompiler.lib")
@@ -85,11 +88,12 @@ private:
 
 	void CreateDXCompiler();
 
-	void CreateImGui();
+	void CreateXAudio2();
 
 	void InitializeFixFPS();
 
 	void UpdateFixFPS();
+
 
 	WinApp* winApp = nullptr;
 
@@ -145,4 +149,6 @@ private:
 
 	// FPS制限用
 	std::chrono::steady_clock::time_point reference_;
+	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
+	IXAudio2MasteringVoice* masteringVoice;
 };

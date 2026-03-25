@@ -35,7 +35,6 @@ void DirectXCommon::Initialize(WinApp* winApp) {
 	CreateViewportRect();
 	CreateScissorRect();
 	CreateDXCompiler();
-	CreateImGui();
 }
 
 
@@ -505,20 +504,14 @@ void DirectXCommon::CreateDXCompiler() {
 	assert(SUCCEEDED(hr));
 }
 
-void DirectXCommon::CreateImGui() {
-	//IMGUI_CHECKVERSION();
-	//ImGui::CreateContext();                  // ImGuiのコンテキストを作成
-	//ImGui::StyleColorsDark();                // ImGuiのスタイルをダークに設定
-	//ImGui_ImplWin32_Init(winApp->GetHwnd()); // ImGuiのWin32バックエンドを初期化
-	//ImGui_ImplDX12_Init(
-	//    device.Get(),
-	//    swapChainDesc.BufferCount,                               // スワップチェーンのバッファ数
-	//    rtvDesc.Format,                                          // レンダーターゲットビューのフォーマット
-	//    srvDescriptorHeap.Get(),                                 // レンダーターゲットビューのディスクリプタヒープ
-	//    srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), // CPUディスクリプタハンドル
-	//    srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()  // GPUディスクリプタハンドル
-	//);
+void DirectXCommon::CreateXAudio2() {
+	HRESULT hr;
+	hr = XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
+	assert(SUCCEEDED(hr));
+	hr = xAudio2->CreateMasteringVoice(&masteringVoice);
+	assert(SUCCEEDED(hr));
 }
+
 
 void DirectXCommon::InitializeFixFPS() { reference_ = std::chrono::high_resolution_clock::now(); }
 

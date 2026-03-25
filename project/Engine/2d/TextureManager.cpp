@@ -64,5 +64,16 @@ void TextureManager::LoadTexture(const std::string& filepath) {
 	srvDesc.Texture2D.MipLevels = UINT(mipImages.GetMetadata().mipLevels);      // ミップレベルの数
 	srvManager->CreateSRVforTexture2D(textureData.srvIndex, textureData.resource.Get(), textureData.metadata.format, static_cast<UINT>(textureData.metadata.mipLevels));
 	dxCommon_->UploadTextureData(textureData.resource, mipImages);
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = textureData.resource.Get();
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES; // 全ミップレベル対象
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+
+	// dxCommon_ 内のコマンドリスト、または現在ロードに使っているコマンドリストに積む
+	// ※dxCommon_->GetCommandList() のようなメソッドがあると仮定しています
+	dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
 }
 

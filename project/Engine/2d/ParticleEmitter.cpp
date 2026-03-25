@@ -25,8 +25,6 @@ void ParticleEmitter::Update(float deltaTime) {
 	while (frequencyTimer_ >= interval) {
 		// 発生処理
 		Emit();
-		ParticleManager::GetInstance()->Emit(groupName_, transform_.translate, count_);
-
 		// 3. 余計に過ぎた時間込みで頻度計算をする
 		// タイマーを0にするのではなく、閾値分だけ引くことでズレを防ぐ
 		frequencyTimer_ -= interval;
