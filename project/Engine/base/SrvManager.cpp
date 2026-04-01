@@ -63,3 +63,9 @@ void SrvManager::preDraw() {
 void SrvManager::SetGraphicsRootDescriptorTable(UINT rootParameterIndex, uint32_t srvIndex) {
 	dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(rootParameterIndex, GetGPUDescriptorHandle(srvIndex));
 }
+
+void SrvManager::Finalize() {
+	// ヒープを明示的にリセット
+	descriptorHeap.Reset();
+
+}

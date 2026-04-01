@@ -454,6 +454,10 @@ D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetGPUDescriptorHandle(const Microsof
 	return handleGPU;
 }
 
+void DirectXCommon::Release() {
+
+}
+
 void DirectXCommon::CreateDepthStencilView() {
 	// DSVの設定
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};

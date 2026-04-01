@@ -35,6 +35,7 @@ public:
 	void SetTextureLeftTop(const Vector2& leftTop) { textureLeftTop = leftTop; }
 	const Vector2& GetTextureSize() const { return textureSize; }
 	void SetTextureSize(const Vector2& size) { textureSize = size; }
+	~Sprite();
 
 private:
 	struct Material {

@@ -20,6 +20,7 @@ public:
 	void CreateSRVforStructuredBuffer(uint32_t srvindex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride);
 	void preDraw();
 	void SetGraphicsRootDescriptorTable(UINT rootParameterIndex, uint32_t srvIndex);
+	void Finalize();
 
 private:
 	DirectXCommon* dxCommon = nullptr;

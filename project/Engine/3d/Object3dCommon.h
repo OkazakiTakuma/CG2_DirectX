@@ -11,6 +11,7 @@ public:
 	DirectXCommon* GetDxCommon() const { return dxCommon_; }
 	void SetDefaultCamera(Camera* cmr) { defaultCamera = cmr; }
 	Camera* GetDefaultCamera() { return defaultCamera; }
+	void Finalize();
 
 private:
 	DirectXCommon* dxCommon_ = nullptr;

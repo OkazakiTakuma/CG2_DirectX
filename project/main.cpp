@@ -4,34 +4,22 @@
 #include "DirectXCommon.h"
 #include "ImGuiManager.h"
 #include "Input.h"
-#include "Logger.h"
 #include "Matrix.h"
-#include "Model.h"
-#include "ModelCommon.h"
 #include "ModelManager.h"
 #include "Object3d.h"
 #include "Object3dCommon.h"
 #include "ParticleEmitter.h"
 #include "ParticleManager.h"
 #include "Resource.h"
-#include "Screen.h"
 #include "Sprite.h"
 #include "SpriteCommon.h"
 #include "SrvManager.h"
-#include "StringUtility.h"
 #include "TextureManager.h"
 #include "Vector.h"
 #include "WinApp.h"
 #include "struct.h"
 #include <Windows.h>
-#include <cassert>
-#include <chrono>
-#include <codecvt>
-#include <cstdint>
 #include <d3d12.h>
-#include <format>
-#include <fstream>
-#include <locale>
 #include <string>
 #include <strsafe.h>
 #include <wrl.h>
@@ -68,7 +56,6 @@ static LONG WINAPI ExportDump(EXCEPTION_POINTERS* exception) {
 
 	return EXCEPTION_EXECUTE_HANDLER; // 例外を処理するためのハンドラーを返す
 }
-
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region 基盤システムの初期化
@@ -100,7 +87,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// ImGuiの初期化
 	DirectXCommon* dxCommon = new DirectXCommon();
 	dxCommon->Initialize(winApp);
-	SrvManager* srvManager = nullptr;
 	SrvManager::GetInstance()->Initialize(dxCommon);
 	ImGuiManager* imguiManager = new ImGuiManager();
 	imguiManager->Initialize(winApp, dxCommon);
@@ -191,7 +177,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Audio::GetInstance().LoadWave(L"Resources/fanfare.wav", fanfare);
 	Audio::GetInstance().Play(fanfare, 0);
 
-	ResourceObject depthStencilResource = dxCommon->CreateDepthStenecilTextureResource(dxCommon->GetDevice(), WinApp::kClientWidth, WinApp::kClientHeight);
 	while (msg.message != WM_QUIT) {
 		// メッセージを取得
 		if (winApp->ProcessMessage()) {
@@ -225,7 +210,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				s->Update();
 				s->SetSize({100.0f, 100.0f});
 			}
-
 
 #ifdef USE_IMGUI
 
@@ -339,30 +323,42 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 	}
 	// ImGuiの終了処理
+	imguiManager->Finalize();
 	delete imguiManager; // ImGuiマネージャの解放
-	// ImGui_ImplDX12_Shutdown();
-	// ImGui_ImplWin32_Shutdown();
-	// ImGui::DestroyContext(); // ImGuiのコンテキストを破棄
-
-	delete Checker;
-	delete input; // DirectInputオブジェクトの解放
+	delete input;        // DirectInputオブジェクトの解放
 
 	ModelManager::GetInstance()->Finalize();
-
+	ParticleManager::GetInstance()->Finalize();
 	delete smokeEmitter;
 	// --- 終了処理 ---
 	for (Object3d* axisObj : axisObjects) {
 		delete axisObj;
 	}
-	Audio::GetInstance().Finalize();
 	delete object3d;
-	delete obj3dComoon;
-	delete sprite; // スプライトの解放
-	delete spriteCommon;
+	delete sprite;
+	for (Sprite* s : sprites) {
+		delete s;
+	}
+
+	Audio::GetInstance().Finalize();
+	spriteCommon->Finalize();
+	obj3dComoon->Finalize();
+
+	// 3. 各 Manager 系の Finalize (ここで Resource / Descriptor を Reset)
+	ParticleManager::GetInstance()->Finalize();
+	ModelManager::GetInstance()->Finalize();
 	TextureManager::GetInstance()->Finalize();
-	TextureManager::GetInstance()->Finalize();
-	delete srvManager;
-	delete dxCommon;    // DirectXCommonの解放
-	winApp->Finalize(); // ウィンドウの終了処理
-	delete winApp;      // ウィンドウクラスの解放
+	SrvManager::GetInstance()->Finalize();
+
+	// 4. ローカル変数の Reset
+
+	// 5. DirectXCommon の明示的な解放
+	dxCommon->Release();
+	delete dxCommon;
+
+	winApp->Finalize();
+	delete winApp;
+
+	// 6. リークチェッカーの削除
+	delete Checker;
 }

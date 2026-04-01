@@ -17,6 +17,20 @@ ParticleManager* ParticleManager::GetInstance() {
 	return instance;
 }
 
+void ParticleManager::Finalize() {
+	// インスタンスリソースの破棄
+	for (auto& group : particleGroups_) {
+		group.second.instanceResource.Reset();
+	}
+	particleGroups_.clear();
+
+	// パイプラインの破棄（ここが漏れている可能性が高いです）
+	rootSignature.Reset();
+	graphicsPipelineState.Reset();
+
+	delete instance;
+	instance = nullptr;
+}
 void ParticleManager::Initialize(DirectXCommon* dxCommon) {
 
 	// 1. ポインタ保存
