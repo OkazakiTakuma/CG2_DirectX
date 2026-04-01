@@ -57,3 +57,25 @@ void Object3d::Draw() {
 }
 
 void Object3d::SetModel(const std::string& filePath) { model = ModelManager::GetInstance()->FindModel(filePath); }
+
+Object3d::~Object3d() {
+	// 1. マップ解除 (Unmap)
+	// 書き込み用ポインタを開放する前にUnmapを呼びます
+	if (wvpResorceModel) {
+		wvpResorceModel->Unmap(0, nullptr);
+	}
+	if (lightResource) {
+		lightResource->Unmap(0, nullptr);
+	}
+
+	// 2. ComPtr の解放 (Reset)
+	// これにより ID3D12Resource の参照カウントが減ります
+	wvpResorceModel.Reset();
+	lightResource.Reset();
+
+	// 3. ポインタと参照のクリア
+	transformationMatrix = nullptr;
+	object3dCommon_ = nullptr;
+	camera = nullptr;
+	model = nullptr; // モデルの実体は ModelManager が管理しているので Reset/delete は不要
+}

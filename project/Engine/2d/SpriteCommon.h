@@ -11,6 +11,7 @@ public:
 	void Initialize(DirectXCommon* dxCommon);
 	DirectXCommon* GetDxCommon() const { return dxCommon_; }
 	void SetDraw();
+	void Finalize();
 
 private:
 	DirectXCommon* dxCommon_ = nullptr;

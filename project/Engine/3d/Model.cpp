@@ -16,9 +16,33 @@ void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPat
 	modelData.material.textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(modelData.material.textureFilePath);
 }
 
+Model::~Model() {
+	// デストラクタで Finalize を呼ぶことで、
+	// 手動で呼び忘れても delete 時にリソースが解放されるようにする
+	Finalize();
+}
+
 void Model::Finalize() {
+	// 1. マップ解除 (Unmap)
+	// Mapしたリソースが生きている場合のみUnmapする
+	if (vertexResource) {
+		vertexResource->Unmap(0, nullptr);
+	}
+	if (materialResource) {
+		materialResource->Unmap(0, nullptr);
+	}
+
+	// 2. ComPtr の解放 (Reset)
 	vertexResource.Reset();
 	materialResource.Reset();
+
+	// 3. メンバ変数のクリア
+	materialData = nullptr;
+	modelCommon_ = nullptr;
+
+	// vertexBufferView などは構造体なので Reset は不要だが、
+	// 安全のためにゼロクリアしておくとデバッグしやすい
+	vertexBufferView = {};
 }
 
 void Model::Draw() {

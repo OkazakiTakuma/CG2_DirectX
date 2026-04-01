@@ -37,13 +37,19 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 
 void ImGuiManager::Finalize() {
 #ifdef USE_IMGUI
-
+	// 1. ImGui内部のDX12リソース（フォントテクスチャやパイプライン）を解放
 	ImGui_ImplDX12_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
-#endif // !USE_IMGUI
-}
 
+	// 2. プラットフォーム固有の終了処理
+	ImGui_ImplWin32_Shutdown();
+
+	// 3. コンテキストの破棄
+	ImGui::DestroyContext();
+
+	// 4. 保持しているポインタをクリア（安全のため）
+	dxcommon = nullptr;
+#endif // USE_IMGUI
+}
 void ImGuiManager::Begin() {
 #ifdef USE_IMGUI
 

@@ -129,6 +129,36 @@ void Sprite::Draw() {
 	spriteCommon->GetDxCommon()->GetCommandList()->SetGraphicsRootDescriptorTable(3, TextureManager::GetInstance()->GetSRVHandleGPU(filepath));
 	spriteCommon->GetDxCommon()->GetCommandList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 }
+Sprite::~Sprite() {
+	// 1. マップ解除 (Unmap)
+	// Mapしたリソースは、リソース自体をResetする前にUnmapするのが安全です
+	if (indexResource) {
+		indexResource->Unmap(0, nullptr);
+	}
+	if (vertexResource) {
+		vertexResource->Unmap(0, nullptr);
+	}
+	if (materialResource) {
+		materialResource->Unmap(0, nullptr);
+	}
+	if (transformationMatrixResource) {
+		transformationMatrixResource->Unmap(0, nullptr);
+	}
+
+	// 2. ComPtr の解放 (Reset)
+	// これにより参照カウントが減り、Deviceを消す前にリソースが破棄されます
+	indexResource.Reset();
+	vertexResource.Reset();
+	materialResource.Reset();
+	transformationMatrixResource.Reset();
+
+	// 3. ポインタのクリア（念のため）
+	indexData = nullptr;
+	vertexData = nullptr;
+	materialData = nullptr;
+	transformationMatrixData = nullptr;
+	spriteCommon = nullptr;
+}
 void Sprite::AdjustTextureSize() {
 	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetTextureMetadata(filepath);
 	textureSize = {static_cast<float>(metadata.width), static_cast<float>(metadata.height)};

@@ -18,6 +18,17 @@ void SpriteCommon::SetDraw() {
 	dxCommon_->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
+void SpriteCommon::Finalize() {
+	// ルートシグネチャの解放
+	rootSignature.Reset();
+
+	// パイプラインステートの解放
+	graphicsPipelineState.Reset();
+
+	// dxCommon_ は外部（おそらくメインクラスなど）から渡されたポインタなので、
+	// ここで delete したり Reset したりしてはいけません。
+	dxCommon_ = nullptr;
+}
 void SpriteCommon::CreateRootSignature() {
 	HRESULT hr;
 	//	assert(SUCCEEDED(hr));

@@ -16,6 +16,11 @@ void Object3dCommon::SetDraw() {
 	dxCommon_->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
+void Object3dCommon::Finalize() {
+	rootSignature.Reset();
+	graphicsPipelineState.Reset();
+	dxCommon_ = nullptr;
+}
 void Object3dCommon::CreateRootSignature() {
 	HRESULT hr;
 	//	assert(SUCCEEDED(hr));

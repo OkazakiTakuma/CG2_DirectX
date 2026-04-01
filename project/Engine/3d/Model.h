@@ -14,6 +14,7 @@ class Model {
 	void Finalize();
 	// 描画前処理
 	void Draw();
+	~Model();
 
 private:
 	ModelCommon* modelCommon_ = nullptr;

@@ -22,6 +22,7 @@ public:
 	void Draw();
 	void SetModel(Model* model) { this->model = model; }
 	void SetModel(const std::string& filePath);
+	~Object3d();
 	const Vector3& GetTranslate() { return transform.translate; };
 	void SetTranslate(const Vector3& newTransform) { transform.translate = newTransform; }
 	const Vector3& GetRotate() { return transform.rotate; };
