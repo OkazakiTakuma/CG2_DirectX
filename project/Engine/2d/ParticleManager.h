@@ -1,6 +1,6 @@
 #pragma once
-#include "../../extenals/DirectXTex/DirectXTex.h"
-#include "../../extenals/DirectXTex/d3dx12.h"
+#include "DirectXTex.h"
+#include "d3dx12.h"
 #include "DirectXCommon.h"
 #include "SrvManager.h"
 #include "struct.h"

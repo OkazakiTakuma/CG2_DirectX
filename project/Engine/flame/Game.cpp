@@ -111,9 +111,9 @@ void Game::Update() {
 		s->Update();
 		s->SetSize({100.0f, 100.0f});
 	}
-#ifdef USE_IMGUI
+
 	ImGuiUpdate();
-#endif
+
 }
 
 void Game::Draw() {
@@ -150,6 +150,7 @@ void Game::Finalize() {
 }
 
 void Game::ImGuiUpdate() {
+#ifdef USE_IMGUI
 	ImGuiManager::GetInstance()->Begin();
 	cameraPosition = camera->GetTranslate();
 	cameraRotate = camera->GetRotate();
@@ -190,6 +191,7 @@ void Game::ImGuiUpdate() {
 	ImGui::SliderAngle("UV rotate", &trspriteUV.rotate.z);
 	//  ImGuiのウィンドウを作成
 	ImGuiManager::GetInstance()->End();
+#endif
 	camera->SetTranslate(cameraPosition);
 	camera->SetRotate(cameraRotate);
 	object3d->SetTranslate(modelPosition);

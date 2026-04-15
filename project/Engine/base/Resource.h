@@ -2,7 +2,7 @@
 #include "Matrix.h"
 #include "Screen.h"
 #include "Vector.h"
-#include "../../extenals/DirectXTex/DirectXTex.h"
+#include "DirectXTex.h"
 #include <Windows.h>
 #include <cassert>
 #include <chrono>

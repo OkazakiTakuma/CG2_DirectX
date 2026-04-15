@@ -1,5 +1,5 @@
 #pragma once
-#include "../../extenals/DirectXTex/DirectXTex.h"
+#include "DirectXTex.h"
 #include "Matrix.h"
 #include "Screen.h"
 #include "Vector.h"
