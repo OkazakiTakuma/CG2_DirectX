@@ -340,3 +340,7 @@ FodyWeavers.xsd
 
 *.Log
 /logs
+/generated/Outputs/Debug/CG2_DirectX.exe
+/generated/Outputs/Debug
+/generated/Outputs/Development
+/generated/Outputs/Release
