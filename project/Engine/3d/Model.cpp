@@ -164,7 +164,7 @@ void Model::CreateMaterialData() {
 	// マテリアルリソースにデータを書き込む
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 	// マテリアルの色を設定
-	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 赤色
-	materialData->enableLighting = true;                   // ライティングを有効化
+	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); 
+	materialData->enableLighting = true;                  
 	materialData->uvTransform = MakeIdentity4x4();
 }

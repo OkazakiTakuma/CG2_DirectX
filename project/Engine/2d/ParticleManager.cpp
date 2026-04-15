@@ -154,7 +154,7 @@ void ParticleManager::CreateParticleGroup(const std::string& groupName, const st
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 
-	dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
+	//dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
 }
 
 // ==========================================
@@ -327,9 +327,9 @@ void ParticleManager::Draw(Camera* camera) {
 			Matrix4x4 translateMatrix = MakeTranslateMatrix(particle.transform.translate);
 
 			// ビルボード処理を入れる場合はここで rotateMatrix を billboardMatrix に置き換える
-			// Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(billboardMatrix, translateMatrix));
+			Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(billboardMatrix, translateMatrix));
 
-			Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(rotateMatrix, translateMatrix));
+			//Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(rotateMatrix, translateMatrix));
 			Matrix4x4 wvp = Multiply(worldMatrix, viewProjection);
 
 			group.instanceDataPtr[index].WVP = wvp;
