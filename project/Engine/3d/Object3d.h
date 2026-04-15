@@ -17,7 +17,7 @@ class Model;
 class Object3d {
 
 public:
-	void Initialize(Object3dCommon* object3dCommon);
+	void Initialize();
 	void Update();
 	void Draw();
 	void SetModel(Model* model) { this->model = model; }
@@ -33,7 +33,6 @@ public:
 
 
 private:
-	Object3dCommon* object3dCommon_ = nullptr;
 	const float pi = 3.1415f;                         // 円周率
 	const uint32_t kSubdivision = 16;                 // 球の細分化数
 	const float kLonEvery = 2.0f * pi / kSubdivision; // 経度の間隔(φd)

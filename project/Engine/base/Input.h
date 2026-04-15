@@ -1,40 +1,40 @@
 #pragma once
-#include"WinApp.h"
+#include "WinApp.h"
 #include <Windows.h>
 #include <wrl.h>
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 
 class Input {
-
 public:
+	// シングルトンインスタンスの取得
+	static Input* GetInstance();
+
+	// デストラクタはpublic（プログラム終了時に破棄できるようにするため）
+	~Input() = default;
+
+	// 初期化・更新
 	void Initialize(WinApp* winApp);
 	void Update();
-	template<class T> using ComPtr = Microsoft::WRL::ComPtr<T>;
-	/// <summary>
-	/// キーを押しているか
-	/// </summary>
-	/// <param name="key">キー番号</param>
-	/// <returns>押されているか</returns>
+
+	// キー操作判定
 	bool PushKey(BYTE keyNumber);
-
-	/// <summary>
-	/// キーを押したか
-	/// </summary>
-	/// <param name="keyNumber">キー番号</param>
-	/// <returns>押したか</returns>
 	bool TriggerKey(BYTE keyNumber);
-
-	/// <summary>
-	/// キーを離したか
-	/// </summary>
-	/// <param name="keyNumber">キー番号</param>
-	/// <returns>離したか</returns>
 	bool ReleaseKey(BYTE keyNumber);
 
 private:
+	// シングルトンのためコンストラクタはprivate
+	Input() = default;
+
+	// コピー禁止
+	Input(const Input&) = delete;
+	Input& operator=(const Input&) = delete;
+
+    template<class T> using ComPtr = Microsoft::WRL::ComPtr<T>;
+
+private:
 	ComPtr<IDirectInputDevice8> keyboard;
-	ComPtr<IDirectInput8> directInput = nullptr;
+	ComPtr<IDirectInput8> directInput;
 	BYTE key[256] = {};
 	BYTE preKey[256] = {};
 

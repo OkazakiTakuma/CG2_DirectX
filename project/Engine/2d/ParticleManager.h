@@ -19,7 +19,6 @@ public:
 	void Initialize(DirectXCommon* dxCommon); // 初期化時にセット
 	static ParticleManager* GetInstance();
 	void Finalize();
-	void Rerease();
 	static const uint32_t kMaxParticle;
 	void CreateParticleGroup(const std::string& groupName, const std::string& textureFilePath);
 	void Draw(Camera* camera);
