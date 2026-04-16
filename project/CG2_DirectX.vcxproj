@@ -157,7 +157,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
   <ItemGroup>
     <ClCompile Include="Engine\flame\BaseScene.cpp" />
     <ClCompile Include="Engine\audio\Audio.cpp" />
-    <ClCompile Include="Engine\2d\ParticleEmitter.cpp" />
+    <ClCompile Include="Engine\3d\ParticleEmitter.cpp" />
     <ClCompile Include="Engine\3d\Camera.cpp" />
     <ClCompile Include="Engine\base\D3DResouceLeakCheker.cpp" />
     <ClCompile Include="Engine\base\DirectXCommon.cpp" />
@@ -188,7 +188,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\3d\ModelCommon.cpp" />
     <ClCompile Include="Engine\3d\ModelManager.cpp" />
     <ClCompile Include="Engine\base\SrvManager.cpp" />
-    <ClCompile Include="Engine\2d\ParticleManager.cpp" />
+    <ClCompile Include="Engine\3d\ParticleManager.cpp" />
     <ClCompile Include="scene\TitleScene.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -223,7 +223,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\flame\AbstractSceneFactory.h" />
     <ClInclude Include="Engine\flame\BaseScene.h" />
     <ClInclude Include="Engine\audio\Audio.h" />
-    <ClInclude Include="Engine\2d\ParticleEmitter.h" />
+    <ClInclude Include="Engine\3d\ParticleEmitter.h" />
     <ClInclude Include="Engine\3d\Camera.h" />
     <ClInclude Include="Engine\base\struct.h" />
     <ClInclude Include="Engine\base\D3DResouceLeakCheker.h" />
@@ -245,7 +245,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\3d\ModelCommon.h" />
     <ClInclude Include="Engine\3d\ModelManager.h" />
     <ClInclude Include="Engine\base\SrvManager.h" />
-    <ClInclude Include="Engine\2d\ParticleManager.h" />
+    <ClInclude Include="Engine\3d\ParticleManager.h" />
     <ClInclude Include="Engine\base\ImGuiManager.h" />
     <ClInclude Include="Engine\flame\Game.h" />
     <ClInclude Include="Engine\flame\FlameWork.h" />
