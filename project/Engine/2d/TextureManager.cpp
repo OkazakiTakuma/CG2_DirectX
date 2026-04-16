@@ -1,7 +1,7 @@
 // TextureManager.cpp
 #include "TextureManager.h"
-#include "StringUtility.h"
 #include "ParticleManager.h"
+#include "StringUtility.h"
 
 TextureManager* TextureManager::instance = nullptr;
 using namespace StringUtility;
@@ -26,7 +26,6 @@ void TextureManager::Finalize() {
 	instance = nullptr;
 }
 
-
 void TextureManager::Rerease() {}
 
 uint32_t TextureManager::GetTextureIndexByFilePath(const std::string& filepath) {
@@ -34,21 +33,29 @@ uint32_t TextureManager::GetTextureIndexByFilePath(const std::string& filepath) 
 	return 0;
 }
 
-
 void TextureManager::LoadTexture(const std::string& filepath) {
-	if (textureDatas.contains(filepath)){
+	HRESULT hr;
+	if (textureDatas.contains(filepath)) {
 		return;
 	}
 	SrvManager* srvManager = SrvManager::GetInstance();
 	DirectX::ScratchImage image{};
+	if (filepath.ends_with(".dds")) {
+		hr = DirectX::LoadFromDDSFile(ConvertString(filepath).c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image);
+	} else {
+		hr = DirectX::LoadFromWICFile(ConvertString(filepath).c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
+	}
+
+	assert(SUCCEEDED(hr));
+
 	DirectX::ScratchImage mipImages{};
+	if (DirectX::IsCompressed(image.GetMetadata().format)) {
+		mipImages = std::move(image);
+	} else {
 
-	HRESULT hr = DirectX::LoadFromWICFile(ConvertString(filepath).c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
+		hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
+	}
 	assert(SUCCEEDED(hr));
-
-	hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
-	assert(SUCCEEDED(hr));
-
 
 	TextureData& textureData = textureDatas[filepath];
 	textureData.metadata = mipImages.GetMetadata();
@@ -59,9 +66,16 @@ void TextureManager::LoadTexture(const std::string& filepath) {
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = textureData.metadata.format;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // シェーダーコンポーネントのマッピング
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;                      // テクスチャの次元
-	srvDesc.Texture2D.MipLevels = UINT(mipImages.GetMetadata().mipLevels);      // ミップレベルの数
+	if (textureData.metadata.IsCubemap()) {
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE; // シェーダーコンポ
+		srvDesc.TextureCube.MostDetailedMip = 0;
+		srvDesc.TextureCube.MipLevels = UINT_MAX; // ミップレベルの数
+		srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+
+	} else {
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;                 // テクスチャの次元
+		srvDesc.Texture2D.MipLevels = UINT(mipImages.GetMetadata().mipLevels); // ミップレベルの数
+	}
 	srvManager->CreateSRVforTexture2D(textureData.srvIndex, textureData.resource.Get(), textureData.metadata.format, static_cast<UINT>(textureData.metadata.mipLevels));
 	dxCommon_->UploadTextureData(textureData.resource, mipImages);
 	D3D12_RESOURCE_BARRIER barrier{};
@@ -76,4 +90,3 @@ void TextureManager::LoadTexture(const std::string& filepath) {
 	// ※dxCommon_->GetCommandList() のようなメソッドがあると仮定しています
 	dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
 }
-
