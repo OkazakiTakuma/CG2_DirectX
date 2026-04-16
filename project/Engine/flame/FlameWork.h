@@ -25,6 +25,7 @@
 #include <string>
 #include <strsafe.h>
 #include <wrl.h>
+#include "AbstractSceneFactory.h"
 
 #pragma comment(lib, "DirectXTex.lib")
 #pragma comment(lib, "d3d12.lib")
@@ -54,4 +55,5 @@ private:
 	std::unique_ptr<D3DResourceLeakCheker> Checker = nullptr;
 	std::unique_ptr<DirectXCommon> dxCommon = nullptr;
 	std::unique_ptr<ImGuiManager> imguiManager = nullptr;
+	std::unique_ptr<AbstractSceneFactory> sceneFactory = nullptr;
 };
