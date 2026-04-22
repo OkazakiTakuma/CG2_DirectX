@@ -30,7 +30,17 @@ public:
 	const Vector3& GetScale() { return transform.scale; };
 	void SetScale(const Vector3& newTransformScale) { transform.scale = newTransformScale; }
 	void SetCamera(Camera* cmr) { camera = cmr; }
+	void SetDirectionalLight(const Vector4& color, const Vector3& direction, float intensity) {
+		if (directionallightData) {
+			directionallightData->color = color;
+			directionallightData->direction = NormalizeReturnVector(direction);
+			directionallightData->intensity = intensity;
+		}
+	}
 
+	const Vector4 GetLightColor() const { return directionallightData ? directionallightData->color : Vector4(0.0f, 0.0f, 0.0f, 1.0f); }
+	const Vector3 GetLightDirection() const { return directionallightData ? directionallightData->direction : Vector3(0.0f, -1.0f, 0.0f); }
+	const float GetLightIntensity() const { return directionallightData ? directionallightData->intensity : 0.0f; }
 
 private:
 	const float pi = 3.1415f;                         // 円周率
@@ -41,7 +51,13 @@ private:
 	uint32_t lonIndex = 16;
 	uint32_t startIndex = (kSubdivision * kSubdivision) * 6;
 	Vector2 tex{};
+	struct CameraForGPU {
+		Vector3 worldPosition;
+	};
+	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource;
+	CameraForGPU* cameraData = nullptr;
 
+	void CreateCameraResource(); // バッファ作成用
 	struct TransformationMatrix {
 		Matrix4x4 WVP;
 		Matrix4x4 world;

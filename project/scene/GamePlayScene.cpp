@@ -1,7 +1,6 @@
 #include "GamePlayScene.h"
+#include "SceneManager.h"
 #include <ModelManager.h>
-#include"SceneManager.h"
-
 
 void GamePlayScene::Initialize() {
 	TextureManager::GetInstance()->LoadTexture("Resources/uvChecker.png");
@@ -94,7 +93,7 @@ void GamePlayScene::Update() {
 void GamePlayScene::Draw2D() {
 	sprite->Draw();
 	for (auto& s : sprites) {
-		 s->Draw();
+		s->Draw();
 	}
 	ImGuiManager::GetInstance()->Draw();
 }
@@ -105,7 +104,9 @@ void GamePlayScene::Draw3D() {
 	for (auto& axisObj : axisObjects) {
 		axisObj->Draw();
 	}
-	ParticleManager::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
+	if (isParticleEmit) {
+		ParticleManager::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
+	}
 }
 
 void GamePlayScene::Finalize() {}
@@ -129,6 +130,10 @@ void GamePlayScene::ImGuiUpdate() {
 	modelPosition = object3d->GetTranslate();
 	modelRotate = object3d->GetRotate();
 	modelScale = object3d->GetScale();
+	lightColor = object3d->GetLightColor();
+	lightDirection = object3d->GetLightDirection();
+	lightIntensity = object3d->GetLightIntensity();
+
 	ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
 	ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
 	ImGui::SliderAngle("camera rotate y", &cameraRotate.y);
@@ -150,6 +155,10 @@ void GamePlayScene::ImGuiUpdate() {
 	ImGui::DragFloat2("UV translate", &trspriteUV.translate.x, 0.01f, -10.0f, 10.0f);
 	ImGui::DragFloat2("UV scale", &trspriteUV.scale.x, 0.01f, 0.0f, 10.0f);
 	ImGui::SliderAngle("UV rotate", &trspriteUV.rotate.z);
+	ImGui::ColorEdit4("light color", &lightColor.x, 1.0f);
+	ImGui::DragFloat3("light direction", &lightDirection.x, 0.1f, -1.0f, 1.0f);
+	ImGui::DragFloat("light intensity", &lightIntensity, 0.1f, 0.0f, 10.0f);
+	ImGui::Checkbox("Particle Emit", &isParticleEmit);
 	//  ImGuiのウィンドウを作成
 	ImGuiManager::GetInstance()->End();
 #endif
@@ -167,4 +176,5 @@ void GamePlayScene::ImGuiUpdate() {
 	sprite->SetSize(spriteSize);
 	sprite->SetTextureLeftTop(textureLeftTop);
 	sprite->SetTextureSize(textureSize);
+	object3d->SetDirectionalLight(lightColor, lightDirection, lightIntensity);
 }

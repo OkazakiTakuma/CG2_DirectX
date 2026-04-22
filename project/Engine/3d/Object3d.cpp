@@ -10,6 +10,7 @@ void Object3d::Initialize() {
 
 	CreateWVPResource();
 	CreateDirectionalLightResource();
+	CreateCameraResource();
 
 	transform = {
 	    {1.0f, 1.0f, 1.0f}, // スケール
@@ -29,12 +30,15 @@ void Object3d::CreateWVPResource() {
 	transformationMatrix->WVP = MakeIdentity4x4();
 	transformationMatrix->world = MakeIdentity4x4();
 }
-
+void Object3d::CreateCameraResource() {
+	cameraResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(CameraForGPU));
+	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
+}
 void Object3d::CreateDirectionalLightResource() {
 	// シングルトンから dxCommon を経由してバッファ作成
 	lightResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(DirectionalLight));
 
-	DirectionalLight* directionallightData = nullptr;
+
 	lightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionallightData));
 
 	directionallightData->color = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -52,6 +56,10 @@ void Object3d::Update() {
 		transformationMatrix->WVP = worldMatrix;
 	}
 	transformationMatrix->world = worldMatrix;
+	if (camera) {
+		// カメラの現在の座標を転送
+		cameraData->worldPosition = camera->GetTranslate();
+	}
 }
 
 void Object3d::Draw() {
@@ -60,6 +68,7 @@ void Object3d::Draw() {
 
 	commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootConstantBufferView(4, cameraResource->GetGPUVirtualAddress()); // ★追加
 
 	if (model) {
 		model->Draw();

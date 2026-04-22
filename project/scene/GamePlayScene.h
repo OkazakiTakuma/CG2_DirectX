@@ -51,6 +51,9 @@ private:
 	Vector3 modelRotate={0.0f, 0.0f, 0.0f};
 	Vector3 modelScale={1.0f, 1.0f, 1.0f};
 	void ImGuiUpdate();
-	
+	Vector4 lightColor = {1.0f, 1.0f, 1.0f, 1.0f};
+	Vector3 lightDirection = {0.0f, -1.0f, 0.0f};
+	float lightIntensity = 1.0f;	
+	bool isParticleEmit = false;          // パーティクル発生のON/OFF
 	SceneManager* sceneManager = nullptr; // シーンマネージャーへのポインタ（所有権は持たない）
 };

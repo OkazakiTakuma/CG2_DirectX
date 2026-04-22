@@ -160,11 +160,18 @@ void Model::CreateVertexdata() {
 }
 
 void Model::CreateMaterialData() {
+	// リソースを作成（新しく作った DirectXCommon のメソッドを利用してもOKです）
 	materialResource = modelCommon_->GetDxCommon()->CreateBufferResource(sizeof(Material));
-	// マテリアルリソースにデータを書き込む
+
+	// 書き込むためのアドレスを取得
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
-	// マテリアルの色を設定
-	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); 
-	materialData->enableLighting = true;                  
+
+	// 既存の設定
+	materialData->color = {1.0f, 1.0f, 1.0f, 1.0f};
+	materialData->enableLighting = 1; // 1にするとライティング有効
 	materialData->uvTransform = MakeIdentity4x4();
+
+	// ★追加：光沢の強さを設定
+	// 値が大きいほど、ハイライトが鋭く（小さく）なります（例：20.0f 〜 100.0f）
+	materialData->shininess = 20.0f;
 }

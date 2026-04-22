@@ -24,6 +24,16 @@ struct VertexData {
 	Vector2 texcoord;
 	Vector3 normal;
 };
+
+struct Material {
+	Vector4 color;
+	int32_t enableLighting;
+	float padding[3];
+	Matrix4x4 uvTransform;
+	float shininess;   // ★追加
+	float padding2[3]; // 16バイトアライメントのためのパディング
+};
+
 struct MaterialData {
 	std::string textureFilePath; // テクスチャファイルのパス
 	uint32_t textureIndex = 0;
