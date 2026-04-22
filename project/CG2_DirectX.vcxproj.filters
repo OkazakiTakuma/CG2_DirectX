@@ -242,7 +242,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\Shader\Object3D.hlsli">
+    <None Include="Resources\Shader\Object3d.hlsli">
       <Filter>リソース ファイル\shader</Filter>
     </None>
     <None Include="Resources\Shader\Particle.hlsli" />

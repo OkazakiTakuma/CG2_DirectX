@@ -22,12 +22,6 @@ private:
 	static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
 
 	static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
-	struct Material {
-		Vector4 color;          // 色
-		int32_t enableLighting; // ライティングの有効化フラグ
-		float padding[3];       // パディング
-		Matrix4x4 uvTransform;  // UV変換行列
-	};
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource;
 	Material* materialData = nullptr;
 	void CreateMaterialData();

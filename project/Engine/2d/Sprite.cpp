@@ -48,6 +48,7 @@ void Sprite::Initialize(std::string textureFilePath) {
 	transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
 	transformationMatrixData->WVP = MakeIdentity4x4();
 	transformationMatrixData->world = MakeIdentity4x4();
+	transformationMatrixData->WorldInverseTranspose = MakeIdentity4x4();
 
 	size = {640.0f, 360.0f};
 	filepath = textureFilePath;
@@ -94,7 +95,10 @@ void Sprite::Update() {
 	Matrix4x4 viewMatrix = MakeIdentity4x4();
 	Matrix4x4 projectionMatrix = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
 	transformationMatrixData->WVP = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
+	transformationMatrixData->world = worldMatrix;
+	transformationMatrixData->WorldInverseTranspose = worldMatrix; // 2Dスプライトなので転置は同じ
 	materialData->uvTransform = MakeAffineMatrix(uvTransform.scale, uvTransform.rotate, uvTransform.translate);
+
 }
 
 void Sprite::Draw() {
@@ -133,4 +137,3 @@ void Sprite::AdjustTextureSize() {
 	textureSize = {static_cast<float>(metadata.width), static_cast<float>(metadata.height)};
 	size = textureSize;
 }
-

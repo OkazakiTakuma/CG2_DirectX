@@ -33,6 +33,7 @@ private:
 	std::vector<std::unique_ptr<Sprite>> sprites;
 	std::unique_ptr<Object3d> object3d = nullptr;
 	std::vector<std::unique_ptr<Object3d>> axisObjects;
+	std::unique_ptr<Object3d> sphereObject = nullptr;
 	std::unique_ptr<ParticleEmitter> smokeEmitter = nullptr;
 	Vector3 cameraPosition={0.0f, 0.0f, 0.0f};
 	Vector3 cameraRotate={0.0f, 0.0f, 0.0f};
@@ -51,6 +52,9 @@ private:
 	Vector3 modelRotate={0.0f, 0.0f, 0.0f};
 	Vector3 modelScale={1.0f, 1.0f, 1.0f};
 	void ImGuiUpdate();
-	
+	Vector4 lightColor = {1.0f, 1.0f, 1.0f, 1.0f};
+	Vector3 lightDirection = {0.0f, -1.0f, 0.0f};
+	float lightIntensity = 1.0f;	
+	bool isParticleEmit = false;          // パーティクル発生のON/OFF
 	SceneManager* sceneManager = nullptr; // シーンマネージャーへのポインタ（所有権は持たない）
 };

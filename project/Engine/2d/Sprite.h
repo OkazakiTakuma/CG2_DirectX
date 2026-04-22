@@ -46,10 +46,7 @@ private:
 		Matrix4x4 uvTransform;
 	};
 
-	struct TransformationMatrix {
-		Matrix4x4 WVP;
-		Matrix4x4 world;
-	};
+	
 
 	std::string filepath;
 	uint32_t* indexData = nullptr;
