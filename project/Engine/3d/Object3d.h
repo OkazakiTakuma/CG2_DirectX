@@ -4,6 +4,7 @@
 #include "Matrix.h"
 #include "Screen.h"
 #include "Vector.h"
+#include "struct.h"
 #include <Windows.h>
 #include <cassert>
 #include <d3d12.h>
@@ -30,17 +31,19 @@ public:
 	const Vector3& GetScale() { return transform.scale; };
 	void SetScale(const Vector3& newTransformScale) { transform.scale = newTransformScale; }
 	void SetCamera(Camera* cmr) { camera = cmr; }
-	void SetDirectionalLight(const Vector4& color, const Vector3& direction, float intensity) {
-		if (directionallightData) {
-			directionallightData->color = color;
-			directionallightData->direction = NormalizeReturnVector(direction);
-			directionallightData->intensity = intensity;
-		}
-	}
+	void SetDirectionalLight(const Vector4& color, const Vector3& direction, float intensity);
+	void SetPointLight(const Vector4& color, const Vector3& position, float intensity, float radius, float decay);
+	void IsPointLightSet(bool isSet) { isPointLightSet = isSet; }
 
 	const Vector4 GetLightColor() const { return directionallightData ? directionallightData->color : Vector4(0.0f, 0.0f, 0.0f, 1.0f); }
 	const Vector3 GetLightDirection() const { return directionallightData ? directionallightData->direction : Vector3(0.0f, -1.0f, 0.0f); }
 	const float GetLightIntensity() const { return directionallightData ? directionallightData->intensity : 0.0f; }
+	const Vector4 GetPointLightColor() const { return pointLightData ? pointLightData->color : Vector4(0.0f, 0.0f, 0.0f, 1.0f); }
+	const Vector3 GetPointLightPosition() const { return pointLightData ? pointLightData->position : Vector3(0.0f, 0.0f, 0.0f); }
+	const float GetPointLightIntensity() const { return pointLightData ? pointLightData->intensity : 0.0f; }
+	const float GetPointLightRadius() const { return pointLightData ? pointLightData->radius : 0.0f; }
+	const float GetPointLightDecay() const { return pointLightData ? pointLightData->decay : 0.0f; }
+	const bool GetIsPointLightSet() const { return isPointLightSet; }
 
 private:
 	const float pi = 3.1415f;                         // 円周率
@@ -58,10 +61,7 @@ private:
 	CameraForGPU* cameraData = nullptr;
 
 	void CreateCameraResource(); // バッファ作成用
-	struct TransformationMatrix {
-		Matrix4x4 WVP;
-		Matrix4x4 world;
-	};
+
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResorceModel;
 	TransformationMatrix* transformationMatrix = nullptr;
 	void CreateWVPResource();
@@ -73,9 +73,13 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> lightResource;
 	DirectionalLight* directionallightData = nullptr;
 	void CreateDirectionalLightResource();
+	Microsoft::WRL::ComPtr<ID3D12Resource> pointLightResource;
+	PointLight* pointLightData = nullptr;
+	void CreatePointLightResource();
+
 	Model* model = nullptr;
+	bool isPointLightSet = true;
 
 	Transform transform;
 	Camera* camera = nullptr;
-
 };

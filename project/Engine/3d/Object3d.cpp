@@ -11,6 +11,7 @@ void Object3d::Initialize() {
 	CreateWVPResource();
 	CreateDirectionalLightResource();
 	CreateCameraResource();
+	CreatePointLightResource();
 
 	transform = {
 	    {1.0f, 1.0f, 1.0f}, // スケール
@@ -29,6 +30,7 @@ void Object3d::CreateWVPResource() {
 	wvpResorceModel->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrix));
 	transformationMatrix->WVP = MakeIdentity4x4();
 	transformationMatrix->world = MakeIdentity4x4();
+	transformationMatrix->WorldInverseTranspose = MakeIdentity4x4();
 }
 void Object3d::CreateCameraResource() {
 	cameraResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(CameraForGPU));
@@ -38,12 +40,21 @@ void Object3d::CreateDirectionalLightResource() {
 	// シングルトンから dxCommon を経由してバッファ作成
 	lightResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(DirectionalLight));
 
-
 	lightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionallightData));
 
 	directionallightData->color = {1.0f, 1.0f, 1.0f, 1.0f};
 	directionallightData->direction = NormalizeReturnVector(Vector3(0.0f, -1.0f, 0.0f));
 	directionallightData->intensity = 1.0f;
+}
+
+void Object3d::CreatePointLightResource() {
+	pointLightResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(PointLight));
+	pointLightResource->Map(0, nullptr, reinterpret_cast<void**>(&pointLightData));
+	pointLightData->color = {1.0f, 1.0f, 1.0f, 1.0f};
+	pointLightData->position = {0.0f, 0.0f, 0.0f};
+	pointLightData->intensity = 1.0f;
+	pointLightData->radius = 10.0f;
+	pointLightData->decay = 1.0f;
 }
 
 void Object3d::Update() {
@@ -52,10 +63,12 @@ void Object3d::Update() {
 	if (camera) {
 		Matrix4x4 wvpMatrix = Multiply(worldMatrix, camera->GetViewProjectionMatrix());
 		transformationMatrix->WVP = wvpMatrix;
+		transformationMatrix->world = worldMatrix;
+		transformationMatrix->WorldInverseTranspose = Inverse(worldMatrix);
 	} else {
 		transformationMatrix->WVP = worldMatrix;
 	}
-	transformationMatrix->world = worldMatrix;
+
 	if (camera) {
 		// カメラの現在の座標を転送
 		cameraData->worldPosition = camera->GetTranslate();
@@ -68,8 +81,8 @@ void Object3d::Draw() {
 
 	commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
-	commandList->SetGraphicsRootConstantBufferView(4, cameraResource->GetGPUVirtualAddress()); // ★追加
-
+	commandList->SetGraphicsRootConstantBufferView(4, cameraResource->GetGPUVirtualAddress());     // ★追加
+	commandList->SetGraphicsRootConstantBufferView(5, pointLightResource->GetGPUVirtualAddress()); // ★追加
 	if (model) {
 		model->Draw();
 	}
@@ -91,4 +104,22 @@ Object3d::~Object3d() {
 	transformationMatrix = nullptr;
 	camera = nullptr;
 	model = nullptr;
+}
+
+void Object3d::SetDirectionalLight(const Vector4& color, const Vector3& direction, float intensity) {
+	if (directionallightData) {
+		directionallightData->color = color;
+		directionallightData->direction = NormalizeReturnVector(direction);
+		directionallightData->intensity = intensity;
+	}
+}
+
+void Object3d::SetPointLight(const Vector4& color, const Vector3& position, float intensity, float radius, float decay) {
+	if (pointLightData) {
+		pointLightData->color = color;
+		pointLightData->position = position;
+		pointLightData->intensity = intensity;
+		pointLightData->radius = radius;
+		pointLightData->decay = decay;
+	}
 }

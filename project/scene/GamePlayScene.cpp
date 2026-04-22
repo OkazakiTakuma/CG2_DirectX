@@ -43,6 +43,14 @@ void GamePlayScene::Initialize() {
 		axisObjects.push_back(std::move(axisObj));
 	}
 
+	sphereObject = std::make_unique<Object3d>();
+	sphereObject->Initialize();
+	ModelManager::GetInstance()->LoadModel("sphere.obj");
+	sphereObject->SetModel("sphere.obj");
+	sphereObject->SetTranslate({0.0f, 10.0f, 3.0f});
+	sphereObject->SetScale({1.0f, 1.0f, 1.0f});
+	sphereObject->SetRotate({0.0f, 0.0f, 0.0f});
+
 	// =================================================
 	// ▼ 追加: エミッタの作成
 	// =================================================
@@ -86,6 +94,7 @@ void GamePlayScene::Update() {
 		s->Update();
 		s->SetSize({100.0f, 100.0f});
 	}
+	sphereObject->Update();
 
 	ImGuiUpdate();
 }
@@ -104,6 +113,9 @@ void GamePlayScene::Draw3D() {
 	for (auto& axisObj : axisObjects) {
 		axisObj->Draw();
 	}
+	object3d->Draw();
+	sphereObject->Draw();
+
 	if (isParticleEmit) {
 		ParticleManager::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
 	}
@@ -133,7 +145,16 @@ void GamePlayScene::ImGuiUpdate() {
 	lightColor = object3d->GetLightColor();
 	lightDirection = object3d->GetLightDirection();
 	lightIntensity = object3d->GetLightIntensity();
+	Vector3 spherepos = sphereObject->GetTranslate();
+	Vector3 sphererot = sphereObject->GetRotate();
+	Vector3 spherescl = sphereObject->GetScale();
 
+	Vector4 pointLightColor = object3d->GetPointLightColor();
+	Vector3 pointLightPosition = object3d->GetPointLightPosition();
+	float pointLightIntensity = object3d->GetPointLightIntensity();
+	float pointLightRadius = object3d->GetPointLightRadius();
+	float pointLightDecay = object3d->GetPointLightDecay(); 
+	bool isPointLightSet = object3d->GetIsPointLightSet();
 	ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
 	ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
 	ImGui::SliderAngle("camera rotate y", &cameraRotate.y);
@@ -143,6 +164,9 @@ void GamePlayScene::ImGuiUpdate() {
 	ImGui::SliderAngle("model rotate y", &modelRotate.y);
 	ImGui::SliderAngle("model rotate z", &modelRotate.z);
 	ImGui::DragFloat3("model scale", &modelScale.x, 0.1f);
+	ImGui::DragFloat3("sphere pos", &spherepos.x, 0.1f);
+	ImGui::DragFloat3("sphere rotate", &sphererot.x, 0.1f);
+	ImGui::DragFloat3("sphere scale", &spherescl.x, 0.1f);
 	ImGui::DragFloat2("sprite pos", &trsprite.translate.x, 0.3f);
 	ImGui::SliderAngle("sprite rotate", &trsprite.rotate.z);
 	ImGui::DragFloat2("sprite scale", &spriteSize.x, 0.3f);
@@ -158,9 +182,30 @@ void GamePlayScene::ImGuiUpdate() {
 	ImGui::ColorEdit4("light color", &lightColor.x, 1.0f);
 	ImGui::DragFloat3("light direction", &lightDirection.x, 0.1f, -1.0f, 1.0f);
 	ImGui::DragFloat("light intensity", &lightIntensity, 0.1f, 0.0f, 10.0f);
+	ImGui::Checkbox("point light set", &isPointLightSet);
+	ImGui::ColorEdit4("point light color", &pointLightColor.x, 1.0f);
+	ImGui::DragFloat3("point light position", &pointLightPosition.x, 0.1f);
+	ImGui::DragFloat("point light intensity", &pointLightIntensity, 0.1f, 0.0f, 10.0f);
+	ImGui::DragFloat("point light radius", &pointLightRadius, 0.1f, 0.0f, 20.0f);
+	ImGui::DragFloat("point light decay", &pointLightDecay, 0.1f, 0.0f, 10.0f);
 	ImGui::Checkbox("Particle Emit", &isParticleEmit);
 	//  ImGuiのウィンドウを作成
 	ImGuiManager::GetInstance()->End();
+	sphereObject->SetTranslate(spherepos);
+	sphereObject->SetRotate(sphererot);
+	sphereObject->SetScale(spherescl);
+	object3d->IsPointLightSet(isPointLightSet);
+	sphereObject->IsPointLightSet(isPointLightSet);
+	for (auto& axisObj : axisObjects) {
+		axisObj->IsPointLightSet(isPointLightSet);
+	}
+
+	object3d->SetPointLight(pointLightColor, pointLightPosition, pointLightIntensity, pointLightRadius, pointLightDecay);
+	sphereObject->SetPointLight(pointLightColor, pointLightPosition, pointLightIntensity, pointLightRadius, pointLightDecay);
+	for (auto& axisObj : axisObjects) {
+		axisObj->SetPointLight(pointLightColor, pointLightPosition, pointLightIntensity, pointLightRadius, pointLightDecay);
+	}
+
 #endif
 	Object3dCommon::GetInstance()->GetDefaultCamera()->SetTranslate(cameraPosition);
 	Object3dCommon::GetInstance()->GetDefaultCamera()->SetRotate(cameraRotate);
@@ -177,4 +222,8 @@ void GamePlayScene::ImGuiUpdate() {
 	sprite->SetTextureLeftTop(textureLeftTop);
 	sprite->SetTextureSize(textureSize);
 	object3d->SetDirectionalLight(lightColor, lightDirection, lightIntensity);
+	sphereObject->SetDirectionalLight(lightColor, lightDirection, lightIntensity);
+	for (auto& axisObj : axisObjects) {
+		axisObj->SetDirectionalLight(lightColor, lightDirection, lightIntensity);
+	}
 }

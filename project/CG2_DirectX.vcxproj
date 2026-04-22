@@ -263,7 +263,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\Shader\Object3D.hlsli" />
+    <None Include="Resources\Shader\Object3d.hlsli" />
     <None Include="Resources\Shader\Particle.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

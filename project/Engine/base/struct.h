@@ -8,7 +8,11 @@
 #include <strsafe.h>
 #include <wrl.h>
 
-
+struct TransformationMatrix {
+	Matrix4x4 WVP;
+	Matrix4x4 world;
+	Matrix4x4 WorldInverseTranspose;
+};
 
 enum BlendMode {
 	kBlendModeNone,
@@ -64,4 +68,13 @@ struct ParticleForGPU {
 struct SoundData {
 	WAVEFORMATEX wfx;
 	std::vector<BYTE> buffer;
+};
+
+struct PointLight {
+	Vector4 color;    // 光の色
+	Vector3 position; // 光の位置
+	float intensity;  // 光の強度
+	float radius;     // 光の半径
+	float decay;      // 光の減衰率
+	float padding[2]; // ★16バイトアライメントのためのパディング
 };

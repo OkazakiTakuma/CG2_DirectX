@@ -33,6 +33,7 @@ private:
 	std::vector<std::unique_ptr<Sprite>> sprites;
 	std::unique_ptr<Object3d> object3d = nullptr;
 	std::vector<std::unique_ptr<Object3d>> axisObjects;
+	std::unique_ptr<Object3d> sphereObject = nullptr;
 	std::unique_ptr<ParticleEmitter> smokeEmitter = nullptr;
 	Vector3 cameraPosition={0.0f, 0.0f, 0.0f};
 	Vector3 cameraRotate={0.0f, 0.0f, 0.0f};
