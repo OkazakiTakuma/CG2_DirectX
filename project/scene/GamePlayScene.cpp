@@ -71,7 +71,7 @@ void GamePlayScene::Initialize() {
 	bool useTexture = true;
 	SoundData fanfare = {};
 	Audio::GetInstance().LoadWave(L"Resources/fanfare.wav", fanfare);
-	// Audio::GetInstance().Play(fanfare, 1);
+	//Audio::GetInstance().Play(fanfare, 0);
 }
 
 void GamePlayScene::Update() {

@@ -43,9 +43,17 @@ struct MaterialData {
 	uint32_t textureIndex = 0;
 };
 
+// Define Node before ModelData so it is a complete type when used
+struct Node {
+	Matrix4x4 localMatrix;
+	std::string name;
+	std::vector<Node> children;
+};
+
 struct ModelData {
 	std::vector<VertexData> vertices; // 頂点データ
 	MaterialData material;
+	Node rootNode;
 };
 struct Particle {
 	Transform transform; // SRT情報

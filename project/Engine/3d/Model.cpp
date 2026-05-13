@@ -1,15 +1,18 @@
 #include "Model.h"
-#include "../base/Logger.h"
+#include "../2d/TextureManager.h"
 #include "../3d/ModelCommon.h"
+#include "../base/Logger.h"
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+#include <cassert>
 #include <fstream>
 #include <sstream>
-#include <cassert>
-#include"../2d/TextureManager.h"
 using namespace Logger;
 
 void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename) {
 	this->modelCommon_ = modelCommon;
-	modelData = LoadObjFile(directoryPath, filename);
+	modelData = LoadModelFile(directoryPath, filename);
 	CreateVertexdata();
 	CreateMaterialData();
 	TextureManager::GetInstance()->LoadTexture(modelData.material.textureFilePath);
@@ -53,73 +56,84 @@ void Model::Draw() {
 	modelCommon_->GetDxCommon()->GetCommandList()->SetGraphicsRootDescriptorTable(3, TextureManager::GetInstance()->GetSRVHandleGPU(modelData.material.textureFilePath));
 
 	modelCommon_->GetDxCommon()->GetCommandList()->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
-
-
 }
 
-
-ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string& filename) {
+ModelData Model::LoadModelFile(const std::string& directoryPath, const std::string& filename) {
 	ModelData modelData;
-	std::vector<Vector4> positions; // 頂点位置
-	std::vector<Vector3> normals;   // 法線ベクトル
-	std::vector<Vector2> texcoords; // テクスチャ座標
-	std::string line;
+	Assimp::Importer importer;
+	std::string filePath = directoryPath + "/" + filename;
+	const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_FlipWindingOrder | aiProcess_FlipUVs);
+	assert(scene->HasMeshes());
+	aiMesh* mesh = nullptr;
+	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; meshIndex++) {
+		mesh = scene->mMeshes[meshIndex];
+		assert(mesh->HasNormals());
+		assert(mesh->HasTextureCoords(0)); // 0はUVチャンネルのインデックス
+	}
 
-	std::ifstream file(directoryPath + "/" + filename);
-	assert(file.is_open() && "Failed to open the OBJ file");
-
-	while (std::getline(file, line)) {
-		std::string identifier;
-		std::istringstream s(line);
-		s >> identifier;
-		if (identifier == "v") { // 頂点位置
-			Vector4 position;
-			s >> position.x >> position.y >> position.z;
-			position.x *= -1; // X軸を反転
-
-			position.w = 1.0f; // Homogeneous coordinate
-			positions.push_back(position);
-		} else if (identifier == "vt") { // テクスチャ座標
-			Vector2 texcoord;
-			s >> texcoord.x >> texcoord.y;
-			texcoord.x = 1.0f - texcoord.x; // X軸はそのまま
-			texcoord.y = 1.0f - texcoord.y; // Y軸を反転
-			texcoords.push_back(texcoord);
-		} else if (identifier == "vn") { // 法線ベクトル
-			Vector3 normal;
-			s >> normal.x >> normal.y >> normal.z;
-			normal.x *= -1; // X軸を反転
-			normals.push_back(normal);
-		} else if (identifier == "f") { // 面情報
-			// 面は三角形限定、他未対応
-			for (int32_t faceVertex = 0; faceVertex < 3; faceVertex++) {
-				std::string vertexDefinition;
-				s >> vertexDefinition;
-				// 頂点の情報を分解
-				std::istringstream v(vertexDefinition);
-				uint32_t elementsIndices[3]; // 頂点、テクスチャ座標、法線のインデックス
-				for (int32_t element = 0; element < 3; element++) {
-					std::string index;
-					std::getline(v, index, '/'); // '/'で区切ってインデックスを取得
-					elementsIndices[element] = std::stoi(index);
-				}
-				// 要素へのIndexから、実際の要素の値を取得して、頂点を構築する
-				Vector4 position = positions[elementsIndices[0] - 1];
-				Vector2 texcoord = texcoords[elementsIndices[1] - 1];
-				Vector3 normal = normals[elementsIndices[2] - 1];
-				VertexData vertex = {position, texcoord, normal};
-				modelData.vertices.push_back(vertex);
-			}
-		} else if (identifier == "mtllib") {
-			std::string materialFilename;
-			s >> materialFilename;
-			modelData.material = LoadMaterialTemplateFile(directoryPath, materialFilename);
+	for (uint32_t faceIndex = 0; faceIndex < mesh->mNumFaces; faceIndex++) {
+		aiFace& face = mesh->mFaces[faceIndex];
+		assert(face.mNumIndices == 3); // 三角形であることを確認
+		for (uint32_t element = 0; element < 3; element++) {
+			uint32_t vertexIndex = face.mIndices[element];
+			aiVector3D& position = mesh->mVertices[vertexIndex];
+			aiVector3D& normal = mesh->mNormals[vertexIndex];
+			aiVector3D& texcoord = mesh->mTextureCoords[0][vertexIndex]; // 0はUVチャンネルのインデックス
+			VertexData vertex;
+			vertex.position = {position.x * -1.0f, position.y, position.z, 1.0f}; // X軸を反転
+			vertex.normal = {normal.x * -1.0f, normal.y, normal.z};               // X軸を反転
+			vertex.texcoord = {texcoord.x, 1.0f - texcoord.y};                    // Y軸を反転
+			modelData.vertices.push_back(vertex);
 		}
 	}
+	for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; materialIndex++) {
+		aiMaterial* material = scene->mMaterials[materialIndex];
+		if (material->GetTextureCount(aiTextureType_DIFFUSE) != 0) {
+			aiString texturePath;
+			material->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath); // 0はテクスチャのインデックス
+			modelData.material.textureFilePath = directoryPath + "/" + texturePath.C_Str();
+		}
+	}
+
+	modelData.rootNode = ReadNode(scene->mRootNode);
 
 	return modelData;
 }
 
+Node Model::ReadNode(aiNode* aiNode) {
+	Node result;
+	aiMatrix4x4 aiLocalMatrix = aiNode->mTransformation;
+	aiLocalMatrix.Transpose(); // 行列を転置
+
+	// 1要素ずつ代入する（最も安全）
+	result.localMatrix.m[0][0] = aiLocalMatrix.a1;
+	result.localMatrix.m[0][1] = aiLocalMatrix.a2;
+	result.localMatrix.m[0][2] = aiLocalMatrix.a3;
+	result.localMatrix.m[0][3] = aiLocalMatrix.a4;
+
+	result.localMatrix.m[1][0] = aiLocalMatrix.b1;
+	result.localMatrix.m[1][1] = aiLocalMatrix.b2;
+	result.localMatrix.m[1][2] = aiLocalMatrix.b3;
+	result.localMatrix.m[1][3] = aiLocalMatrix.b4;
+
+	result.localMatrix.m[2][0] = aiLocalMatrix.c1;
+	result.localMatrix.m[2][1] = aiLocalMatrix.c2;
+	result.localMatrix.m[2][2] = aiLocalMatrix.c3;
+	result.localMatrix.m[2][3] = aiLocalMatrix.c4;
+
+	result.localMatrix.m[3][0] = aiLocalMatrix.d1;
+	result.localMatrix.m[3][1] = aiLocalMatrix.d2;
+	result.localMatrix.m[3][2] = aiLocalMatrix.d3;
+	result.localMatrix.m[3][3] = aiLocalMatrix.d4;
+
+	result.name = aiNode->mName.C_Str();
+	result.children.reserve(aiNode->mNumChildren);
+	for (uint32_t childIndex = 0; childIndex < aiNode->mNumChildren; childIndex++) {
+		result.children.push_back(ReadNode(aiNode->mChildren[childIndex]));
+	}
+
+	return result;
+}
 MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename) {
 	MaterialData materialData;
 	std::string line;
@@ -139,7 +153,6 @@ MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, c
 	}
 	return materialData;
 }
-
 
 void Model::CreateVertexdata() {
 	vertexResource = modelCommon_->GetDxCommon()->CreateBufferResource(sizeof(VertexData) * modelData.vertices.size());

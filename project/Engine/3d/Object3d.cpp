@@ -58,23 +58,30 @@ void Object3d::CreatePointLightResource() {
 }
 
 void Object3d::Update() {
+	// 1. Object3d 自身のトランスフォーム（SRT）から行列を作成
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 
+	// --- ここで RootNode の Matrix を適用 ---
+	if (model) {
+		// Model から RootNode の localMatrix を取得して掛け合わせる
+		// 順序はエンジンの仕様によりますが、一般的には [Rootの計算結果] * [Object3dの行列] です
+		worldMatrix = Multiply(model->GetRootNode().localMatrix, worldMatrix);
+	}
+	// ---------------------------------------
+
 	if (camera) {
+		// 合成された worldMatrix を使って WVP を計算
 		Matrix4x4 wvpMatrix = Multiply(worldMatrix, camera->GetViewProjectionMatrix());
 		transformationMatrix->WVP = wvpMatrix;
 		transformationMatrix->world = worldMatrix;
-		transformationMatrix->WorldInverseTranspose = Inverse(worldMatrix);
+
+		// カメラの座標も転送
+		cameraData->worldPosition = camera->GetTranslate();
 	} else {
 		transformationMatrix->WVP = worldMatrix;
-	}
-
-	if (camera) {
-		// カメラの現在の座標を転送
-		cameraData->worldPosition = camera->GetTranslate();
+		transformationMatrix->world = worldMatrix;
 	}
 }
-
 void Object3d::Draw() {
 	// 描画コマンドリストを取得
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList = Object3dCommon::GetInstance()->GetDxCommon()->GetCommandList();
