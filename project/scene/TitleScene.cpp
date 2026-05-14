@@ -2,7 +2,7 @@
 #include"SceneManager.h"
 
 
-void TitleScene::Initialize() {}
+void TitleScene::Initialize() {  }
 
 
 void TitleScene::Update() {

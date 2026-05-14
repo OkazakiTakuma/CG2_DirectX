@@ -5,6 +5,7 @@
 void GamePlayScene::Initialize() {
 	TextureManager::GetInstance()->LoadTexture("Resources/uvChecker.png");
 	TextureManager::GetInstance()->LoadTexture("Resources/monsterball.png");
+	TextureManager::GetInstance()->LoadTexture("Resources/rostock_laage_airport_4k.dds");
 
 	sprite = std::make_unique<Sprite>();
 	sprite->Initialize("Resources/uvChecker.png");
@@ -12,7 +13,8 @@ void GamePlayScene::Initialize() {
 
 #pragma endregion
 #pragma region それぞれのリソースの生成
-
+	skyBox = std::make_unique<SkyBox>();
+	skyBox->Initialize("Resources/rostock_laage_airport_4k.dds");
 	for (int i = 0; i < 5; i++) {
 		std::unique_ptr<Sprite> sprits = std::make_unique<Sprite>();
 		if (i == 1 || i == 3) {
@@ -78,6 +80,7 @@ void GamePlayScene::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 		SceneManager::GetInstance()->ChengeScene("TITLE");
 	}
+	skyBox->Update();
 
 	// 更新
 	smokeEmitter->Update(1.0f / 60.0f);
@@ -98,6 +101,8 @@ void GamePlayScene::Update() {
 
 	ImGuiUpdate();
 }
+
+void GamePlayScene::DrawSkyBox() { skyBox->Draw(); }
 
 void GamePlayScene::Draw2D() {
 	sprite->Draw();

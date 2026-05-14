@@ -15,6 +15,7 @@
 #include "Resource.h"
 #include "Sprite.h"
 #include "SpriteCommon.h"
+#include"SkyBoxCommon.h"
 #include "SrvManager.h"
 #include "TextureManager.h"
 #include "Vector.h"

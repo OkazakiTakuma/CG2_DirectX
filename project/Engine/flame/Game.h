@@ -22,6 +22,7 @@
 #include"BaseScene.h"
 #include"SceneManager.h"
 #include"AbstractSceneFactory.h"
+#include"SkyBox.h"
 
 #pragma comment(lib, "DirectXTex.lib")
 #pragma comment(lib, "d3d12.lib")

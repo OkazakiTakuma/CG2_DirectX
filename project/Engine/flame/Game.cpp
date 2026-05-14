@@ -25,6 +25,7 @@ void Game::Initialize() {
 	sceneFactory = new SceneFactory();
 	SceneManager::GetInstance()->SetSceneFactory(sceneFactory);
 	SceneManager::GetInstance()->ChengeScene("TITLE");
+	SkyBoxCommon::GetInstance()->SetDefaultCamera(camera.get());
 
 
 }
@@ -49,6 +50,10 @@ void Game::Draw() {
 #pragma region コマンドリストのリセット
 
 	SpriteCommon::GetInstance()->GetDxCommon()->PreDraw();
+	// スカイボックスの描画
+	SkyBoxCommon::GetInstance()->SetDraw();
+	SceneManager::GetInstance()->DrawSkyBox();
+
 	// モデルの描画
 	Object3dCommon::GetInstance()->SetDraw();
 	SceneManager::GetInstance()->Draw3D();

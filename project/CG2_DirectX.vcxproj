@@ -151,6 +151,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Engine\3d\SkyBox.cpp" />
     <ClCompile Include="Engine\flame\BaseScene.cpp" />
     <ClCompile Include="Engine\audio\Audio.cpp" />
     <ClCompile Include="Engine\3d\ParticleEmitter.cpp" />
@@ -186,6 +187,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\base\SrvManager.cpp" />
     <ClCompile Include="Engine\3d\ParticleManager.cpp" />
     <ClCompile Include="scene\TitleScene.cpp" />
+    <ClCompile Include="Engine\3d\SkyBoxCommon.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Resources\Shader\Object3d.PS.hlsl">
@@ -216,6 +218,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\3d\SkyBox.h" />
     <ClInclude Include="Engine\flame\AbstractSceneFactory.h" />
     <ClInclude Include="Engine\flame\BaseScene.h" />
     <ClInclude Include="Engine\audio\Audio.h" />
@@ -249,6 +252,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="scene\SceneManager.h" />
     <ClInclude Include="scene\GamePlayScene.h" />
     <ClInclude Include="scene\TitleScene.h" />
+    <ClInclude Include="Engine\3d\SkyBoxCommon.h" />
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)'!='Release'">
     <ProjectReference Include="..\imgui\imgui.vcxproj" />

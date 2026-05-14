@@ -1,20 +1,5 @@
 #pragma once
-#include "Audio.h"
-#include "Camera.h"
-#include "D3DResouceLeakCheker.h"
-#include "ImGuiManager.h"
-#include "Input.h"
-#include "Matrix.h"
-#include "Object3dCommon.h"
-#include "ParticleEmitter.h"
-#include "ParticleManager.h"
-#include "Resource.h"
-#include "Sprite.h"
-#include "SpriteCommon.h"
-#include "SrvManager.h"
-#include "Vector.h"
-#include "struct.h"
-#include <Object3d.h>
+
 #include "BaseScene.h"
 class TitleScene: public BaseScene {
 public:

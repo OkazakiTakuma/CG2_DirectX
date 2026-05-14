@@ -1,161 +1,102 @@
 #include "SkyBox.h"
-#include "../2d/TextureManager.h"
-#include "Model.h"
-#include "ModelManager.h"
-#include "Object3dCommon.h"
+#include "TextureManager.h"
 
-void SkyBox::Initialize() {
-	// シングルトンから共通設定とデフォルトカメラを取得
-	Object3dCommon* common = Object3dCommon::GetInstance();
+void SkyBox::Initialize(const std::string& filePath) {
+	common_ = SkyBoxCommon::GetInstance();
+	textureFilePath = filePath;
 
-	CreateWVPResource();
-	CreateDirectionalLightResource();
-	CreateCameraResource();
-	CreatePointLightResource();
-
-	transform = {
-	    {1.0f, 1.0f, 1.0f}, // スケール
-	    {0.0f, 0.0f, 0.0f}, // 回転
-	    {0.0f, 0.0f, 0.0f}  // 平行移動
-	};
-
-	// 共通設定に登録されているデフォルトカメラをセット
-	this->camera = common->GetDefaultCamera();
-}
-
-void SkyBox::CreateWVPResource() {
-	// シングルトンから dxCommon を経由してバッファ作成
-	wvpResorceModel = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
-
-	wvpResorceModel->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrix));
-	transformationMatrix->WVP = MakeIdentity4x4();
-	transformationMatrix->world = MakeIdentity4x4();
-	transformationMatrix->WorldInverseTranspose = MakeIdentity4x4();
-}
-void SkyBox::CreateCameraResource() {
-	cameraResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(CameraForGPU));
-	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
-}
-void SkyBox::CreateDirectionalLightResource() {
-	// シングルトンから dxCommon を経由してバッファ作成
-	lightResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(DirectionalLight));
-
-	lightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionallightData));
-
-	directionallightData->color = {1.0f, 1.0f, 1.0f, 1.0f};
-	directionallightData->direction = NormalizeReturnVector(Vector3(0.0f, -1.0f, 0.0f));
-	directionallightData->intensity = 1.0f;
-}
-
-void SkyBox::CreatePointLightResource() {
-	pointLightResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(PointLight));
-	pointLightResource->Map(0, nullptr, reinterpret_cast<void**>(&pointLightData));
-	pointLightData->color = {1.0f, 1.0f, 1.0f, 1.0f};
-	pointLightData->position = {0.0f, 0.0f, 0.0f};
-	pointLightData->intensity = 1.0f;
-	pointLightData->radius = 10.0f;
-	pointLightData->decay = 1.0f;
+	CreateVertexData();
+	CreateConstantBuffers();
+	this->camera = common_->GetDefaultCamera();
 }
 
 void SkyBox::Update() {
-	// 1. カメラが存在する場合、スカイボックスの座標を常にカメラと同じにする
-	if (camera) {
-		transform.translate = camera->GetTranslate();
-	}
+	// スケールを大きくし、位置をカメラに合わせる
+	Vector3 scale = {500.0f, 500.0f, 500.0f};
+	Vector3 rotation = {0.0f, 0.0f, 0.0f};
+	Vector3 translation = camera->GetTranslate();
 
-	// 2. ワールド行列の作成 (回転やスケールが必要な場合はここで行う)
-	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+	Matrix4x4 worldMatrix = MakeAffineMatrix(scale, rotation, translation);
+	Matrix4x4 viewProjectionMatrix = Multiply(camera->GetViewMatrix(), camera->GetProjectionMatrix());
 
-	if (camera) {
-		// 3. WVP行列の計算
-		Matrix4x4 wvpMatrix = Multiply(worldMatrix, camera->GetViewProjectionMatrix());
-		transformationMatrix->WVP = wvpMatrix;
-		transformationMatrix->world = worldMatrix;
-		transformationMatrix->WorldInverseTranspose = Inverse(worldMatrix);
-
-		// 4. カメラ座標を定数バッファに転送 (Shaderの CameraInfo 用)
-		cameraData->worldPosition = camera->GetTranslate();
-	} else {
-		transformationMatrix->WVP = worldMatrix;
-	}
+	transformData->WVP = Multiply(worldMatrix, viewProjectionMatrix);
+	transformData->world = worldMatrix;
 }
+
 void SkyBox::Draw() {
-	// 1. 各種共通設定とコマンドリストの取得
-	Object3dCommon* object3dCommon = Object3dCommon::GetInstance();
-	DirectXCommon* dxCommon = object3dCommon->GetDxCommon();
-	auto commandList = dxCommon->GetCommandList();
+	// 1. 共通の設定をコマンドリストに積む
+	common_->SetDraw();
 
-	// 2. スカイボックス専用の RootSignature と PSO をセット
-	commandList->SetGraphicsRootSignature(object3dCommon->GetSkyBoxRootSignature());
-	commandList->SetPipelineState(object3dCommon->GetSkyBoxPipelineState());
+	auto commandList = common_->GetDxCommon()->GetCommandList();
 
-	// 3. レンダーターゲット（RTV）と「読み取り専用 DSV」のセット
-	// ※ DirectXCommon に現在の RTV と DSV ハンドルを取得する関数がある想定です
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dxCommon->GetCurrentBackBufferRTV();
-	D3D12_CPU_DESCRIPTOR_HANDLE readOnlyDsvHandle = dxCommon->GetReadOnlyDsvHandle();
+	// 2. 個別のバッファをセット
+	commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+	commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootConstantBufferView(1, transformResource->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSRVHandleGPU(textureFilePath));
 
-	// 深度バッファへの書き込みを禁止しつつ、既存の深度（1.0未満の物体）との比較だけ行う
-	commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &readOnlyDsvHandle);
-
-	// 4. 定数バッファ（CBV）をセット
-	// ※ HLSL の register(bX) の番号と RootParameter のインデックスを一致させています
-
-	// RootParam 1 -> register(b1): TransformationMatrix (WVP)
-	commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
-
-	// RootParam 2 -> register(b2): DirectionalLight
-	commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
-
-	// RootParam 3 -> register(b3): CameraInfo (カメラの座標)
-	commandList->SetGraphicsRootConstantBufferView(3, cameraResource->GetGPUVirtualAddress());
-
-	// RootParam 4 -> register(b4): PointLight
-	commandList->SetGraphicsRootConstantBufferView(4, pointLightResource->GetGPUVirtualAddress());
-
-	// 5. モデルの描画実行
-	if (model) {
-		// model->Draw() 内部で register(b0):Material や register(t0):TextureCube がセットされます
-		model->Draw();
-	}
-
-	// 6. 後続の描画処理（UIなど）のために、DSV を通常（読み書き可能）の状態に戻す
-	D3D12_CPU_DESCRIPTOR_HANDLE normalDsvHandle = dxCommon->GetDsvHandle();
-	commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &normalDsvHandle);
-}
-void SkyBox::SetModel(const std::string& filePath) { model = ModelManager::GetInstance()->FindModel(filePath); }
-
-void SkyBox::SetModelSphere(const std::string& filePath) { model = ModelManager::GetInstance()->FindModel(filePath); }
-
-SkyBox::~SkyBox() {
-	if (wvpResorceModel) {
-		wvpResorceModel->Unmap(0, nullptr);
-	}
-	if (lightResource) {
-		lightResource->Unmap(0, nullptr);
-	}
-
-	wvpResorceModel.Reset();
-	lightResource.Reset();
-
-	transformationMatrix = nullptr;
-	camera = nullptr;
-	model = nullptr;
+	// 3. 描画
+	commandList->DrawInstanced(36, 1, 0, 0);
 }
 
-void SkyBox::SetDirectionalLight(const Vector4& color, const Vector3& direction, float intensity) {
-	if (directionallightData) {
-		directionallightData->color = color;
-		directionallightData->direction = NormalizeReturnVector(direction);
-		directionallightData->intensity = intensity;
-	}
+void SkyBox::CreateVertexData() {
+    // SkyBox用の立方体の頂点データ (サイズは1.0fの立方体)
+    // ※ 描画時にシェーダーや定数バッファでスケールを大きくして遠くに配置します
+    const float kSize = 1.0f;
+    VertexData vertices[] = {
+        // 右(Right)
+        {{ kSize, -kSize, -kSize, 1.0f}}, {{ kSize,  kSize, -kSize, 1.0f}}, {{ kSize,  kSize,  kSize, 1.0f}},
+        {{ kSize, -kSize, -kSize, 1.0f}}, {{ kSize,  kSize,  kSize, 1.0f}}, {{ kSize, -kSize,  kSize, 1.0f}},
+        // 左(Left)
+        {{-kSize, -kSize,  kSize, 1.0f}}, {{-kSize,  kSize,  kSize, 1.0f}}, {{-kSize,  kSize, -kSize, 1.0f}},
+        {{-kSize, -kSize,  kSize, 1.0f}}, {{-kSize,  kSize, -kSize, 1.0f}}, {{-kSize, -kSize, -kSize, 1.0f}},
+        // 上(Up)
+        {{-kSize,  kSize, -kSize, 1.0f}}, {{-kSize,  kSize,  kSize, 1.0f}}, {{ kSize,  kSize,  kSize, 1.0f}},
+        {{-kSize,  kSize, -kSize, 1.0f}}, {{ kSize,  kSize,  kSize, 1.0f}}, {{ kSize,  kSize, -kSize, 1.0f}},
+        // 下(Down)
+        {{-kSize, -kSize,  kSize, 1.0f}}, {{-kSize, -kSize, -kSize, 1.0f}}, {{ kSize, -kSize, -kSize, 1.0f}},
+        {{-kSize, -kSize,  kSize, 1.0f}}, {{ kSize, -kSize, -kSize, 1.0f}}, {{ kSize, -kSize,  kSize, 1.0f}},
+        // 手前(Front)
+        {{-kSize, -kSize, -kSize, 1.0f}}, {{-kSize,  kSize, -kSize, 1.0f}}, {{ kSize,  kSize, -kSize, 1.0f}},
+        {{-kSize, -kSize, -kSize, 1.0f}}, {{ kSize,  kSize, -kSize, 1.0f}}, {{ kSize, -kSize, -kSize, 1.0f}},
+        // 奥(Back)
+        {{ kSize, -kSize,  kSize, 1.0f}}, {{ kSize,  kSize,  kSize, 1.0f}}, {{-kSize,  kSize,  kSize, 1.0f}},
+        {{ kSize, -kSize,  kSize, 1.0f}}, {{-kSize,  kSize,  kSize, 1.0f}}, {{-kSize, -kSize,  kSize, 1.0f}},
+    };
+
+    uint32_t vertexCount = _countof(vertices);
+
+    // 1. 頂点バッファリソースの作成 (既存の dxCommon を使用)
+    vertexResource = SkyBoxCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(VertexData) * vertexCount);
+
+    // 2. 頂点バッファビューの作成
+    vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
+    vertexBufferView.SizeInBytes = sizeof(VertexData) * vertexCount;
+    vertexBufferView.StrideInBytes = sizeof(VertexData);
+
+    // 3. データの書き込み (Map)
+    VertexData* mappedVertexData = nullptr;
+    vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertexData));
+    std::memcpy(mappedVertexData, vertices, sizeof(VertexData) * vertexCount);
+    // Unmapはデストラクタで行うか、ここで行うかは他のクラス(Model.cppなど)の設計に合わせてください
 }
 
-void SkyBox::SetPointLight(const Vector4& color, const Vector3& position, float intensity, float radius, float decay) {
-	if (pointLightData) {
-		pointLightData->color = color;
-		pointLightData->position = position;
-		pointLightData->intensity = intensity;
-		pointLightData->radius = radius;
-		pointLightData->decay = decay;
-	}
+void SkyBox::CreateConstantBuffers() {
+	// 1. マテリアル用のバッファ作成 (b0)
+	materialResource = SkyBoxCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(Material));
+	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+
+	// マテリアルの初期値を設定
+	materialData->color = {1.0f, 1.0f, 1.0f, 1.0f}; // 白（テクスチャの色をそのまま出す）
+	materialData->enableLighting = 0;               // SkyBoxにライティングは不要
+	materialData->uvTransform = MakeIdentity4x4();
+	materialData->shininess = 1.0f;
+
+	// 2. 変換行列用のバッファ作成 (b1)
+	transformResource = SkyBoxCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
+	transformResource->Map(0, nullptr, reinterpret_cast<void**>(&transformData));
+
+	transformData->WVP = MakeIdentity4x4();
+	transformData->world = MakeIdentity4x4();
+	transformData->WorldInverseTranspose = MakeIdentity4x4();
 }
