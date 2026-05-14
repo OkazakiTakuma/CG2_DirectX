@@ -1,5 +1,6 @@
 #pragma once
 #include "AbstractSceneFactory.h"
+
 #include <memory>
 
 class BaseScene;
@@ -17,6 +18,7 @@ public:
 
 	// 更新・描画
 	void Update();
+	void DrawSkyBox();
 	void Draw2D();
 	void Draw3D();
 

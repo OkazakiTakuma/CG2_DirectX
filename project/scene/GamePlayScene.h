@@ -1,27 +1,11 @@
 #pragma once
-#include "Audio.h"
-#include "Camera.h"
-#include "ImGuiManager.h"
-#include "Input.h"
-#include "Matrix.h"
-#include "ParticleEmitter.h"
-#include "ParticleManager.h"
-#include "Resource.h"
-#include "Sprite.h"
-#include "SpriteCommon.h"
-#include "SrvManager.h"
-#include "Vector.h"
-#include "struct.h"
-#include <Object3d.h>
-#include "Object3dCommon.h"
 #include"BaseScene.h"
-#include <memory>
-#include <vector>
 
 class GamePlayScene: public BaseScene {
 public:
 	void Initialize() override;
 	void Update() override;
+	void DrawSkyBox() override;
 	void Draw2D() override;
 	void Draw3D() override;
 	void Finalize() override;
@@ -57,4 +41,5 @@ private:
 	float lightIntensity = 1.0f;	
 	bool isParticleEmit = false;          // パーティクル発生のON/OFF
 	SceneManager* sceneManager = nullptr; // シーンマネージャーへのポインタ（所有権は持たない）
+	std::unique_ptr<SkyBox> skyBox = nullptr;
 };

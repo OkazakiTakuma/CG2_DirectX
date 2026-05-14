@@ -77,7 +77,7 @@ void FlameWork::Initialize() {
 	TextureManager::GetInstance()->Initialize(dxCommon.get());
 	TextureManager::GetInstance()->SetDirectXCommon(dxCommon.get());
 	SpriteCommon::GetInstance()->Initialize(dxCommon.get());
-	
+	SkyBoxCommon::GetInstance()->Initialize(dxCommon.get());
 
 	Object3dCommon::GetInstance()->Initialize(dxCommon.get());
 	ModelManager::GetInstance()->Inithialize(dxCommon.get());

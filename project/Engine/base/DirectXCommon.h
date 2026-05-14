@@ -65,6 +65,8 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetDSVDescriptorHeap() { return dsvDescriptorHeap; }
 	void Release();
 
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateRenderTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, int32_t width, int32_t height, DXGI_FORMAT format, const Vector4 color);
+
 private:
 	// D3D12デバイスの生成
 	void CreateDevice();
@@ -76,6 +78,7 @@ private:
 	void CreateDepthBuffer();
 
 	void CreateDescriptorHeap();
+
 
 	void CreateRenderTargetView();
 

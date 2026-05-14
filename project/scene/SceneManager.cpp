@@ -28,6 +28,12 @@ void SceneManager::Update() {
 	}
 }
 
+void SceneManager::DrawSkyBox() {
+	if (scene_) {
+		scene_->DrawSkyBox();
+	}
+}
+
 void SceneManager::Draw2D() {
 	if (scene_) {
 		scene_->Draw2D();

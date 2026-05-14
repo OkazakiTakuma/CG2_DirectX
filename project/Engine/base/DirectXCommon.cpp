@@ -460,6 +460,40 @@ void DirectXCommon::Release() {
 
 }
 
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateRenderTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, int32_t width, int32_t height, DXGI_FORMAT format, const Vector4 color) {
+	D3D12_RESOURCE_DESC resourceDesc{};
+	resourceDesc.Width = width;
+	resourceDesc.Height = height;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.Format = format;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+	D3D12_HEAP_PROPERTIES heapProperties{};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+	D3D12_CLEAR_VALUE clearValue{};
+	clearValue.Format = format;
+	clearValue.Color[0] = color.x;
+	clearValue.Color[1] = color.y;
+	clearValue.Color[2] = color.z;
+	clearValue.Color[3] = color.w;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> renderTexture;
+	HRESULT hr = device->CreateCommittedResource(
+	    &heapProperties,
+	    D3D12_HEAP_FLAG_NONE,
+	    &resourceDesc,
+	    D3D12_RESOURCE_STATE_RENDER_TARGET,
+	    &clearValue,
+	    IID_PPV_ARGS(&renderTexture));
+	assert(SUCCEEDED(hr));
+
+	return renderTexture;
+}
+
 void DirectXCommon::CreateDepthStencilView() {
 	// DSVの設定
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};

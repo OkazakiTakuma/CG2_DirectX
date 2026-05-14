@@ -1,26 +1,32 @@
 #pragma once
-#include "struct.h"
 #include "Matrix.h"
+#include "struct.h"
 #include <Windows.h>
-#include <wrl.h>
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
 #include <d3d12.h>
+#include <wrl.h>
+
+// Forward declaration for Assimp node type to avoid including Assimp headers in this header
 
 class ModelCommon;
 class Model {
-	public:
+public:
 	// 初期化
-	    void Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename);
+	void Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename);
 	// 終了
 	void Finalize();
 	// 描画前処理
 	void Draw();
 	~Model();
+	const Node& GetRootNode() const { return modelData.rootNode; }
 
 private:
 	ModelCommon* modelCommon_ = nullptr;
 	ModelData modelData;
-	static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
-
+	static ModelData LoadModelFile(const std::string& directoryPath, const std::string& filename);
+	static Node ReadNode(aiNode* aiNode);
 	static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource;
 	Material* materialData = nullptr;
