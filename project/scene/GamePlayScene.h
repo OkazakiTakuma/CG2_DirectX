@@ -18,7 +18,7 @@ private:
 	std::unique_ptr<Object3d> object3d = nullptr;
 	std::vector<std::unique_ptr<Object3d>> axisObjects;
 	std::unique_ptr<Object3d> sphereObject = nullptr;
-	std::unique_ptr<ParticleEmitter> smokeEmitter = nullptr;
+	std::unique_ptr<ParticleEmitter> emitter = nullptr;
 	Vector3 cameraPosition={0.0f, 0.0f, 0.0f};
 	Vector3 cameraRotate={0.0f, 0.0f, 0.0f};
 
@@ -42,4 +42,6 @@ private:
 	bool isParticleEmit = false;          // パーティクル発生のON/OFF
 	SceneManager* sceneManager = nullptr; // シーンマネージャーへのポインタ（所有権は持たない）
 	std::unique_ptr<SkyBox> skyBox = nullptr;
+	ParticleEmitParam fireEmitParam;
+
 };

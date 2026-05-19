@@ -36,7 +36,7 @@
     <ClCompile Include="Engine\math\Matrix.cpp">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\Screen.cpp">
+    <ClCompile Include="Engine\math\Screen.cpp">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClCompile>
     <ClCompile Include="Engine\math\Vector.cpp">
@@ -150,7 +150,7 @@
     <ClInclude Include="Engine\math\Matrix.h">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\Screen.h">
+    <ClInclude Include="Engine\math\Screen.h">
       <Filter>ソース ファイル\engine\math</Filter>
     </ClInclude>
     <ClInclude Include="Engine\math\Vector.h">

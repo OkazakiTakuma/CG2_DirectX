@@ -64,7 +64,18 @@ void GamePlayScene::Initialize() {
 
 	// "Smoke" グループ用のエミッタを生成
 	// (グループ名, Transform, 1回の発生数, 1秒間の発生頻度)
-	smokeEmitter = std::make_unique<ParticleEmitter>("Smoke", emitterTransform, 5, 60.0f);
+	fireEmitParam.scale = {2.0f, 2.0f, 2.0f}; // 大きくする
+	fireEmitParam.baseVelocity = {0.0f, 0.5f, 0.0f}; // 上に向かって進む
+	fireEmitParam.randomVelocityRange = {0.1f, 0.1f, 0.1f}; // 少しだけ横に揺らぐ
+	fireEmitParam.randomPositionRange = {1.0f, 0.2f, 1.0f}; // 横に広く発生する
+	fireEmitParam.lifeTime = 1.5f;                          // 1.5秒で消える
+
+	emitter = std::make_unique<ParticleEmitter>();
+	emitter->SetGroupName("Fire");
+	emitter->LoadFromJson(); // JSONからステータスを読み込む
+	emitter->SetTexture("Resources/circle.png");
+
+
 	// ※ここでは「1秒間に10回、1回につき5個発生」という設定にしています
 	const float clearColor[4] = {0.1f, 0.25f, 0.5f, 1.0f}; // 青色
 	                                                       // メッセージループ
@@ -83,7 +94,7 @@ void GamePlayScene::Update() {
 	skyBox->Update();
 
 	// 更新
-	smokeEmitter->Update(1.0f / 60.0f);
+	emitter->Update(1.0f / 60.0f);
 	ParticleManager::GetInstance()->Update();
 	Object3dCommon::GetInstance()->GetDefaultCamera()->Update();
 	Object3dCommon::GetInstance()->GetDefaultCamera()->Update();
@@ -160,6 +171,13 @@ void GamePlayScene::ImGuiUpdate() {
 	float pointLightRadius = object3d->GetPointLightRadius();
 	float pointLightDecay = object3d->GetPointLightDecay(); 
 	bool isPointLightSet = object3d->GetIsPointLightSet();
+
+	fireEmitParam.scale = emitter->GetScale();
+	fireEmitParam.baseVelocity = emitter->GetBaseVelocity();
+	fireEmitParam.randomVelocityRange = emitter->GetRandomVelocityRange();
+	fireEmitParam.randomPositionRange = emitter->GetRandomPositionRange();
+	fireEmitParam.lifeTime = emitter->GetLifeTime();
+	ImGui::Begin("Camera Settings");
 	ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
 	ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
 	ImGui::SliderAngle("camera rotate y", &cameraRotate.y);
@@ -193,9 +211,26 @@ void GamePlayScene::ImGuiUpdate() {
 	ImGui::DragFloat("point light intensity", &pointLightIntensity, 0.1f, 0.0f, 10.0f);
 	ImGui::DragFloat("point light radius", &pointLightRadius, 0.1f, 0.0f, 20.0f);
 	ImGui::DragFloat("point light decay", &pointLightDecay, 0.1f, 0.0f, 10.0f);
-	ImGui::Checkbox("Particle Emit", &isParticleEmit);
+	
+	ImGui::End();
 	//  ImGuiのウィンドウを作成
+	
+	ImGui::Begin("Emitter Settings");
+	ImGui::Checkbox("Particle Emit", &isParticleEmit);
+	ImGui::DragFloat3("Emitter Scale", &fireEmitParam.scale.x, 0.1f);
+	ImGui::DragFloat3("Emitter Base Velocity", &fireEmitParam.baseVelocity.x, 0.1f);
+	ImGui::DragFloat3("Emitter Random Velocity Range", &fireEmitParam.randomVelocityRange.x, 0.1f);
+	ImGui::DragFloat3("Emitter Random Position Range", &fireEmitParam.randomPositionRange.x, 0.1f);
+	ImGui::DragFloat("Emitter Life Time", &fireEmitParam.lifeTime, 0.1f, 0.1f, 10.0f);
+	ImGui::End();
 	ImGuiManager::GetInstance()->End();
+
+	emitter->SetScale(fireEmitParam.scale);
+	emitter->SetBaseVelocity(fireEmitParam.baseVelocity);
+	emitter->SetRandomVelocityRange(fireEmitParam.randomVelocityRange);
+	emitter->SetRandomPositionRange(fireEmitParam.randomPositionRange);
+	emitter->SetLifeTime(fireEmitParam.lifeTime);
+
 	sphereObject->SetTranslate(spherepos);
 	sphereObject->SetRotate(sphererot);
 	sphereObject->SetScale(spherescl);
@@ -232,3 +267,4 @@ void GamePlayScene::ImGuiUpdate() {
 		axisObj->SetDirectionalLight(lightColor, lightDirection, lightIntensity);
 	}
 }
+

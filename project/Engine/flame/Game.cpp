@@ -21,6 +21,7 @@ void Game::Initialize() {
 	// 2. グループ作成（テクスチャロード）
 	ParticleManager::GetInstance()->CreateParticleGroup("Smoke", "Resources/uvChecker.png");
 	ParticleManager::GetInstance()->CreateParticleGroup("Fire", "Resources/uvChecker.png");
+
 	ParticleManager::GetInstance()->SetCamera(camera.get());
 	sceneFactory = new SceneFactory();
 	SceneManager::GetInstance()->SetSceneFactory(sceneFactory);
@@ -33,6 +34,9 @@ void Game::Initialize() {
 void Game::Update() {
 	// メッセージを取得
 	FlameWork::Update();
+	if (FlameWork::IsEndRequest()) {
+		return;
+	}
 	Input::GetInstance()->Update();
 
 	// シーンの更新
@@ -40,6 +44,7 @@ void Game::Update() {
 	
 	if (Input::GetInstance()->TriggerKey(DIK_ESCAPE)) {
 		endRequest = true;
+
 	}
 
 

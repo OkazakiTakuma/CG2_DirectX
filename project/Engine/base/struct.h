@@ -86,3 +86,11 @@ struct PointLight {
 	float decay;      // 光の減衰率
 	float padding[2]; // ★16バイトアライメントのためのパディング
 };
+
+struct ParticleEmitParam {
+	Vector3 scale = {1.0f, 1.0f, 1.0f};               // 大きさ
+	Vector3 baseVelocity = {0.0f, 0.0f, 0.0f};        // 基礎速度
+	Vector3 randomVelocityRange = {0.1f, 0.1f, 0.1f}; // 乱数で加算される速度の範囲
+	Vector3 randomPositionRange = {0.5f, 0.5f, 0.5f}; // 発生位置の範囲
+	float lifeTime = 1.0f;                            // 存在時間
+};

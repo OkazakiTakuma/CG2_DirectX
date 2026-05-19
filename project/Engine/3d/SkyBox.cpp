@@ -1,5 +1,6 @@
 #include "SkyBox.h"
 #include "TextureManager.h"
+#include <SrvManager.h>
 
 void SkyBox::Initialize(const std::string& filePath) {
 	common_ = SkyBoxCommon::GetInstance();
@@ -26,7 +27,7 @@ void SkyBox::Update() {
 void SkyBox::Draw() {
 	// 1. 共通の設定をコマンドリストに積む
 	common_->SetDraw();
-
+	//SrvManager::GetInstance()->preDraw();
 	auto commandList = common_->GetDxCommon()->GetCommandList();
 
 	// 2. 個別のバッファをセット

@@ -2,6 +2,7 @@
 
 Texture2D<float4> gTexture : register(t0);
 SamplerState gSampler : register(s0);
+TextureCube<float4> gEnvironmentMap : register(t1);
 
 struct Material
 {
@@ -107,9 +108,17 @@ PixelShaderOutput main(VertexShaderOutput input)
             diffuse += diffuse_point;
             specular += specular_point;
         }
-
-        // 最終的な色を計算
         output.color.rgb = ambient + diffuse + specular;
+
+        // 環境マップによる反射
+        float3 cameraTOPosition = normalize(input.worldPosition - gCamera.worldPosition);
+        float3 reflectedVetor = reflect(cameraTOPosition, N);
+        float3 environmentColor = gEnvironmentMap.Sample(gSampler, reflectedVetor).rgb;
+        
+        output.color.rgb += environmentColor.rgb; // 環境マップの影響を調整
+
+   
+        // 最終的な色を計算
         output.color.a = gMaterial.color.a * textureColor.a;
     }
     else

@@ -24,8 +24,8 @@ public:
 	void Draw(Camera* camera);
 	void Update();
 	void SetCamera(Camera* camera) { camera_ = camera; }
-
-	void Emit(const std::string& groupName, const Vector3& position, uint32_t count);
+	void SetGroupTexture(const std::string& groupName, const std::string& textureFilePath);
+	void Emit(const std::string& groupName, const Vector3& position, uint32_t count, const ParticleEmitParam& emitParam);
 	struct ParticleGroup {
 		// --- マテリアル情報 ---
 		MaterialData material;
