@@ -46,7 +46,9 @@ public:
 
 	virtual void Finalize();
 
-	virtual bool IsEnd() const { return endRequest; };
+	virtual bool IsEndRequest() const { return endRequest; };
+
+
 
 	void Run();
 

@@ -16,6 +16,7 @@ void SkyBoxCommon::Initialize(DirectXCommon* dxCommon) {
 
 void SkyBoxCommon::SetDraw() {
 	auto commandList = dxCommon_->GetCommandList();
+
 	commandList->SetPipelineState(graphicsPipelineState.Get());
 	commandList->SetGraphicsRootSignature(rootSignature.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

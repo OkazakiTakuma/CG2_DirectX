@@ -78,7 +78,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\audio;$(ProjectDir)engine\3d;$(ProjectDir)engine\base;$(ProjectDir)engine\math;$(ProjectDir)externals\DirectXTex;$(ProjectDir)DirectXTex;$(ProjectDir)imgui;$(ProjectDir)engine\flame;$(ProjectDir)engine\flame;$(ProjectDir)scene;$(ProjectDir)engine\2d</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\audio;$(ProjectDir)engine\3d;$(ProjectDir)engine\base;$(ProjectDir)engine\math;$(ProjectDir)externals\DirectXTex;$(ProjectDir)DirectXTex;$(ProjectDir)imgui;$(ProjectDir)engine\flame;$(ProjectDir)scene;$(ProjectDir)engine\2d;$(ProjectDir)externals\nlohmann</AdditionalIncludeDirectories>
       <UndefinePreprocessorDefinitions>
       </UndefinePreprocessorDefinitions>
     </ClCompile>
@@ -171,7 +171,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
     <ClCompile Include="Engine\math\Matrix.cpp" />
-    <ClCompile Include="Engine\3d\Screen.cpp" />
+    <ClCompile Include="Engine\math\Screen.cpp" />
     <ClCompile Include="Engine\math\Vector.cpp" />
     <ClCompile Include="Engine\base\Resource.cpp" />
     <ClCompile Include="Engine\base\WinApp.cpp" />
@@ -228,7 +228,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\base\D3DResouceLeakCheker.h" />
     <ClInclude Include="Engine\base\DirectXCommon.h" />
     <ClInclude Include="Engine\math\Matrix.h" />
-    <ClInclude Include="Engine\3d\Screen.h" />
+    <ClInclude Include="Engine\math\Screen.h" />
     <ClInclude Include="Engine\math\Vector.h" />
     <ClInclude Include="Engine\base\Input.h" />
     <ClInclude Include="Engine\base\Resource.h" />

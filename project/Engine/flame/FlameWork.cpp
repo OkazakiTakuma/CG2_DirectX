@@ -96,6 +96,7 @@ void FlameWork::Finalize() {
 	ParticleManager::GetInstance()->Finalize();
 	ModelManager::GetInstance()->Finalize();
 	Object3dCommon::GetInstance()->Finalize();
+	SkyBoxCommon::GetInstance()->Finalize();
 	SpriteCommon::GetInstance()->Finalize();
 	TextureManager::GetInstance()->Finalize();
 	
@@ -110,7 +111,7 @@ void FlameWork::Run() {
 	Initialize();
 	while (true) {
 		Update();
-		if (IsEnd()) {
+		if (IsEndRequest()||endRequest) {
 			break;
 		}
 		Draw();

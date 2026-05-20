@@ -1,20 +1,15 @@
 #pragma once
 #include "struct.h" // Transform構造体やVector3などが定義されている前提
 #include <string>
+#include<json.hpp>
 
 // 前方宣言
 class ParticleManager;
 
 class ParticleEmitter {
 public:
-	/// <summary>
-	/// コンストラクタ
-	/// </summary>
-	/// <param name="name">パーティクルマネージャーに登録したグループ名</param>
-	/// <param name="transform">エミッタの位置・回転・サイズ</param>
-	/// <param name="count">1回の発生で出るパーティクル数</param>
-	/// <param name="frequency">1秒間の発生回数 (例: 60.0fなら1秒に60回)</param>
-	ParticleEmitter(const std::string& name, const Transform& transform, uint32_t count, float frequency);
+	
+	ParticleEmitter();
 
 	/// <summary>
 	/// 更新処理
@@ -27,12 +22,28 @@ public:
 	/// </summary>
 	void Emit();
 
-	// エミッタ自体の座標を更新するためのセッター
+
+	// エミッターの種類（名前）を指定
+	void SetGroupName(const std::string& name) { groupName_ = name; }
 	void SetTranslate(const Vector3& translate) { transform_.translate = translate; }
-
-	// 発生頻度の変更
 	void SetFrequency(float frequency) { frequency_ = frequency; }
+	void SetCount(uint32_t count) { count_ = count; }
 
+	// ステータスのセッター
+	void SetScale(const Vector3& scale) { emitParam_.scale = scale; }
+	void SetBaseVelocity(const Vector3& velocity) { emitParam_.baseVelocity = velocity; }
+	void SetRandomVelocityRange(const Vector3& range) { emitParam_.randomVelocityRange = range; }
+	void SetRandomPositionRange(const Vector3& range) { emitParam_.randomPositionRange = range; }
+	void SetLifeTime(float lifeTime) { emitParam_.lifeTime = lifeTime; }
+	void SetTexture(const std::string& textureFilePath);
+	// ステータスのゲッター
+	Vector3 GetScale() const { return emitParam_.scale; }
+	Vector3 GetBaseVelocity() const { return emitParam_.baseVelocity; }
+	Vector3 GetRandomVelocityRange() const { return emitParam_.randomVelocityRange; }
+	Vector3 GetRandomPositionRange() const { return emitParam_.randomPositionRange; }
+	float GetLifeTime() const { return emitParam_.lifeTime; }
+	void SaveToJson(const std::string& filePath = "Resources/Data/emit_status.json");
+	void LoadFromJson(const std::string& filePath = "Resources/Data/emit_status.json");
 private:
 	// --- メンバ変数 ---
 	std::string groupName_; // 対象のパーティクルグループ名
@@ -40,4 +51,6 @@ private:
 	uint32_t count_;        // 一度の発生数
 	float frequency_;       // 発生頻度（回/秒）
 	float frequencyTimer_;  // 発生頻度調整用タイマー
+	ParticleEmitParam emitParam_;
+	std::string textureFilePath_; // テクスチャファイルパス
 };

@@ -1,5 +1,6 @@
 #include "SkyBox.h"
 #include "TextureManager.h"
+#include <SrvManager.h>
 
 void SkyBox::Initialize(const std::string& filePath) {
 	common_ = SkyBoxCommon::GetInstance();
@@ -26,19 +27,35 @@ void SkyBox::Update() {
 void SkyBox::Draw() {
 	// 1. 共通の設定をコマンドリストに積む
 	common_->SetDraw();
-
 	auto commandList = common_->GetDxCommon()->GetCommandList();
+
+	// ====== 【修正】ComPtrから安全に生ポインタを取り出してセットする ======
+	// ① まずは SrvManager から ComPtr をしっかり受け取る
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvHeapComPtr = SrvManager::GetInstance()->GetDescriptorHeap();
+
+	// ② 【超重要チェック】ヒープの中身が nullptr でないか絶対に確認する
+	// ※もしここでプログラムが止まったら、SrvManager側でヒープの生成自体が失敗しているか、初期化がまだです。
+	assert(srvHeapComPtr.Get() != nullptr && "SrvManagerから取得したデスクリプタヒープがnullptrです！");
+
+	// ③ DirectX12のAPIが求める「生ポインタの配列」を作成する
+	ID3D12DescriptorHeap* ppHeaps[] = {srvHeapComPtr.Get()};
+	commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 	// 2. 個別のバッファをセット
 	commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 	commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(1, transformResource->GetGPUVirtualAddress());
-	commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSRVHandleGPU(textureFilePath));
+
+	// ====== 【もう一つの落とし穴チェック】テクスチャハンドルが有効か ======
+	// ※テクスチャのパスが1文字でも違ってロードできていない場合も、d3d10warp.dll で同様のアクセス違反が起きます。
+	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = TextureManager::GetInstance()->GetSRVHandleGPU(textureFilePath);
+	assert(srvHandle.ptr != 0 && "テクスチャのGPUハンドルが無効(0)です！パスが間違っているか、ロードされていません。");
+
+	commandList->SetGraphicsRootDescriptorTable(2, srvHandle);
 
 	// 3. 描画
 	commandList->DrawInstanced(36, 1, 0, 0);
 }
-
 void SkyBox::CreateVertexData() {
     // SkyBox用の立方体の頂点データ (サイズは1.0fの立方体)
     // ※ 描画時にシェーダーや定数バッファでスケールを大きくして遠くに配置します

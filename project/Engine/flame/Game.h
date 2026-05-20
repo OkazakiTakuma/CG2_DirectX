@@ -38,7 +38,7 @@ public:
 	void Update() override;
 	void Draw() override;
 	void Finalize() override;
-	bool IsEnd() const override { return endRequest; }	
+	bool IsEndRequest() const override { return endRequest; }	
 
 private:
 	std::unique_ptr<D3DResourceLeakCheker> Checker = nullptr;

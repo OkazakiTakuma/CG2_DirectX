@@ -18,6 +18,9 @@ void Object3d::Initialize() {
 	    {0.0f, 0.0f, 0.0f}, // 回転
 	    {0.0f, 0.0f, 0.0f}  // 平行移動
 	};
+	
+	// 環境マップの強さを初期化
+	environmentMultiplier = 1.0f;
 
 	// 共通設定に登録されているデフォルトカメラをセット
 	this->camera = common->GetDefaultCamera();
@@ -81,6 +84,8 @@ void Object3d::Update() {
 		transformationMatrix->WVP = worldMatrix;
 		transformationMatrix->world = worldMatrix;
 	}
+
+	cameraData->environmentMultiplier = environmentMultiplier;
 }
 void Object3d::Draw() {
 	// 描画コマンドリストを取得
@@ -90,6 +95,8 @@ void Object3d::Draw() {
 	commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(4, cameraResource->GetGPUVirtualAddress());     // ★追加
 	commandList->SetGraphicsRootConstantBufferView(5, pointLightResource->GetGPUVirtualAddress()); // ★追加
+	D3D12_GPU_DESCRIPTOR_HANDLE envMapHandle = TextureManager::GetInstance()->GetSRVHandleGPU("Resources/rostock_laage_airport_4k.dds");
+	commandList->SetGraphicsRootDescriptorTable(6, envMapHandle);
 	if (model) {
 		model->Draw();
 	}
@@ -129,4 +136,8 @@ void Object3d::SetPointLight(const Vector4& color, const Vector3& position, floa
 		pointLightData->radius = radius;
 		pointLightData->decay = decay;
 	}
+}
+
+void Object3d::SetEnvironmentMultiplier(float multiplier) { environmentMultiplier = multiplier;
+
 }

@@ -376,29 +376,52 @@ void ParticleManager::Update() {
 	}
 }
 
-void ParticleManager::Emit(const std::string& groupName, const Vector3& position, uint32_t count) {
+void ParticleManager::Emit(const std::string& groupName, const Vector3& position, uint32_t count, const ParticleEmitParam& emitParam) {
 	if (particleGroups_.find(groupName) == particleGroups_.end())
 		return;
 
 	ParticleGroup& group = particleGroups_[groupName];
-	std::uniform_real_distribution<float> distPos(-1.0f, 1.0f);
-	std::uniform_real_distribution<float> distVel(-1.0f, 1.0f);
+
+	// -1.0 から 1.0 のランダムな数を作る分布
+	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 	std::uniform_real_distribution<float> distColor(0.5f, 1.0f);
 
 	for (uint32_t i = 0; i < count; ++i) {
 		Particle newParticle;
-		Vector3 randomPos = {distPos(randomEngine_) * 0.5f, distPos(randomEngine_) * 0.5f, distPos(randomEngine_) * 0.5f};
-		newParticle.transform.translate = {position.x + randomPos.x, position.y + randomPos.y, position.z + randomPos.z};
 
-		Vector3 randomVel = {distVel(randomEngine_) * 0.1f, distVel(randomEngine_) * 0.1f, distVel(randomEngine_) * 0.1f};
-		newParticle.velocity = randomVel;
+		// 1. 位置: 基準位置 + (乱数 * 位置の範囲)
+		newParticle.transform.translate.x = position.x + dist(randomEngine_) * emitParam.randomPositionRange.x;
+		newParticle.transform.translate.y = position.y + dist(randomEngine_) * emitParam.randomPositionRange.y;
+		newParticle.transform.translate.z = position.z + dist(randomEngine_) * emitParam.randomPositionRange.z;
 
-		newParticle.transform.scale = {1.0f, 1.0f, 1.0f};
-		newParticle.transform.rotate = {0.0f, 0.0f, 0.0f};
-		newParticle.color = {distColor(randomEngine_), distColor(randomEngine_), distColor(randomEngine_), 1.0f};
-		newParticle.lifeTime = 2.0f;
+		// 2. 大きさ: パラメータをそのまま設定
+		newParticle.transform.scale = emitParam.scale;
+
+		// 3. 速度: 基礎速度 + (乱数 * 速度の範囲)
+		newParticle.velocity.x = emitParam.baseVelocity.x + dist(randomEngine_) * emitParam.randomVelocityRange.x;
+		newParticle.velocity.y = emitParam.baseVelocity.y + dist(randomEngine_) * emitParam.randomVelocityRange.y;
+		newParticle.velocity.z = emitParam.baseVelocity.z + dist(randomEngine_) * emitParam.randomVelocityRange.z;
+
+		// 4. 寿命
+		newParticle.lifeTime = emitParam.lifeTime;
 		newParticle.currentTime = 0.0f;
+
+		// 色の設定（ここは必要に応じてお好みで変更してください）
+		newParticle.color = {distColor(randomEngine_), distColor(randomEngine_), distColor(randomEngine_), 1.0f};
 
 		group.particles.push_back(newParticle);
 	}
+}
+void ParticleManager::SetGroupTexture(const std::string& groupName, const std::string& textureFilePath) {
+	// グループが存在するかチェック
+	if (particleGroups_.find(groupName) == particleGroups_.end()) {
+		return;
+	}
+
+	ParticleGroup& group = particleGroups_[groupName];
+
+	// テクスチャをロードして、SRVインデックスを新しいものに更新する
+	group.material.textureFilePath = textureFilePath;
+	TextureManager::GetInstance()->LoadTexture(textureFilePath);
+	group.material.textureIndex = TextureManager::GetInstance()->GetSrvIndex(textureFilePath);
 }

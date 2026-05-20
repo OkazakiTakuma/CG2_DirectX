@@ -69,14 +69,18 @@ void WinApp::Finalize() {
 }
 bool WinApp::ProcessMessage() {
 	MSG msg = {};
-	if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+
+	// 変更点：if を while に変更します。
+	// これにより、溜まっているメッセージを空になるまで一気に処理します。
+	while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
-	}
 
-	if (msg.message == WM_QUIT) {
-		return true;
+		// 「終了してね(WM_QUIT)」というメッセージを受け取ったら true を返す
+		if (msg.message == WM_QUIT) {
+			return true;
+		}
 	}
 
 	return false;
-};
+}
