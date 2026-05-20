@@ -23,6 +23,7 @@ struct DirectionalLight
 struct CameraInfo
 {
     float3 worldPosition;
+    float environmentMultiplier; // ★追加：環境マップの強さ (0.0f で無効、1.0f で等倍)
 };
 
 // ★追加：ポイントライト用の構造体
@@ -115,9 +116,9 @@ PixelShaderOutput main(VertexShaderOutput input)
         float3 reflectedVetor = reflect(cameraTOPosition, N);
         float3 environmentColor = gEnvironmentMap.Sample(gSampler, reflectedVetor).rgb;
         
-        output.color.rgb += environmentColor.rgb; // 環境マップの影響を調整
+        // ★修正：環境マップの色に強度（environmentMultiplier）を掛け合わせて足す
+        output.color.rgb += environmentColor.rgb * gCamera.environmentMultiplier;
 
-   
         // 最終的な色を計算
         output.color.a = gMaterial.color.a * textureColor.a;
     }

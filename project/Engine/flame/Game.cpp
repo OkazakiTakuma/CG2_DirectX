@@ -1,10 +1,10 @@
 #include "Game.h"
+#include "SceneFactory.h"
 #include "struct.h"
 #include <DbgHelp.h> // MiniDumpWriteDump の宣言用
 #include <Windows.h>
 #include <strsafe.h> // StringCchPrintfW を使っているなら
 #include <utility>
-#include "SceneFactory.h"
 using namespace Logger;
 using namespace StringUtility;
 using namespace Microsoft::WRL;
@@ -27,8 +27,6 @@ void Game::Initialize() {
 	SceneManager::GetInstance()->SetSceneFactory(sceneFactory);
 	SceneManager::GetInstance()->ChengeScene("TITLE");
 	SkyBoxCommon::GetInstance()->SetDefaultCamera(camera.get());
-
-
 }
 
 void Game::Update() {
@@ -41,20 +39,16 @@ void Game::Update() {
 
 	// シーンの更新
 	SceneManager::GetInstance()->Update();
-	
+
 	if (Input::GetInstance()->TriggerKey(DIK_ESCAPE)) {
 		endRequest = true;
-
 	}
-
-
-
 }
 
 void Game::Draw() {
 #pragma region コマンドリストのリセット
 
-	SpriteCommon::GetInstance()->GetDxCommon()->PreDraw();
+	SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
 	// スカイボックスの描画
 	SkyBoxCommon::GetInstance()->SetDraw();
 	SceneManager::GetInstance()->DrawSkyBox();
@@ -62,6 +56,9 @@ void Game::Draw() {
 	// モデルの描画
 	Object3dCommon::GetInstance()->SetDraw();
 	SceneManager::GetInstance()->Draw3D();
+
+
+	
 	// スプライトの描画
 	SpriteCommon::GetInstance()->SetDraw();
 	SceneManager::GetInstance()->Draw2D();
@@ -75,7 +72,4 @@ void Game::Finalize() {
 	// --- 終了処理 ---
 	Audio::GetInstance().Finalize();
 	FlameWork::Finalize();
-	
-
 }
-

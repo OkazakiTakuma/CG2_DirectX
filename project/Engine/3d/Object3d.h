@@ -33,6 +33,7 @@ public:
 	void SetCamera(Camera* cmr) { camera = cmr; }
 	void SetDirectionalLight(const Vector4& color, const Vector3& direction, float intensity);
 	void SetPointLight(const Vector4& color, const Vector3& position, float intensity, float radius, float decay);
+	void SetEnvironmentMultiplier(float multiplier);
 	void IsPointLightSet(bool isSet) { isPointLightSet = isSet; }
 
 	const Vector4 GetLightColor() const { return directionallightData ? directionallightData->color : Vector4(0.0f, 0.0f, 0.0f, 1.0f); }
@@ -44,6 +45,7 @@ public:
 	const float GetPointLightRadius() const { return pointLightData ? pointLightData->radius : 0.0f; }
 	const float GetPointLightDecay() const { return pointLightData ? pointLightData->decay : 0.0f; }
 	const bool GetIsPointLightSet() const { return isPointLightSet; }
+	const float GetEnvironmentMultiplier() const { return environmentMultiplier; }
 
 private:
 	const float pi = 3.1415f;                         // 円周率
@@ -56,6 +58,7 @@ private:
 	Vector2 tex{};
 	struct CameraForGPU {
 		Vector3 worldPosition;
+		float environmentMultiplier; // 環境マップの強さ
 	};
 	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource;
 	CameraForGPU* cameraData = nullptr;
@@ -79,6 +82,7 @@ private:
 
 	Model* model = nullptr;
 	bool isPointLightSet = true;
+	float environmentMultiplier = 1.0f;
 
 	Transform transform;
 	Camera* camera = nullptr;

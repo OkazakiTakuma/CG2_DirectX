@@ -22,6 +22,10 @@ TextureManager* TextureManager::GetInstance() {
 }
 
 void TextureManager::Finalize() {
+	for (auto& pair : textureDatas) {
+		pair.second.resource.Reset(); // ComPtrを確実にリセット
+	}
+	textureDatas.clear(); // マップ自体を空にする
 	delete instance;
 	instance = nullptr;
 }
@@ -76,7 +80,9 @@ void TextureManager::LoadTexture(const std::string& filepath) {
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;                 // テクスチャの次元
 		srvDesc.Texture2D.MipLevels = UINT(mipImages.GetMetadata().mipLevels); // ミップレベルの数
 	}
-	srvManager->CreateSRVforTexture2D(textureData.srvIndex, textureData.resource.Get(), textureData.metadata.format, static_cast<UINT>(textureData.metadata.mipLevels));
+	//srvManager->CreateSRVforTexture2D(textureData.srvIndex, textureData.resource.Get(), textureData.metadata.format, static_cast<UINT>(textureData.metadata.mipLevels));
+	dxCommon_->GetDevice()->CreateShaderResourceView(textureData.resource.Get(), &srvDesc, textureData.srvHandleCPU);
+
 	dxCommon_->UploadTextureData(textureData.resource, mipImages);
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;

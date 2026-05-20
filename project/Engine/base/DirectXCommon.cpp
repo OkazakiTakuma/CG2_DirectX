@@ -217,26 +217,34 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(cons
 	return resource;
 }
 
-void DirectXCommon::UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImage) {
+void DirectXCommon::UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Resource> texture, const DirectX::ScratchImage& mipImages) {
+	// メタデータを取得
+	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
 
-	// テクスチャのメタデータを取得
-	const DirectX::TexMetadata& metaData = mipImage.GetMetadata();
-	// 全MipMapについて
-	for (size_t mipLevel = 0; mipLevel < metaData.mipLevels; mipLevel++) {
-		// MipMapLevelを指定して
-		const DirectX::Image* img = mipImage.GetImage(mipLevel, 0, 0);
-		// Textureに転送
-		HRESULT hr = texture->WriteToSubresource(
-		    UINT(mipLevel),       // サブリソースインデックス（0は最初のサブリソース）
-		    nullptr,              // 全体を転送するのでnullptr
-		    img->pixels,          // 転送するピクセルデータ
-		    UINT(img->rowPitch),  // 行のピッチ（1行あたりのバイト数）
-		    UINT(img->slicePitch) // スライスのピッチ（3Dテクスチャの場合は必要）
-		);
-		assert(SUCCEEDED(hr));
+	// 全てのミップレベル、全ての配列（面）をループで回して転送する
+	for (size_t mipLevel = 0; mipLevel < metadata.mipLevels; ++mipLevel) {
+		for (size_t arrayIndex = 0; arrayIndex < metadata.arraySize; ++arrayIndex) {
+
+			// 1. DirectXTexから特定の「面」かつ「ミップレベル」の画像データをピンポイントで取得
+			const DirectX::Image* img = mipImages.GetImage(mipLevel, arrayIndex, 0);
+			assert(img != nullptr);
+
+			// 2. この画像データが、DirectX12の全体で何番目のサブリソース（インデックス）にあたるかを計算
+			// 通常テクスチャなら 0, 1, 2... ですが、キューブマップは面とミップが絡むためこの関数で一発計算します
+			UINT subresourceIndex = static_cast<UINT>(mipLevel + (arrayIndex * metadata.mipLevels));
+
+			// 3. GPUのメモリ（リソース）へデータを書き込む
+			HRESULT hr = texture->WriteToSubresource(
+			    subresourceIndex,
+			    nullptr,                           // 全領域を対象にする
+			    img->pixels,                       // CPU側の画像データポインタ
+			    static_cast<UINT>(img->rowPitch),  // 1行のバイト数
+			    static_cast<UINT>(img->slicePitch) // 1枚（1スライス）のバイト数
+			);
+			assert(SUCCEEDED(hr));
+		}
 	}
 }
-
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDepthStenecilTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, int32_t width, int32_t height) {
 	// 生成するリソースの設定
 	D3D12_RESOURCE_DESC resourceDesc{};

@@ -161,6 +161,8 @@ void GamePlayScene::ImGuiUpdate() {
 	lightColor = object3d->GetLightColor();
 	lightDirection = object3d->GetLightDirection();
 	lightIntensity = object3d->GetLightIntensity();
+	float	environmentMultiplier = object3d->GetEnvironmentMultiplier();
+
 	Vector3 spherepos = sphereObject->GetTranslate();
 	Vector3 sphererot = sphereObject->GetRotate();
 	Vector3 spherescl = sphereObject->GetScale();
@@ -182,14 +184,20 @@ void GamePlayScene::ImGuiUpdate() {
 	ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
 	ImGui::SliderAngle("camera rotate y", &cameraRotate.y);
 	ImGui::SliderAngle("camera rotate z", &cameraRotate.z);
+	ImGui::End();
+	ImGui::Begin("Model Settings");
 	ImGui::DragFloat3("model pos", &modelPosition.x, 0.1f);
 	ImGui::SliderAngle("model rotate x", &modelRotate.x);
 	ImGui::SliderAngle("model rotate y", &modelRotate.y);
 	ImGui::SliderAngle("model rotate z", &modelRotate.z);
 	ImGui::DragFloat3("model scale", &modelScale.x, 0.1f);
+	ImGui::DragFloat("environment multiplier", &environmentMultiplier, 0.01f, 0.0f, 1.0f);
 	ImGui::DragFloat3("sphere pos", &spherepos.x, 0.1f);
 	ImGui::DragFloat3("sphere rotate", &sphererot.x, 0.1f);
 	ImGui::DragFloat3("sphere scale", &spherescl.x, 0.1f);
+	ImGui::End();
+
+	ImGui::Begin("Sprite Settings");
 	ImGui::DragFloat2("sprite pos", &trsprite.translate.x, 0.3f);
 	ImGui::SliderAngle("sprite rotate", &trsprite.rotate.z);
 	ImGui::DragFloat2("sprite scale", &spriteSize.x, 0.3f);
@@ -202,6 +210,10 @@ void GamePlayScene::ImGuiUpdate() {
 	ImGui::DragFloat2("UV translate", &trspriteUV.translate.x, 0.01f, -10.0f, 10.0f);
 	ImGui::DragFloat2("UV scale", &trspriteUV.scale.x, 0.01f, 0.0f, 10.0f);
 	ImGui::SliderAngle("UV rotate", &trspriteUV.rotate.z);
+	ImGui::End();
+
+	ImGui::Begin("Light Settings");
+
 	ImGui::ColorEdit4("light color", &lightColor.x, 1.0f);
 	ImGui::DragFloat3("light direction", &lightDirection.x, 0.1f, -1.0f, 1.0f);
 	ImGui::DragFloat("light intensity", &lightIntensity, 0.1f, 0.0f, 10.0f);
@@ -211,6 +223,7 @@ void GamePlayScene::ImGuiUpdate() {
 	ImGui::DragFloat("point light intensity", &pointLightIntensity, 0.1f, 0.0f, 10.0f);
 	ImGui::DragFloat("point light radius", &pointLightRadius, 0.1f, 0.0f, 20.0f);
 	ImGui::DragFloat("point light decay", &pointLightDecay, 0.1f, 0.0f, 10.0f);
+	ImGui::DragFloat("environment multiplier", &environmentMultiplier, 0.01f, 0.0f, 1.0f);
 	
 	ImGui::End();
 	//  ImGuiのウィンドウを作成
@@ -244,7 +257,9 @@ void GamePlayScene::ImGuiUpdate() {
 	sphereObject->SetPointLight(pointLightColor, pointLightPosition, pointLightIntensity, pointLightRadius, pointLightDecay);
 	for (auto& axisObj : axisObjects) {
 		axisObj->SetPointLight(pointLightColor, pointLightPosition, pointLightIntensity, pointLightRadius, pointLightDecay);
+		axisObj->SetEnvironmentMultiplier(environmentMultiplier);
 	}
+	object3d->SetEnvironmentMultiplier(environmentMultiplier);
 
 #endif
 	Object3dCommon::GetInstance()->GetDefaultCamera()->SetTranslate(cameraPosition);
