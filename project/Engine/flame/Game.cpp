@@ -5,6 +5,7 @@
 #include <Windows.h>
 #include <strsafe.h> // StringCchPrintfW を使っているなら
 #include <utility>
+#include"PostEffect.h"
 using namespace Logger;
 using namespace StringUtility;
 using namespace Microsoft::WRL;
@@ -48,7 +49,7 @@ void Game::Update() {
 void Game::Draw() {
 #pragma region コマンドリストのリセット
 
-	SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
+	PostEffect::GetInstance()->PreDrawScene();
 	// スカイボックスの描画
 	SkyBoxCommon::GetInstance()->SetDraw();
 	SceneManager::GetInstance()->DrawSkyBox();
@@ -58,12 +59,19 @@ void Game::Draw() {
 	SceneManager::GetInstance()->Draw3D();
 
 
+	PostEffect::GetInstance()->PostDrawScene();
+
 	
+	SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
+
+	PostEffect::GetInstance()->Draw();
+
 	// スプライトの描画
 	SpriteCommon::GetInstance()->SetDraw();
 	SceneManager::GetInstance()->Draw2D();
 
 	SpriteCommon::GetInstance()->GetDxCommon()->PostDraw();
+
 #pragma endregion
 }
 

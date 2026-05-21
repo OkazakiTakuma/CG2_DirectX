@@ -298,7 +298,7 @@ void ParticleManager::CreatePipelineState() {
 
 void ParticleManager::Draw(Camera* camera) {
 	auto commandList = dxCommon_->GetCommandList();
-	SrvManager::GetInstance()->preDraw();
+	SrvManager::GetInstance()->PreDraw();
 
 	commandList->SetPipelineState(graphicsPipelineState.Get());
 	commandList->SetGraphicsRootSignature(rootSignature.Get());

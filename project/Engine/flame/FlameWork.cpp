@@ -19,6 +19,7 @@
 #include <Input.h>
 #include <SrvManager.h>
 #include <WinApp.h>
+#include"PostEffect.h"
 using namespace Logger;
 using namespace StringUtility;
 using namespace Microsoft::WRL;
@@ -76,6 +77,7 @@ void FlameWork::Initialize() {
 	ImGuiManager::GetInstance()->Initialize(winApp.get(), dxCommon.get());
 	TextureManager::GetInstance()->Initialize(dxCommon.get());
 	TextureManager::GetInstance()->SetDirectXCommon(dxCommon.get());
+	PostEffect::GetInstance()->Initialize(dxCommon.get());
 	SpriteCommon::GetInstance()->Initialize(dxCommon.get());
 	SkyBoxCommon::GetInstance()->Initialize(dxCommon.get());
 
@@ -98,6 +100,7 @@ void FlameWork::Finalize() {
 	Object3dCommon::GetInstance()->Finalize();
 	SkyBoxCommon::GetInstance()->Finalize();
 	SpriteCommon::GetInstance()->Finalize();
+	PostEffect::GetInstance()->Finalize();
 	TextureManager::GetInstance()->Finalize();
 	
 	ImGuiManager::GetInstance()->Finalize();

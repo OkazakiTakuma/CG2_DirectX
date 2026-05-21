@@ -18,7 +18,7 @@ struct VertexShaderInput
 
 };
 
-VertexShaderOutput main(VertexShaderInput input, uint32_t instanceID : SV_InstanceID)
+VertexShaderOutput main(VertexShaderInput input, uint instanceID : SV_InstanceID)
 {
     VertexShaderOutput output;
     

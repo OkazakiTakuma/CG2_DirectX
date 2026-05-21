@@ -55,7 +55,7 @@ void SrvManager::CreateSRVforStructuredBuffer(uint32_t srvindex, ID3D12Resource*
     );
 }
 
-void SrvManager::preDraw() {
+void SrvManager::PreDraw() {
 	ID3D12DescriptorHeap* heaps[] = {descriptorHeap.Get()};
 	dxCommon->GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
 }

@@ -72,8 +72,9 @@ void ImGuiManager::End() {
 
 void ImGuiManager::Draw() {
 #ifdef USE_IMGUI
+
 	// デスクリプタヒープをセット
-	SrvManager::GetInstance()->preDraw();
+	SrvManager::GetInstance()->PreDraw();
 
 	ID3D12GraphicsCommandList* commandList = dxcommon->GetCommandList().Get();
 
