@@ -49,7 +49,7 @@ void Model::Finalize() {
 }
 
 void Model::Draw() {
-	SrvManager::GetInstance()->preDraw();
+	SrvManager::GetInstance()->PreDraw();
 
 	modelCommon_->GetDxCommon()->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferView);
 	modelCommon_->GetDxCommon()->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());

@@ -18,7 +18,7 @@ public:
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(uint32_t index);
 	void CreateSRVforTexture2D(uint32_t srvindex, ID3D12Resource* pResource, DXGI_FORMAT format, UINT mipLevels);
 	void CreateSRVforStructuredBuffer(uint32_t srvindex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride);
-	void preDraw();
+	void PreDraw();
 	void SetGraphicsRootDescriptorTable(UINT rootParameterIndex, uint32_t srvIndex);
 	void Finalize();
 

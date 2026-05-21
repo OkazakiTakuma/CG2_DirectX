@@ -78,7 +78,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\audio;$(ProjectDir)engine\3d;$(ProjectDir)engine\base;$(ProjectDir)engine\math;$(ProjectDir)externals\DirectXTex;$(ProjectDir)DirectXTex;$(ProjectDir)imgui;$(ProjectDir)engine\flame;$(ProjectDir)scene;$(ProjectDir)engine\2d;$(ProjectDir)externals\nlohmann</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\audio;$(ProjectDir)engine\3d;$(ProjectDir)engine\base;$(ProjectDir)engine\math;$(ProjectDir)externals\DirectXTex;$(ProjectDir)DirectXTex;$(ProjectDir)imgui;$(ProjectDir)engine\flame;$(ProjectDir)scene;$(ProjectDir)engine\2d;$(ProjectDir)externals\nlohmann;$(ProjectDir)externals\nlohmann</AdditionalIncludeDirectories>
       <UndefinePreprocessorDefinitions>
       </UndefinePreprocessorDefinitions>
     </ClCompile>
@@ -104,7 +104,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\audio;$(ProjectDir)engine\3d;$(ProjectDir)engine\base;$(ProjectDir)engine\math;$(ProjectDir)externals\DirectXTex;$(ProjectDir)DirectXTex;;$(ProjectDir)engine\flame;$(ProjectDir)scene;$(ProjectDir)engine\2d</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\audio;$(ProjectDir)engine\3d;$(ProjectDir)engine\base;$(ProjectDir)engine\math;$(ProjectDir)externals\DirectXTex;$(ProjectDir)DirectXTex;;$(ProjectDir)engine\flame;$(ProjectDir)scene;$(ProjectDir)engine\2d;$(ProjectDir)externals\nlohmann</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -133,7 +133,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <Optimization>Disabled</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\audio;$(ProjectDir)engine\3d;$(ProjectDir)engine\base;$(ProjectDir)engine\math;$(ProjectDir)externals\DirectXTex;$(ProjectDir)DirectXTex;$(ProjectDir)imgui;$(ProjectDir)engine\flame;$(ProjectDir)scene;$(ProjectDir)engine\2d</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\audio;$(ProjectDir)engine\3d;$(ProjectDir)engine\base;$(ProjectDir)engine\math;$(ProjectDir)externals\DirectXTex;$(ProjectDir)DirectXTex;$(ProjectDir)imgui;$(ProjectDir)engine\flame;$(ProjectDir)scene;$(ProjectDir)engine\2d;$(ProjectDir)externals\nlohmann</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -163,6 +163,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\base\ImGuiManager.cpp" />
     <ClCompile Include="Engine\flame\Game.cpp" />
     <ClCompile Include="Engine\flame\FlameWork.cpp" />
+    <ClCompile Include="Engine\base\PostEffect.cpp" />
     <ClCompile Include="scene\SceneFactory.cpp" />
     <ClCompile Include="scene\SceneManager.cpp" />
     <ClCompile Include="scene\GamePlayScene.cpp" />
@@ -216,6 +217,22 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <FxCompile Include="Resources\Shader\CopyImage.VS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Development|x64'">Vertex</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\CopyImage.PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Development|x64'">Pixel</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\3d\SkyBox.h" />
@@ -248,6 +265,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\base\ImGuiManager.h" />
     <ClInclude Include="Engine\flame\Game.h" />
     <ClInclude Include="Engine\flame\FlameWork.h" />
+    <ClInclude Include="Engine\base\PostEffect.h" />
     <ClInclude Include="scene\SceneFactory.h" />
     <ClInclude Include="scene\SceneManager.h" />
     <ClInclude Include="scene\GamePlayScene.h" />
@@ -265,6 +283,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
   <ItemGroup>
     <None Include="Resources\Shader\Object3d.hlsli" />
     <None Include="Resources\Shader\Particle.hlsli" />
+    <None Include="Resources\Shader\CopyImage.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
