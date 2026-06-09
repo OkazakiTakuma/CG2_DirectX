@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <d3d12.h>
 #include <wrl.h>
+#include <array> 
 
 class SpriteCommon {
 public:
@@ -19,7 +20,7 @@ public:
 	void Finalize();
 
 	// 描画前設定
-	void SetDraw();
+	void SetDraw(uint32_t blendMode = kBlendModeNormal);
 
 	// ゲッター
 	DirectXCommon* GetDxCommon() const { return dxCommon_; }
@@ -40,5 +41,5 @@ private:
 private:
 	DirectXCommon* dxCommon_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState = nullptr;
+	std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, kBlendCountblend> graphicsPipelineStates;
 };
