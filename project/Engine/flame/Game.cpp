@@ -22,7 +22,7 @@ void Game::Initialize() {
 	// 2. グループ作成（テクスチャロード）
 	ParticleManager::GetInstance()->CreateParticleGroup("Smoke", "Resources/uvChecker.png");
 	ParticleManager::GetInstance()->CreateParticleGroup("Fire", "Resources/uvChecker.png");
-
+	ParticleManager::GetInstance()->SetGroupBlendMode("fire", kBlendModeAdd); // 炎は加算合成にする！
 	ParticleManager::GetInstance()->SetCamera(camera.get());
 	sceneFactory = new SceneFactory();
 	SceneManager::GetInstance()->SetSceneFactory(sceneFactory);
@@ -57,7 +57,7 @@ void Game::Draw() {
 	// モデルの描画
 	Object3dCommon::GetInstance()->SetDraw();
 	SceneManager::GetInstance()->Draw3D();
-	SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeAdd);
+	SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeMultiply);
 	SceneManager::GetInstance()->Draw2D();
 
 

@@ -11,6 +11,7 @@
 #include <vector>
 #include <list>
 #include <Camera.h>
+#include <array>
 
 
 class Camera;
@@ -25,6 +26,7 @@ public:
 	void Update();
 	void SetCamera(Camera* camera) { camera_ = camera; }
 	void SetGroupTexture(const std::string& groupName, const std::string& textureFilePath);
+	void SetGroupBlendMode(const std::string& groupName, uint32_t blendMode);
 	void Emit(const std::string& groupName, const Vector3& position, uint32_t count, const ParticleEmitParam& emitParam);
 	struct ParticleGroup {
 		// --- マテリアル情報 ---
@@ -41,6 +43,8 @@ public:
 
 		// インスタンシングデータを書き込むためのポインタ（Map した先）
 		ParticleForGPU* instanceDataPtr;
+
+		uint32_t blendMode = kBlendModeNormal;
 	};
 
 private:
@@ -50,8 +54,7 @@ private:
 	DirectXCommon* dxCommon_ = nullptr;
 	SrvManager* srvManager_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState = nullptr;
-	
+	std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, kBlendCountblend> graphicsPipelineStates;
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView_;
 	std::mt19937 randomEngine_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;

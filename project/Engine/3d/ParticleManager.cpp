@@ -26,7 +26,6 @@ void ParticleManager::Finalize() {
 
 	// パイプラインの破棄（ここが漏れている可能性が高いです）
 	rootSignature.Reset();
-	graphicsPipelineState.Reset();
 
 	delete instance;
 	instance = nullptr;
@@ -231,30 +230,19 @@ void ParticleManager::CreatePipelineState() {
 
 	CreateRootSignature();
 
-	// InputLayout (main (2).cpp の VertexData 構造体に合致させる)
+	// InputLayout
 	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
-	    {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	    {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	    {"NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 	};
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
 	inputLayoutDesc.NumElements = _countof(inputElementDescs);
 
-	// BlendState (main (2).cpp の kBlendModeNormal に相当する設定)
-	D3D12_BLEND_DESC blendDesc{};
-	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	blendDesc.RenderTarget[0].BlendEnable = TRUE;
-	blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
-
-	// RasterizerState (main (2).cpp と同じ設定)
+	// RasterizerState
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK; // main(2).cppではBACKになっている
+	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
 	// Shader Compile
@@ -263,44 +251,86 @@ void ParticleManager::CreatePipelineState() {
 	Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Particle.PS.hlsl", L"ps_6_0");
 	assert(pixelShaderBlob != nullptr);
 
-	// PSO設定
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
-	psoDesc.pRootSignature = rootSignature.Get();
-	psoDesc.InputLayout = inputLayoutDesc;
-	psoDesc.BlendState = blendDesc;
-	psoDesc.RasterizerState = rasterizerDesc;
-	psoDesc.VS = {vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize()};
-	psoDesc.PS = {pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize()};
-
-	// DepthStencilState (main (2).cpp と同じ設定
+	// DepthStencilState
 	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
 	depthStencilDesc.DepthEnable = true;
-	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; 
+	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	psoDesc.DepthStencilState = depthStencilDesc;
 
-	// 【重要】DSVフォーマット (main (2).cpp に合わせる)
-	psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	// ★変更: ブレンドモードの数だけループしてPSOを作成する
+	for (int i = 0; i < kBlendCountblend; ++i) {
+		D3D12_BLEND_DESC blendDesc{};
+		blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+		blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+		blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
 
-	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	psoDesc.SampleDesc.Count = 1;
-	psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+		switch (i) {
+		case kBlendModeNone:
+			blendDesc.RenderTarget[0].BlendEnable = FALSE;
+			break;
+		case kBlendModeNormal:
+			blendDesc.RenderTarget[0].BlendEnable = TRUE;
+			blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+			break;
+		case kBlendModeAdd:
+			blendDesc.RenderTarget[0].BlendEnable = TRUE;
+			blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+			break;
+		case kBlendModeSubtract:
+			blendDesc.RenderTarget[0].BlendEnable = TRUE;
+			blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_REV_SUBTRACT;
+			blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+			break;
+		case kBlendModeMultiply:
+			blendDesc.RenderTarget[0].BlendEnable = TRUE;
+			blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_ZERO;
+			blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_SRC_COLOR;
+			break;
+		case kBlendModeScreen:
+			blendDesc.RenderTarget[0].BlendEnable = TRUE;
+			blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_INV_DEST_COLOR;
+			blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+			break;
+		}
 
-	hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&graphicsPipelineState));
+		// PSO設定
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
+		psoDesc.pRootSignature = rootSignature.Get();
+		psoDesc.InputLayout = inputLayoutDesc;
+		psoDesc.BlendState = blendDesc; // ループ内で設定されたブレンドステート
+		psoDesc.RasterizerState = rasterizerDesc;
+		psoDesc.VS = { vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize() };
+		psoDesc.PS = { pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize() };
+		psoDesc.DepthStencilState = depthStencilDesc;
+		psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		psoDesc.NumRenderTargets = 1;
+		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		psoDesc.SampleDesc.Count = 1;
+		psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
-	if (FAILED(hr)) {
-		OutputDebugStringA("Error: Failed to create GraphicsPipelineState for Particle.\n");
-		assert(false);
+		// ★変更: 配列のi番目にPSOを生成
+		hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&graphicsPipelineStates[i]));
+
+		if (FAILED(hr)) {
+			OutputDebugStringA("Error: Failed to create GraphicsPipelineState for Particle.\n");
+			assert(false);
+		}
 	}
 }
-
 void ParticleManager::Draw(Camera* camera) {
 	auto commandList = dxCommon_->GetCommandList();
 	SrvManager::GetInstance()->PreDraw();
 
-	commandList->SetPipelineState(graphicsPipelineState.Get());
+	
 	commandList->SetGraphicsRootSignature(rootSignature.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
@@ -314,7 +344,7 @@ void ParticleManager::Draw(Camera* camera) {
 	for (auto& [name, group] : particleGroups_) {
 		if (group.particles.empty())
 			continue;
-
+		commandList->SetPipelineState(graphicsPipelineStates[group.blendMode].Get());
 		uint32_t numInstance = std::min<uint32_t>(static_cast<uint32_t>(group.particles.size()), kMaxParticle);
 		uint32_t index = 0;
 
@@ -424,4 +454,12 @@ void ParticleManager::SetGroupTexture(const std::string& groupName, const std::s
 	group.material.textureFilePath = textureFilePath;
 	TextureManager::GetInstance()->LoadTexture(textureFilePath);
 	group.material.textureIndex = TextureManager::GetInstance()->GetSrvIndex(textureFilePath);
+}
+void ParticleManager::SetGroupBlendMode(const std::string& groupName, uint32_t blendMode) {
+	// グループが存在するかチェック
+	if (particleGroups_.find(groupName) == particleGroups_.end()) {
+		return;
+	}
+	// ブレンドモードを更新
+	particleGroups_[groupName].blendMode = blendMode;
 }
