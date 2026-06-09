@@ -57,6 +57,8 @@ void Game::Draw() {
 	// モデルの描画
 	Object3dCommon::GetInstance()->SetDraw();
 	SceneManager::GetInstance()->Draw3D();
+	SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeAdd);
+	SceneManager::GetInstance()->Draw2D();
 
 
 	PostEffect::GetInstance()->PostDrawScene();
@@ -67,8 +69,6 @@ void Game::Draw() {
 	PostEffect::GetInstance()->Draw();
 
 	// スプライトの描画
-	SpriteCommon::GetInstance()->SetDraw();
-	SceneManager::GetInstance()->Draw2D();
 
 	SpriteCommon::GetInstance()->GetDxCommon()->PostDraw();
 
