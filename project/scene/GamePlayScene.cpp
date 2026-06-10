@@ -56,23 +56,28 @@ void GamePlayScene::Initialize() {
 	// =================================================
 	// ▼ 追加: エミッタの作成
 	// =================================================
-	// エミッタ用の座標設定
-	Transform emitterTransform;
-	emitterTransform.translate = {0.0f, 0.0f, 0.0f}; // 原点
-	emitterTransform.rotate = {0.0f, 0.0f, 0.0f};
-	emitterTransform.scale = {1.0f, 1.0f, 1.0f};
+	ParticleEmitParam slash;
+	slash.scale = { 0.05f,1.0f,1.0f };
+	slash.baseRotate = { 0,0,0 };
+	slash.baseVelocity = { 0,0,0 };
+	slash.color = { 1.0f,1.0f,1.0f,1.0f };
+	slash.lifeTime = 1.0f;
+	slash.randomRotateRange = { 0.0f, 0.0f, std::numbers::pi_v<float> *2.0f };
+	slash.randomScaleRange = { 0.0f,1.0f,0.0f };
+	slash.count = 3;
+	slash.randomVelocityRange = { 0.0f,0.0f,0.0f };
+	slash.randomPositionRange = { 0.0f,0.0f,0.0f };
+	
+	
 
-	// "Smoke" グループ用のエミッタを生成
-	// (グループ名, Transform, 1回の発生数, 1秒間の発生頻度)
-	fireEmitParam.scale = {2.0f, 2.0f, 2.0f}; // 大きくする
-	fireEmitParam.baseVelocity = {0.0f, 0.5f, 0.0f}; // 上に向かって進む
-	fireEmitParam.randomVelocityRange = {0.1f, 0.1f, 0.1f}; // 少しだけ横に揺らぐ
-	fireEmitParam.randomPositionRange = {1.0f, 0.2f, 1.0f}; // 横に広く発生する
-	fireEmitParam.lifeTime = 1.5f;                          // 1.5秒で消える
 
+	
 	emitter = std::make_unique<ParticleEmitter>();
-	emitter->SetGroupName("Fire");
-	emitter->LoadFromJson(); // JSONからステータスを読み込む
+	emitter->SetGroupName("Slash");
+	emitter->SetPalam(slash);
+	emitter->SetFrequency(3.0f);
+	emitter->SaveToJson();
+	emitter->LoadFromJson();
 	emitter->SetTexture("Resources/circle.png");
 
 
@@ -91,7 +96,7 @@ void GamePlayScene::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 		SceneManager::GetInstance()->ChengeScene("TITLE");
 	}
-	skyBox->Update();
+	//skyBox->Update();
 
 	// 更新
 	emitter->Update(1.0f / 60.0f);
@@ -113,7 +118,8 @@ void GamePlayScene::Update() {
 	ImGuiUpdate();
 }
 
-void GamePlayScene::DrawSkyBox() { skyBox->Draw(); }
+void GamePlayScene::DrawSkyBox() {// skyBox->Draw(); 
+}
 
 void GamePlayScene::Draw2D() {
 	sprite->Draw();
@@ -133,6 +139,7 @@ void GamePlayScene::Draw3D() {
 	sphereObject->Draw();
 
 	if (isParticleEmit) {
+	
 		ParticleManager::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
 	}
 }
@@ -174,11 +181,6 @@ void GamePlayScene::ImGuiUpdate() {
 	float pointLightDecay = object3d->GetPointLightDecay(); 
 	bool isPointLightSet = object3d->GetIsPointLightSet();
 
-	fireEmitParam.scale = emitter->GetScale();
-	fireEmitParam.baseVelocity = emitter->GetBaseVelocity();
-	fireEmitParam.randomVelocityRange = emitter->GetRandomVelocityRange();
-	fireEmitParam.randomPositionRange = emitter->GetRandomPositionRange();
-	fireEmitParam.lifeTime = emitter->GetLifeTime();
 	ImGui::Begin("Camera Settings");
 	ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
 	ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
@@ -227,22 +229,19 @@ void GamePlayScene::ImGuiUpdate() {
 	
 	ImGui::End();
 	//  ImGuiのウィンドウを作成
-	
+	ParticleEmitParam emit;
+	emit = emitter->GetPalam();
+	Vector3 tlans = emitter->GetTlanslate();
 	ImGui::Begin("Emitter Settings");
 	ImGui::Checkbox("Particle Emit", &isParticleEmit);
-	ImGui::DragFloat3("Emitter Scale", &fireEmitParam.scale.x, 0.1f);
-	ImGui::DragFloat3("Emitter Base Velocity", &fireEmitParam.baseVelocity.x, 0.1f);
-	ImGui::DragFloat3("Emitter Random Velocity Range", &fireEmitParam.randomVelocityRange.x, 0.1f);
-	ImGui::DragFloat3("Emitter Random Position Range", &fireEmitParam.randomPositionRange.x, 0.1f);
-	ImGui::DragFloat("Emitter Life Time", &fireEmitParam.lifeTime, 0.1f, 0.1f, 10.0f);
-	ImGui::End();
-	ImGuiManager::GetInstance()->End();
+	ImGui::DragFloat3("Tlanslate", &tlans.x);
+	ImGui::DragFloat3("Base Lotate", &emit.baseRotate.x, 0.01f);
 
-	emitter->SetScale(fireEmitParam.scale);
-	emitter->SetBaseVelocity(fireEmitParam.baseVelocity);
-	emitter->SetRandomVelocityRange(fireEmitParam.randomVelocityRange);
-	emitter->SetRandomPositionRange(fireEmitParam.randomPositionRange);
-	emitter->SetLifeTime(fireEmitParam.lifeTime);
+	ImGui::End();
+	emitter->SetBaseRotate(emit.baseRotate);
+	emitter->SetTranslate(tlans);
+
+	ImGuiManager::GetInstance()->End();
 
 	sphereObject->SetTranslate(spherepos);
 	sphereObject->SetRotate(sphererot);

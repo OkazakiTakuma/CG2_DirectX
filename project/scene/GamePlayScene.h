@@ -42,6 +42,5 @@ private:
 	bool isParticleEmit = false;          // パーティクル発生のON/OFF
 	SceneManager* sceneManager = nullptr; // シーンマネージャーへのポインタ（所有権は持たない）
 	std::unique_ptr<SkyBox> skyBox = nullptr;
-	ParticleEmitParam fireEmitParam;
 
 };

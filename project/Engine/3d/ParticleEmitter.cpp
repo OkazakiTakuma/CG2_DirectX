@@ -4,9 +4,23 @@
 // コンストラクタ
 // 引数で受け取った値をメンバ変数に書き込む
 ParticleEmitter::ParticleEmitter() : groupName_(""), count_(0), frequency_(0.0f), frequencyTimer_(0.0f), textureFilePath_("") {
-	transform_.scale = {1.0f, 1.0f, 1.0f};
-	transform_.rotate = {0.0f, 0.0f, 0.0f};
-	transform_.translate = {0.0f, 0.0f, 0.0f};
+	transform_.scale = { 1.0f, 1.0f, 1.0f };
+	transform_.rotate = { 0.0f, 0.0f, 0.0f };
+	transform_.translate = { 0.0f, 0.0f, 0.0f };
+
+	// ─── ★追加：すべてのパラメータに安全な初期値を入れておく ───
+	emitParam_.scale = { 1.0f, 1.0f, 1.0f };
+	emitParam_.baseVelocity = { 0.0f, 0.0f, 0.0f };
+	emitParam_.randomVelocityRange = { 0.0f, 0.0f, 0.0f };
+	emitParam_.randomPositionRange = { 0.0f, 0.0f, 0.0f };
+	emitParam_.lifeTime = 1.0f; // 寿命が0だと一瞬で消えてしまいます
+
+	emitParam_.baseRotate = { 0.0f, 0.0f, 0.0f };
+	emitParam_.isRandomRotate = false;
+	emitParam_.randomRotateRange = { 0.0f, 0.0f, 0.0f };
+	emitParam_.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	emitParam_.count = 1;
+	emitParam_.randomScaleRange = { 0.0f, 0.0f, 0.0f };
 }
 void ParticleEmitter::Update(float deltaTime) {
 	// 頻度が0以下の場合は処理しない（0除算防止）
@@ -35,7 +49,7 @@ void ParticleEmitter::Update(float deltaTime) {
 void ParticleEmitter::Emit() {
 	// エミッタの規定値（現在の座標）に従ってパーティクルマネージャーを呼び出す
 	// 引数：グループ名, 発生座標, 発生数
-	ParticleManager::GetInstance()->Emit(groupName_, transform_.translate, count_, emitParam_);
+	ParticleManager::GetInstance()->Emit(groupName_, transform_.translate, emitParam_.count, emitParam_);
 }
 
 //---------------------------------------------------------
@@ -75,8 +89,12 @@ void ParticleEmitter::SaveToJson(const std::string& filePath) {
 	emitterNode["emitParam"]["randomVelocityRange"] = {emitParam_.randomVelocityRange.x, emitParam_.randomVelocityRange.y, emitParam_.randomVelocityRange.z};
 	emitterNode["emitParam"]["randomPositionRange"] = {emitParam_.randomPositionRange.x, emitParam_.randomPositionRange.y, emitParam_.randomPositionRange.z};
 	emitterNode["emitParam"]["lifeTime"] = emitParam_.lifeTime;
-
-	// 全体データ (root) の中に、自分の名前 (groupName_) でデータを格納する
+	emitterNode["emitParam"]["baseRotate"] = { emitParam_.baseRotate.x, emitParam_.baseRotate.y, emitParam_.baseRotate.z };
+	emitterNode["emitParam"]["isRandomRotate"] = emitParam_.isRandomRotate;
+	emitterNode["emitParam"]["randomRotateRange"] = { emitParam_.randomRotateRange.x, emitParam_.randomRotateRange.y, emitParam_.randomRotateRange.z };
+	emitterNode["emitParam"]["randomScaleRange"] = { emitParam_.randomScaleRange.x, emitParam_.randomScaleRange.y, emitParam_.randomScaleRange.z };
+	emitterNode["emitParam"]["count"] = emitParam_.count;
+	emitterNode["emitParam"]["color"] = { emitParam_.color.x, emitParam_.color.y, emitParam_.color.z, emitParam_.color.w };	// 全体データ (root) の中に、自分の名前 (groupName_) でデータを格納する
 	root[groupName_] = emitterNode;
 
 	// 4. ファイルに上書き保存する（ファイル自体はここで自動的に作成されます）
@@ -111,12 +129,7 @@ void ParticleEmitter::LoadFromJson(const std::string& filePath) {
 
 	// 自分のデータだけを切り出す
 	auto& emitterNode = root[groupName_];
-	if (emitterNode.contains("textureFilePath")) {
-		textureFilePath_ = emitterNode["textureFilePath"];
-		if (!groupName_.empty()) {
-			ParticleManager::GetInstance()->SetGroupTexture(groupName_, textureFilePath_);
-		}
-	}
+	
 	// 読み込んだ値をメンバ変数に反映
 	if (emitterNode.contains("count"))
 		count_ = emitterNode["count"];
@@ -140,6 +153,24 @@ void ParticleEmitter::LoadFromJson(const std::string& filePath) {
 		}
 		if (param.contains("lifeTime")) {
 			emitParam_.lifeTime = param["lifeTime"];
+		}
+		if (param.contains("baseRotate")) {
+			emitParam_.baseRotate = { param["baseRotate"][0], param["baseRotate"][1], param["baseRotate"][2] };
+		}
+		if (param.contains("isRandomRotate")) {
+			emitParam_.isRandomRotate = param["isRandomRotate"];
+		}
+		if (param.contains("randomRotateRange")) {
+			emitParam_.randomRotateRange = { param["randomRotateRange"][0], param["randomRotateRange"][1], param["randomRotateRange"][2] };
+		}
+		if (param.contains("color")) {
+			emitParam_.color = { param["color"][0], param["color"][1], param["color"][2], param["color"][3] };
+		}
+		if (param.contains("randomScaleRange")) {
+			emitParam_.randomScaleRange = { param["randomScaleRange"][0], param["randomScaleRange"][1], param["randomScaleRange"][2] };
+		}
+		if (param.contains("count")) {
+			emitParam_.count = param["count"];
 		}
 	}
 }

@@ -50,40 +50,40 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon) {
 
 	// 左下
 	vertices_[0] = VertexData{
-	    {-0.5f, -0.5f, 0.0f, 1.0f},
-        {0.0f, 1.0f},
-        {0.0f, 0.0f, -1.0f}
-    };
+		{-0.5f, -0.5f, 0.0f, 1.0f},
+		{0.0f, 1.0f},
+		{0.0f, 0.0f, -1.0f}
+	};
 	// 左上
 	vertices_[1] = VertexData{
-	    {-0.5f, 0.5f, 0.0f, 1.0f},
-        {0.0f, 0.0f},
-        {0.0f, 0.0f, -1.0f}
-    };
+		{-0.5f, 0.5f, 0.0f, 1.0f},
+		{0.0f, 0.0f},
+		{0.0f, 0.0f, -1.0f}
+	};
 	// 右下
 	vertices_[2] = VertexData{
-	    {0.5f, -0.5f, 0.0f, 1.0f},
-        {1.0f, 1.0f},
-        {0.0f, 0.0f, -1.0f}
-    };
+		{0.5f, -0.5f, 0.0f, 1.0f},
+		{1.0f, 1.0f},
+		{0.0f, 0.0f, -1.0f}
+	};
 	// 左上
 	vertices_[3] = VertexData{
-	    {-0.5f, 0.5f, 0.0f, 1.0f},
-        {0.0f, 0.0f},
-        {0.0f, 0.0f, -1.0f}
-    };
+		{-0.5f, 0.5f, 0.0f, 1.0f},
+		{0.0f, 0.0f},
+		{0.0f, 0.0f, -1.0f}
+	};
 	// 右上
 	vertices_[4] = VertexData{
-	    {0.5f, 0.5f, 0.0f, 1.0f},
-        {1.0f, 0.0f},
-        {0.0f, 0.0f, -1.0f}
-    };
+		{0.5f, 0.5f, 0.0f, 1.0f},
+		{1.0f, 0.0f},
+		{0.0f, 0.0f, -1.0f}
+	};
 	// 右下
 	vertices_[5] = VertexData{
-	    {0.5f, -0.5f, 0.0f, 1.0f},
-        {1.0f, 1.0f},
-        {0.0f, 0.0f, -1.0f}
-    };
+		{0.5f, -0.5f, 0.0f, 1.0f},
+		{1.0f, 1.0f},
+		{0.0f, 0.0f, -1.0f}
+	};
 	// 4. 頂点リソース生成
 	vertexResource_ = dxCommon_->CreateBufferResource(sizeof(VertexData) * 6);
 
@@ -233,9 +233,9 @@ void ParticleManager::CreatePipelineState() {
 
 	// InputLayout (main (2).cpp の VertexData 構造体に合致させる)
 	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
-	    {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	    {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	    {"NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 	};
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
@@ -269,13 +269,13 @@ void ParticleManager::CreatePipelineState() {
 	psoDesc.InputLayout = inputLayoutDesc;
 	psoDesc.BlendState = blendDesc;
 	psoDesc.RasterizerState = rasterizerDesc;
-	psoDesc.VS = {vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize()};
-	psoDesc.PS = {pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize()};
+	psoDesc.VS = { vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize() };
+	psoDesc.PS = { pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize() };
 
 	// DepthStencilState (main (2).cpp と同じ設定
 	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
 	depthStencilDesc.DepthEnable = true;
-	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; 
+	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	psoDesc.DepthStencilState = depthStencilDesc;
 
@@ -395,19 +395,25 @@ void ParticleManager::Emit(const std::string& groupName, const Vector3& position
 		newParticle.transform.translate.z = position.z + dist(randomEngine_) * emitParam.randomPositionRange.z;
 
 		// 2. 大きさ: パラメータをそのまま設定
-		newParticle.transform.scale = emitParam.scale;
-
+		newParticle.transform.scale.x = emitParam.scale.x + dist(randomEngine_) * emitParam.randomScaleRange.x;
+		newParticle.transform.scale.y = emitParam.scale.y + dist(randomEngine_) * emitParam.randomScaleRange.y;
+		newParticle.transform.scale.z = emitParam.scale.z + dist(randomEngine_) * emitParam.randomScaleRange.z;
 		// 3. 速度: 基礎速度 + (乱数 * 速度の範囲)
 		newParticle.velocity.x = emitParam.baseVelocity.x + dist(randomEngine_) * emitParam.randomVelocityRange.x;
 		newParticle.velocity.y = emitParam.baseVelocity.y + dist(randomEngine_) * emitParam.randomVelocityRange.y;
 		newParticle.velocity.z = emitParam.baseVelocity.z + dist(randomEngine_) * emitParam.randomVelocityRange.z;
+
+		// フラグが真なら、基本角度に「乱数 × 範囲」を足す
+		newParticle.transform.rotate.x = emitParam.baseRotate.x + dist(randomEngine_) * emitParam.randomRotateRange.x;
+		newParticle.transform.rotate.y = emitParam.baseRotate.y + dist(randomEngine_) * emitParam.randomRotateRange.y;
+		newParticle.transform.rotate.z = emitParam.baseRotate.z + dist(randomEngine_) * emitParam.randomRotateRange.z;
 
 		// 4. 寿命
 		newParticle.lifeTime = emitParam.lifeTime;
 		newParticle.currentTime = 0.0f;
 
 		// 色の設定（ここは必要に応じてお好みで変更してください）
-		newParticle.color = {distColor(randomEngine_), distColor(randomEngine_), distColor(randomEngine_), 1.0f};
+		newParticle.color = { distColor(randomEngine_), distColor(randomEngine_), distColor(randomEngine_), 1.0f };
 
 		group.particles.push_back(newParticle);
 	}
