@@ -18,6 +18,8 @@ private:
 	std::unique_ptr<Object3d> object3d = nullptr;
 	std::vector<std::unique_ptr<Object3d>> axisObjects;
 	std::unique_ptr<Object3d> sphereObject = nullptr;
+	std::unique_ptr<Object3d> cylinderObject = nullptr;
+
 	std::unique_ptr<ParticleEmitter> emitter = nullptr;
 	std::unique_ptr<ParticleEmitter> ringEmitter = nullptr;
 	Vector3 cameraPosition={0.0f, 0.0f, 0.0f};
