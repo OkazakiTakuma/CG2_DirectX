@@ -21,6 +21,7 @@ ParticleEmitter::ParticleEmitter() : groupName_(""), count_(0), frequency_(0.0f)
 	emitParam_.color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	emitParam_.count = 1;
 	emitParam_.randomScaleRange = { 0.0f, 0.0f, 0.0f };
+	emitParam_.isBillboard = true;
 }
 void ParticleEmitter::Update(float deltaTime) {
 	// 頻度が0以下の場合は処理しない（0除算防止）
@@ -95,6 +96,7 @@ void ParticleEmitter::SaveToJson(const std::string& filePath) {
 	emitterNode["emitParam"]["randomScaleRange"] = { emitParam_.randomScaleRange.x, emitParam_.randomScaleRange.y, emitParam_.randomScaleRange.z };
 	emitterNode["emitParam"]["count"] = emitParam_.count;
 	emitterNode["emitParam"]["color"] = { emitParam_.color.x, emitParam_.color.y, emitParam_.color.z, emitParam_.color.w };	// 全体データ (root) の中に、自分の名前 (groupName_) でデータを格納する
+	emitterNode["emitParam"]["isBillboard"] = emitParam_.isBillboard;
 	root[groupName_] = emitterNode;
 
 	// 4. ファイルに上書き保存する（ファイル自体はここで自動的に作成されます）
@@ -171,6 +173,9 @@ void ParticleEmitter::LoadFromJson(const std::string& filePath) {
 		}
 		if (param.contains("count")) {
 			emitParam_.count = param["count"];
+		}
+		if (param.contains("isBillboard")) {
+			emitParam_.isBillboard = param["isBillboard"];
 		}
 	}
 }

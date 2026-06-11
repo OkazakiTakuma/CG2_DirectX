@@ -40,6 +40,7 @@ public:
 	void SetColor(const Vector4& color) { emitParam_.color = color; }
 	void SetRandomScaleRange(const Vector3& range) { emitParam_.randomScaleRange = range; }
 	void SetCount(uint32_t count) { emitParam_.count = count; } // 既存の count_ = count から変更
+	void SetIsBillboard(bool isBillboard) { emitParam_.isBillboard = isBillboard; }
 	void SetPalam(const ParticleEmitParam& palam) { emitParam_ = palam; };
 	// ステータスのゲッター
 	Vector3 GetTlanslate()const { return transform_.translate; }
@@ -54,6 +55,7 @@ public:
 	Vector4 GetColor() const { return emitParam_.color; }
 	Vector3 GetRandomScaleRange() const { return emitParam_.randomScaleRange; }
 	uint32_t GetCount() const { return emitParam_.count; }
+	bool GetIsBillboard() const { return emitParam_.isBillboard; }
 	ParticleEmitParam GetPalam() const { return emitParam_; }
 
 	void SaveToJson(const std::string& filePath = "Resources/Data/emit_status.json");

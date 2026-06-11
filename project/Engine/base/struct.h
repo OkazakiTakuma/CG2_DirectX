@@ -61,6 +61,7 @@ struct Particle {
 	Vector4 color;        // 色
 	float lifeTime;
 	float currentTime;
+	bool isBillboard;
 };
 struct Emitter {
 	Transform transform; // エミッタの位置情報
@@ -99,4 +100,10 @@ struct ParticleEmitParam {
 	Vector4 color;
 	Vector3 randomScaleRange;  // スケールの乱数幅
 	uint32_t count;            // 発生数（パラメータとして一括管理）
+	bool isBillboard = true;
+};
+
+enum ParticleMeshType {
+	kMeshTypeQuad, // 通常の四角形
+	kMeshTypeRing  // リング形状
 };
