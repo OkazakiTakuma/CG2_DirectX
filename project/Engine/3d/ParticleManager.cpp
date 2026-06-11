@@ -26,8 +26,9 @@ void ParticleManager::Finalize() {
 
 	// パイプラインの破棄（ここが漏れている可能性が高いです）
 	rootSignature.Reset();
-	graphicsPipelineState.Reset();
-
+	for (auto& pso : graphicsPipelineStates) {
+		pso.Reset();
+	}
 	delete instance;
 	instance = nullptr;
 }
@@ -288,11 +289,64 @@ void ParticleManager::CreatePipelineState() {
 	psoDesc.SampleDesc.Count = 1;
 	psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
-	hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&graphicsPipelineState));
+	for (int i = 0; i < kBlendCountblend; ++i) {
+		// 共通の設定をベースにする
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC localDesc = psoDesc;
 
-	if (FAILED(hr)) {
-		OutputDebugStringA("Error: Failed to create GraphicsPipelineState for Particle.\n");
-		assert(false);
+		// ブレンドの基本有効化設定
+		localDesc.BlendState.RenderTarget[0].BlendEnable = TRUE;
+		localDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+		// アルファ（透明度）のブレンド計算式（通常は共通でOKです）
+		localDesc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+		localDesc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+		localDesc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+		// ループインデックス（列挙型 BlendMode）に応じてブレンド式を切り替える
+		switch (i) {
+		case kBlendModeNone:
+			localDesc.BlendState.RenderTarget[0].BlendEnable = FALSE;
+			break;
+
+		case kBlendModeNormal: // 通常ブレンド（半透明）
+			localDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			localDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+			localDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			break;
+
+		case kBlendModeAdd: // 加算ブレンド（光らせる演出用）
+			localDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			localDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+			localDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			break;
+
+		case kBlendModeSubtract: // 減算ブレンド（影や暗くする演出用）
+			localDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			localDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+			localDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_REV_SUBTRACT; // 反転して引く
+			break;
+
+		case kBlendModeMultiply: // 乗算ブレンド
+			localDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_DEST_COLOR;
+			localDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
+			localDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			break;
+
+		case kBlendModeScreen: // スクリーンブレンド
+			localDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_INV_DEST_COLOR;
+			localDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+			localDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			break;
+		}
+
+		// それぞれの設定でパイプラインを生成して配列に格納
+		HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&localDesc, IID_PPV_ARGS(&graphicsPipelineStates[i]));
+		assert(SUCCEEDED(hr));
+
+		if (FAILED(hr)) {
+			OutputDebugStringA("Error: Failed to create GraphicsPipelineState for Particle.\n");
+			assert(false);
+		}
 	}
 }
 
@@ -300,7 +354,6 @@ void ParticleManager::Draw(Camera* camera) {
 	auto commandList = dxCommon_->GetCommandList();
 	SrvManager::GetInstance()->PreDraw();
 
-	commandList->SetPipelineState(graphicsPipelineState.Get());
 	commandList->SetGraphicsRootSignature(rootSignature.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
@@ -312,9 +365,10 @@ void ParticleManager::Draw(Camera* camera) {
 	billboardMatrix.m[3][2] = 0.0f;
 
 	for (auto& [name, group] : particleGroups_) {
-		if (group.particles.empty())
+		if (group.particles.empty()) {
 			continue;
-
+		}
+		commandList->SetPipelineState(graphicsPipelineStates[group.blendMode].Get());
 		uint32_t numInstance = std::min<uint32_t>(static_cast<uint32_t>(group.particles.size()), kMaxParticle);
 		uint32_t index = 0;
 
@@ -331,8 +385,6 @@ void ParticleManager::Draw(Camera* camera) {
 
 			// 合成した回転行列を使って worldMatrix を計算する
 			Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(rotateAndBillboard, translateMatrix));
-			// ＝＝＝＝＝ ここまで修正 ＝＝＝＝＝
-			//Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(rotateMatrix, translateMatrix));
 			Matrix4x4 wvp = Multiply(worldMatrix, viewProjection);
 
 			group.instanceDataPtr[index].WVP = wvp;
@@ -433,4 +485,12 @@ void ParticleManager::SetGroupTexture(const std::string& groupName, const std::s
 	group.material.textureFilePath = textureFilePath;
 	TextureManager::GetInstance()->LoadTexture(textureFilePath);
 	group.material.textureIndex = TextureManager::GetInstance()->GetSrvIndex(textureFilePath);
+}
+
+void ParticleManager::SetGroupBlendMode(const std::string& groupName, BlendMode blendMode) {
+	// 指定された名前のグループが存在するかチェックし、ブレンドモードを設定
+	auto it = particleGroups_.find(groupName);
+	if (it != particleGroups_.end()) {
+		it->second.blendMode = blendMode;
+	}
 }
