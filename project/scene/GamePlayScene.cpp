@@ -52,7 +52,14 @@ void GamePlayScene::Initialize() {
 	sphereObject->SetTranslate({0.0f, 10.0f, 3.0f});
 	sphereObject->SetScale({1.0f, 1.0f, 1.0f});
 	sphereObject->SetRotate({0.0f, 0.0f, 0.0f});
+	cylinderObject = std::make_unique<Object3d>();
 
+	// ★ この初期化処理が抜けていると今回のエラーが起きます！
+	cylinderObject->Initialize();
+
+	// そのあとにシリンダーの形を作ったりテクスチャを貼る
+	cylinderObject->CreateCylinder(1.0f, 2.0f, 16, true, true);
+	cylinderObject->SetTexture("Resources/gradationLine.png");
 	// =================================================
 	// ▼ 追加: エミッタの作成
 	// =================================================
@@ -130,6 +137,7 @@ void GamePlayScene::Update() {
 	for (auto& axisObj : axisObjects) {
 		axisObj->Update();
 	}
+	cylinderObject->Update();
 
 	sprite->Update();
 	for (auto& s : sprites) {
@@ -159,6 +167,7 @@ void GamePlayScene::Draw3D() {
 		axisObj->Draw();
 	}
 	object3d->Draw();
+	cylinderObject->Draw();
 	sphereObject->Draw();
 
 	if (isParticleEmit) {

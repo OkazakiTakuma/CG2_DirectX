@@ -13,8 +13,10 @@
 #include <string>
 #include <vector>
 #include <wrl.h>
+
 class Object3dCommon;
 class Model;
+
 class Object3d {
 
 public:
@@ -24,6 +26,11 @@ public:
 	void SetModel(Model* model) { this->model = model; }
 	void SetModel(const std::string& filePath);
 	~Object3d();
+
+	// ★修正: 蓋の生成を選択できる引数を追加 (デフォルトは両方ON)
+	void CreateCylinder(float radius = 1.0f, float height = 2.0f, uint32_t subdivision = 16, bool createTopCap = true, bool createBottomCap = true);
+	void SetTexture(const std::string& textureFilePath);
+
 	const Vector3& GetTranslate() { return transform.translate; };
 	void SetTranslate(const Vector3& newTransform) { transform.translate = newTransform; }
 	const Vector3& GetRotate() { return transform.rotate; };
@@ -46,6 +53,7 @@ public:
 	const float GetPointLightDecay() const { return pointLightData ? pointLightData->decay : 0.0f; }
 	const bool GetIsPointLightSet() const { return isPointLightSet; }
 	const float GetEnvironmentMultiplier() const { return environmentMultiplier; }
+	void SetEnvironmentMap(const std::string& textureFilePath);
 
 private:
 	const float pi = 3.1415f;                         // 円周率
@@ -80,10 +88,32 @@ private:
 	PointLight* pointLightData = nullptr;
 	void CreatePointLightResource();
 
+	// 自作シリンダー用のDirectX12リソース
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceCylinder;
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceCylinder;
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewCylinder{};
+	D3D12_INDEX_BUFFER_VIEW indexBufferViewCylinder{};
+	uint32_t cylinderIndexCount = 0;
+
+	// 自作シリンダー用のテクスチャ・マテリアルリソース
+	D3D12_GPU_DESCRIPTOR_HANDLE textureHandleCylinder{};
+	bool isTextureSetCylinder = false;
+
+	struct MaterialData {
+		Vector4 color;
+		int32_t enableLighting;
+		float padding[3];
+		Matrix4x4 uvTransform;
+		float shininess;
+	};
+	Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceCylinder;
+	MaterialData* materialDataCylinder = nullptr;
+
 	Model* model = nullptr;
 	bool isPointLightSet = true;
 	float environmentMultiplier = 1.0f;
 
 	Transform transform;
 	Camera* camera = nullptr;
+	std::string envMapTexturePath = "Resources/rostock_laage_airport_4k.dds";
 };
