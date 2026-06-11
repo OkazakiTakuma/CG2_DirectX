@@ -20,7 +20,7 @@ public:
 	static ParticleManager* GetInstance();
 	void Finalize();
 	static const uint32_t kMaxParticle;
-	void CreateParticleGroup(const std::string& groupName, const std::string& textureFilePath);
+	void CreateParticleGroup(const std::string& groupName, const std::string& textureFilePath, ParticleMeshType meshType = kMeshTypeQuad);
 	void Draw(Camera* camera);
 	void Update();
 	void SetCamera(Camera* camera) { camera_ = camera; }
@@ -38,6 +38,11 @@ public:
 
 		// ★追加：このグループがどのブレンドモードで描画されるか（初期値は通常ブレンド）
 		BlendMode blendMode = kBlendModeNormal;
+		// ─── ★追加：グループ個別のメッシュ情報 ───
+		ParticleMeshType meshType = kMeshTypeQuad; // メッシュの種類
+		Microsoft::WRL::ComPtr<ID3D12Resource> vertBuff = nullptr; // 専用の頂点バッファ
+		D3D12_VERTEX_BUFFER_VIEW vbView{}; // 専用の頂点バッファビュー
+		uint32_t vertexCount = 0; // 頂点数
 	};
 
 private:
@@ -56,6 +61,6 @@ private:
 	void CreateRootSignature();
 
 	void CreatePipelineState();
-	
+
 	std::unordered_map<std::string, ParticleGroup> particleGroups_;
 };

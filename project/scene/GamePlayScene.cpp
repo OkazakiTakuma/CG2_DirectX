@@ -57,7 +57,7 @@ void GamePlayScene::Initialize() {
 	// ▼ 追加: エミッタの作成
 	// =================================================
 	ParticleEmitParam slash;
-	slash.scale = { 0.05f, 1.0f, 1.0f };
+	slash.scale = { 0.5f, 10.0f, 10.0f };
 	slash.baseRotate = { 0.0f, 0.0f, 0.0f };
 	slash.baseVelocity = { 0.0f, 0.0f, 0.0f };
 	slash.color = { 1.0f, 1.0f, 1.0f, 1.0f }; // 白色
@@ -70,13 +70,37 @@ void GamePlayScene::Initialize() {
 	
 	
 
-
 	
 	emitter = std::make_unique<ParticleEmitter>();
 	emitter->SetGroupName("Slash");
 	emitter->SetPalam(slash);
 	emitter->SetFrequency(3.0f);
 	emitter->SetTexture("Resources/circle.png");
+
+
+	ParticleEmitParam ringParam;
+	ringParam.scale = { 1.0f, 1.0f, 1.0f }; // サイズ
+	ringParam.baseRotate = { 0.0f, 0.0f, 0.0 };
+	ringParam.baseVelocity = { 0.0f, 0.0f, 0.0f }; // その場に出す
+	ringParam.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	ringParam.lifeTime = 1.0f; // 1秒間表示
+
+	ringParam.isRandomRotate = false;
+	ringParam.randomRotateRange = { 0.0f, 0.0f, std::numbers::pi_v<float> *2.0f };
+	ringParam.count = 1; // 1回の発生で1つだけ出す
+	ringParam.randomVelocityRange = { 0.0f, 0.0f, 0.0f };
+	ringParam.randomPositionRange = { 0.0f, 0.0f, 0.0f };
+	ringParam.randomScaleRange = { 0.0f, 0.0f, 0.0f };
+
+	ringEmitter = std::make_unique<ParticleEmitter>();
+	// ★Game.cppで作成したグループ名「Ring」を指定！
+	ringEmitter->SetGroupName("Ring");
+	ringEmitter->SetPalam(ringParam);
+	ringEmitter->SetFrequency(3.0f); // 0.5秒ごとに発生
+
+	// 位置を中心に設定する場合（お好みの位置に調整してください）
+	ringEmitter->SetTranslate({ 0.0f, 0.0f, 0.0f });
+	ringEmitter->SetTexture("Resources/gradationLine.png");
 
 
 	// ※ここでは「1秒間に10回、1回につき5個発生」という設定にしています
@@ -98,6 +122,7 @@ void GamePlayScene::Update() {
 
 	// 更新
 	emitter->Update(1.0f / 60.0f);
+	ringEmitter->Update(1.0f / 60.0f);
 	ParticleManager::GetInstance()->Update();
 	Object3dCommon::GetInstance()->GetDefaultCamera()->Update();
 	Object3dCommon::GetInstance()->GetDefaultCamera()->Update();
@@ -238,6 +263,9 @@ void GamePlayScene::ImGuiUpdate() {
 	ImGui::End();
 	emitter->SetBaseRotate(emit.baseRotate);
 	emitter->SetTranslate(tlans);
+	ringEmitter->SetBaseRotate(emit.baseRotate);
+	ringEmitter->SetTranslate(tlans);
+
 
 	ImGuiManager::GetInstance()->End();
 

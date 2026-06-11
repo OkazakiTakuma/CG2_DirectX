@@ -2,8 +2,51 @@
 #include "Camera.h"
 #include <algorithm> // std::min用
 #include <cassert>
+#include <numbers>
+#include <cmath>
 
-using namespace Logger;
+// 頂点データを生成する補助関数
+std::vector<VertexData> GenerateRingVerticesForParticle(uint32_t segments, float outerRadius, float innerRadius) {
+	std::vector<VertexData> vertices;
+	vertices.reserve(segments * 6);
+
+	for (uint32_t i = 0; i < segments; ++i) {
+		// 円周をどれくらい進んだかの割合（0.0 ～ 1.0）
+		float ratio1 = static_cast<float>(i) / segments;
+		float ratio2 = static_cast<float>(i + 1) / segments;
+
+		float angle1 = ratio1 * 2.0f * std::numbers::pi_v<float>;
+		float angle2 = ratio2 * 2.0f * std::numbers::pi_v<float>;
+
+		// 座標の計算
+		Vector4 outer1 = { outerRadius * std::cos(angle1), outerRadius * std::sin(angle1), 0.0f, 1.0f };
+		Vector4 inner1 = { innerRadius * std::cos(angle1), innerRadius * std::sin(angle1), 0.0f, 1.0f };
+		Vector4 outer2 = { outerRadius * std::cos(angle2), outerRadius * std::sin(angle2), 0.0f, 1.0f };
+		Vector4 inner2 = { innerRadius * std::cos(angle2), innerRadius * std::sin(angle2), 0.0f, 1.0f };
+
+		// ─── ★ここがポイント！UV座標の設定 ───
+		// 外側は V = 0.0f (テクスチャの上), 内側は V = 1.0f (テクスチャの下)
+		// Uは円周に沿って 0.0f から 1.0f へ進む
+		Vector2 uvOuter1 = { ratio1, 0.0f };
+		Vector2 uvInner1 = { ratio1, 1.0f };
+		Vector2 uvOuter2 = { ratio2, 0.0f };
+		Vector2 uvInner2 = { ratio2, 1.0f };
+
+		Vector3 normal = { 0.0f, 0.0f, -1.0f };
+
+		// 1つ目の三角形 (外1, 内1, 外2)
+		vertices.push_back({ outer1, uvOuter1, normal });
+		vertices.push_back({ inner1, uvInner1, normal });
+		vertices.push_back({ outer2, uvOuter2, normal });
+
+		// 2つ目の三角形 (内1, 内2, 外2)
+		vertices.push_back({ inner1, uvInner1, normal });
+		vertices.push_back({ inner2, uvInner2, normal });
+		vertices.push_back({ outer2, uvOuter2, normal });
+	}
+
+	return vertices;
+}using namespace Logger;
 
 // 定数定義
 const uint32_t ParticleManager::kMaxParticle = 512;
@@ -103,7 +146,7 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon) {
 	CreatePipelineState();
 }
 
-void ParticleManager::CreateParticleGroup(const std::string& groupName, const std::string& textureFilePath) {
+void ParticleManager::CreateParticleGroup(const std::string& groupName, const std::string& textureFilePath, ParticleMeshType meshtype) {
 
 	// 登録済みチェック
 	if (particleGroups_.find(groupName) != particleGroups_.end()) {
@@ -116,10 +159,48 @@ void ParticleManager::CreateParticleGroup(const std::string& groupName, const st
 	particleGroups_[groupName] = std::move(newGroup);
 	ParticleGroup& group = particleGroups_[groupName];
 
-	// マテリアル設定
+	// マテリアルとメッシュタイプの設定
 	group.material.textureFilePath = textureFilePath;
 	TextureManager::GetInstance()->LoadTexture(textureFilePath);
 	group.material.textureIndex = TextureManager::GetInstance()->GetSrvIndex(textureFilePath);
+	group.meshType = meshtype; // 渡された形状を保存
+
+	// =========================================================
+	// ▼ 形状に応じた頂点データの用意と専用頂点バッファの作成
+	// =========================================================
+	std::vector<VertexData> vertices;
+	if (meshtype == kMeshTypeRing) {
+		// リング型ポリゴン (32分割、外径1.0、内径0.8)
+		vertices = GenerateRingVerticesForParticle(32, 1.0f, 0.2f);
+	}
+	else {
+		// 通常の四角形ポリゴン
+		vertices = {
+			{ {-0.5f, -0.5f, 0.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, -1.0f} },
+			{ {-0.5f,  0.5f, 0.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f} },
+			{ { 0.5f, -0.5f, 0.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, -1.0f} },
+			{ {-0.5f,  0.5f, 0.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f} },
+			{ { 0.5f,  0.5f, 0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, -1.0f} },
+			{ { 0.5f, -0.5f, 0.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, -1.0f} },
+		};
+	}
+	group.vertexCount = static_cast<uint32_t>(vertices.size());
+
+	// 専用の頂点バッファを作成 (dxCommon_->CreateBufferResource を活用!)
+	UINT sizeVB = static_cast<UINT>(sizeof(VertexData) * vertices.size());
+	group.vertBuff = dxCommon_->CreateBufferResource(sizeVB);
+
+	// 頂点データをバッファに書き込む
+	VertexData* vertMap = nullptr;
+	group.vertBuff->Map(0, nullptr, reinterpret_cast<void**>(&vertMap));
+	std::copy(vertices.begin(), vertices.end(), vertMap);
+	group.vertBuff->Unmap(0, nullptr);
+
+	// 頂点バッファビューの設定
+	group.vbView.BufferLocation = group.vertBuff->GetGPUVirtualAddress();
+	group.vbView.SizeInBytes = sizeVB;
+	group.vbView.StrideInBytes = sizeof(VertexData);
+	// =========================================================
 
 	// インスタンシング用リソース生成
 	const uint32_t maxInstance = kMaxParticle;
@@ -157,7 +238,6 @@ void ParticleManager::CreateParticleGroup(const std::string& groupName, const st
 
 	//dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
 }
-
 // ==========================================
 // ルートシグネチャ生成 (main (2).cpp の構成を参考に整理)
 // ==========================================
@@ -356,7 +436,6 @@ void ParticleManager::Draw(Camera* camera) {
 
 	commandList->SetGraphicsRootSignature(rootSignature.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
 
 	Matrix4x4 viewProjection = camera->GetViewProjectionMatrix();
 	Matrix4x4 billboardMatrix = camera->GetWorldMatrix();
@@ -368,6 +447,7 @@ void ParticleManager::Draw(Camera* camera) {
 		if (group.particles.empty()) {
 			continue;
 		}
+		commandList->IASetVertexBuffers(0, 1, &group.vbView);
 		commandList->SetPipelineState(graphicsPipelineStates[group.blendMode].Get());
 		uint32_t numInstance = std::min<uint32_t>(static_cast<uint32_t>(group.particles.size()), kMaxParticle);
 		uint32_t index = 0;
@@ -380,11 +460,19 @@ void ParticleManager::Draw(Camera* camera) {
 			Matrix4x4 rotateMatrix = MakeRotateXYZMatrix(particle.transform.rotate); // 回転行列
 			Matrix4x4 translateMatrix = MakeTranslateMatrix(particle.transform.translate);
 
-			// ビルボード処理を入れる場合はここで rotateMatrix を billboardMatrix に置き換える
-			Matrix4x4 rotateAndBillboard = Multiply(rotateMatrix, billboardMatrix);
+			// ─── ★追加：ビルボードON/OFFの切り替え ───
+			Matrix4x4 finalRotateMatrix;
+			if (particle.isBillboard) {
+				// ビルボードON：パーティクルの回転にビルボード行列を合成する
+				finalRotateMatrix = Multiply(rotateMatrix, billboardMatrix);
+			}
+			else {
+				// ビルボードOFF：パーティクル自身の回転行列のみを使用する（3D空間に配置される）
+				finalRotateMatrix = rotateMatrix;
+			}
 
 			// 合成した回転行列を使って worldMatrix を計算する
-			Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(rotateAndBillboard, translateMatrix));
+			Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(finalRotateMatrix, translateMatrix));
 			Matrix4x4 wvp = Multiply(worldMatrix, viewProjection);
 
 			group.instanceDataPtr[index].WVP = wvp;
@@ -402,12 +490,12 @@ void ParticleManager::Draw(Camera* camera) {
 			// [1] Data
 			commandList->SetGraphicsRootDescriptorTable(1, srvManager_->GetGPUDescriptorHandle(group.instanceSrvIndex));
 
-			commandList->DrawInstanced(6, group.instanceCount, 0, 0);
+			commandList->DrawInstanced(group.vertexCount, group.instanceCount, 0, 0);
 		}
 	}
 }
 
-// Update, Emit関数は以前のままでOK
+// Update関数は提示していただいたままで問題ありません
 void ParticleManager::Update() {
 	for (auto& groupPair : particleGroups_) {
 		ParticleGroup& group = groupPair.second;
@@ -430,7 +518,6 @@ void ParticleManager::Update() {
 		}
 	}
 }
-
 void ParticleManager::Emit(const std::string& groupName, const Vector3& position, uint32_t count, const ParticleEmitParam& emitParam) {
 	if (particleGroups_.find(groupName) == particleGroups_.end())
 		return;
@@ -466,6 +553,8 @@ void ParticleManager::Emit(const std::string& groupName, const Vector3& position
 		// 4. 寿命
 		newParticle.lifeTime = emitParam.lifeTime;
 		newParticle.currentTime = 0.0f;
+
+		newParticle.isBillboard = emitParam.isBillboard;
 
 		// 色の設定（ここは必要に応じてお好みで変更してください）
 		newParticle.color = { distColor(randomEngine_), distColor(randomEngine_), distColor(randomEngine_), 1.0f };
