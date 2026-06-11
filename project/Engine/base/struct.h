@@ -88,9 +88,15 @@ struct PointLight {
 };
 
 struct ParticleEmitParam {
-	Vector3 scale = {1.0f, 1.0f, 1.0f};               // 大きさ
-	Vector3 baseVelocity = {0.0f, 0.0f, 0.0f};        // 基礎速度
-	Vector3 randomVelocityRange = {0.1f, 0.1f, 0.1f}; // 乱数で加算される速度の範囲
-	Vector3 randomPositionRange = {0.5f, 0.5f, 0.5f}; // 発生位置の範囲
-	float lifeTime = 1.0f;                            // 存在時間
+	Vector3 scale = { 1.0f, 1.0f, 1.0f };               // 大きさ
+	Vector3 baseVelocity = { 0.0f, 0.0f, 0.0f };        // 基礎速度
+	Vector3 randomVelocityRange = { 0.1f, 0.1f, 0.1f }; // 乱数で加算される速度の範囲
+	Vector3 randomPositionRange = { 0.5f, 0.5f, 0.5f }; // 発生位置の範囲
+	float lifeTime = 1.0f;
+	Vector3 baseRotate;         // 角度の基本ステータス
+	bool isRandomRotate;        // 角度を乱数にするかどうかのフラグ
+	Vector3 randomRotateRange;  // 乱数の範囲// 存在時間
+	Vector4 color;
+	Vector3 randomScaleRange;  // スケールの乱数幅
+	uint32_t count;            // 発生数（パラメータとして一括管理）
 };

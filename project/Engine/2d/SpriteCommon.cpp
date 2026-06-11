@@ -213,7 +213,5 @@ void SpriteCommon::CreatePipelineState() {
 		hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&graphicsPipelineStates[i]));
 		assert(SUCCEEDED(hr));
 
-		hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&graphicsPipelineState));
-		assert(SUCCEEDED(hr));
 	}
 }

@@ -22,7 +22,8 @@ void Game::Initialize() {
 	// 2. グループ作成（テクスチャロード）
 	ParticleManager::GetInstance()->CreateParticleGroup("Smoke", "Resources/uvChecker.png");
 	ParticleManager::GetInstance()->CreateParticleGroup("Fire", "Resources/uvChecker.png");
-
+	ParticleManager::GetInstance()->CreateParticleGroup("Slash", "Resources/uvChecker.png");
+	ParticleManager::GetInstance()->SetGroupBlendMode("Slash", kBlendModeAdd);
 	ParticleManager::GetInstance()->SetCamera(camera.get());
 	sceneFactory = new SceneFactory();
 	SceneManager::GetInstance()->SetSceneFactory(sceneFactory);

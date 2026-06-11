@@ -2,16 +2,39 @@
     "Fire": {
         "count": 5,
         "emitParam": {
+            "baseRotate": [
+                0.0,
+                0.0,
+                0.0
+            ],
             "baseVelocity": [
                 0.0,
                 0.5,
                 0.0
             ],
+            "color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "count": 1,
+            "isRandomRotate": false,
             "lifeTime": 1.5,
             "randomPositionRange": [
                 1.0,
                 0.20000000298023224,
                 1.0
+            ],
+            "randomRotateRange": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "randomScaleRange": [
+                0.0,
+                0.0,
+                0.0
             ],
             "randomVelocityRange": [
                 0.10000000149011612,
@@ -24,6 +47,58 @@
                 2.0
             ]
         },
-        "frequency": 10.0
+        "frequency": 10.0,
+        "textureFilePath": ""
+    },
+    "Slash": {
+        "count": 0,
+        "emitParam": {
+            "baseRotate": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "baseVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "count": 3,
+            "isRandomRotate": true,
+            "lifeTime": 1.0,
+            "randomPositionRange": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "randomRotateRange": [
+                0.0,
+                0.0,
+                6.2831854820251465
+            ],
+            "randomScaleRange": [
+                0.0,
+                1.0,
+                0.0
+            ],
+            "randomVelocityRange": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "scale": [
+                0.05000000074505806,
+                1.0,
+                1.0
+            ]
+        },
+        "frequency": 3.0,
+        "textureFilePath": ""
     }
 }

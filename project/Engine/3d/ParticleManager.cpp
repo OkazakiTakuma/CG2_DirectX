@@ -26,8 +26,9 @@ void ParticleManager::Finalize() {
 
 	// パイプラインの破棄（ここが漏れている可能性が高いです）
 	rootSignature.Reset();
-	graphicsPipelineState.Reset();
-
+	for (auto& pso : graphicsPipelineStates) {
+		pso.Reset();
+	}
 	delete instance;
 	instance = nullptr;
 }
@@ -50,40 +51,40 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon) {
 
 	// 左下
 	vertices_[0] = VertexData{
-	    {-0.5f, -0.5f, 0.0f, 1.0f},
-        {0.0f, 1.0f},
-        {0.0f, 0.0f, -1.0f}
-    };
+		{-0.5f, -0.5f, 0.0f, 1.0f},
+		{0.0f, 1.0f},
+		{0.0f, 0.0f, -1.0f}
+	};
 	// 左上
 	vertices_[1] = VertexData{
-	    {-0.5f, 0.5f, 0.0f, 1.0f},
-        {0.0f, 0.0f},
-        {0.0f, 0.0f, -1.0f}
-    };
+		{-0.5f, 0.5f, 0.0f, 1.0f},
+		{0.0f, 0.0f},
+		{0.0f, 0.0f, -1.0f}
+	};
 	// 右下
 	vertices_[2] = VertexData{
-	    {0.5f, -0.5f, 0.0f, 1.0f},
-        {1.0f, 1.0f},
-        {0.0f, 0.0f, -1.0f}
-    };
+		{0.5f, -0.5f, 0.0f, 1.0f},
+		{1.0f, 1.0f},
+		{0.0f, 0.0f, -1.0f}
+	};
 	// 左上
 	vertices_[3] = VertexData{
-	    {-0.5f, 0.5f, 0.0f, 1.0f},
-        {0.0f, 0.0f},
-        {0.0f, 0.0f, -1.0f}
-    };
+		{-0.5f, 0.5f, 0.0f, 1.0f},
+		{0.0f, 0.0f},
+		{0.0f, 0.0f, -1.0f}
+	};
 	// 右上
 	vertices_[4] = VertexData{
-	    {0.5f, 0.5f, 0.0f, 1.0f},
-        {1.0f, 0.0f},
-        {0.0f, 0.0f, -1.0f}
-    };
+		{0.5f, 0.5f, 0.0f, 1.0f},
+		{1.0f, 0.0f},
+		{0.0f, 0.0f, -1.0f}
+	};
 	// 右下
 	vertices_[5] = VertexData{
-	    {0.5f, -0.5f, 0.0f, 1.0f},
-        {1.0f, 1.0f},
-        {0.0f, 0.0f, -1.0f}
-    };
+		{0.5f, -0.5f, 0.0f, 1.0f},
+		{1.0f, 1.0f},
+		{0.0f, 0.0f, -1.0f}
+	};
 	// 4. 頂点リソース生成
 	vertexResource_ = dxCommon_->CreateBufferResource(sizeof(VertexData) * 6);
 
@@ -233,9 +234,9 @@ void ParticleManager::CreatePipelineState() {
 
 	// InputLayout (main (2).cpp の VertexData 構造体に合致させる)
 	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
-	    {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	    {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	    {"NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 	};
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
@@ -269,13 +270,13 @@ void ParticleManager::CreatePipelineState() {
 	psoDesc.InputLayout = inputLayoutDesc;
 	psoDesc.BlendState = blendDesc;
 	psoDesc.RasterizerState = rasterizerDesc;
-	psoDesc.VS = {vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize()};
-	psoDesc.PS = {pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize()};
+	psoDesc.VS = { vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize() };
+	psoDesc.PS = { pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize() };
 
 	// DepthStencilState (main (2).cpp と同じ設定
 	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
 	depthStencilDesc.DepthEnable = true;
-	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; 
+	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	psoDesc.DepthStencilState = depthStencilDesc;
 
@@ -288,11 +289,64 @@ void ParticleManager::CreatePipelineState() {
 	psoDesc.SampleDesc.Count = 1;
 	psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
-	hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&graphicsPipelineState));
+	for (int i = 0; i < kBlendCountblend; ++i) {
+		// 共通の設定をベースにする
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC localDesc = psoDesc;
 
-	if (FAILED(hr)) {
-		OutputDebugStringA("Error: Failed to create GraphicsPipelineState for Particle.\n");
-		assert(false);
+		// ブレンドの基本有効化設定
+		localDesc.BlendState.RenderTarget[0].BlendEnable = TRUE;
+		localDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+		// アルファ（透明度）のブレンド計算式（通常は共通でOKです）
+		localDesc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+		localDesc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+		localDesc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+		// ループインデックス（列挙型 BlendMode）に応じてブレンド式を切り替える
+		switch (i) {
+		case kBlendModeNone:
+			localDesc.BlendState.RenderTarget[0].BlendEnable = FALSE;
+			break;
+
+		case kBlendModeNormal: // 通常ブレンド（半透明）
+			localDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			localDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+			localDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			break;
+
+		case kBlendModeAdd: // 加算ブレンド（光らせる演出用）
+			localDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			localDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+			localDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			break;
+
+		case kBlendModeSubtract: // 減算ブレンド（影や暗くする演出用）
+			localDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			localDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+			localDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_REV_SUBTRACT; // 反転して引く
+			break;
+
+		case kBlendModeMultiply: // 乗算ブレンド
+			localDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_DEST_COLOR;
+			localDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
+			localDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			break;
+
+		case kBlendModeScreen: // スクリーンブレンド
+			localDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_INV_DEST_COLOR;
+			localDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+			localDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			break;
+		}
+
+		// それぞれの設定でパイプラインを生成して配列に格納
+		HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&localDesc, IID_PPV_ARGS(&graphicsPipelineStates[i]));
+		assert(SUCCEEDED(hr));
+
+		if (FAILED(hr)) {
+			OutputDebugStringA("Error: Failed to create GraphicsPipelineState for Particle.\n");
+			assert(false);
+		}
 	}
 }
 
@@ -300,7 +354,6 @@ void ParticleManager::Draw(Camera* camera) {
 	auto commandList = dxCommon_->GetCommandList();
 	SrvManager::GetInstance()->PreDraw();
 
-	commandList->SetPipelineState(graphicsPipelineState.Get());
 	commandList->SetGraphicsRootSignature(rootSignature.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
@@ -312,9 +365,10 @@ void ParticleManager::Draw(Camera* camera) {
 	billboardMatrix.m[3][2] = 0.0f;
 
 	for (auto& [name, group] : particleGroups_) {
-		if (group.particles.empty())
+		if (group.particles.empty()) {
 			continue;
-
+		}
+		commandList->SetPipelineState(graphicsPipelineStates[group.blendMode].Get());
 		uint32_t numInstance = std::min<uint32_t>(static_cast<uint32_t>(group.particles.size()), kMaxParticle);
 		uint32_t index = 0;
 
@@ -327,9 +381,10 @@ void ParticleManager::Draw(Camera* camera) {
 			Matrix4x4 translateMatrix = MakeTranslateMatrix(particle.transform.translate);
 
 			// ビルボード処理を入れる場合はここで rotateMatrix を billboardMatrix に置き換える
-			Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(billboardMatrix, translateMatrix));
+			Matrix4x4 rotateAndBillboard = Multiply(rotateMatrix, billboardMatrix);
 
-			//Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(rotateMatrix, translateMatrix));
+			// 合成した回転行列を使って worldMatrix を計算する
+			Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(rotateAndBillboard, translateMatrix));
 			Matrix4x4 wvp = Multiply(worldMatrix, viewProjection);
 
 			group.instanceDataPtr[index].WVP = wvp;
@@ -395,19 +450,25 @@ void ParticleManager::Emit(const std::string& groupName, const Vector3& position
 		newParticle.transform.translate.z = position.z + dist(randomEngine_) * emitParam.randomPositionRange.z;
 
 		// 2. 大きさ: パラメータをそのまま設定
-		newParticle.transform.scale = emitParam.scale;
-
+		newParticle.transform.scale.x = emitParam.scale.x + dist(randomEngine_) * emitParam.randomScaleRange.x;
+		newParticle.transform.scale.y = emitParam.scale.y + dist(randomEngine_) * emitParam.randomScaleRange.y;
+		newParticle.transform.scale.z = emitParam.scale.z + dist(randomEngine_) * emitParam.randomScaleRange.z;
 		// 3. 速度: 基礎速度 + (乱数 * 速度の範囲)
 		newParticle.velocity.x = emitParam.baseVelocity.x + dist(randomEngine_) * emitParam.randomVelocityRange.x;
 		newParticle.velocity.y = emitParam.baseVelocity.y + dist(randomEngine_) * emitParam.randomVelocityRange.y;
 		newParticle.velocity.z = emitParam.baseVelocity.z + dist(randomEngine_) * emitParam.randomVelocityRange.z;
+
+		// フラグが真なら、基本角度に「乱数 × 範囲」を足す
+		newParticle.transform.rotate.x = emitParam.baseRotate.x + dist(randomEngine_) * emitParam.randomRotateRange.x;
+		newParticle.transform.rotate.y = emitParam.baseRotate.y + dist(randomEngine_) * emitParam.randomRotateRange.y;
+		newParticle.transform.rotate.z = emitParam.baseRotate.z + dist(randomEngine_) * emitParam.randomRotateRange.z;
 
 		// 4. 寿命
 		newParticle.lifeTime = emitParam.lifeTime;
 		newParticle.currentTime = 0.0f;
 
 		// 色の設定（ここは必要に応じてお好みで変更してください）
-		newParticle.color = {distColor(randomEngine_), distColor(randomEngine_), distColor(randomEngine_), 1.0f};
+		newParticle.color = { distColor(randomEngine_), distColor(randomEngine_), distColor(randomEngine_), 1.0f };
 
 		group.particles.push_back(newParticle);
 	}
@@ -424,4 +485,12 @@ void ParticleManager::SetGroupTexture(const std::string& groupName, const std::s
 	group.material.textureFilePath = textureFilePath;
 	TextureManager::GetInstance()->LoadTexture(textureFilePath);
 	group.material.textureIndex = TextureManager::GetInstance()->GetSrvIndex(textureFilePath);
+}
+
+void ParticleManager::SetGroupBlendMode(const std::string& groupName, BlendMode blendMode) {
+	// 指定された名前のグループが存在するかチェックし、ブレンドモードを設定
+	auto it = particleGroups_.find(groupName);
+	if (it != particleGroups_.end()) {
+		it->second.blendMode = blendMode;
+	}
 }
