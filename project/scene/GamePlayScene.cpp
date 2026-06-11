@@ -57,13 +57,13 @@ void GamePlayScene::Initialize() {
 	// ▼ 追加: エミッタの作成
 	// =================================================
 	ParticleEmitParam slash;
-	slash.scale = { 0.05f,1.0f,1.0f };
-	slash.baseRotate = { 0,0,0 };
-	slash.baseVelocity = { 0,0,0 };
-	slash.color = { 1.0f,1.0f,1.0f,1.0f };
+	slash.scale = { 0.05f, 1.0f, 1.0f };
+	slash.baseRotate = { 0.0f, 0.0f, 0.0f };
+	slash.baseVelocity = { 0.0f, 0.0f, 0.0f };
+	slash.color = { 1.0f, 1.0f, 1.0f, 1.0f }; // 白色
 	slash.lifeTime = 1.0f;
 	slash.randomRotateRange = { 0.0f, 0.0f, std::numbers::pi_v<float> *2.0f };
-	slash.randomScaleRange = { 0.0f,1.0f,0.0f };
+	slash.randomScaleRange = { 0.0f, 1.0f, 0.0f };	
 	slash.count = 3;
 	slash.randomVelocityRange = { 0.0f,0.0f,0.0f };
 	slash.randomPositionRange = { 0.0f,0.0f,0.0f };
@@ -76,8 +76,6 @@ void GamePlayScene::Initialize() {
 	emitter->SetGroupName("Slash");
 	emitter->SetPalam(slash);
 	emitter->SetFrequency(3.0f);
-	emitter->SaveToJson();
-	emitter->LoadFromJson();
 	emitter->SetTexture("Resources/circle.png");
 
 

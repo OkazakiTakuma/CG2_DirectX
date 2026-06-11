@@ -327,8 +327,11 @@ void ParticleManager::Draw(Camera* camera) {
 			Matrix4x4 translateMatrix = MakeTranslateMatrix(particle.transform.translate);
 
 			// ビルボード処理を入れる場合はここで rotateMatrix を billboardMatrix に置き換える
-			Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(billboardMatrix, translateMatrix));
+			Matrix4x4 rotateAndBillboard = Multiply(rotateMatrix, billboardMatrix);
 
+			// 合成した回転行列を使って worldMatrix を計算する
+			Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(rotateAndBillboard, translateMatrix));
+			// ＝＝＝＝＝ ここまで修正 ＝＝＝＝＝
 			//Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(rotateMatrix, translateMatrix));
 			Matrix4x4 wvp = Multiply(worldMatrix, viewProjection);
 
