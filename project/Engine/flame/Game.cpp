@@ -35,6 +35,11 @@ void Game::Initialize() {
 }
 
 void Game::Update() {
+	// ====== 【ここを追加】 ======
+	// どのシーンでも必ず毎フレーム最初にImGuiの準備を開始する
+	ImGuiManager::GetInstance()->Begin();
+	// ============================
+
 	// メッセージを取得
 	FlameWork::Update();
 	if (FlameWork::IsEndRequest()) {
@@ -54,16 +59,16 @@ void Game::Draw() {
 #pragma region コマンドリストのリセット
 
 	PostEffect::GetInstance()->PreDrawScene();
-	// スカイボックスの描画
-	SkyBoxCommon::GetInstance()->SetDraw();
-	SceneManager::GetInstance()->DrawSkyBox();
 
 	// モデルの描画
 	Object3dCommon::GetInstance()->SetDraw();
 	SceneManager::GetInstance()->Draw3D();
-	SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeAdd);
-	SceneManager::GetInstance()->Draw2D();
+	// スカイボックスの描画
+	SkyBoxCommon::GetInstance()->SetDraw();
+	SceneManager::GetInstance()->DrawSkyBox();
 
+	SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeNone);
+	SceneManager::GetInstance()->Draw2D();
 
 	PostEffect::GetInstance()->PostDrawScene();
 
@@ -71,7 +76,8 @@ void Game::Draw() {
 	SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
 
 	PostEffect::GetInstance()->Draw();
-
+	ImGuiManager::GetInstance()->End();
+	ImGuiManager::GetInstance()->Draw();
 	// スプライトの描画
 
 	SpriteCommon::GetInstance()->GetDxCommon()->PostDraw();

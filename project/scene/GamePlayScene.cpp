@@ -125,7 +125,7 @@ void GamePlayScene::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 		SceneManager::GetInstance()->ChengeScene("TITLE");
 	}
-	//skyBox->Update();
+	skyBox->Update();
 
 	// 更新
 	emitter->Update(1.0f / 60.0f);
@@ -134,9 +134,7 @@ void GamePlayScene::Update() {
 	Object3dCommon::GetInstance()->GetDefaultCamera()->Update();
 	Object3dCommon::GetInstance()->GetDefaultCamera()->Update();
 	object3d->Update();
-	for (auto& axisObj : axisObjects) {
-		axisObj->Update();
-	}
+
 	cylinderObject->Update();
 
 	sprite->Update();
@@ -149,7 +147,7 @@ void GamePlayScene::Update() {
 	ImGuiUpdate();
 }
 
-void GamePlayScene::DrawSkyBox() {// skyBox->Draw(); 
+void GamePlayScene::DrawSkyBox() { //skyBox->Draw(); 
 }
 
 void GamePlayScene::Draw2D() {
@@ -157,15 +155,11 @@ void GamePlayScene::Draw2D() {
 	for (auto& s : sprites) {
 		s->Draw();
 	}
-	ImGuiManager::GetInstance()->Draw();
 }
 
 void GamePlayScene::Draw3D() {
-	// object3d->Draw();
-	//   複数axis.obj描画
-	for (auto& axisObj : axisObjects) {
-		axisObj->Draw();
-	}
+	 object3d->Draw();
+	
 	object3d->Draw();
 	cylinderObject->Draw();
 	sphereObject->Draw();
@@ -180,7 +174,6 @@ void GamePlayScene::Finalize() {}
 
 void GamePlayScene::ImGuiUpdate() {
 #ifdef USE_IMGUI
-	ImGuiManager::GetInstance()->Begin();
 	cameraPosition = Object3dCommon::GetInstance()->GetDefaultCamera()->GetTranslate();
 	cameraRotate = Object3dCommon::GetInstance()->GetDefaultCamera()->GetRotate();
 
@@ -275,8 +268,23 @@ void GamePlayScene::ImGuiUpdate() {
 	ringEmitter->SetBaseRotate(emit.baseRotate);
 	ringEmitter->SetTranslate(tlans);
 
+	ImGui::Begin("System Info");
 
-	ImGuiManager::GetInstance()->End();
+	// 1. フレームレートとフレームタイム（1フレームにかかったミリ秒）の表示
+	ImGui::Text("Frame Rate : %.1f FPS", ImGui::GetIO().Framerate);
+	ImGui::Text("Frame Time : %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
+
+	ImGui::Separator(); // 見やすくするための区切り線
+
+	// 2. 便利なデバッグツール（ImGui公式の機能カタログ）
+	static bool showDemoWindow = false;
+	ImGui::Checkbox("Show ImGui Demo Window", &showDemoWindow);
+	if (showDemoWindow) {
+		// ImGuiの全機能の使い方がわかるデモ画面を表示
+		ImGui::ShowDemoWindow(&showDemoWindow);
+	}
+
+	ImGui::End();
 
 	sphereObject->SetTranslate(spherepos);
 	sphereObject->SetRotate(sphererot);
