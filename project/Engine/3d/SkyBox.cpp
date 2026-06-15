@@ -12,108 +12,127 @@ void SkyBox::Initialize(const std::string& filePath) {
 }
 
 void SkyBox::Update() {
-	// スケールを大きくし、位置をカメラに合わせる
-	Vector3 scale = {500.0f, 500.0f, 500.0f};
-	Vector3 rotation = {0.0f, 0.0f, 0.0f};
-	Vector3 translation = camera->GetTranslate();
+    // スケールを大きくする（回転はなし、位置は原点固定）
+    Vector3 scale = { 500.0f, 500.0f, 500.0f };
+    Vector3 rotation = { 0.0f, 0.0f, 0.0f };
+    Vector3 translation = { 0.0f, 0.0f, 0.0f }; // ★位置は原点に固定
 
-	Matrix4x4 worldMatrix = MakeAffineMatrix(scale, rotation, translation);
-	Matrix4x4 viewProjectionMatrix = Multiply(camera->GetViewMatrix(), camera->GetProjectionMatrix());
+    // スカイボックス自身のワールド行列を作成
+    Matrix4x4 worldMatrix = MakeAffineMatrix(scale, rotation, translation);
 
-	transformData->WVP = Multiply(worldMatrix, viewProjectionMatrix);
-	transformData->world = worldMatrix;
+    // ====== 【ここを修正】カメラのビュー行列から位置成分を取り除く ======
+    Matrix4x4 viewMatrix = camera->GetViewMatrix();
+
+    // ビュー行列の平行移動成分（4行目のx, y, z）を0にする
+    // ※お使いのMatrix4x4の構造体のメンバー名（m[3][0] や mat[3][0] など）に合わせて調整してください
+    viewMatrix.m[3][0] = 0.0f; // X移動
+    viewMatrix.m[3][1] = 0.0f; // Y移動
+    viewMatrix.m[3][2] = 0.0f; // Z移動
+    // ==================================================================
+
+    // 位置移動が消えたビュー行列と、プロジェクション行列を掛け合わせる
+    Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, camera->GetProjectionMatrix());
+
+    // 最終的な行列をシェーダー転送用バッファにセット
+    transformData->WVP = Multiply(worldMatrix, viewProjectionMatrix);
+    transformData->world = worldMatrix;
 }
-
 void SkyBox::Draw() {
-	// 1. 共通の設定をコマンドリストに積む
-	common_->SetDraw();
-	auto commandList = common_->GetDxCommon()->GetCommandList();
+    // 1. 共通の設定をコマンドリストに積む (変更なし)
+    common_->SetDraw();
+    auto commandList = common_->GetDxCommon()->GetCommandList();
 
-	// ====== 【修正】ComPtrから安全に生ポインタを取り出してセットする ======
-	// ① まずは SrvManager から ComPtr をしっかり受け取る
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvHeapComPtr = SrvManager::GetInstance()->GetDescriptorHeap();
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvHeapComPtr = SrvManager::GetInstance()->GetDescriptorHeap();
+    assert(srvHeapComPtr.Get() != nullptr && "SrvManagerから取得したデスクリプタヒープがnullptrです！");
 
-	// ② 【超重要チェック】ヒープの中身が nullptr でないか絶対に確認する
-	// ※もしここでプログラムが止まったら、SrvManager側でヒープの生成自体が失敗しているか、初期化がまだです。
-	assert(srvHeapComPtr.Get() != nullptr && "SrvManagerから取得したデスクリプタヒープがnullptrです！");
+    ID3D12DescriptorHeap* ppHeaps[] = { srvHeapComPtr.Get() };
+    commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-	// ③ DirectX12のAPIが求める「生ポインタの配列」を作成する
-	ID3D12DescriptorHeap* ppHeaps[] = {srvHeapComPtr.Get()};
-	commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+    // 2. 個別のバッファをセット
+    commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 
-	// 2. 個別のバッファをセット
-	commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-	commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
-	commandList->SetGraphicsRootConstantBufferView(1, transformResource->GetGPUVirtualAddress());
+    // 【追加】インデックスバッファをセット！
+    commandList->IASetIndexBuffer(&indexBufferView);
 
-	// ====== 【もう一つの落とし穴チェック】テクスチャハンドルが有効か ======
-	// ※テクスチャのパスが1文字でも違ってロードできていない場合も、d3d10warp.dll で同様のアクセス違反が起きます。
-	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = TextureManager::GetInstance()->GetSRVHandleGPU(textureFilePath);
-	assert(srvHandle.ptr != 0 && "テクスチャのGPUハンドルが無効(0)です！パスが間違っているか、ロードされていません。");
+    commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+    commandList->SetGraphicsRootConstantBufferView(1, transformResource->GetGPUVirtualAddress());
 
-	commandList->SetGraphicsRootDescriptorTable(2, srvHandle);
+    D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = TextureManager::GetInstance()->GetSRVHandleGPU(textureFilePath);
+    assert(srvHandle.ptr != 0 && "テクスチャのGPUハンドルが無効(0)です！");
 
-	// 3. 描画
-	commandList->DrawInstanced(36, 1, 0, 0);
+    commandList->SetGraphicsRootDescriptorTable(2, srvHandle);
+
+    // 3. 描画 【変更】DrawInstanced から DrawIndexedInstanced に変更！
+    // 36個のインデックスを使って描画します
+    commandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
 }
 void SkyBox::CreateVertexData() {
-    // SkyBox用の立方体の頂点データ (サイズは1.0fの立方体)
-    // ※ 描画時にシェーダーや定数バッファでスケールを大きくして遠くに配置します
     const float kSize = 1.0f;
+    // 頂点を36個から8個に削減！
     VertexData vertices[] = {
-        // 右(Right)
-        {{ kSize, -kSize, -kSize, 1.0f}}, {{ kSize,  kSize, -kSize, 1.0f}}, {{ kSize,  kSize,  kSize, 1.0f}},
-        {{ kSize, -kSize, -kSize, 1.0f}}, {{ kSize,  kSize,  kSize, 1.0f}}, {{ kSize, -kSize,  kSize, 1.0f}},
-        // 左(Left)
-        {{-kSize, -kSize,  kSize, 1.0f}}, {{-kSize,  kSize,  kSize, 1.0f}}, {{-kSize,  kSize, -kSize, 1.0f}},
-        {{-kSize, -kSize,  kSize, 1.0f}}, {{-kSize,  kSize, -kSize, 1.0f}}, {{-kSize, -kSize, -kSize, 1.0f}},
-        // 上(Up)
-        {{-kSize,  kSize, -kSize, 1.0f}}, {{-kSize,  kSize,  kSize, 1.0f}}, {{ kSize,  kSize,  kSize, 1.0f}},
-        {{-kSize,  kSize, -kSize, 1.0f}}, {{ kSize,  kSize,  kSize, 1.0f}}, {{ kSize,  kSize, -kSize, 1.0f}},
-        // 下(Down)
-        {{-kSize, -kSize,  kSize, 1.0f}}, {{-kSize, -kSize, -kSize, 1.0f}}, {{ kSize, -kSize, -kSize, 1.0f}},
-        {{-kSize, -kSize,  kSize, 1.0f}}, {{ kSize, -kSize, -kSize, 1.0f}}, {{ kSize, -kSize,  kSize, 1.0f}},
-        // 手前(Front)
-        {{-kSize, -kSize, -kSize, 1.0f}}, {{-kSize,  kSize, -kSize, 1.0f}}, {{ kSize,  kSize, -kSize, 1.0f}},
-        {{-kSize, -kSize, -kSize, 1.0f}}, {{ kSize,  kSize, -kSize, 1.0f}}, {{ kSize, -kSize, -kSize, 1.0f}},
-        // 奥(Back)
-        {{ kSize, -kSize,  kSize, 1.0f}}, {{ kSize,  kSize,  kSize, 1.0f}}, {{-kSize,  kSize,  kSize, 1.0f}},
-        {{ kSize, -kSize,  kSize, 1.0f}}, {{-kSize,  kSize,  kSize, 1.0f}}, {{-kSize, -kSize,  kSize, 1.0f}},
+        {{-kSize, -kSize, -kSize, 1.0f}}, // 0: 左下手前
+        {{-kSize,  kSize, -kSize, 1.0f}}, // 1: 左上手前
+        {{ kSize,  kSize, -kSize, 1.0f}}, // 2: 右上手前
+        {{ kSize, -kSize, -kSize, 1.0f}}, // 3: 右下手前
+        {{-kSize, -kSize,  kSize, 1.0f}}, // 4: 左下奥
+        {{-kSize,  kSize,  kSize, 1.0f}}, // 5: 左上奥
+        {{ kSize,  kSize,  kSize, 1.0f}}, // 6: 右上奥
+        {{ kSize, -kSize,  kSize, 1.0f}}, // 7: 右下奥
     };
-
     uint32_t vertexCount = _countof(vertices);
 
-    // 1. 頂点バッファリソースの作成 (既存の dxCommon を使用)
+    // 1. 頂点バッファの作成と書き込み
     vertexResource = SkyBoxCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(VertexData) * vertexCount);
-
-    // 2. 頂点バッファビューの作成
     vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
     vertexBufferView.SizeInBytes = sizeof(VertexData) * vertexCount;
     vertexBufferView.StrideInBytes = sizeof(VertexData);
 
-    // 3. データの書き込み (Map)
     VertexData* mappedVertexData = nullptr;
     vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertexData));
     std::memcpy(mappedVertexData, vertices, sizeof(VertexData) * vertexCount);
-    // Unmapはデストラクタで行うか、ここで行うかは他のクラス(Model.cppなど)の設計に合わせてください
+
+    // --- ここから新しくインデックスバッファを追加 ---
+    // 頂点を結ぶ順番（36個）
+    uint16_t indices[] = {
+        3, 2, 6, 3, 6, 7, // 右
+        4, 5, 1, 4, 1, 0, // 左
+        1, 5, 6, 1, 6, 2, // 上
+        4, 0, 3, 4, 3, 7, // 下
+        0, 1, 2, 0, 2, 3, // 手前
+        7, 6, 5, 7, 5, 4  // 奥
+    };
+    uint32_t indexCount = _countof(indices);
+
+    // 2. インデックスバッファリソースの作成
+    indexResource = SkyBoxCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(uint16_t) * indexCount);
+
+    // 3. インデックスバッファビューの作成
+    indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress();
+    indexBufferView.SizeInBytes = sizeof(uint16_t) * indexCount;
+    indexBufferView.Format = DXGI_FORMAT_R16_UINT; // uint16_tを使っているのでR16形式
+
+    // 4. データの書き込み
+    uint16_t* mappedIndexData = nullptr;
+    indexResource->Map(0, nullptr, reinterpret_cast<void**>(&mappedIndexData));
+    std::memcpy(mappedIndexData, indices, sizeof(uint16_t) * indexCount);
 }
 
 void SkyBox::CreateConstantBuffers() {
-	// 1. マテリアル用のバッファ作成 (b0)
-	materialResource = SkyBoxCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(Material));
-	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+    // 1. マテリアル用のバッファ作成 (b0)
+    materialResource = SkyBoxCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(Material));
+    materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 
-	// マテリアルの初期値を設定
-	materialData->color = {1.0f, 1.0f, 1.0f, 1.0f}; // 白（テクスチャの色をそのまま出す）
-	materialData->enableLighting = 0;               // SkyBoxにライティングは不要
-	materialData->uvTransform = MakeIdentity4x4();
-	materialData->shininess = 1.0f;
+    // マテリアルの初期値を設定
+    materialData->color = { 1.0f, 1.0f, 1.0f, 1.0f }; // 白（テクスチャの色をそのまま出す）
+    materialData->enableLighting = 0;               // SkyBoxにライティングは不要
+    materialData->uvTransform = MakeIdentity4x4();
+    materialData->shininess = 1.0f;
 
-	// 2. 変換行列用のバッファ作成 (b1)
-	transformResource = SkyBoxCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
-	transformResource->Map(0, nullptr, reinterpret_cast<void**>(&transformData));
+    // 2. 変換行列用のバッファ作成 (b1)
+    transformResource = SkyBoxCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
+    transformResource->Map(0, nullptr, reinterpret_cast<void**>(&transformData));
 
-	transformData->WVP = MakeIdentity4x4();
-	transformData->world = MakeIdentity4x4();
-	transformData->WorldInverseTranspose = MakeIdentity4x4();
+    transformData->WVP = MakeIdentity4x4();
+    transformData->world = MakeIdentity4x4();
+    transformData->WorldInverseTranspose = MakeIdentity4x4();
 }

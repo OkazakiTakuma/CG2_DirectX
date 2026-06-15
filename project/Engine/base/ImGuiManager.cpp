@@ -72,13 +72,19 @@ void ImGuiManager::End() {
 
 void ImGuiManager::Draw() {
 #ifdef USE_IMGUI
+	// ImGuiの内部的な描画準備
+	ImGui::Render();
 
-	// デスクリプタヒープをセット
-	SrvManager::GetInstance()->PreDraw();
+	// コマンドリストを取得
+	auto commandList = dxcommon->GetCommandList();
 
-	ID3D12GraphicsCommandList* commandList = dxcommon->GetCommandList().Get();
+	// ====== 【ここを追加】 ======
+	// SrvManagerからデスクリプタヒープを取得して、コマンドリストにセットする！
+	ID3D12DescriptorHeap* ppHeaps[] = { SrvManager::GetInstance()->GetDescriptorHeap().Get() };
+	commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+	// ============================
 
-	// 描画実行
-	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
+	// ImGuiの描画コマンドを積む
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 #endif
 }
