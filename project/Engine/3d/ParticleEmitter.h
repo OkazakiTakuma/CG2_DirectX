@@ -1,14 +1,14 @@
 #pragma once
-#include "struct.h" // Transform構造体やVector3などが定義されている前提
+#include "struct.h" // Transform構造体やVector3、BlendModeなどが定義されている前提
 #include <string>
-#include<json.hpp>
+#include <json.hpp>
 
 // 前方宣言
 class ParticleManager;
 
 class ParticleEmitter {
 public:
-	
+
 	ParticleEmitter();
 
 	/// <summary>
@@ -22,26 +22,24 @@ public:
 	/// </summary>
 	void Emit();
 
-
 	// エミッターの種類（名前）を指定
 	void SetGroupName(const std::string& name) { groupName_ = name; }
 	void SetTranslate(const Vector3& translate) { transform_.translate = translate; }
 	void SetFrequency(float frequency) { frequency_ = frequency; }
+
 	// ステータスのセッター
+	void SetEmitParam(const ParticleEmitParam& palam) { emitParam_ = palam; }
 	void SetScale(const Vector3& scale) { emitParam_.scale = scale; }
 	void SetBaseVelocity(const Vector3& velocity) { emitParam_.baseVelocity = velocity; }
 	void SetRandomVelocityRange(const Vector3& range) { emitParam_.randomVelocityRange = range; }
 	void SetRandomPositionRange(const Vector3& range) { emitParam_.randomPositionRange = range; }
 	void SetLifeTime(float lifeTime) { emitParam_.lifeTime = lifeTime; }
 	void SetTexture(const std::string& textureFilePath);
-	void SetBaseRotate(const Vector3& rotate) { emitParam_.baseRotate = rotate; }
-	void SetIsRandomRotate(bool isRandom) { emitParam_.isRandomRotate = isRandom; }
-	void SetRandomRotateRange(const Vector3& range) { emitParam_.randomRotateRange = range; }
-	void SetColor(const Vector4& color) { emitParam_.color = color; }
-	void SetRandomScaleRange(const Vector3& range) { emitParam_.randomScaleRange = range; }
-	void SetCount(uint32_t count) { emitParam_.count = count; } // 既存の count_ = count から変更
-	void SetIsBillboard(bool isBillboard) { emitParam_.isBillboard = isBillboard; }
-	void SetPalam(const ParticleEmitParam& palam) { emitParam_ = palam; };
+	void SetBaseRotate(const Vector3& baseRotate) { emitParam_.baseRotate = baseRotate; }
+	void SetIsActive(bool isActive) { isActive_ = isActive; }
+	void SetBlendMode(BlendMode mode) { blendMode_ = mode; }
+	void SetParam(ParticleEmitParam param) { emitParam_ = param; }
+
 	// ステータスのゲッター
 	Vector3 GetTlanslate()const { return transform_.translate; }
 	Vector3 GetScale() const { return emitParam_.scale; }
@@ -49,6 +47,7 @@ public:
 	Vector3 GetRandomVelocityRange() const { return emitParam_.randomVelocityRange; }
 	Vector3 GetRandomPositionRange() const { return emitParam_.randomPositionRange; }
 	float GetLifeTime() const { return emitParam_.lifeTime; }
+	std::string GetTextureFilePath() const { return textureFilePath_; }
 	Vector3 GetBaseRotate() const { return emitParam_.baseRotate; }
 	bool GetIsRandomRotate() const { return emitParam_.isRandomRotate; }
 	Vector3 GetRandomRotateRange() const { return emitParam_.randomRotateRange; }
@@ -57,16 +56,23 @@ public:
 	uint32_t GetCount() const { return emitParam_.count; }
 	bool GetIsBillboard() const { return emitParam_.isBillboard; }
 	ParticleEmitParam GetPalam() const { return emitParam_; }
+	std::string GetGroupName() const { return groupName_; }
+	bool GetIsActive() const { return isActive_; }
+	BlendMode GetBlendMode() const { return blendMode_; }
 
 	void SaveToJson(const std::string& filePath = "Resources/Data/emit_status.json");
 	void LoadFromJson(const std::string& filePath = "Resources/Data/emit_status.json");
+
 private:
 	// --- メンバ変数 ---
 	std::string groupName_; // 対象のパーティクルグループ名
 	Transform transform_;   // エミッタの座標（ここからパーティクルが出る）
-	uint32_t count_;        // 一度の発生数
-	float frequency_;       // 発生頻度（回/秒）
-	float frequencyTimer_;  // 発生頻度調整用タイマー
-	ParticleEmitParam emitParam_;
-	std::string textureFilePath_; // テクスチャファイルパス
+	uint32_t count_;        // 一度に発生させる数
+	float frequency_;       // 発生頻度（秒に何回か、または何秒に1回か）
+	float frequencyTimer_;  // 頻度を管理するタイマー
+	std::string textureFilePath_; // 設定されているテクスチャのパス
+	bool isActive_;         // エミッターのオン・オフフラグ
+	BlendMode blendMode_ = kBlendModeNormal; // ★追加：ブレンドモード（初期値は通常）
+
+	ParticleEmitParam emitParam_; // 発生するパーティクルのパラメータ
 };

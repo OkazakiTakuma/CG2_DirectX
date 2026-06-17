@@ -27,7 +27,6 @@ public:
 	void SetGroupTexture(const std::string& groupName, const std::string& textureFilePath);
 	void Emit(const std::string& groupName, const Vector3& position, uint32_t count, const ParticleEmitParam& emitParam);
 	void SetGroupBlendMode(const std::string& groupName, BlendMode blendMode);
-
 	struct ParticleGroup {
 		MaterialData material;
 		std::list<Particle> particles;
@@ -44,6 +43,7 @@ public:
 		D3D12_VERTEX_BUFFER_VIEW vbView{}; // 専用の頂点バッファビュー
 		uint32_t vertexCount = 0; // 頂点数
 	};
+	ParticleGroup* GetGroup(const std::string& groupName);
 
 private:
 	static ParticleManager* instance;

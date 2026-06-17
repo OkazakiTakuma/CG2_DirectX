@@ -1,7 +1,12 @@
 {
-    "Fire": {
-        "count": 5,
+    "Dust": {
+        "count": 20,
         "emitParam": {
+            "acceleration": [
+                0.0,
+                -2.0,
+                0.0
+            ],
             "baseRotate": [
                 0.0,
                 0.0,
@@ -9,50 +14,137 @@
             ],
             "baseVelocity": [
                 0.0,
+                1.5,
+                1.0
+            ],
+            "color": [
+                0.6000000238418579,
+                0.4000000059604645,
+                0.20000000298023224,
+                1.0
+            ],
+            "count": 5,
+            "endColor": [
+                0.6000000238418579,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.0
+            ],
+            "endScale": [
+                2.5,
+                2.5,
+                2.5
+            ],
+            "isBillboard": true,
+            "isRandomRotate": true,
+            "lifeTime": 1.0,
+            "randomPositionRange": [
                 0.5,
+                0.10000000149011612,
+                0.5
+            ],
+            "randomRotateRange": [
+                6.283185005187988,
+                6.283185005187988,
+                6.283185005187988
+            ],
+            "randomScaleRange": [
+                0.5,
+                0.5,
+                0.0
+            ],
+            "randomVelocityRange": [
+                1.0,
+                0.5,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ]
+        },
+        "frequency": 10.0,
+        "isActive": true,
+        "textureFilePath": "Resources/uvChecker.png"    }
+    },
+    "Fire": {
+        "count": 10,
+        "emitParam": {
+            "acceleration": [
+                0.0,
+                1.0,
+                0.0
+            ],
+            "baseRotate": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "baseVelocity": [
+                0.0,
+                2.0,
                 0.0
             ],
             "color": [
                 1.0,
-                1.0,
-                1.0,
+                0.4000000059604645,
+                0.05000000074505806,
                 1.0
             ],
-            "count": 1,
-            "isRandomRotate": false,
-            "lifeTime": 1.5,
-            "randomPositionRange": [
+            "count": 6,
+            "endColor": [
                 1.0,
-                0.20000000298023224,
-                1.0
+                0.0,
+                0.0,
+                0.0
+            ],
+            "endScale": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "isBillboard": true,
+            "isRandomRotate": true,
+            "lifeTime": 0.800000011920929,
+            "randomPositionRange": [
+                0.30000001192092896,
+                0.10000000149011612,
+                0.30000001192092896
             ],
             "randomRotateRange": [
                 0.0,
                 0.0,
-                0.0
+                6.283185005187988
             ],
             "randomScaleRange": [
+                0.5,
+                0.5,
+                0.5
+            ],
+            "randomVelocityRange": [
+                0.6000000238418579,
+                0.5,
+                0.6000000238418579
+            ],
+            "scale": [
+                1.5,
+                1.5,
+                1.5
+            ]
+        },
+        "frequency": 0.05000000074505806,
+        "isActive": true,
+        "textureFilePath": "Resources/uvChecker.png"    }
+    },
+    "Slash": {
+        "count": 3,
+        "emitParam": {
+            "acceleration": [
                 0.0,
                 0.0,
                 0.0
             ],
-            "randomVelocityRange": [
-                0.10000000149011612,
-                0.10000000149011612,
-                0.10000000149011612
-            ],
-            "scale": [
-                2.0,
-                2.0,
-                2.0
-            ]
-        },
-        "frequency": 10.0,
-        "textureFilePath": ""
-    },
-    "Slash": {
-        "count": 0,
-        "emitParam": {
             "baseRotate": [
                 0.0,
                 0.0,
@@ -70,8 +162,20 @@
                 1.0
             ],
             "count": 3,
+            "endColor": [
+                1.0,
+                1.0,
+                1.0,
+                0.0
+            ],
+            "endScale": [
+                0.0,
+                2.5,
+                1.0
+            ],
+            "isBillboard": true,
             "isRandomRotate": true,
-            "lifeTime": 1.0,
+            "lifeTime": 0.5,
             "randomPositionRange": [
                 0.0,
                 0.0,
@@ -80,7 +184,7 @@
             "randomRotateRange": [
                 0.0,
                 0.0,
-                6.2831854820251465
+                6.283185005187988
             ],
             "randomScaleRange": [
                 0.0,
@@ -99,6 +203,75 @@
             ]
         },
         "frequency": 3.0,
-        "textureFilePath": ""
-    }
+        "isActive": true,
+        "textureFilePath": "Resources/uvChecker.png"    }
+    },
+    "Slash_Trace": {
+        "count": 3,
+        "emitParam": {
+            "acceleration": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "baseRotate": [
+                1.570796012878418,
+                0.0,
+                0.0
+            ],
+            "baseVelocity": [
+                0.0,
+                0.0,
+                2.0
+            ],
+            "color": [
+                0.0,
+                0.800000011920929,
+                1.0,
+                1.0
+            ],
+            "count": 3,
+            "endColor": [
+                0.0,
+                0.30000001192092896,
+                1.0,
+                0.0
+            ],
+            "endScale": [
+                0.0,
+                0.0,
+                1.0
+            ],
+            "isBillboard": false,
+            "isRandomRotate": true,
+            "lifeTime": 0.5,
+            "randomPositionRange": [
+                0.20000000298023224,
+                0.0,
+                0.20000000298023224
+            ],
+            "randomRotateRange": [
+                0.0,
+                6.283185005187988,
+                0.0
+            ],
+            "randomScaleRange": [
+                0.0,
+                2.0,
+                0.0
+            ],
+            "randomVelocityRange": [
+                0.0,
+                0.0,
+                0.5
+            ],
+            "scale": [
+                0.05000000074505806,
+                3.0,
+                1.0
+            ]
+        },
+        "frequency": 30.0,
+        "isActive": true,
+        "textureFilePath": "Resources/uvChecker.png"    }
 }

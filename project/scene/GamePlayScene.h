@@ -20,8 +20,9 @@ private:
 	std::unique_ptr<Object3d> sphereObject = nullptr;
 	std::unique_ptr<Object3d> cylinderObject = nullptr;
 
-	std::unique_ptr<ParticleEmitter> emitter = nullptr;
-	std::unique_ptr<ParticleEmitter> ringEmitter = nullptr;
+	std::vector<std::unique_ptr<ParticleEmitter>> emitters_;
+	int currentParticleIndex_ = 0;
+	std::vector<std::string> availableTextures_;
 	Vector3 cameraPosition={0.0f, 0.0f, 0.0f};
 	Vector3 cameraRotate={0.0f, 0.0f, 0.0f};
 

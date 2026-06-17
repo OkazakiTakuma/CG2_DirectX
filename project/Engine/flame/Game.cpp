@@ -21,17 +21,6 @@ void Game::Initialize() {
 	// 1. パーティクルグループを作成（テクスチャのロードなどもここで行われます）
 	// 引数：グループ名, テクスチャパス
 	// 2. グループ作成（テクスチャロード）
-	ParticleManager::GetInstance()->CreateParticleGroup("Smoke", "Resources/uvChecker.png");
-	ParticleManager::GetInstance()->CreateParticleGroup("Fire", "Resources/uvChecker.png");
-	ParticleManager::GetInstance()->CreateParticleGroup("Slash", "Resources/uvChecker.png");
-	ParticleManager::GetInstance()->SetGroupBlendMode("Slash", kBlendModeAdd);
-	ParticleManager::GetInstance()->CreateParticleGroup("Ring", "Resources/uvChecker.png", kMeshTypeRing);
-	ParticleManager::GetInstance()->SetGroupBlendMode("Ring", kBlendModeAdd);
-	ParticleManager::GetInstance()->CreateParticleGroup("Slash", "Resources/uvChecker.png");
-	ParticleManager::GetInstance()->SetGroupBlendMode("Slash", kBlendModeAdd);
-	ParticleManager::GetInstance()->CreateParticleGroup("Slash", "Resources/uvChecker.png");
-	ParticleManager::GetInstance()->SetGroupBlendMode("Slash", kBlendModeAdd);
-
 	ParticleManager::GetInstance()->SetCamera(camera.get());
 	sceneFactory = std::make_unique<SceneFactory>();
 	SceneManager::GetInstance()->SetSceneFactory(sceneFactory.get());

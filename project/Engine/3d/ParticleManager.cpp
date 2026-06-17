@@ -583,3 +583,11 @@ void ParticleManager::SetGroupBlendMode(const std::string& groupName, BlendMode 
 		it->second.blendMode = blendMode;
 	}
 }
+
+ParticleManager::ParticleGroup* ParticleManager::GetGroup(const std::string& groupName) {
+	auto it = particleGroups_.find(groupName);
+	if (it != particleGroups_.end()) {
+		return &it->second;
+	}
+	return nullptr;
+}
