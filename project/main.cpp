@@ -1,11 +1,11 @@
 #include "FlameWork.h"
 #include "Game.h"
+#include <memory>
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
-	FlameWork* game = new Game();
+	std::unique_ptr<FlameWork> game = std::make_unique<Game>();
 	game->Run();
-	delete game;
 
 	return 0;
 }

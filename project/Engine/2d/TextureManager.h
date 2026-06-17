@@ -22,22 +22,26 @@ public:
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVHandleGPU(const std::string& filePath) {
 		// 修正: シングルトンからチェックを行う
 		assert(!SrvManager::GetInstance()->IsOverAllocated());
-		return textureDatas[filePath].srvHandleGPU;
+		assert(textureDatas.contains(filePath));
+		return textureDatas.at(filePath).srvHandleGPU;
 	}
 	void LoadTexture(const std::string& filepath);
 	void SetDirectXCommon(DirectXCommon* dxCommon) { dxCommon_ = dxCommon; }
 	const DirectX::TexMetadata& GetTextureMetadata(const std::string& filePath) {
 		assert(!SrvManager::GetInstance()->IsOverAllocated());
-		return textureDatas[filePath].metadata;
+		assert(textureDatas.contains(filePath));
+		return textureDatas.at(filePath).metadata;
 	}
 	uint32_t GetSrvIndex(const std::string& filePath) {
 		assert(!SrvManager::GetInstance()->IsOverAllocated());
-		return textureDatas[filePath].srvIndex;
+		assert(textureDatas.contains(filePath));
+		return textureDatas.at(filePath).srvIndex;
 	}
 	Microsoft::WRL::ComPtr<ID3D12Resource> GetResource(const std::string& filePath) 
 	{
 		assert(!SrvManager::GetInstance()->IsOverAllocated());
-		return textureDatas[filePath].resource;
+		assert(textureDatas.contains(filePath));
+		return textureDatas.at(filePath).resource;
 	};
 
 private:
