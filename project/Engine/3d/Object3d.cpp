@@ -193,6 +193,7 @@ void Object3d::CreateCylinder(float radius, float height, uint32_t subdivision, 
 }
 
 void Object3d::SetTexture(const std::string& textureFilePath) {
+	TextureManager::GetInstance()->LoadTexture(textureFilePath);
 	textureHandleCylinder = TextureManager::GetInstance()->GetSRVHandleGPU(textureFilePath);
 	isTextureSetCylinder = true;
 }
@@ -253,7 +254,9 @@ void Object3d::Draw() {
 		commandList->IASetIndexBuffer(&indexBufferViewCylinder);
 		commandList->DrawIndexedInstanced(cylinderIndexCount, 1, 0, 0, 0);
 	}
-}void Object3d::SetModel(const std::string& filePath) { model = ModelManager::GetInstance()->FindModel(filePath); }
+}
+
+void Object3d::SetModel(const std::string& filePath) { model = ModelManager::GetInstance()->FindModel(filePath); }
 
 Object3d::~Object3d() {
 	if (wvpResorceModel) wvpResorceModel->Unmap(0, nullptr);

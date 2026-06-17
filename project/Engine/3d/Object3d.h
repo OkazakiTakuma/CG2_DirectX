@@ -105,6 +105,7 @@ private:
 		float padding[3];
 		Matrix4x4 uvTransform;
 		float shininess;
+		float padding2[3];
 	};
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceCylinder;
 	MaterialData* materialDataCylinder = nullptr;

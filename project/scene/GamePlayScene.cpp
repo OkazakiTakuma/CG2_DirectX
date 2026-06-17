@@ -6,6 +6,7 @@ void GamePlayScene::Initialize() {
 	TextureManager::GetInstance()->LoadTexture("Resources/uvChecker.png");
 	TextureManager::GetInstance()->LoadTexture("Resources/monsterball.png");
 	TextureManager::GetInstance()->LoadTexture("Resources/rostock_laage_airport_4k.dds");
+	TextureManager::GetInstance()->LoadTexture("Resources/gradationLine.png");
 
 	sprite = std::make_unique<Sprite>();
 	sprite->Initialize("Resources/uvChecker.png");
@@ -111,11 +112,8 @@ void GamePlayScene::Initialize() {
 
 
 	// ※ここでは「1秒間に10回、1回につき5個発生」という設定にしています
-	const float clearColor[4] = {0.1f, 0.25f, 0.5f, 1.0f}; // 青色
-	                                                       // メッセージループ
 #pragma endregion
 
-	bool useTexture = true;
 	SoundData fanfare = {};
 	Audio::GetInstance().LoadWave(L"Resources/fanfare.wav", fanfare);
 	//Audio::GetInstance().Play(fanfare, 0);
@@ -131,7 +129,6 @@ void GamePlayScene::Update() {
 	emitter->Update(1.0f / 60.0f);
 	ringEmitter->Update(1.0f / 60.0f);
 	ParticleManager::GetInstance()->Update();
-	Object3dCommon::GetInstance()->GetDefaultCamera()->Update();
 	Object3dCommon::GetInstance()->GetDefaultCamera()->Update();
 	object3d->Update();
 
@@ -158,8 +155,6 @@ void GamePlayScene::Draw2D() {
 }
 
 void GamePlayScene::Draw3D() {
-	 object3d->Draw();
-	
 	object3d->Draw();
 	cylinderObject->Draw();
 	sphereObject->Draw();
@@ -303,7 +298,6 @@ void GamePlayScene::ImGuiUpdate() {
 	}
 	object3d->SetEnvironmentMultiplier(environmentMultiplier);
 
-#endif
 	Object3dCommon::GetInstance()->GetDefaultCamera()->SetTranslate(cameraPosition);
 	Object3dCommon::GetInstance()->GetDefaultCamera()->SetRotate(cameraRotate);
 	object3d->SetTranslate(modelPosition);
@@ -323,5 +317,6 @@ void GamePlayScene::ImGuiUpdate() {
 	for (auto& axisObj : axisObjects) {
 		axisObj->SetDirectionalLight(lightColor, lightDirection, lightIntensity);
 	}
+#endif
 }
 

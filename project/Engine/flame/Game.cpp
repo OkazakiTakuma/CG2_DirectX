@@ -1,14 +1,15 @@
 #include "Game.h"
+#include "Audio.h"
+#include "ImGuiManager.h"
+#include "Input.h"
+#include "Object3dCommon.h"
+#include "ParticleManager.h"
+#include "PostEffect.h"
 #include "SceneFactory.h"
-#include "struct.h"
+#include "SceneManager.h"
+#include "SkyBoxCommon.h"
 #include <DbgHelp.h> // MiniDumpWriteDump の宣言用
-#include <Windows.h>
 #include <strsafe.h> // StringCchPrintfW を使っているなら
-#include <utility>
-#include"PostEffect.h"
-using namespace Logger;
-using namespace StringUtility;
-using namespace Microsoft::WRL;
 
 void Game::Initialize() {
 
@@ -26,10 +27,14 @@ void Game::Initialize() {
 	ParticleManager::GetInstance()->SetGroupBlendMode("Slash", kBlendModeAdd);
 	ParticleManager::GetInstance()->CreateParticleGroup("Ring", "Resources/uvChecker.png", kMeshTypeRing);
 	ParticleManager::GetInstance()->SetGroupBlendMode("Ring", kBlendModeAdd);
+	ParticleManager::GetInstance()->CreateParticleGroup("Slash", "Resources/uvChecker.png");
+	ParticleManager::GetInstance()->SetGroupBlendMode("Slash", kBlendModeAdd);
+	ParticleManager::GetInstance()->CreateParticleGroup("Slash", "Resources/uvChecker.png");
+	ParticleManager::GetInstance()->SetGroupBlendMode("Slash", kBlendModeAdd);
 
 	ParticleManager::GetInstance()->SetCamera(camera.get());
-	sceneFactory = new SceneFactory();
-	SceneManager::GetInstance()->SetSceneFactory(sceneFactory);
+	sceneFactory = std::make_unique<SceneFactory>();
+	SceneManager::GetInstance()->SetSceneFactory(sceneFactory.get());
 	SceneManager::GetInstance()->ChengeScene("TITLE");
 	SkyBoxCommon::GetInstance()->SetDefaultCamera(camera.get());
 }
