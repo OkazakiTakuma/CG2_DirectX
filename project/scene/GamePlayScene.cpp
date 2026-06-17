@@ -3,11 +3,25 @@
 #include <ModelManager.h>
 
 void GamePlayScene::Initialize() {
-	TextureManager::GetInstance()->LoadTexture("Resources/uvChecker.png");
-	TextureManager::GetInstance()->LoadTexture("Resources/monsterball.png");
-	TextureManager::GetInstance()->LoadTexture("Resources/rostock_laage_airport_4k.dds");
-	TextureManager::GetInstance()->LoadTexture("Resources/gradationLine.png");
+	std::vector<std::string> allTextures = {
+			"Resources/uvChecker.png",
+			"Resources/monsterball.png",
+			"Resources/rostock_laage_airport_4k.dds",
+			"Resources/gradationLine.png"
+	};
 
+	// ─── 2. 作った「allTextures」をここで使います ───
+	availableTextures_.clear();
+
+	for (const auto& path : allTextures) {
+		// テクスチャをロード
+		TextureManager::GetInstance()->LoadTexture(path);
+
+		// ".png" が含まれているかチェックして、OKなら追加
+		if (path.find(".png") != std::string::npos) {
+			availableTextures_.push_back(path);
+		}
+	}
 	sprite = std::make_unique<Sprite>();
 	sprite->Initialize("Resources/uvChecker.png");
 	Audio::GetInstance().Initialize();
@@ -20,13 +34,14 @@ void GamePlayScene::Initialize() {
 		std::unique_ptr<Sprite> sprits = std::make_unique<Sprite>();
 		if (i == 1 || i == 3) {
 			sprits->Initialize("Resources/uvChecker.png");
-		} else {
+		}
+		else {
 			sprits->Initialize("Resources/monsterball.png");
 		}
 		sprites.push_back(std::move(sprits));
 		Transform transform;
-		transform.scale = {50.0f, 50.0f, 1.0f};
-		transform.translate = {100.0f + i * 90.0f, 200.0f, 0.0f};
+		transform.scale = { 50.0f, 50.0f, 1.0f };
+		transform.translate = { 100.0f + i * 90.0f, 200.0f, 0.0f };
 		// sprits->SetTransform(transform);
 	}
 
@@ -41,8 +56,8 @@ void GamePlayScene::Initialize() {
 		axisObj->Initialize();
 		axisObj->SetModel("axis.obj");
 		// 位置をずらして配置
-		axisObj->SetScale({1.0f, 1.0f, 1.0f});
-		axisObj->SetTranslate({float(i) * 2.0f, float(i) * 2.0f, 3.0f});
+		axisObj->SetScale({ 1.0f, 1.0f, 1.0f });
+		axisObj->SetTranslate({ float(i) * 2.0f, float(i) * 2.0f, 3.0f });
 		axisObjects.push_back(std::move(axisObj));
 	}
 
@@ -50,9 +65,9 @@ void GamePlayScene::Initialize() {
 	sphereObject->Initialize();
 	ModelManager::GetInstance()->LoadModel("sphere.obj");
 	sphereObject->SetModel("sphere.obj");
-	sphereObject->SetTranslate({0.0f, 10.0f, 3.0f});
-	sphereObject->SetScale({1.0f, 1.0f, 1.0f});
-	sphereObject->SetRotate({0.0f, 0.0f, 0.0f});
+	sphereObject->SetTranslate({ 0.0f, 10.0f, 3.0f });
+	sphereObject->SetScale({ 1.0f, 1.0f, 1.0f });
+	sphereObject->SetRotate({ 0.0f, 0.0f, 0.0f });
 	cylinderObject = std::make_unique<Object3d>();
 
 	// ★ この初期化処理が抜けていると今回のエラーが起きます！
@@ -64,52 +79,32 @@ void GamePlayScene::Initialize() {
 	// =================================================
 	// ▼ 追加: エミッタの作成
 	// =================================================
-	ParticleEmitParam slash;
-	slash.scale = { 0.5f, 10.0f, 10.0f };
-	slash.baseRotate = { 0.0f, 0.0f, 0.0f };
-	slash.baseVelocity = { 0.0f, 0.0f, 0.0f };
-	slash.color = { 1.0f, 1.0f, 1.0f, 1.0f }; // 白色
-	slash.lifeTime = 1.0f;
-	slash.randomRotateRange = { 0.0f, 0.0f, std::numbers::pi_v<float> *2.0f };
-	slash.randomScaleRange = { 0.0f, 1.0f, 0.0f };	
-	slash.count = 3;
-	slash.randomVelocityRange = { 0.0f,0.0f,0.0f };
-	slash.randomPositionRange = { 0.0f,0.0f,0.0f };
-	
-	
+	std::vector<std::string> particleTypes = { "Fire", "Dust", "Slash","Slash_Trace" };
 
-	
-	emitter = std::make_unique<ParticleEmitter>();
-	emitter->SetGroupName("Slash");
-	emitter->SetPalam(slash);
-	emitter->SetFrequency(3.0f);
-	emitter->SetTexture("Resources/circle.png");
+	// 2. ループでエミッターを生成してリストにまとめる
+	for (const auto& groupName : particleTypes) {
+		auto newEmitter = std::make_unique<ParticleEmitter>();
 
+		// グループ名を設定
+		newEmitter->SetGroupName(groupName);
 
-	ParticleEmitParam ringParam;
-	ringParam.scale = { 1.0f, 1.0f, 1.0f }; // サイズ
-	ringParam.baseRotate = { 0.0f, 0.0f, 0.0 };
-	ringParam.baseVelocity = { 0.0f, 0.0f, 0.0f }; // その場に出す
-	ringParam.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-	ringParam.lifeTime = 1.0f; // 1秒間表示
+		// JSONファイルからパラメータ（emitParamやfrequencyなど）を自動ロード
+		// (ParticleEmitter::LoadFromJsonの実装に合わせてパスを指定してください)
+		newEmitter->LoadFromJson("Resources/Data/emit_status.json");
+		std::string texPath = newEmitter->GetTextureFilePath();
+		if (texPath == "") {
+			texPath = "Resources/uvChecker.png"; // ※とりあえず市松模様を設定
+			newEmitter->SetTexture(texPath);     // エミッターのパスも上書きしておく
+		}
 
-	ringParam.isRandomRotate = false;
-	ringParam.randomRotateRange = { 0.0f, 0.0f, std::numbers::pi_v<float> *2.0f };
-	ringParam.count = 1; // 1回の発生で1つだけ出す
-	ringParam.randomVelocityRange = { 0.0f, 0.0f, 0.0f };
-	ringParam.randomPositionRange = { 0.0f, 0.0f, 0.0f };
-	ringParam.randomScaleRange = { 0.0f, 0.0f, 0.0f };
-
-	ringEmitter = std::make_unique<ParticleEmitter>();
-	// ★Game.cppで作成したグループ名「Ring」を指定！
-	ringEmitter->SetGroupName("Ring");
-	ringEmitter->SetPalam(ringParam);
-	ringEmitter->SetFrequency(3.0f); // 0.5秒ごとに発生
-
-	// 位置を中心に設定する場合（お好みの位置に調整してください）
-	ringEmitter->SetTranslate({ 0.0f, 0.0f, 0.0f });
-	ringEmitter->SetTexture("Resources/gradationLine.png");
-
+		// ─── ★超重要：ParticleManagerにグループを作成し、テクスチャを渡す ───
+		ParticleManager::GetInstance()->CreateParticleGroup(groupName, texPath);
+		// ※もし必要なら初期位置などもここで設定可能
+		// newEmitter->SetTranslate({0.0f, 0.0f, 0.0f});
+		ParticleManager::GetInstance()->SetGroupBlendMode(newEmitter->GetGroupName(), newEmitter->GetBlendMode());
+		// リスト（vector）に格納
+		emitters_.push_back(std::move(newEmitter));
+	}
 
 	// ※ここでは「1秒間に10回、1回につき5個発生」という設定にしています
 #pragma endregion
@@ -126,8 +121,12 @@ void GamePlayScene::Update() {
 	skyBox->Update();
 
 	// 更新
-	emitter->Update(1.0f / 60.0f);
-	ringEmitter->Update(1.0f / 60.0f);
+	float deltaTime = 1.0f / 60.0f;
+
+	// ─── リスト内のすべてのエミッターを一括更新 ───
+	for (auto& emitter : emitters_) {
+		emitter->Update(deltaTime);
+	}
 	ParticleManager::GetInstance()->Update();
 	Object3dCommon::GetInstance()->GetDefaultCamera()->Update();
 	object3d->Update();
@@ -137,7 +136,7 @@ void GamePlayScene::Update() {
 	sprite->Update();
 	for (auto& s : sprites) {
 		s->Update();
-		s->SetSize({100.0f, 100.0f});
+		s->SetSize({ 100.0f, 100.0f });
 	}
 	sphereObject->Update();
 
@@ -159,10 +158,9 @@ void GamePlayScene::Draw3D() {
 	cylinderObject->Draw();
 	sphereObject->Draw();
 
-	if (isParticleEmit) {
-	
-		ParticleManager::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
-	}
+
+	ParticleManager::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
+
 }
 
 void GamePlayScene::Finalize() {}
@@ -198,7 +196,7 @@ void GamePlayScene::ImGuiUpdate() {
 	Vector3 pointLightPosition = object3d->GetPointLightPosition();
 	float pointLightIntensity = object3d->GetPointLightIntensity();
 	float pointLightRadius = object3d->GetPointLightRadius();
-	float pointLightDecay = object3d->GetPointLightDecay(); 
+	float pointLightDecay = object3d->GetPointLightDecay();
 	bool isPointLightSet = object3d->GetIsPointLightSet();
 
 	ImGui::Begin("Camera Settings");
@@ -246,23 +244,151 @@ void GamePlayScene::ImGuiUpdate() {
 	ImGui::DragFloat("point light radius", &pointLightRadius, 0.1f, 0.0f, 20.0f);
 	ImGui::DragFloat("point light decay", &pointLightDecay, 0.1f, 0.0f, 10.0f);
 	ImGui::DragFloat("environment multiplier", &environmentMultiplier, 0.01f, 0.0f, 1.0f);
-	
+
 	ImGui::End();
 	//  ImGuiのウィンドウを作成
-	ParticleEmitParam emit;
-	emit = emitter->GetPalam();
-	Vector3 tlans = emitter->GetTlanslate();
-	ImGui::Begin("Emitter Settings");
-	ImGui::Checkbox("Particle Emit", &isParticleEmit);
-	ImGui::DragFloat3("Tlanslate", &tlans.x);
-	ImGui::DragFloat3("Base Lotate", &emit.baseRotate.x, 0.01f);
+// --- ImGuiによるパーティクル編集エディタ ---
+	ImGui::Begin("Particle Editor");
+
+	// ① コンボボックス用の名前リストを作成する
+	std::vector<const char*> emitterNames;
+	for (const auto& emitter : emitters_) {
+		emitterNames.push_back(emitter->GetGroupName().c_str());
+	}
+
+	// ② パーティクルを選択するコンボボックス
+	ImGui::Combo("Target Particle", &currentParticleIndex_, emitterNames.data(), static_cast<int>(emitterNames.size()));
+
+	ImGui::Separator(); // UIの区切り線
+
+	// ③ 選択されたパーティクルのパラメータをすべて編集
+	if (!emitters_.empty() && currentParticleIndex_ < emitters_.size()) {
+		auto& targetEmitter = emitters_[currentParticleIndex_];
+
+		// 現在の設定値を取得
+		ParticleEmitParam param = targetEmitter->GetPalam();
+
+		ImGui::Text("Editing: %s", targetEmitter->GetGroupName().c_str());
+
+		// ─── 【基本設定】 ───
+		if (ImGui::CollapsingHeader("1. Basic Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+			// アクティブ（描画・更新オンオフ）
+			bool isActive = targetEmitter->GetIsActive();
+			if (ImGui::Checkbox("Active (Draw/Update ON)", &isActive)) {
+				targetEmitter->SetIsActive(isActive);
+			}
+
+			// 一度に発生する数 (uint32_t なので int で受けてから戻す)
+			int count = static_cast<int>(param.count);
+			if (ImGui::DragInt("Emit Count", &count, 1, 0, 1000)) {
+				param.count = static_cast<uint32_t>(count);
+			}
+
+			// 寿命
+			ImGui::DragFloat("Life Time", &param.lifeTime, 0.01f, 0.1f, 20.0f);
+
+			// ビルボード（常にカメラを向くか）
+			ImGui::Checkbox("Is Billboard", &param.isBillboard);
+
+			// 発生位置のばらつき
+			ImGui::DragFloat3("Random Pos Range", &param.randomPositionRange.x, 0.01f);
+			ImGui::Text("Texture");
+
+			// コンボボックス用にC文字列(const char*)のリストを作成
+			std::vector<const char*> textureNames;
+			for (const auto& path : availableTextures_) {
+				textureNames.push_back(path.c_str());
+			}
+
+			// 現在エミッターにセットされているテクスチャが、リストの何番目かを特定する
+			int currentTexIndex = 0;
+			std::string currentPath = targetEmitter->GetTextureFilePath();
+			for (int i = 0; i < availableTextures_.size(); ++i) {
+				if (availableTextures_[i] == currentPath) {
+					currentTexIndex = i;
+					break;
+				}
+			}
+
+			// プルダウン（コンボボックス）を表示
+			if (ImGui::Combo("Particle Texture", &currentTexIndex, textureNames.data(), static_cast<int>(textureNames.size()))) {
+				// もし別の画像が選ばれたら、エミッターに新しいテクスチャをセットする
+				targetEmitter->SetTexture(availableTextures_[currentTexIndex]);
+			}
+
+			ImGui::Separator();
+			ImGui::Text("Blend Mode");
+			// struct.h にある BlendMode enum の順番に合わせて名前リストを作る
+			const char* blendModeNames[] = { "None", "Normal", "Add", "Subtract", "Multiply", "Screen" };
+
+			// 現在のブレンドモードをint型として取得
+			int currentBlendMode = static_cast<int>(targetEmitter->GetBlendMode());
+
+			// プルダウンを表示
+			if (ImGui::Combo("##BlendMode", &currentBlendMode, blendModeNames, IM_ARRAYSIZE(blendModeNames))) {
+				// もし値が変更されたら、新しいブレンドモードをエミッターにセット
+				BlendMode newMode = static_cast<BlendMode>(currentBlendMode);
+				targetEmitter->SetBlendMode(newMode);
+
+				// ★超重要：変更された瞬間、Manager側にも即座に反映させる！
+				ParticleManager::GetInstance()->SetGroupBlendMode(targetEmitter->GetGroupName(), newMode);
+			}
+			ImGui::Separator();
+		}
+
+		// ─── 【動き（速度・加速度）】 ───
+		if (ImGui::CollapsingHeader("2. Movement & Physics", ImGuiTreeNodeFlags_DefaultOpen)) {
+			ImGui::DragFloat3("Base Velocity", &param.baseVelocity.x, 0.01f);
+			ImGui::DragFloat3("Random Vel Range", &param.randomVelocityRange.x, 0.01f);
+
+			// ★新機能：加速度（Yをマイナスにすれば重力、Xに入れれば風になる）
+			ImGui::DragFloat3("Acceleration", &param.acceleration.x, 0.001f);
+		}
+
+		// ─── 【大きさと色】 ───
+		if (ImGui::CollapsingHeader("3. Scale & Color", ImGuiTreeNodeFlags_DefaultOpen)) {
+			ImGui::Text("Scale");
+			ImGui::DragFloat3("Start Scale", &param.scale.x, 0.01f);
+			ImGui::DragFloat3("End Scale", &param.endScale.x, 0.01f);     // ★新機能
+			ImGui::DragFloat3("Random Scale Range", &param.randomScaleRange.x, 0.01f);
+
+			ImGui::Spacing();
+
+			ImGui::Text("Color");
+			ImGui::ColorEdit4("Start Color", &param.color.x);
+			ImGui::ColorEdit4("End Color", &param.endColor.x);         // ★新機能
+		}
+
+		// ─── 【回転】 ───
+		if (ImGui::CollapsingHeader("4. Rotation")) {
+			ImGui::DragFloat3("Base Rotate", &param.baseRotate.x, 0.01f);
+			ImGui::Checkbox("Enable Random Rotate", &param.isRandomRotate);
+			if (param.isRandomRotate) {
+				ImGui::DragFloat3("Random Rot Range", &param.randomRotateRange.x, 0.01f);
+			}
+		}
+
+		// ─── 編集したパラメータをセットし直す ───
+		targetEmitter->SetParam(param);
+
+		ImGui::Separator();
+
+		// ★便利機能：テスト放出ボタン
+		if (ImGui::Button("Test Emit", ImVec2(120, 30))) {
+			targetEmitter->Emit();
+		}
+	}
+
+	ImGui::Separator();
+
+	// ④ 保存ボタン
+	if (ImGui::Button("Save All to JSON", ImVec2(150, 40))) {
+		for (auto& emitter : emitters_) {
+			emitter->SaveToJson("Resources/Data/emit_status.json");
+		}
+	}
 
 	ImGui::End();
-	emitter->SetBaseRotate(emit.baseRotate);
-	emitter->SetTranslate(tlans);
-	ringEmitter->SetBaseRotate(emit.baseRotate);
-	ringEmitter->SetTranslate(tlans);
-
 	ImGui::Begin("System Info");
 
 	// 1. フレームレートとフレームタイム（1フレームにかかったミリ秒）の表示

@@ -56,13 +56,21 @@ struct ModelData {
 	Node rootNode;
 };
 struct Particle {
-	Transform transform; // SRT情報
-	Vector3 velocity;     // 速度
-	Vector4 color;        // 色
+	Transform transform;
+	Vector3 velocity;
+	Vector4 color;
 	float lifeTime;
 	float currentTime;
 	bool isBillboard;
-};
+
+	// ★以下を追加（時間変化と加速度用）
+	Vector3 acceleration; // 加速度（重力など）
+	Vector4 startColor;   // 発生時の色
+	Vector4 endColor;     // 消える時の色
+	Vector3 startScale;   // 発生時の大きさ
+	Vector3 endScale;     // 消える時の大きさ
+}; 
+
 struct Emitter {
 	Transform transform; // エミッタの位置情報
 	uint32_t count;       // パーティクルの数
@@ -89,18 +97,29 @@ struct PointLight {
 };
 
 struct ParticleEmitParam {
-	Vector3 scale = { 1.0f, 1.0f, 1.0f };               // 大きさ
-	Vector3 baseVelocity = { 0.0f, 0.0f, 0.0f };        // 基礎速度
-	Vector3 randomVelocityRange = { 0.1f, 0.1f, 0.1f }; // 乱数で加算される速度の範囲
-	Vector3 randomPositionRange = { 0.5f, 0.5f, 0.5f }; // 発生位置の範囲
+	Vector3 scale = { 1.0f, 1.0f, 1.0f };
+	// ★追加: 消える時の大きさ（デフォルトは0にしてスッと消えるように）
+	Vector3 endScale = { 0.0f, 0.0f, 0.0f };
+
+	Vector3 baseVelocity = { 0.0f, 0.0f, 0.0f };
+	Vector3 randomVelocityRange = { 0.1f, 0.1f, 0.1f };
+
+	// ★追加: 加速度（Yをマイナスにすれば重力になります）
+	Vector3 acceleration = { 0.0f, 0.0f, 0.0f };
+
+	Vector3 randomPositionRange = { 0.0f, 0.0f, 0.0f };
 	float lifeTime = 1.0f;
-	Vector3 baseRotate;         // 角度の基本ステータス
-	bool isRandomRotate;        // 角度を乱数にするかどうかのフラグ
-	Vector3 randomRotateRange;  // 乱数の範囲// 存在時間
-	Vector4 color;
-	Vector3 randomScaleRange;  // スケールの乱数幅
-	uint32_t count;            // 発生数（パラメータとして一括管理）
-	bool isBillboard = true;
+	Vector3 baseRotate = { 0.0f, 0.0f, 0.0f };
+	bool isRandomRotate = false;
+	Vector3 randomRotateRange = { 0.0f, 0.0f, 0.0f };
+	Vector4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+	// ★追加: 消える時の色（デフォルトはアルファ値を0にして透明にする）
+	Vector4 endColor = { 1.0f, 1.0f, 1.0f, 0.0f };
+
+	Vector3 randomScaleRange = { 0.0f, 0.0f, 0.0f };
+	uint32_t count = 1;
+	bool isBillboard = false;
 };
 
 enum ParticleMeshType {
@@ -108,3 +127,9 @@ enum ParticleMeshType {
 	kMeshTypeRing  // リング形状
 };
 
+struct ParticleSetting {
+	std::string groupName;
+	std::string texturePath;
+	ParticleMeshType meshType;
+	BlendMode blendMode;
+};
