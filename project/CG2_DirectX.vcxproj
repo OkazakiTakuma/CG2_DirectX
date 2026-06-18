@@ -165,6 +165,8 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\flame\Game.cpp" />
     <ClCompile Include="Engine\flame\FlameWork.cpp" />
     <ClCompile Include="Engine\base\PostEffect.cpp" />
+    <ClCompile Include="Engine\2d\LineDrawer.cpp" />
+    <ClCompile Include="Engine\2d\LineCommon.cpp" />
     <ClCompile Include="scene\SceneFactory.cpp" />
     <ClCompile Include="scene\SceneManager.cpp" />
     <ClCompile Include="scene\GamePlayScene.cpp" />
@@ -192,6 +194,16 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\3d\SkyBoxCommon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="Resources\Shader\Line.PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\Line.VS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="Resources\Shader\Object3d.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
@@ -236,6 +248,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\math\algorithm.h" />
     <ClInclude Include="Engine\3d\SkyBox.h" />
     <ClInclude Include="Engine\flame\AbstractSceneFactory.h" />
     <ClInclude Include="Engine\flame\BaseScene.h" />
@@ -267,6 +280,8 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\flame\Game.h" />
     <ClInclude Include="Engine\flame\FlameWork.h" />
     <ClInclude Include="Engine\base\PostEffect.h" />
+    <ClInclude Include="Engine\2d\LineDrawer.h" />
+    <ClInclude Include="Engine\2d\LineCommon.h" />
     <ClInclude Include="scene\SceneFactory.h" />
     <ClInclude Include="scene\SceneManager.h" />
     <ClInclude Include="scene\GamePlayScene.h" />

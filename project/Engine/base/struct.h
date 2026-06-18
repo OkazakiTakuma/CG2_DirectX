@@ -124,7 +124,8 @@ struct ParticleEmitParam {
 
 enum ParticleMeshType {
 	kMeshTypeQuad, // 通常の四角形
-	kMeshTypeRing  // リング形状
+	kMeshTypeRing,  // リング形状
+	kMeshTypeCylinder
 };
 
 struct ParticleSetting {
