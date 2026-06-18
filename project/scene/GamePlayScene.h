@@ -12,6 +12,14 @@ public:
 	void SetSceneManager(SceneManager* manager) override { sceneManager = manager; }
 
 private:
+	bool isShowSkyBox_ = true;
+	bool isShowSprite_ = true;
+	bool isShowSprites_ = true;
+	bool isShowObject3D_ = true;
+	bool isShowAxisObjects_ = true;
+	bool isShowSphere_ = true;
+	bool isShowCylinder_ = true;
+	bool isShowParticles_ = true;
 	std::unique_ptr<Sprite> sprite = nullptr;
 
 	std::vector<std::unique_ptr<Sprite>> sprites;

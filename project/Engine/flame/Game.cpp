@@ -2,8 +2,10 @@
 #include "Audio.h"
 #include "ImGuiManager.h"
 #include "Input.h"
+#include "LineDrawer.h"
 #include "Object3dCommon.h"
 #include "ParticleManager.h"
+#include"LineCommon.h"
 #include "PostEffect.h"
 #include "SceneFactory.h"
 #include "SceneManager.h"
@@ -15,8 +17,9 @@ void Game::Initialize() {
 
 	FlameWork::Initialize();
 	camera = std::make_unique<Camera>();
-	camera->SetTranslate({0.0f, 0.0f, -20.0f});
+	camera->SetTranslate({ 0.0f, 0.0f, -20.0f });
 	Object3dCommon::GetInstance()->SetDefaultCamera(camera.get());
+
 	// 1. 初期化
 	// 1. パーティクルグループを作成（テクスチャのロードなどもここで行われます）
 	// 引数：グループ名, テクスチャパス
@@ -57,6 +60,7 @@ void Game::Draw() {
 	// モデルの描画
 	Object3dCommon::GetInstance()->SetDraw();
 	SceneManager::GetInstance()->Draw3D();
+	LineDrawer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
 	// スカイボックスの描画
 	SkyBoxCommon::GetInstance()->SetDraw();
 	SceneManager::GetInstance()->DrawSkyBox();
@@ -66,7 +70,7 @@ void Game::Draw() {
 
 	PostEffect::GetInstance()->PostDrawScene();
 
-	
+
 	SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
 
 	PostEffect::GetInstance()->Draw();

@@ -1,10 +1,11 @@
 {
     "Dust": {
+        "blendMode": 2,
         "count": 20,
         "emitParam": {
             "acceleration": [
                 0.0,
-                -2.0,
+                -0.7900000214576721,
                 0.0
             ],
             "baseRotate": [
@@ -14,8 +15,8 @@
             ],
             "baseVelocity": [
                 0.0,
-                1.5,
-                1.0
+                0.7799999713897705,
+                0.8199999928474426
             ],
             "color": [
                 0.6000000238418579,
@@ -64,16 +65,18 @@
                 1.0
             ]
         },
-        "frequency": 10.0,
+        "frequency": 0.09000000357627869,
         "isActive": true,
-        "textureFilePath": "Resources/uvChecker.png"    }
+        "meshType": 0,
+        "textureFilePath": "Resources/circle.png"
     },
     "Fire": {
-        "count": 10,
+        "blendMode": 2,
+        "count": 0,
         "emitParam": {
             "acceleration": [
                 0.0,
-                1.0,
+                0.004000000189989805,
                 0.0
             ],
             "baseRotate": [
@@ -83,20 +86,91 @@
             ],
             "baseVelocity": [
                 0.0,
-                2.0,
+                0.07999999821186066,
                 0.0
             ],
             "color": [
                 1.0,
-                0.4000000059604645,
-                0.05000000074505806,
+                0.550000011920929,
+                0.07999999821186066,
+                0.949999988079071
+            ],
+            "count": 5,
+            "endColor": [
+                0.44999998807907104,
+                0.019999999552965164,
+                0.0,
+                0.0
+            ],
+            "endScale": [
+                0.11999999731779099,
+                0.11999999731779099,
+                0.11999999731779099
+            ],
+            "isBillboard": true,
+            "isRandomRotate": false,
+            "lifeTime": 0.550000011920929,
+            "randomPositionRange": [
+                0.2800000011920929,
+                0.03999999910593033,
+                0.2800000011920929
+            ],
+            "randomRotateRange": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "randomScaleRange": [
+                0.2800000011920929,
+                0.2800000011920929,
+                0.0
+            ],
+            "randomVelocityRange": [
+                0.054999999701976776,
+                0.07000000029802322,
+                0.054999999701976776
+            ],
+            "scale": [
+                0.699999988079071,
+                0.699999988079071,
+                0.699999988079071
+            ]
+        },
+        "frequency": 0.03500000014901161,
+        "isActive": true,
+        "meshType": 0,
+        "textureFilePath": "Resources/circle.png"
+    },
+    "Lightning": {
+        "blendMode": 2,
+        "count": 0,
+        "emitParam": {
+            "acceleration": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "baseRotate": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "baseVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "color": [
+                0.550000011920929,
+                0.7799999713897705,
+                1.0,
                 1.0
             ],
-            "count": 6,
+            "count": 1,
             "endColor": [
+                0.20000000298023224,
+                0.44999998807907104,
                 1.0,
-                0.0,
-                0.0,
                 0.0
             ],
             "endScale": [
@@ -105,44 +179,46 @@
                 0.0
             ],
             "isBillboard": true,
-            "isRandomRotate": true,
-            "lifeTime": 0.800000011920929,
+            "isRandomRotate": false,
+            "lifeTime": 0.18000000715255737,
             "randomPositionRange": [
-                0.30000001192092896,
-                0.10000000149011612,
-                0.30000001192092896
+                0.07999999821186066,
+                0.07999999821186066,
+                0.07999999821186066
             ],
             "randomRotateRange": [
                 0.0,
                 0.0,
-                6.283185005187988
+                0.0
             ],
             "randomScaleRange": [
-                0.5,
-                0.5,
-                0.5
+                0.18000000715255737,
+                0.18000000715255737,
+                0.0
             ],
             "randomVelocityRange": [
-                0.6000000238418579,
-                0.5,
-                0.6000000238418579
+                0.0,
+                0.0,
+                0.0
             ],
             "scale": [
-                1.5,
-                1.5,
-                1.5
+                0.2800000011920929,
+                0.2800000011920929,
+                0.2800000011920929
             ]
         },
-        "frequency": 0.05000000074505806,
+        "frequency": 0.0,
         "isActive": true,
-        "textureFilePath": "Resources/uvChecker.png"    }
+        "meshType": 0,
+        "textureFilePath": "Resources/circle.png"
     },
     "Slash": {
-        "count": 3,
+        "blendMode": 2,
+        "count": 0,
         "emitParam": {
             "acceleration": [
                 0.0,
-                0.0,
+                -0.006000000052154064,
                 0.0
             ],
             "baseRotate": [
@@ -157,57 +233,59 @@
             ],
             "color": [
                 1.0,
-                1.0,
-                1.0,
+                0.8999999761581421,
+                0.44999998807907104,
                 1.0
             ],
-            "count": 3,
+            "count": 34,
             "endColor": [
                 1.0,
-                1.0,
-                1.0,
+                0.10000000149011612,
+                0.019999999552965164,
                 0.0
             ],
             "endScale": [
-                0.0,
-                2.5,
-                1.0
+                0.019999999552965164,
+                0.019999999552965164,
+                0.019999999552965164
             ],
             "isBillboard": true,
-            "isRandomRotate": true,
-            "lifeTime": 0.5,
+            "isRandomRotate": false,
+            "lifeTime": 0.2199999988079071,
             "randomPositionRange": [
-                0.0,
-                0.0,
-                0.0
+                0.1599999964237213,
+                0.1599999964237213,
+                0.1599999964237213
             ],
             "randomRotateRange": [
                 0.0,
                 0.0,
-                6.283185005187988
+                0.0
             ],
             "randomScaleRange": [
-                0.0,
-                1.0,
+                0.18000000715255737,
+                0.18000000715255737,
                 0.0
             ],
             "randomVelocityRange": [
-                0.0,
-                0.0,
-                0.0
+                0.2800000011920929,
+                0.20000000298023224,
+                0.2800000011920929
             ],
             "scale": [
-                0.05000000074505806,
-                1.0,
-                1.0
+                0.2800000011920929,
+                0.2800000011920929,
+                0.2800000011920929
             ]
         },
-        "frequency": 3.0,
+        "frequency": 0.0,
         "isActive": true,
-        "textureFilePath": "Resources/uvChecker.png"    }
+        "meshType": 0,
+        "textureFilePath": "Resources/circle.png"
     },
     "Slash_Trace": {
-        "count": 3,
+        "blendMode": 1,
+        "count": 0,
         "emitParam": {
             "acceleration": [
                 0.0,
@@ -215,63 +293,65 @@
                 0.0
             ],
             "baseRotate": [
-                1.570796012878418,
+                0.0,
                 0.0,
                 0.0
             ],
             "baseVelocity": [
                 0.0,
                 0.0,
-                2.0
+                0.0
             ],
             "color": [
-                0.0,
-                0.800000011920929,
+                1.0,
+                1.0,
                 1.0,
                 1.0
             ],
-            "count": 3,
+            "count": 1,
             "endColor": [
-                0.0,
-                0.30000001192092896,
+                1.0,
+                1.0,
                 1.0,
                 0.0
             ],
             "endScale": [
                 0.0,
                 0.0,
-                1.0
+                0.0
             ],
-            "isBillboard": false,
-            "isRandomRotate": true,
-            "lifeTime": 0.5,
+            "isBillboard": true,
+            "isRandomRotate": false,
+            "lifeTime": 1.0,
             "randomPositionRange": [
-                0.20000000298023224,
                 0.0,
-                0.20000000298023224
+                0.0,
+                0.0
             ],
             "randomRotateRange": [
                 0.0,
-                6.283185005187988,
+                0.0,
                 0.0
             ],
             "randomScaleRange": [
                 0.0,
-                2.0,
+                0.0,
                 0.0
             ],
             "randomVelocityRange": [
                 0.0,
                 0.0,
-                0.5
+                0.0
             ],
             "scale": [
-                0.05000000074505806,
-                3.0,
+                1.0,
+                1.0,
                 1.0
             ]
         },
-        "frequency": 30.0,
+        "frequency": 0.0,
         "isActive": true,
-        "textureFilePath": "Resources/uvChecker.png"    }
+        "meshType": 0,
+        "textureFilePath": "Resources/uvChecker.png"
+    }
 }

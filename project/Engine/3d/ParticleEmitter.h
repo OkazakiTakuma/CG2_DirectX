@@ -1,6 +1,7 @@
 #pragma once
 #include "struct.h" // Transform構造体やVector3、BlendModeなどが定義されている前提
 #include <string>
+#include <vector>
 #include <json.hpp>
 
 // 前方宣言
@@ -8,6 +9,8 @@ class ParticleManager;
 
 class ParticleEmitter {
 public:
+
+	void EmitLightning(const Vector3& targetPosition);
 
 	ParticleEmitter();
 
@@ -39,8 +42,9 @@ public:
 	void SetIsActive(bool isActive) { isActive_ = isActive; }
 	void SetBlendMode(BlendMode mode) { blendMode_ = mode; }
 	void SetParam(ParticleEmitParam param) { emitParam_ = param; }
-
+	void SetMeshType(ParticleMeshType type) { meshType_ = type; }
 	// ステータスのゲッター
+	float GetFrequency() const { return frequency_; }
 	Vector3 GetTlanslate()const { return transform_.translate; }
 	Vector3 GetScale() const { return emitParam_.scale; }
 	Vector3 GetBaseVelocity() const { return emitParam_.baseVelocity; }
@@ -59,6 +63,7 @@ public:
 	std::string GetGroupName() const { return groupName_; }
 	bool GetIsActive() const { return isActive_; }
 	BlendMode GetBlendMode() const { return blendMode_; }
+	ParticleMeshType GetMeshType() const { return meshType_; }
 
 	void SaveToJson(const std::string& filePath = "Resources/Data/emit_status.json");
 	void LoadFromJson(const std::string& filePath = "Resources/Data/emit_status.json");
@@ -73,6 +78,14 @@ private:
 	std::string textureFilePath_; // 設定されているテクスチャのパス
 	bool isActive_;         // エミッターのオン・オフフラグ
 	BlendMode blendMode_ = kBlendModeNormal; // ★追加：ブレンドモード（初期値は通常）
-
+	ParticleMeshType meshType_ = kMeshTypeQuad;
+	struct LightningLine {
+		Vector3 start;
+		Vector3 end;
+		Vector4 color;
+		float lifeTime;
+		float currentTime;
+	};
+	std::vector<LightningLine> lightningLines_;
 	ParticleEmitParam emitParam_; // 発生するパーティクルのパラメータ
 };

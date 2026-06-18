@@ -510,8 +510,25 @@ void ParticleManager::Update() {
 			it->transform.translate.y += it->velocity.y;
 			it->transform.translate.z += it->velocity.z;
 
-			float alpha = 1.0f - (it->currentTime / it->lifeTime);
-			it->color.w = alpha;
+			it->velocity.x += it->acceleration.x;
+			it->velocity.y += it->acceleration.y;
+			it->velocity.z += it->acceleration.z;
+
+			float t = it->currentTime / it->lifeTime;
+			if (t < 0.0f) {
+				t = 0.0f;
+			} else if (t > 1.0f) {
+				t = 1.0f;
+			}
+
+			it->transform.scale.x = it->startScale.x + (it->endScale.x - it->startScale.x) * t;
+			it->transform.scale.y = it->startScale.y + (it->endScale.y - it->startScale.y) * t;
+			it->transform.scale.z = it->startScale.z + (it->endScale.z - it->startScale.z) * t;
+
+			it->color.x = it->startColor.x + (it->endColor.x - it->startColor.x) * t;
+			it->color.y = it->startColor.y + (it->endColor.y - it->startColor.y) * t;
+			it->color.z = it->startColor.z + (it->endColor.z - it->startColor.z) * t;
+			it->color.w = it->startColor.w + (it->endColor.w - it->startColor.w) * t;
 
 			it->currentTime += 1.0f / 60.0f;
 			++it;
@@ -526,7 +543,6 @@ void ParticleManager::Emit(const std::string& groupName, const Vector3& position
 
 	// -1.0 から 1.0 のランダムな数を作る分布
 	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
-	std::uniform_real_distribution<float> distColor(0.5f, 1.0f);
 
 	for (uint32_t i = 0; i < count; ++i) {
 		Particle newParticle;
@@ -540,10 +556,13 @@ void ParticleManager::Emit(const std::string& groupName, const Vector3& position
 		newParticle.transform.scale.x = emitParam.scale.x + dist(randomEngine_) * emitParam.randomScaleRange.x;
 		newParticle.transform.scale.y = emitParam.scale.y + dist(randomEngine_) * emitParam.randomScaleRange.y;
 		newParticle.transform.scale.z = emitParam.scale.z + dist(randomEngine_) * emitParam.randomScaleRange.z;
+		newParticle.startScale = newParticle.transform.scale;
+		newParticle.endScale = emitParam.endScale;
 		// 3. 速度: 基礎速度 + (乱数 * 速度の範囲)
 		newParticle.velocity.x = emitParam.baseVelocity.x + dist(randomEngine_) * emitParam.randomVelocityRange.x;
 		newParticle.velocity.y = emitParam.baseVelocity.y + dist(randomEngine_) * emitParam.randomVelocityRange.y;
 		newParticle.velocity.z = emitParam.baseVelocity.z + dist(randomEngine_) * emitParam.randomVelocityRange.z;
+		newParticle.acceleration = emitParam.acceleration;
 
 		// フラグが真なら、基本角度に「乱数 × 範囲」を足す
 		newParticle.transform.rotate.x = emitParam.baseRotate.x + dist(randomEngine_) * emitParam.randomRotateRange.x;
@@ -557,7 +576,9 @@ void ParticleManager::Emit(const std::string& groupName, const Vector3& position
 		newParticle.isBillboard = emitParam.isBillboard;
 
 		// 色の設定（ここは必要に応じてお好みで変更してください）
-		newParticle.color = { distColor(randomEngine_), distColor(randomEngine_), distColor(randomEngine_), 1.0f };
+		newParticle.startColor = emitParam.color;
+		newParticle.endColor = emitParam.endColor;
+		newParticle.color = newParticle.startColor;
 
 		group.particles.push_back(newParticle);
 	}
