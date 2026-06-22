@@ -501,37 +501,58 @@ void ParticleManager::Update() {
 		ParticleGroup& group = groupPair.second;
 		group.instanceCount = 0;
 
-		for (auto it = group.particles.begin(); it != group.particles.end();) {
-			if (it->currentTime >= it->lifeTime) {
-				it = group.particles.erase(it);
+		// イテレータではなくインデックスを使ってループする
+		for (size_t i = 0; i < group.particles.size(); ) {
+
+			// 1. 寿命チェックと削除（Swap and Pop）
+			if (group.particles[i].currentTime >= group.particles[i].lifeTime) {
+				// 削除したい要素に一番最後の要素を上書きする
+				group.particles[i] = group.particles.back();
+				// 一番最後の要素を削除する
+				group.particles.pop_back();
+
+				// 上書きされた新しい要素を次にチェックするため、i は増やさずに continue
 				continue;
 			}
-			it->transform.translate.x += it->velocity.x;
-			it->transform.translate.y += it->velocity.y;
-			it->transform.translate.z += it->velocity.z;
 
-			it->velocity.x += it->acceleration.x;
-			it->velocity.y += it->acceleration.y;
-			it->velocity.z += it->acceleration.z;
+			// コードを見やすくするため、現在のパーティクルへの参照を作る
+			auto& p = group.particles[i];
 
-			float t = it->currentTime / it->lifeTime;
+			// 2. 位置の更新
+			p.transform.translate.x += p.velocity.x;
+			p.transform.translate.y += p.velocity.y;
+			p.transform.translate.z += p.velocity.z;
+
+			// 3. 速度の更新
+			p.velocity.x += p.acceleration.x;
+			p.velocity.y += p.acceleration.y;
+			p.velocity.z += p.acceleration.z;
+
+			// 4. 進行度 (t) の計算
+			float t = p.currentTime / p.lifeTime;
 			if (t < 0.0f) {
 				t = 0.0f;
-			} else if (t > 1.0f) {
+			}
+			else if (t > 1.0f) {
 				t = 1.0f;
 			}
 
-			it->transform.scale.x = it->startScale.x + (it->endScale.x - it->startScale.x) * t;
-			it->transform.scale.y = it->startScale.y + (it->endScale.y - it->startScale.y) * t;
-			it->transform.scale.z = it->startScale.z + (it->endScale.z - it->startScale.z) * t;
+			// 5. スケールの更新 (補間)
+			p.transform.scale.x = p.startScale.x + (p.endScale.x - p.startScale.x) * t;
+			p.transform.scale.y = p.startScale.y + (p.endScale.y - p.startScale.y) * t;
+			p.transform.scale.z = p.startScale.z + (p.endScale.z - p.startScale.z) * t;
 
-			it->color.x = it->startColor.x + (it->endColor.x - it->startColor.x) * t;
-			it->color.y = it->startColor.y + (it->endColor.y - it->startColor.y) * t;
-			it->color.z = it->startColor.z + (it->endColor.z - it->startColor.z) * t;
-			it->color.w = it->startColor.w + (it->endColor.w - it->startColor.w) * t;
+			// 6. カラーの更新 (補間)
+			p.color.x = p.startColor.x + (p.endColor.x - p.startColor.x) * t;
+			p.color.y = p.startColor.y + (p.endColor.y - p.startColor.y) * t;
+			p.color.z = p.startColor.z + (p.endColor.z - p.startColor.z) * t;
+			p.color.w = p.startColor.w + (p.endColor.w - p.startColor.w) * t;
 
-			it->currentTime += 1.0f / 60.0f;
-			++it;
+			// 7. 時間を進める
+			p.currentTime += 1.0f / 60.0f;
+
+			// 8. 削除されなかった場合のみ次の要素へ進む
+			++i;
 		}
 	}
 }
