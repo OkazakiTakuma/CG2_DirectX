@@ -29,7 +29,7 @@ public:
 	void SetGroupBlendMode(const std::string& groupName, BlendMode blendMode);
 	struct ParticleGroup {
 		MaterialData material;
-		std::list<Particle> particles;
+		std::vector<Particle> particles;
 		uint32_t instanceSrvIndex = 0;
 		Microsoft::WRL::ComPtr<ID3D12Resource> instanceResource;
 		uint32_t instanceCount = 0;
