@@ -154,7 +154,7 @@ void PostEffect::CreateRootSignature() {
 
 void PostEffect::CreatePipelineState() {
 	// 【注意】シェーダーファイル名が異なる場合は、ご自身の環境に合わせて書き換えてください
-	auto vertexShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/FullScreen.VS.hlsl", L"vs_6_0");
+	auto vertexShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/CopyImage.VS.hlsl", L"vs_6_0");
 	auto pixelShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/FullScreen.PS.hlsl", L"ps_6_0");
 	assert(vertexShaderBlob && pixelShaderBlob);
 
