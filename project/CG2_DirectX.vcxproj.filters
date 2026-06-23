@@ -165,7 +165,6 @@
     <FxCompile Include="Resources\Shader\Line.PS.hlsl" />
     <FxCompile Include="Resources\Shader\Line.VS.hlsl" />
     <FxCompile Include="Resources\Shader\FullScreen.PS.hlsl" />
-    <FxCompile Include="Resources\Shader\FullScreen.VS.hlsl" />
     <FxCompile Include="Resources\Shader\Instancing.VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
