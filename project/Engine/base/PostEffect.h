@@ -26,6 +26,12 @@ public:
 	// 終了処理
 	void Finalize();
 
+	// ImGuiの描画関数
+	void DrawImGui();
+
+	// エフェクトが有効かどうかを取得する関数
+	bool IsActive() const { return isActive_; }
+
 private:
 	PostEffect() = default;
 	~PostEffect() = default;
@@ -41,8 +47,14 @@ private:
 	void CreateRootSignature();
 	void CreatePipelineState();
 
+	// 色変更用の定数バッファ生成関数
+	void CreateColorBuffer();
+
 private:
 	DirectXCommon* dxCommon_ = nullptr;
+
+	// ポストエフェクトのON/OFFフラグ (初期値はtrue)
+	bool isActive_ = true;
 
 	// テクスチャリソースとRTV/DSV用ヒープ
 	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource_ = nullptr;
@@ -57,4 +69,20 @@ private:
 	// パイプライン
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState_ = nullptr;
+
+	// 色変更用の定数バッファ関連
+	Microsoft::WRL::ComPtr<ID3D12Resource> colorBuffer_ = nullptr;
+
+	// シェーダーに送るデータと同じ形の構造体
+// PostEffect.h の構造体部分を修正
+	struct ColorData {
+		float r, g, b, a;
+		int32_t enableGrayscale; // 💡追加 (1:ON, 0:OFF)
+		float padding[3];        // 💡追加 (16バイト境界にするための調整)
+	};
+
+	ColorData* colorData_ = nullptr; // 書き込み用のポインタ
+
+	// ImGuiで操作するための色配列 (初期値は白)
+	float tintColor_[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 };

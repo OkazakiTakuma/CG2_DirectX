@@ -16,6 +16,7 @@
 #include "Vector.h"
 #include "struct.h"
 #include <Object3d.h>
+#include "InstancingModel.h"
 #include <memory>
 #include <vector>
 class SceneManager;

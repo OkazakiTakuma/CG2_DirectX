@@ -1,6 +1,7 @@
 #pragma once
 #include"BaseScene.h"
 
+
 class GamePlayScene: public BaseScene {
 public:
 	void Initialize() override;
@@ -12,11 +13,11 @@ public:
 	void SetSceneManager(SceneManager* manager) override { sceneManager = manager; }
 
 private:
-	bool isShowSkyBox_ = true;
+	bool isShowSkyBox_ = false;
 	bool isShowSprite_ = true;
 	bool isShowSprites_ = true;
 	bool isShowObject3D_ = true;
-	bool isShowAxisObjects_ = true;
+	bool isShowInstancing_ = true;
 	bool isShowSphere_ = true;
 	bool isShowCylinder_ = true;
 	bool isShowParticles_ = true;
@@ -24,7 +25,6 @@ private:
 
 	std::vector<std::unique_ptr<Sprite>> sprites;
 	std::unique_ptr<Object3d> object3d = nullptr;
-	std::vector<std::unique_ptr<Object3d>> axisObjects;
 	std::unique_ptr<Object3d> sphereObject = nullptr;
 	std::unique_ptr<Object3d> cylinderObject = nullptr;
 
@@ -54,5 +54,6 @@ private:
 	bool isParticleEmit = false;          // パーティクル発生のON/OFF
 	SceneManager* sceneManager = nullptr; // シーンマネージャーへのポインタ（所有権は持たない）
 	std::unique_ptr<SkyBox> skyBox = nullptr;
+	std::unique_ptr<InstancingModel> instancingModel_ = nullptr;
 
 };
