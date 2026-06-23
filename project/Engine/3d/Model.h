@@ -21,7 +21,9 @@ public:
 	void Draw();
 	~Model();
 	const Node& GetRootNode() const { return modelData.rootNode; }
-
+	uint32_t GetVertexCount() const {
+		return static_cast<uint32_t>(modelData.vertices.size());
+	}
 private:
 	ModelCommon* modelCommon_ = nullptr;
 	ModelData modelData;

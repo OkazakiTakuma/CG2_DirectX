@@ -1,6 +1,7 @@
 #include "GamePlayScene.h"
 #include "SceneManager.h"
 #include <ModelManager.h>
+#include"InstancingModelCommon.h"
 
 void GamePlayScene::Initialize() {
 	std::vector<std::string> allTextures = {
@@ -51,16 +52,6 @@ void GamePlayScene::Initialize() {
 	ModelManager::GetInstance()->LoadModel("plane.obj");
 	object3d->SetModel("plane.obj");
 	ModelManager::GetInstance()->LoadModel("axis.obj");
-	const int axisCount = 5;
-	for (int i = 0; i < axisCount; ++i) {
-		std::unique_ptr<Object3d> axisObj = std::make_unique<Object3d>();
-		axisObj->Initialize();
-		axisObj->SetModel("axis.obj");
-		// 菴咲ｽｮ繧偵★繧峨＠縺ｦ驟咲ｽｮ
-		axisObj->SetScale({ 1.0f, 1.0f, 1.0f });
-		axisObj->SetTranslate({ float(i) * 2.0f, float(i) * 2.0f, 3.0f });
-		axisObjects.push_back(std::move(axisObj));
-	}
 
 	sphereObject = std::make_unique<Object3d>();
 	sphereObject->Initialize();
@@ -81,6 +72,12 @@ void GamePlayScene::Initialize() {
 	// 笆ｼ 霑ｽ蜉: 繧ｨ繝溘ャ繧ｿ縺ｮ菴懈・
 	// =================================================
 	std::vector<std::string> particleTypes = { "Fire", "Dust", "Slash","Slash_Trace","Lightning" };
+
+	ModelManager::GetInstance()->LoadModel("sphere.obj");
+
+	// インスタンシングモデルの初期化（最大1000個描画できるように確保）
+	instancingModel_ = std::make_unique<InstancingModel>();
+	instancingModel_->Initialize(ModelManager::GetInstance()->FindModel("sphere.obj"), 1000);
 
 	// 2. 繝ｫ繝ｼ繝励〒繧ｨ繝溘ャ繧ｿ繝ｼ繧堤函謌舌＠縺ｦ繝ｪ繧ｹ繝医↓縺ｾ縺ｨ繧√ｋ
 	for (const auto& groupName : particleTypes) {
@@ -187,8 +184,18 @@ void GamePlayScene::Update() {
 	Object3dCommon::GetInstance()->GetDefaultCamera()->Update();
 	object3d->Update();
 
-	cylinderObject->Update();
+	cylinderObject->Update();for (int i = 0; i < 10; ++i) {
+		for (int j = 0; j < 10; ++j) {
+			Transform transform;
+			transform.scale = { 0.5f, 0.5f, 0.5f }; // 少し小さめに
+			transform.rotate = { 0.0f, 0.0f, 0.0f };
+			// 等間隔に並べる
+			transform.translate = { -20.0f + i * 4.0f, 0.0f, -20.0f + j * 4.0f };
 
+			// 座標を追加（Drawを呼ぶとリセットされる仕組みです）
+			instancingModel_->AddInstance(transform);
+		}
+	}
 	sprite->Update();
 	for (auto& s : sprites) {
 		s->Update();
@@ -223,7 +230,7 @@ void GamePlayScene::Update() {
 void GamePlayScene::DrawSkyBox() {
 	// スカイボックスの表示
 	if (isShowSkyBox_) {
-		// skyBox->Draw(); // 必要な場合はコメントアウトを外してください
+		 skyBox->Draw(); // 必要な場合はコメントアウトを外してください
 	}
 }
 
@@ -258,10 +265,11 @@ void GamePlayScene::Draw3D() {
 	}
 
 	// 軸モデル（元のコードには無かったので追加しました！）
-	if (isShowAxisObjects_) {
-		for (auto& axisObj : axisObjects) {
-			axisObj->Draw();
-		}
+	if (isShowInstancing_) {
+		InstancingModelCommon::GetInstance()->SetDraw();
+
+		// 一括描画を実行！
+		instancingModel_->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
 	}
 
 	// パーティクル全体
@@ -312,7 +320,7 @@ void GamePlayScene::ImGuiUpdate() {
 	ImGui::Checkbox("Show Main Sprite", &isShowSprite_);
 	ImGui::Checkbox("Show Array Sprites", &isShowSprites_);
 	ImGui::Checkbox("Show Plane", &isShowObject3D_);
-	ImGui::Checkbox("Show Axis Objects", &isShowAxisObjects_);
+	ImGui::Checkbox("Show InstancingModel", &isShowInstancing_);
 	ImGui::Checkbox("Show Sphere", &isShowSphere_);
 	ImGui::Checkbox("Show Cylinder", &isShowCylinder_);
 	ImGui::Checkbox("Show Particles", &isShowParticles_);
@@ -555,16 +563,9 @@ void GamePlayScene::ImGuiUpdate() {
 	sphereObject->SetScale(spherescl);
 	object3d->IsPointLightSet(isPointLightSet);
 	sphereObject->IsPointLightSet(isPointLightSet);
-	for (auto& axisObj : axisObjects) {
-		axisObj->IsPointLightSet(isPointLightSet);
-	}
 
 	object3d->SetPointLight(pointLightColor, pointLightPosition, pointLightIntensity, pointLightRadius, pointLightDecay);
 	sphereObject->SetPointLight(pointLightColor, pointLightPosition, pointLightIntensity, pointLightRadius, pointLightDecay);
-	for (auto& axisObj : axisObjects) {
-		axisObj->SetPointLight(pointLightColor, pointLightPosition, pointLightIntensity, pointLightRadius, pointLightDecay);
-		axisObj->SetEnvironmentMultiplier(environmentMultiplier);
-	}
 	object3d->SetEnvironmentMultiplier(environmentMultiplier);
 
 	Object3dCommon::GetInstance()->GetDefaultCamera()->SetTranslate(cameraPosition);
@@ -583,9 +584,6 @@ void GamePlayScene::ImGuiUpdate() {
 	sprite->SetTextureSize(textureSize);
 	object3d->SetDirectionalLight(lightColor, lightDirection, lightIntensity);
 	sphereObject->SetDirectionalLight(lightColor, lightDirection, lightIntensity);
-	for (auto& axisObj : axisObjects) {
-		axisObj->SetDirectionalLight(lightColor, lightDirection, lightIntensity);
-	}
 #endif
 }
 

@@ -16,7 +16,7 @@
 #include <D3DResouceLeakCheker.h>
 #include"LineCommon.h"
 #include"LineDrawer.h"
-
+#include"InstancingModelCommon.h"
 #include <DirectXCommon.h>
 #include <ImGuiManager.h>
 #include <Input.h>
@@ -88,6 +88,8 @@ void FlameWork::Initialize() {
 	Object3dCommon::GetInstance()->Initialize(dxCommon.get());
 	ModelManager::GetInstance()->Inithialize(dxCommon.get());
 	ParticleManager::GetInstance()->Initialize(dxCommon.get());
+	InstancingModelCommon::GetInstance()->Initialize(dxCommon.get());
+
 }
 
 void FlameWork::Update() {
