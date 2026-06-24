@@ -74,6 +74,7 @@ void Game::Draw() {
 	SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
 
 	PostEffect::GetInstance()->Draw();
+
 	PostEffect::GetInstance()->DrawImGui();
 	ImGuiManager::GetInstance()->End();
 	ImGuiManager::GetInstance()->Draw();

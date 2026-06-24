@@ -15,11 +15,11 @@ void LineCommon::Initialize(DirectXCommon* dxCommon) {
 }
 
 void LineCommon::SetDraw(uint32_t blendMode) {
-    // 持E��されたブレンドモード�EPSOをセチE��
+    // 謖・ｮ壹＆繧後◆繝悶Ξ繝ｳ繝峨Δ繝ｼ繝峨・PSO繧偵そ繝・ヨ
     dxCommon_->GetCommandList()->SetPipelineState(graphicsPipelineStates[blendMode].Get());
-    // ルートシグネチャの設宁E
+    // 繝ｫ繝ｼ繝医す繧ｰ繝阪メ繝｣縺ｮ險ｭ螳・
     dxCommon_->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());
-    // ☁E�Eリミティブ形状の設定（ラインリスト！E
+    // 笘・・繝ｪ繝溘ユ繧｣繝門ｽ｢迥ｶ縺ｮ險ｭ螳夲ｼ医Λ繧､繝ｳ繝ｪ繧ｹ繝茨ｼ・
     dxCommon_->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 }
 
@@ -32,7 +32,7 @@ void LineCommon::Finalize() {
 }
 
 void LineCommon::CreateRootSignature() {
-    // 線�E描画にはカメラの行�E(b0)だけが忁E��なので、Eつだけ用愁E
+    // 邱壹・謠冗判縺ｫ縺ｯ繧ｫ繝｡繝ｩ縺ｮ陦悟・(b0)縺縺代′蠢・ｦ√↑縺ｮ縺ｧ縲・縺､縺縺醍畑諢・
     D3D12_ROOT_PARAMETER rootParam{};
     rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParam.Descriptor.ShaderRegister = 0; // b0
@@ -50,7 +50,7 @@ void LineCommon::CreateRootSignature() {
 }
 
 void LineCommon::CreatePipelineState() {
-    // ☁E��自身の環墁E�Eコンパイル関数�E�ExCommon_->CompileShaderなど�E�に置き換えてください
+    // 笘・＃閾ｪ霄ｫ縺ｮ迺ｰ蠅・・繧ｳ繝ｳ繝代う繝ｫ髢｢謨ｰ・・xCommon_->CompileShader縺ｪ縺ｩ・峨↓鄂ｮ縺肴鋤縺医※縺上□縺輔＞
      auto vertexShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Line.VS.hlsl", L"vs_6_0");
      auto pixelShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Line.PS.hlsl", L"ps_6_0");
      assert(vertexShaderBlob != nullptr);
@@ -60,11 +60,11 @@ void LineCommon::CreatePipelineState() {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
-    // BlendStateの設宁E(Multiplyをデフォルトとして設定されてぁE��も�Eを維持E
+    // BlendState縺ｮ險ｭ螳・(Multiply繧偵ョ繝輔か繝ｫ繝医→縺励※險ｭ螳壹＆繧後※縺・◆繧ゅ・繧堤ｶｭ謖・
    
-    // RasterizerStateの設宁E
+    // RasterizerState縺ｮ險ｭ螳・
     D3D12_RASTERIZER_DESC rasterizerDesc{};
-    rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK; // 裏面カリング
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK; // 陬城擇繧ｫ繝ｪ繝ｳ繧ｰ
     rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
@@ -79,7 +79,7 @@ void LineCommon::CreatePipelineState() {
     psoDesc.RasterizerState = rasterizerDesc;
     psoDesc.DepthStencilState = depthStencilDesc;
 
-    // ☁E��要E��TopologyType めELINE にする
+    // 笘・㍾隕・ｼ啜opologyType 繧・LINE 縺ｫ縺吶ｋ
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
     psoDesc.NumRenderTargets = 1;
     psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -87,7 +87,7 @@ void LineCommon::CreatePipelineState() {
     psoDesc.SampleDesc.Count = 1;
     psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
-    // SpriteCommon と同じようにブレンドモードごとにPSOを作�E
+    // SpriteCommon 縺ｨ蜷後§繧医≧縺ｫ繝悶Ξ繝ｳ繝峨Δ繝ｼ繝峨＃縺ｨ縺ｫPSO繧剃ｽ懈・
     for (uint32_t i = 0; i < kCountOfBlendMode; ++i) {
         D3D12_BLEND_DESC blendDesc{};
         blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;

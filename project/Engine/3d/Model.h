@@ -8,8 +8,6 @@
 #include <d3d12.h>
 #include <wrl.h>
 
-// Forward declaration for Assimp node type to avoid including Assimp headers in this header
-
 class ModelCommon;
 class Model {
 public:
@@ -35,6 +33,6 @@ private:
 	void CreateMaterialData();
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource;
 	VertexData* vertexData = nullptr;
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
 	void CreateVertexdata();
 };

@@ -176,6 +176,8 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\2d\LineCommon.cpp" />
     <ClCompile Include="Engine\3d\InstancingModel.cpp" />
     <ClCompile Include="Engine\3d\InstancingModelCommon.cpp" />
+    <ClCompile Include="Engine\math\Physics.cpp" />
+    <ClCompile Include="Engine\math\Quaternion.cpp" />
     <ClCompile Include="scene\SceneFactory.cpp" />
     <ClCompile Include="scene\SceneManager.cpp" />
     <ClCompile Include="scene\GamePlayScene.cpp" />
@@ -194,6 +196,9 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\2d\TextureManager.cpp" />
     <ClCompile Include="Engine\base\SrvManager.cpp" />
     <ClCompile Include="scene\TitleScene.cpp" />
+    <ClCompile Include="Engine\3d\SkinnedModel.cpp" />
+    <ClCompile Include="Engine\3d\SkinnedObject3d.cpp" />
+    <ClCompile Include="Engine\3d\SkinnedObject3dCommon.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Resources\Shader\FullScreen.PS.hlsl">
@@ -278,6 +283,8 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\base\D3DResouceLeakCheker.h" />
     <ClInclude Include="Engine\base\DirectXCommon.h" />
     <ClInclude Include="Engine\math\Matrix.h" />
+    <ClInclude Include="Engine\math\Physics.h" />
+    <ClInclude Include="Engine\math\Quaternion.h" />
     <ClInclude Include="Engine\math\Screen.h" />
     <ClInclude Include="Engine\math\Vector.h" />
     <ClInclude Include="Engine\base\Input.h" />
@@ -301,6 +308,9 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="scene\SceneManager.h" />
     <ClInclude Include="scene\GamePlayScene.h" />
     <ClInclude Include="scene\TitleScene.h" />
+    <ClInclude Include="Engine\3d\SkinnedModel.h" />
+    <ClInclude Include="Engine\3d\SkinnedObject3d.h" />
+    <ClInclude Include="Engine\3d\SkinnedObject3dCommon.h" />
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)'!='Release'">
     <ProjectReference Include="..\imgui\imgui.vcxproj" />
