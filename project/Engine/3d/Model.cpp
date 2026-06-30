@@ -63,20 +63,18 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 	Assimp::Importer importer;
 	std::string filePath = directoryPath + "/" + filename;
 
-	// aiProcess_FlipUVs はそのまま残し、Assimpに反転を任せます
 	const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_FlipWindingOrder | aiProcess_FlipUVs);
 	assert(scene != nullptr && scene->HasMeshes());
 
-	// すべてのメッシュを順番に処理するようにループの構造を変更しました
+	// メッシュの読み込み（ボーン関係なし）
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; meshIndex++) {
 		aiMesh* mesh = scene->mMeshes[meshIndex];
 		assert(mesh->HasNormals());
-		assert(mesh->HasTextureCoords(0)); // 0はUVチャンネルのインデックス
+		assert(mesh->HasTextureCoords(0));
 
-		// このメッシュのすべての面（ポリゴン）を処理します
 		for (uint32_t faceIndex = 0; faceIndex < mesh->mNumFaces; faceIndex++) {
 			aiFace& face = mesh->mFaces[faceIndex];
-			assert(face.mNumIndices == 3); // 三角形であることを確認
+			assert(face.mNumIndices == 3);
 
 			for (uint32_t element = 0; element < 3; element++) {
 				uint32_t vertexIndex = face.mIndices[element];
@@ -85,24 +83,21 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 				aiVector3D& texcoord = mesh->mTextureCoords[0][vertexIndex];
 
 				VertexData vertex;
-				// X軸の反転（右手座標系から左手座標系への変換など）はそのまま維持します
-				vertex.position = {position.x * -1.0f, position.y, position.z, 1.0f};
-				vertex.normal = {normal.x * -1.0f, normal.y, normal.z};
-
-				// 【修正ポイント】手動でのY軸反転をやめ、そのままの値を代入します
-				vertex.texcoord = {texcoord.x, texcoord.y};
+				vertex.position = { position.x * -1.0f, position.y, position.z, 1.0f };
+				vertex.normal = { normal.x * -1.0f, normal.y, normal.z };
+				vertex.texcoord = { texcoord.x, texcoord.y };
 
 				modelData.vertices.push_back(vertex);
 			}
 		}
 	}
 
-	// マテリアル（テクスチャ）の読み込み
+	// マテリアルの読み込み
 	for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; materialIndex++) {
 		aiMaterial* material = scene->mMaterials[materialIndex];
 		if (material->GetTextureCount(aiTextureType_DIFFUSE) != 0) {
 			aiString texturePath;
-			material->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath); // 0はテクスチャのインデックス
+			material->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath);
 			modelData.material.textureFilePath = directoryPath + "/" + texturePath.C_Str();
 		}
 	}
@@ -114,7 +109,6 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 
 	return modelData;
 }
-
 Node Model::ReadNode(aiNode* aiNode) {
 	Node result;
 	aiMatrix4x4 aiLocalMatrix = aiNode->mTransformation;
@@ -203,3 +197,6 @@ void Model::CreateMaterialData() {
 	// 値が大きいほど、ハイライトが鋭く（小さく）なります（例：20.0f 〜 100.0f）
 	materialData->shininess = 20.0f;
 }
+
+// --- Model.cpp の最後に追加 ---
+

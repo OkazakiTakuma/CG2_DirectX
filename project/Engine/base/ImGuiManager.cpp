@@ -16,7 +16,13 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 
 	// コンテキスト作成
 	ImGui::CreateContext();
+
+	ImGuiIO& io = ImGui::GetIO();
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // ドッキング機能を有効化
+	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // マルチビューポートを有効化
+
 	ImGui::StyleColorsDark();
+
 
 	// プラットフォームとレンダラーの初期化
 	ImGui_ImplWin32_Init(winApp->GetHwnd());
@@ -26,7 +32,7 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 
 	initInfo.Device = dxCommon->GetDevice().Get();
 	initInfo.NumFramesInFlight = dxCommon->GetSwapChainResourceCount();
-	initInfo.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	initInfo.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 	initInfo.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	initInfo.SrvDescriptorHeap = srvManager->GetDescriptorHeap().Get();
 
@@ -72,19 +78,23 @@ void ImGuiManager::End() {
 
 void ImGuiManager::Draw() {
 #ifdef USE_IMGUI
-	// ImGuiの内部的な描画準備
 	ImGui::Render();
 
-	// コマンドリストを取得
 	auto commandList = dxcommon->GetCommandList();
 
-	// ====== 【ここを追加】 ======
-	// SrvManagerからデスクリプタヒープを取得して、コマンドリストにセットする！
+	// デスクリプタヒープの設定
 	ID3D12DescriptorHeap* ppHeaps[] = { SrvManager::GetInstance()->GetDescriptorHeap().Get() };
 	commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-	// ============================
 
-	// ImGuiの描画コマンドを積む
+	// メインの描画
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
+
+	// 【ここを追加】マルチビューポートの処理
+	ImGuiIO& io = ImGui::GetIO();
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault(nullptr, (void*)commandList.Get());
+	}
 #endif
 }
+
