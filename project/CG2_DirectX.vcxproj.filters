@@ -181,6 +181,7 @@
     <FxCompile Include="Resources\Shader\Line.VS.hlsl" />
     <FxCompile Include="Resources\Shader\FullScreen.PS.hlsl" />
     <FxCompile Include="Resources\Shader\Instancing.VS.hlsl" />
+    <FxCompile Include="Resources\Shader\SkinnedObject3d.VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\math\Matrix.h">

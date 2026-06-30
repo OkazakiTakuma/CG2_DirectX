@@ -13,6 +13,7 @@
 #include <Camera.h>
 #include <ModelManager.h>
 #include <Object3dCommon.h>
+#include "SkinnedObject3dCommon.h"
 #include <D3DResouceLeakCheker.h>
 #include"LineCommon.h"
 #include"LineDrawer.h"
@@ -86,6 +87,7 @@ void FlameWork::Initialize() {
 	LineCommon::GetInstance()->Initialize(dxCommon.get());    // 今回追加したLineCommon
 	LineDrawer::GetInstance()->Initialize();             // 今回追加したLineDrawer
 	Object3dCommon::GetInstance()->Initialize(dxCommon.get());
+	SkinnedObject3dCommon::GetInstance()->Initialize(dxCommon.get());
 	ModelManager::GetInstance()->Initialize(dxCommon.get());
 	ParticleManager::GetInstance()->Initialize(dxCommon.get());
 	InstancingModelCommon::GetInstance()->Initialize(dxCommon.get());

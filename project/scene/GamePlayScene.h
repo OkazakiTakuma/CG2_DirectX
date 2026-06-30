@@ -27,6 +27,8 @@ private:
 	std::unique_ptr<Object3d> object3d = nullptr;
 	std::unique_ptr<Object3d> sphereObject = nullptr;
 	std::unique_ptr<Object3d> cylinderObject = nullptr;
+	std::unique_ptr<SkinnedObject3d> simpleObject = nullptr;
+
 
 	std::vector<std::unique_ptr<ParticleEmitter>> emitters_;
 	int currentParticleIndex_ = 0;
