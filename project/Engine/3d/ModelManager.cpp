@@ -4,7 +4,7 @@
 
 ModelManager* ModelManager::instance = nullptr;
 
-void ModelManager::Initialize(DirectXCommon* dxCommon) {
+void ModelManager::Inithialize(DirectXCommon* dxCommon) {
 	modelCommon = new ModelCommon;
 	modelCommon->Initialize(dxCommon);
 }

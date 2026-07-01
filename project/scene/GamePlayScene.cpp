@@ -62,11 +62,6 @@ void GamePlayScene::Initialize() {
 	sphereObject->SetRotate({ 0.0f, 0.0f, 0.0f });
 	cylinderObject = std::make_unique<Object3d>();
 
-
-
-	
-
-
 	// 笘・縺薙・蛻晄悄蛹門・逅・′謚懊￠縺ｦ縺・ｋ縺ｨ莉雁屓縺ｮ繧ｨ繝ｩ繝ｼ縺瑚ｵｷ縺阪∪縺呻ｼ・
 	cylinderObject->Initialize();
 

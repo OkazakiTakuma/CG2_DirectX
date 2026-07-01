@@ -7,8 +7,6 @@
 #include <locale>
 #include <strsafe.h>
 #include <wrl.h>
-#include "Quaternion.h"
-#include <map>
 
 struct TransformationMatrix {
 	Matrix4x4 WVP;
@@ -25,26 +23,11 @@ enum BlendMode {
 	kBlendModeScreen,
 	kBlendCountblend,
 };
-// 1つの頂点に影響を与えるボーンの最大数
-
 struct VertexData {
 	Vector4 position;
 	Vector2 texcoord;
 	Vector3 normal;
 };
-
-// 1つの頂点に影響を与えるボーンの最大数
-const int MAX_BONE_INFLUENCE = 4;
-
-// ★新しく追加：スキンメッシュ（ボーンあり）用の頂点データ
-struct VertexDataSkinned {
-	Vector4 position;
-	Vector2 texcoord;
-	Vector3 normal;
-	int32_t boneIndices[MAX_BONE_INFLUENCE]; // 影響を受けるボーンの番号
-	float boneWeights[MAX_BONE_INFLUENCE];   // そのボーンの影響度
-};
-
 
 struct Material {
 	Vector4 color;
@@ -55,15 +38,10 @@ struct Material {
 	float padding2[3]; // 16バイトアライメントのためのパディング
 };
 
-
-
 struct MaterialData {
 	std::string textureFilePath; // テクスチャファイルのパス
 	uint32_t textureIndex = 0;
 };
-
-
-
 
 // Define Node before ModelData so it is a complete type when used
 struct Node {
@@ -72,7 +50,11 @@ struct Node {
 	std::vector<Node> children;
 };
 
-
+struct ModelData {
+	std::vector<VertexData> vertices; // 頂点データ
+	MaterialData material;
+	Node rootNode;
+};
 struct Particle {
 	Transform transform;
 	Vector3 velocity;
@@ -151,62 +133,4 @@ struct ParticleSetting {
 	std::string texturePath;
 	ParticleMeshType meshType;
 	BlendMode blendMode;
-};
-
-template <typename tValue>
-struct Keyframe {
-	float time; // キーフレームの時間
-	tValue value; // キーフレームの値
-};
-using KeyframeVector3 = Keyframe<Vector3>;
-using KeyframeQuaternion = Keyframe<Quaternion>;
-
-template <typename tValue>
-struct AnimationCurve {
-	std::vector<Keyframe<tValue>> keyframes;
-};
-struct NodeAnimation {
-	AnimationCurve<Vector3> translate;
-	AnimationCurve<Quaternion> rotate;
-	AnimationCurve<Vector3> scale;
-};
-
-struct Animation {
-	float duration; // アニメーションの総時間
-	std::map<std::string, NodeAnimation> nodeAnimations; // ノード名とそのアニメーションのマッピング
-};
-
-// 1つのボーン（関節）のデータ
-struct Bone {
-	std::string name;             // ボーンの名前
-	Matrix4x4 offsetMatrix;       // 初期姿勢を基準にするための逆行列（Assimpから取得します）
-	Matrix4x4 globalTransform;    // アニメーション計算後の最終的な行列
-};
-
-// モデル全体のボーンデータをまとめる構造体
-struct Skeleton {
-	std::vector<Bone> bones;                            // ボーンの配列
-	std::map<std::string, uint32_t> boneNameToIndexMap; // 名前からボーンの番号を検索する辞書
-};
-
-struct ModelData {
-	std::vector<VertexData> vertices; // 頂点データ
-	MaterialData material;
-	Node rootNode;
-	// ★追加: スケルトン（ボーン）データ
-	Skeleton skeleton;
-};
-struct SkinnedModelData {
-	std::vector<VertexDataSkinned> vertices; // VertexDataSkinnedを使います
-	MaterialData material;
-	Node rootNode;
-	Skeleton skeleton;
-};
-
-// キャラクター1体あたりの最大ボーン数
-const uint32_t MAX_BONES = 256;
-
-// GPUに送るためのボーン行列パレット
-struct SkinCluster {
-	Matrix4x4 bones[MAX_BONES];
 };

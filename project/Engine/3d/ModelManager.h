@@ -10,7 +10,7 @@ class ModelCommon;
 class DirectXCommon;
 class ModelManager {
 public:
-	void Initialize(DirectXCommon* dxCommon);
+	void Inithialize(DirectXCommon* dxCommon);
 	static ModelManager* GetInstance();
 	void Finalize();
 	void LoadModel(const std::string& filePath);
