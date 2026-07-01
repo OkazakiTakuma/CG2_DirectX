@@ -15,9 +15,9 @@ public:
 private:
 	bool isShowSkyBox_ = false;
 	bool isShowSprite_ = true;
-	bool isShowSprites_ = true;
+	bool isShowSprites_ = false;
 	bool isShowObject3D_ = true;
-	bool isShowInstancing_ = true;
+	bool isShowInstancing_ = false;
 	bool isShowSphere_ = true;
 	bool isShowCylinder_ = true;
 	bool isShowParticles_ = true;
@@ -28,7 +28,9 @@ private:
 	std::unique_ptr<Object3d> sphereObject = nullptr;
 	std::unique_ptr<Object3d> cylinderObject = nullptr;
 	std::unique_ptr<SkinnedObject3d> simpleObject = nullptr;
-
+	std::unique_ptr<SkinnedModel> skinnedModel = nullptr;
+	std::unique_ptr<SkinnedObject3d> skinnedObject = nullptr;
+	Animation skinAnimation;
 
 	std::vector<std::unique_ptr<ParticleEmitter>> emitters_;
 	int currentParticleIndex_ = 0;

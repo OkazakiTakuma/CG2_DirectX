@@ -2,6 +2,7 @@
 #include "../2d/TextureManager.h"
 #include "../3d/ModelCommon.h"
 #include "../base/Logger.h"
+#include "SkinnedObject3dCommon.h"
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
@@ -20,6 +21,53 @@ void SkinnedModel::Initialize(ModelCommon* modelCommon, const std::string& direc
 	modelData.material.textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(modelData.material.textureFilePath);
 }
 
+
+
+void SkinnedModel::CreateGpuSkinningBuffers() {
+	// Create structured buffer on default heap for input (InVertex) and output (OutVertex)
+	// Build InVertex array from modelData.vertices (which currently contains VertexDataSkinned)
+	struct InVertex {
+		float position[3];
+		float texcoord[2];
+		float normal[3];
+		int boneIndices[4];
+		float boneWeights[4];
+	};
+	struct OutVertex {
+		float position[3];
+		float texcoord[2];
+		float normal[3];
+	};
+
+	size_t vertexCount = modelData.vertices.size();
+	std::vector<InVertex> inVerts(vertexCount);
+	for (size_t i = 0; i < vertexCount; ++i) {
+		const auto& v = modelData.vertices[i];
+		inVerts[i].position[0] = v.position.x; inVerts[i].position[1] = v.position.y; inVerts[i].position[2] = v.position.z;
+		inVerts[i].texcoord[0] = v.texcoord.x; inVerts[i].texcoord[1] = v.texcoord.y;
+		inVerts[i].normal[0] = v.normal.x; inVerts[i].normal[1] = v.normal.y; inVerts[i].normal[2] = v.normal.z;
+		for (int k = 0; k < 4; ++k) { inVerts[i].boneIndices[k] = v.boneIndices[k]; inVerts[i].boneWeights[k] = v.boneWeights[k]; }
+	}
+
+	// Create default buffers using DirectXCommon helper
+	auto dx = modelCommon_->GetDxCommon();
+	vertexStructuredResource = dx->CreateDefaultBufferWithData(inVerts.data(), sizeof(InVertex) * vertexCount);
+
+	// Output buffer: allocate zeroed buffer
+	std::vector<OutVertex> outInit(vertexCount);
+	skinnedOutputResource = dx->CreateDefaultBufferWithData(outInit.data(), sizeof(OutVertex) * vertexCount);
+
+	// Create SRV/UAV descriptors via SrvManager (shader-visible descriptor heap)
+	// Allocate indices and create descriptors
+	uint32_t srvIndex = SrvManager::GetInstance()->Allocate();
+	SrvManager::GetInstance()->CreateSRVforStructuredBuffer(srvIndex, vertexStructuredResource.Get(), static_cast<UINT>(vertexCount), sizeof(InVertex));
+	vertexStructuredSrvIndex = srvIndex;
+
+	uint32_t uavIndex = SrvManager::GetInstance()->Allocate();
+	SrvManager::GetInstance()->CreateUAVforStructuredBuffer(uavIndex, skinnedOutputResource.Get(), static_cast<UINT>(vertexCount), sizeof(OutVertex));
+	skinnedOutputUavIndex = uavIndex;
+}
+
 SkinnedModel::~SkinnedModel() {
 	Finalize();
 }
@@ -27,6 +75,9 @@ SkinnedModel::~SkinnedModel() {
 void SkinnedModel::Finalize() {
 	if (vertexResource) {
 		vertexResource->Unmap(0, nullptr);
+	}
+	if (indexResource) {
+		indexResource->Unmap(0, nullptr);
 	}
 	if (materialResource) {
 		materialResource->Unmap(0, nullptr);
@@ -38,12 +89,63 @@ void SkinnedModel::Finalize() {
 
 // SkinnedModel.cpp
 void SkinnedModel::Draw() {
-	// ★追加：自分が持っている modelCommon_ 経由でコマンドリストを取得する
+	// コマンドリスト取得
 	ID3D12GraphicsCommandList* commandList = modelCommon_->GetDxCommon()->GetCommandList().Get();
 
-	// 頂点バッファをセットして描画
-	commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-	commandList->DrawInstanced(static_cast<UINT>(modelData.vertices.size()), 1, 0, 0);
+	// GPUスキニングが準備されているなら Dispatch を呼び、出力バッファを頂点バッファとして使う
+	if (skinnedOutputResource && vertexStructuredResource && mappedSkinCluster) {
+		// SkinnedObject3dCommon 側で DispatchSkinning を実装している前提
+		// Get GPU descriptor handles from SrvManager
+		D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = SrvManager::GetInstance()->GetGPUDescriptorHandle(vertexStructuredSrvIndex);
+		D3D12_GPU_DESCRIPTOR_HANDLE uavHandle = SrvManager::GetInstance()->GetGPUDescriptorHandle(skinnedOutputUavIndex);
+
+		// Transition skinned output to UNORDERED_ACCESS for compute write
+		{
+			D3D12_RESOURCE_BARRIER barrier{};
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.Transition.pResource = skinnedOutputResource.Get();
+			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_GENERIC_READ; // created as GENERIC_READ
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			commandList->ResourceBarrier(1, &barrier);
+		}
+
+		// Dispatch compute shader to perform skinning
+		SkinnedObject3dCommon::GetInstance()->DispatchSkinning(commandList, vertexStructuredResource.Get(), skinnedOutputResource.Get(), boneResource->GetGPUVirtualAddress(), static_cast<UINT>(modelData.vertices.size()), srvHandle, uavHandle);
+
+		// Transition skinned output from UAV to VERTEX_AND_CONSTANT_BUFFER for use as vertex buffer
+		{
+			D3D12_RESOURCE_BARRIER barrier{};
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.Transition.pResource = skinnedOutputResource.Get();
+			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+			commandList->ResourceBarrier(1, &barrier);
+		}
+
+		// 出力バッファを頂点バッファとしてセット
+		D3D12_VERTEX_BUFFER_VIEW skinnedVBV{};
+		skinnedVBV.BufferLocation = skinnedOutputResource->GetGPUVirtualAddress();
+		skinnedVBV.SizeInBytes = UINT(sizeof(float) * (3 + 2 + 3) * modelData.vertices.size()); // position(3) + tex(2) + normal(3)
+		skinnedVBV.StrideInBytes = sizeof(float) * (3 + 2 + 3);
+		commandList->IASetVertexBuffers(0, 1, &skinnedVBV);
+	}
+	else {
+		// フォールバック: 従来の頂点バッファを使用
+		commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+	}
+
+	// もしインデックスがあるならインデックスバッファをセットしてIndexedDraw
+	if (!modelData.indices.empty()) {
+		commandList->IASetIndexBuffer(&indexBufferView);
+		commandList->DrawIndexedInstanced(static_cast<UINT>(modelData.indices.size()), 1, 0, 0, 0);
+	}
+	else {
+		commandList->DrawInstanced(static_cast<UINT>(modelData.vertices.size()), 1, 0, 0);
+	}
 }
 SkinnedModelData SkinnedModel::LoadModelFile(const std::string& directoryPath, const std::string& filename) {
 	SkinnedModelData modelData;
@@ -100,30 +202,33 @@ SkinnedModelData SkinnedModel::LoadModelFile(const std::string& directoryPath, c
 			}
 		}
 
-		// 頂点の読み込み（VertexDataSkinnedを使う）
+		// 各頂点を一度だけ追加してインデックスを作成する
+		uint32_t baseVertex = static_cast<uint32_t>(modelData.vertices.size());
+		for (uint32_t v = 0; v < mesh->mNumVertices; ++v) {
+			aiVector3D& position = mesh->mVertices[v];
+			aiVector3D& normal = mesh->mNormals[v];
+			aiVector3D& texcoord = mesh->mTextureCoords[0][v];
+
+			VertexDataSkinned vertex;
+			vertex.position = { position.x * -1.0f, position.y, position.z };
+			vertex.normal = { normal.x * -1.0f, normal.y, normal.z };
+			vertex.texcoord = { texcoord.x, texcoord.y };
+
+			for (int i = 0; i < MAX_BONE_INFLUENCE; ++i) {
+				vertex.boneIndices[i] = weightData[v].boneIndices[i];
+				vertex.boneWeights[i] = weightData[v].boneWeights[i];
+			}
+
+			modelData.vertices.push_back(vertex);
+		}
+
+		// フェースからインデックスを作成（baseVertex を加算）
 		for (uint32_t faceIndex = 0; faceIndex < mesh->mNumFaces; faceIndex++) {
 			aiFace& face = mesh->mFaces[faceIndex];
 			assert(face.mNumIndices == 3);
-
-			for (uint32_t element = 0; element < 3; element++) {
-				uint32_t vertexIndex = face.mIndices[element];
-				aiVector3D& position = mesh->mVertices[vertexIndex];
-				aiVector3D& normal = mesh->mNormals[vertexIndex];
-				aiVector3D& texcoord = mesh->mTextureCoords[0][vertexIndex];
-
-				VertexDataSkinned vertex;
-				vertex.position = { position.x * -1.0f, position.y, position.z, 1.0f };
-				vertex.normal = { normal.x * -1.0f, normal.y, normal.z };
-				vertex.texcoord = { texcoord.x, texcoord.y };
-
-				// 事前に集計したウェイト情報をコピー
-				for (int i = 0; i < MAX_BONE_INFLUENCE; ++i) {
-					vertex.boneIndices[i] = weightData[vertexIndex].boneIndices[i];
-					vertex.boneWeights[i] = weightData[vertexIndex].boneWeights[i];
-				}
-
-				modelData.vertices.push_back(vertex);
-			}
+			modelData.indices.push_back(baseVertex + face.mIndices[0]);
+			modelData.indices.push_back(baseVertex + face.mIndices[1]);
+			modelData.indices.push_back(baseVertex + face.mIndices[2]);
 		}
 	}
 
@@ -163,13 +268,29 @@ Node SkinnedModel::ReadNode(aiNode* aiNode) {
 }
 
 void SkinnedModel::CreateVertexdata() {
-	vertexResource = modelCommon_->GetDxCommon()->CreateBufferResource(sizeof(VertexDataSkinned) * modelData.vertices.size());
+	// 頂点バッファ作成
+	size_t vertexBufferSize = sizeof(VertexDataSkinned) * modelData.vertices.size();
+	vertexResource = modelCommon_->GetDxCommon()->CreateBufferResource(vertexBufferSize);
 	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
-	vertexBufferView.SizeInBytes = UINT(sizeof(VertexDataSkinned) * modelData.vertices.size());
+	vertexBufferView.SizeInBytes = UINT(vertexBufferSize);
 	vertexBufferView.StrideInBytes = sizeof(VertexDataSkinned);
 
 	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
-	std::memcpy(vertexData, modelData.vertices.data(), sizeof(VertexDataSkinned) * modelData.vertices.size());
+	std::memcpy(vertexData, modelData.vertices.data(), vertexBufferSize);
+
+	// インデックスバッファ作成（存在する場合）
+	if (!modelData.indices.empty()) {
+		size_t indexBufferSize = sizeof(uint32_t) * modelData.indices.size();
+		indexResource = modelCommon_->GetDxCommon()->CreateBufferResource(indexBufferSize);
+		// Map に渡すポインタは uint32_t*、一時変数を用意
+		uint32_t* mappedIndices = nullptr;
+		indexResource->Map(0, nullptr, reinterpret_cast<void**>(&mappedIndices));
+		std::memcpy(mappedIndices, modelData.indices.data(), indexBufferSize);
+		// 注意: 永続的にマップしているので Unmap は Finalize で行う
+		indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress();
+		indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+		indexBufferView.SizeInBytes = UINT(indexBufferSize);
+	}
 }
 
 void SkinnedModel::CreateMaterialData() {
@@ -240,15 +361,20 @@ Vector3 SkinnedModel::CalculateTranslateValue(const std::vector<KeyframeVector3>
 	if (keyframes.size() == 1 || time <= keyframes[0].time) return keyframes[0].value;
 	if (time >= keyframes.back().time) return keyframes.back().value;
 
-	for (size_t i = 0; i < keyframes.size() - 1; ++i) {
-		if (time >= keyframes[i].time && time <= keyframes[i + 1].time) {
-			float t = (time - keyframes[i].time) / (keyframes[i + 1].time - keyframes[i].time);
-			Vector3 p1 = keyframes[i].value;
-			Vector3 p2 = keyframes[i + 1].value;
-			return { p1.x + (p2.x - p1.x) * t, p1.y + (p2.y - p1.y) * t, p1.z + (p2.z - p1.z) * t };
-		}
+	// 二分探索で区間を見つける
+	size_t left = 0;
+	size_t right = keyframes.size() - 1;
+	while (left + 1 < right) {
+		size_t mid = (left + right) / 2;
+		if (time < keyframes[mid].time) right = mid;
+		else left = mid;
 	}
-	return keyframes[0].value;
+	const auto& k1 = keyframes[left];
+	const auto& k2 = keyframes[left + 1];
+	float t = (time - k1.time) / (k2.time - k1.time);
+	return { k1.value.x + (k2.value.x - k1.value.x) * t,
+			 k1.value.y + (k2.value.y - k1.value.y) * t,
+			 k1.value.z + (k2.value.z - k1.value.z) * t };
 }
 
 Quaternion SkinnedModel::CalculateRotationValue(const std::vector<KeyframeQuaternion>& keyframes, float time) {
@@ -256,13 +382,18 @@ Quaternion SkinnedModel::CalculateRotationValue(const std::vector<KeyframeQuater
 	if (keyframes.size() == 1 || time <= keyframes[0].time) return keyframes[0].value;
 	if (time >= keyframes.back().time) return keyframes.back().value;
 
-	for (size_t i = 0; i < keyframes.size() - 1; ++i) {
-		if (time >= keyframes[i].time && time <= keyframes[i + 1].time) {
-			float t = (time - keyframes[i].time) / (keyframes[i + 1].time - keyframes[i].time);
-			return Slerp(keyframes[i].value, keyframes[i + 1].value, t);
-		}
+	// 二分探索で区間を見つける
+	size_t left = 0;
+	size_t right = keyframes.size() - 1;
+	while (left + 1 < right) {
+		size_t mid = (left + right) / 2;
+		if (time < keyframes[mid].time) right = mid;
+		else left = mid;
 	}
-	return keyframes[0].value;
+	const auto& k1 = keyframes[left];
+	const auto& k2 = keyframes[left + 1];
+	float t = (time - k1.time) / (k2.time - k1.time);
+	return Slerp(k1.value, k2.value, t);
 }
 
 Vector3 SkinnedModel::CalculateScaleValue(const std::vector<KeyframeVector3>& keyframes, float time) {
@@ -270,15 +401,20 @@ Vector3 SkinnedModel::CalculateScaleValue(const std::vector<KeyframeVector3>& ke
 	if (keyframes.size() == 1 || time <= keyframes[0].time) return keyframes[0].value;
 	if (time >= keyframes.back().time) return keyframes.back().value;
 
-	for (size_t i = 0; i < keyframes.size() - 1; ++i) {
-		if (time >= keyframes[i].time && time <= keyframes[i + 1].time) {
-			float t = (time - keyframes[i].time) / (keyframes[i + 1].time - keyframes[i].time);
-			Vector3 s1 = keyframes[i].value;
-			Vector3 s2 = keyframes[i + 1].value;
-			return { s1.x + (s2.x - s1.x) * t, s1.y + (s2.y - s1.y) * t, s1.z + (s2.z - s1.z) * t };
-		}
+	// 二分探索で区間を見つける
+	size_t left = 0;
+	size_t right = keyframes.size() - 1;
+	while (left + 1 < right) {
+		size_t mid = (left + right) / 2;
+		if (time < keyframes[mid].time) right = mid;
+		else left = mid;
 	}
-	return keyframes[0].value;
+	const auto& k1 = keyframes[left];
+	const auto& k2 = keyframes[left + 1];
+	float t = (time - k1.time) / (k2.time - k1.time);
+	return { k1.value.x + (k2.value.x - k1.value.x) * t,
+			 k1.value.y + (k2.value.y - k1.value.y) * t,
+			 k1.value.z + (k2.value.z - k1.value.z) * t };
 }
 
 void SkinnedModel::UpdateAnimation(const Animation& animation, float time) {

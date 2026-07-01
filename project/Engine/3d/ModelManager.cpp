@@ -36,3 +36,8 @@ Model* ModelManager::FindModel(const std::string& filePath) {
 	}
 	return nullptr;
 }
+
+ModelCommon* ModelManager::GetModelCommon()
+{
+	return modelCommon;
+}

@@ -42,6 +42,9 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> GetCommandQueue() { return commandQueue.Get(); }
 	size_t GetSwapChainResourceCount() const { return _countof(swapChainResources); }
 
+	// スワップチェーンのフォーマットを取得
+	DXGI_FORMAT GetSwapChainFormat() const { return swapChainDesc.Format; }
+
 	// 描画前処理
 	void PreDraw();
 
@@ -51,6 +54,8 @@ public:
 	Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(const std::wstring& filepath, const wchar_t* profile);
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferResource(size_t sizeInBytes);
+	// Create default heap buffer and upload initial data via an upload buffer and GPU copy.
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBufferWithData(const void* initData, size_t sizeInBytes);
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metaData);
 

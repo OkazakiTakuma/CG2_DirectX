@@ -31,6 +31,9 @@
     <Filter Include="ソース ファイル\engine\base">
       <UniqueIdentifier>{ae6e832c-1591-46aa-9026-d9aec2a686a5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="シェーダー ファイル">
+      <UniqueIdentifier>{a2b9aaf6-19e8-44ad-aed4-25353a81eefe}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Engine\math\Matrix.cpp">
@@ -173,15 +176,34 @@
     <FxCompile Include="Resources\Shader\Object3d.VS.hlsl">
       <Filter>リソース ファイル\shader</Filter>
     </FxCompile>
-    <FxCompile Include="Resources\Shader\Particle.PS.hlsl" />
-    <FxCompile Include="Resources\Shader\Particle.VS.hlsl" />
-    <FxCompile Include="Resources\Shader\CopyImage.PS.hlsl" />
-    <FxCompile Include="Resources\Shader\CopyImage.VS.hlsl" />
-    <FxCompile Include="Resources\Shader\Line.PS.hlsl" />
-    <FxCompile Include="Resources\Shader\Line.VS.hlsl" />
-    <FxCompile Include="Resources\Shader\FullScreen.PS.hlsl" />
-    <FxCompile Include="Resources\Shader\Instancing.VS.hlsl" />
-    <FxCompile Include="Resources\Shader\SkinnedObject3d.VS.hlsl" />
+    <FxCompile Include="Resources\Shader\CopyImage.PS.hlsl">
+      <Filter>シェーダー ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\CopyImage.VS.hlsl">
+      <Filter>シェーダー ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\FullScreen.PS.hlsl">
+      <Filter>シェーダー ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\Instancing.VS.hlsl">
+      <Filter>シェーダー ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\Line.PS.hlsl">
+      <Filter>シェーダー ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\Line.VS.hlsl">
+      <Filter>シェーダー ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\Particle.PS.hlsl">
+      <Filter>シェーダー ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\Particle.VS.hlsl">
+      <Filter>シェーダー ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\SkinnedObject3d.VS.hlsl">
+      <Filter>シェーダー ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\SkinnedSkinComputeCS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\math\Matrix.h">
@@ -327,8 +349,14 @@
     <None Include="Resources\Shader\Object3d.hlsli">
       <Filter>リソース ファイル\shader</Filter>
     </None>
-    <None Include="Resources\Shader\Particle.hlsli" />
-    <None Include="Resources\Shader\CopyImage.hlsli" />
-    <None Include="Resources\Shader\FullScreen.hlsli" />
+    <None Include="Resources\Shader\CopyImage.hlsli">
+      <Filter>シェーダー ファイル</Filter>
+    </None>
+    <None Include="Resources\Shader\FullScreen.hlsli">
+      <Filter>シェーダー ファイル</Filter>
+    </None>
+    <None Include="Resources\Shader\Particle.hlsli">
+      <Filter>シェーダー ファイル</Filter>
+    </None>
   </ItemGroup>
 </Project>

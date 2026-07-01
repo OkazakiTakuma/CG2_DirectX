@@ -32,7 +32,9 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 
 	initInfo.Device = dxCommon->GetDevice().Get();
 	initInfo.NumFramesInFlight = dxCommon->GetSwapChainResourceCount();
-	initInfo.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	// スワップチェーンの実際のフォーマットに合わせる（UNORM / SRGB の不整合を防ぐ）
+	// Swap chain フォーマットを渡す（UNORM/SRGB の不整合を防止）
+	initInfo.RTVFormat = dxCommon->GetSwapChainFormat();
 	initInfo.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	initInfo.SrvDescriptorHeap = srvManager->GetDescriptorHeap().Get();
 

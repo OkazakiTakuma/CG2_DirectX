@@ -15,6 +15,7 @@ public:
 	void Finalize();
 	void LoadModel(const std::string& filePath);
 	Model* FindModel(const std::string& filePath);
+	ModelCommon* GetModelCommon();
 
 private:
 	std::map<std::string, std::unique_ptr<Model>> models;

@@ -2,6 +2,7 @@
 #include "SceneManager.h"
 #include <ModelManager.h>
 #include"InstancingModelCommon.h"
+#include"SkinnedObject3dCommon.h"
 
 void GamePlayScene::Initialize() {
 	std::vector<std::string> allTextures = {
@@ -62,7 +63,24 @@ void GamePlayScene::Initialize() {
 	sphereObject->SetRotate({ 0.0f, 0.0f, 0.0f });
 	cylinderObject = std::make_unique<Object3d>();
 
+	skinnedModel = std::make_unique<SkinnedModel>();
 
+	// ※注意: 第1引数の ModelCommon の渡し方は、プロジェクトの環境に合わせて変更してください。
+	// 例: ModelCommon* modelCommon = ModelCommon::GetInstance();
+	skinnedModel->Initialize(ModelManager::GetInstance()->GetModelCommon(), "Resources/simpleSkin", "simpleskin.gltf");
+
+	// アニメーションデータの読み込み
+	skinAnimation = SkinnedModel::LoadAnimationFile("Resources/simpleSkin", "simpleskin.gltf");
+
+	// 画面に表示するオブジェクトの作成と設定
+	skinnedObject = std::make_unique<SkinnedObject3d>();
+	skinnedObject->Initialize();
+	skinnedObject->SetModel(skinnedModel.get());
+	skinnedObject->SetAnimation(&skinAnimation); // アニメーションをセットして再生準備
+
+	// 表示する位置や大きさを調整します（必要に応じて数値を変更してください）
+	skinnedObject->SetTranslate({ 0.0f, 0.0f, 0.0f });
+	skinnedObject->SetScale({ 1.0f, 1.0f, 1.0f });
 
 	
 
@@ -229,6 +247,9 @@ void GamePlayScene::Update() {
 			}
 		}
 	}
+	if (skinnedObject) {
+		skinnedObject->Update();
+	}
 	ImGuiUpdate();
 }
 
@@ -267,6 +288,11 @@ void GamePlayScene::Draw3D() {
 	// スフィア（球体）モデル
 	if (isShowSphere_) {
 		sphereObject->Draw();
+	}
+
+	if (skinnedObject) {
+		SkinnedObject3dCommon::GetInstance()->SetDraw();
+		skinnedObject->Draw();
 	}
 
 	// 軸モデル（元のコードには無かったので追加しました！）

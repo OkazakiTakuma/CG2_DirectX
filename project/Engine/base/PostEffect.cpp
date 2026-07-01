@@ -32,7 +32,8 @@ void PostEffect::CreateTextureResource() {
 	textureDesc.Height = WinApp::kClientHeight;
 	textureDesc.MipLevels = 1;
 	textureDesc.DepthOrArraySize = 1;
-	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	// Swap chain のフォーマットに合わせる
+	textureDesc.Format = dxCommon_->GetSwapChainFormat();
 	textureDesc.SampleDesc.Count = 1;
 	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
@@ -41,7 +42,7 @@ void PostEffect::CreateTextureResource() {
 	heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
 
 	D3D12_CLEAR_VALUE clearValue{};
-	clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	clearValue.Format = dxCommon_->GetSwapChainFormat();
 	clearValue.Color[0] = 1.0f;
 	clearValue.Color[1] = 0.0f;
 	clearValue.Color[2] = 0.0f;
@@ -55,7 +56,7 @@ void PostEffect::CreateRtv() {
 	rtvHeap_ = dxCommon_->CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1, false);
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
-	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	rtvDesc.Format = dxCommon_->GetSwapChainFormat();
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 	dxCommon_->GetDevice()->CreateRenderTargetView(textureResource_.Get(), &rtvDesc, rtvHeap_->GetCPUDescriptorHandleForHeapStart());
@@ -96,7 +97,8 @@ void PostEffect::CreateSrv() {
 	srvIndex_ = srvManager->Allocate();
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	// SRV のフォーマットは作成したテクスチャのフォーマットに合わせる
+	srvDesc.Format = dxCommon_->GetSwapChainFormat();
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;

@@ -38,7 +38,7 @@ const int MAX_BONE_INFLUENCE = 4;
 
 // ★新しく追加：スキンメッシュ（ボーンあり）用の頂点データ
 struct VertexDataSkinned {
-	Vector4 position;
+	Vector3 position; // w 成分はシェーダ内で追加して扱います（容量削減のため）
 	Vector2 texcoord;
 	Vector3 normal;
 	int32_t boneIndices[MAX_BONE_INFLUENCE]; // 影響を受けるボーンの番号
@@ -201,6 +201,8 @@ struct SkinnedModelData {
 	MaterialData material;
 	Node rootNode;
 	Skeleton skeleton;
+	// インデックスバッファ用
+	std::vector<uint32_t> indices;
 };
 
 // キャラクター1体あたりの最大ボーン数

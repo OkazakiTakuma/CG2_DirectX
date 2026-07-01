@@ -18,6 +18,93 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap
 	assert(SUCCEEDED(hr));
 	return descriptorHeap;
 }
+// Create a default heap buffer and upload initial data using an intermediate upload buffer.
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDefaultBufferWithData(const void* initData, size_t sizeInBytes) {
+	assert(device != nullptr);
+	HRESULT hr;
+
+	// Create default heap resource
+	D3D12_HEAP_PROPERTIES defaultHeapProps{};
+	defaultHeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+	D3D12_RESOURCE_DESC bufferDesc{};
+	bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	bufferDesc.Width = sizeInBytes;
+	bufferDesc.Height = 1;
+	bufferDesc.DepthOrArraySize = 1;
+	bufferDesc.MipLevels = 1;
+	bufferDesc.SampleDesc.Count = 1;
+	bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> defaultResource;
+	hr = device->CreateCommittedResource(&defaultHeapProps, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&defaultResource));
+	assert(SUCCEEDED(hr));
+
+	// Create upload heap
+	D3D12_HEAP_PROPERTIES uploadHeapProps{};
+	uploadHeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> uploadResource;
+	hr = device->CreateCommittedResource(&uploadHeapProps, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&uploadResource));
+	assert(SUCCEEDED(hr));
+
+	// Copy initial data into upload heap
+	void* mapped = nullptr;
+	uploadResource->Map(0, nullptr, &mapped);
+	memcpy(mapped, initData, sizeInBytes);
+	uploadResource->Unmap(0, nullptr);
+
+	// Record copy command
+	// We will use the existing commandList and commandQueue. This function assumes commandList is in a usable state.
+	HRESULT hrClose = commandList->Close();
+	if (FAILED(hrClose)) {
+		// If closing fails, reset allocator/list
+		commandAllocator->Reset();
+		commandList->Reset(commandAllocator.Get(), nullptr);
+	}
+
+	ID3D12CommandList* lists[] = { commandList.Get() };
+	commandQueue->ExecuteCommandLists(_countof(lists), lists);
+
+	// Reset and use command allocator/list for copy
+	hr = commandAllocator->Reset();
+	assert(SUCCEEDED(hr));
+	hr = commandList->Reset(commandAllocator.Get(), nullptr);
+	assert(SUCCEEDED(hr));
+
+	commandList->CopyResource(defaultResource.Get(), uploadResource.Get());
+
+	// Transition to GENERIC_READ for shader access
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = defaultResource.Get();
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
+	commandList->ResourceBarrier(1, &barrier);
+
+	// Close and execute
+	hr = commandList->Close();
+	assert(SUCCEEDED(hr));
+	ID3D12CommandList* cmdLists[] = { commandList.Get() };
+	commandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
+
+	// Wait for GPU
+	fenceValue++;
+	commandQueue->Signal(fence.Get(), fenceValue);
+	if (fence->GetCompletedValue() < fenceValue) {
+		fence->SetEventOnCompletion(fenceValue, fenceEvent);
+		WaitForSingleObject(fenceEvent, INFINITE);
+	}
+
+	// Reset command allocator/list for further recording
+	hr = commandAllocator->Reset();
+	assert(SUCCEEDED(hr));
+	hr = commandList->Reset(commandAllocator.Get(), nullptr);
+	assert(SUCCEEDED(hr));
+
+	return defaultResource;
+}
 
 void DirectXCommon::Initialize(WinApp* winApp) {
 	assert(winApp);
@@ -371,7 +458,7 @@ void DirectXCommon::CreateSwapChain() {
 	HRESULT hr;
 	swapChainDesc.Width = WinApp::kClientWidth;                  // スワップチェーンの幅
 	swapChainDesc.Height = WinApp::kClientHeight;                // スワップチェーンの高さ
-	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;           // スワップチェーンのフォーマット
+	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;      // スワップチェーンのフォーマット（sRGB）
 	swapChainDesc.SampleDesc.Count = 1;                          // マルチサンプルの数
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; // スワップチェーンの使用法
 	swapChainDesc.BufferCount = 2;                               // バッファの数
@@ -386,9 +473,21 @@ void DirectXCommon::CreateSwapChain() {
 	    &swapChainDesc,           // スワップチェーンの設定
 	    nullptr,                  // オプション（nullptrでデフォルト）
 	    nullptr,                  // 共有リソース（nullptrで共有しない）
-	    swapChain1.GetAddressOf() // スワップチェーンの出力
+		swapChain1.GetAddressOf() // スワップチェーンの出力
 	);
-	assert(SUCCEEDED(hr));
+	if (!SUCCEEDED(hr)) {
+		// sRGB フォーマットで作成に失敗した場合は UNORM にフォールバックして再試行
+		Log(std::format("CreateSwapChainForHwnd failed with format {}. Falling back to UNORM. HR=0x{:X}\n", static_cast<int>(swapChainDesc.Format), static_cast<uint32_t>(hr)).c_str());
+		swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		hr = dxgiFactory->CreateSwapChainForHwnd(
+			commandQueue.Get(),
+			winApp->GetHwnd(),
+			&swapChainDesc,
+			nullptr,
+			nullptr,
+			swapChain1.GetAddressOf());
+		assert(SUCCEEDED(hr));
+	} 
 
 	// IDXGISwapChain1 を IDXGISwapChain4 にクエリして取得
 	hr = swapChain1.As(&swapChain);

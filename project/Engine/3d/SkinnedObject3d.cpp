@@ -86,13 +86,11 @@ void SkinnedObject3d::Draw() {
 		D3D12_GPU_DESCRIPTOR_HANDLE envSrvHandle = TextureManager::GetInstance()->GetSRVHandleGPU(envMapTexturePath);
 		// コマンドリストの 6番 (t1) に直接セット
 		commandList->SetGraphicsRootDescriptorTable(6, envSrvHandle);
-	}	if (model) {
-		// ============================================
-		// ★追加：ボーン行列パレットをルートパラメータ7番にセット
-		// ============================================
-		commandList->SetGraphicsRootConstantBufferView(7, model->GetBoneBufferVirtualAddress());
-
-		// 引数なしでスッキリとモデルの描画を呼び出す！
+	}
+	if (model) {
+		// モデルを描画
+		// ボーンの行列は GPU スキニング時は Compute で使うため、
+		// グラフィックスパイプライン側のルートに直接セットする必要はない
 		model->Draw();
 	}
 }

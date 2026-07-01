@@ -46,6 +46,18 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
 	void CreateVertexdata();
 
+	// GPUスキニング用: 元頂点のSRV（構造化バッファ）と出力UAV
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexStructuredResource; // Default heap with original structured vertices (t0)
+	Microsoft::WRL::ComPtr<ID3D12Resource> skinnedOutputResource; // Default heap output (u0)
+	void CreateGpuSkinningBuffers();
+
+	// Descriptor indices in global SRV/UAV descriptor heap (allocated from SrvManager)
+	uint32_t vertexStructuredSrvIndex = 0xFFFFFFFFu;
+	uint32_t skinnedOutputUavIndex = 0xFFFFFFFFu;
+	// インデックスバッファ
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource;
+	D3D12_INDEX_BUFFER_VIEW indexBufferView{};
+
 	// ボーンデータ用のリソース
 	Microsoft::WRL::ComPtr<ID3D12Resource> boneResource;
 	SkinCluster* mappedSkinCluster = nullptr;
