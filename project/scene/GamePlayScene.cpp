@@ -49,8 +49,8 @@ void GamePlayScene::Initialize() {
 
 	object3d = std::make_unique<Object3d>();
 	object3d->Initialize();
-	ModelManager::GetInstance()->LoadModel("plane.obj");
-	object3d->SetModel("plane.obj");
+	ModelManager::GetInstance()->LoadModel("AnimationCube.gltf",true,"Cube");
+	object3d->SetModel("AnimationCube.gltf");
 	ModelManager::GetInstance()->LoadModel("axis.obj");
 
 	sphereObject = std::make_unique<Object3d>();
@@ -77,8 +77,8 @@ void GamePlayScene::Initialize() {
 
 	// インスタンシングモデルの初期化（最大1000個描画できるように確保）
 	instancingModel_ = std::make_unique<InstancingModel>();
-	instancingModel_->Initialize(ModelManager::GetInstance()->FindModel("sphere.obj"), 1000);
-
+	instancingModel_->Initialize(ModelManager::GetInstance()->FindModel("sphere.obj"), 100);
+	instancingModel_->SetEnvironmentMapPath("Resources/rostock_laage_airport_4k.dds"); // ★追加
 	// 2. 繝ｫ繝ｼ繝励〒繧ｨ繝溘ャ繧ｿ繝ｼ繧堤函謌舌＠縺ｦ繝ｪ繧ｹ繝医↓縺ｾ縺ｨ繧√ｋ
 	for (const auto& groupName : particleTypes) {
 		auto newEmitter = std::make_unique<ParticleEmitter>();

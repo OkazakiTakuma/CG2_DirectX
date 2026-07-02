@@ -10,9 +10,13 @@
 #include <sstream>
 using namespace Logger;
 
-void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename) {
+void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename, const bool isAnimation) {
 	this->modelCommon_ = modelCommon;
+	this->isAnimation_ = isAnimation;
 	modelData = LoadModelFile(directoryPath, filename);
+	if (isAnimation) {
+		animation = LoadAnimation(directoryPath, filename);
+	}
 	CreateVertexdata();
 	CreateMaterialData();
 	TextureManager::GetInstance()->LoadTexture(modelData.material.textureFilePath);
@@ -23,6 +27,8 @@ Model::~Model() {
 	// デストラクタで Finalize を呼ぶことで、
 	// 手動で呼び忘れても delete 時にリソースが解放されるようにする
 	Finalize();
+}
+
 }
 
 void Model::Finalize() {
@@ -86,11 +92,11 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 
 				VertexData vertex;
 				// X軸の反転（右手座標系から左手座標系への変換など）はそのまま維持します
-				vertex.position = {position.x * -1.0f, position.y, position.z, 1.0f};
-				vertex.normal = {normal.x * -1.0f, normal.y, normal.z};
+				vertex.position = { position.x * -1.0f, position.y, position.z, 1.0f };
+				vertex.normal = { normal.x * -1.0f, normal.y, normal.z };
 
 				// 【修正ポイント】手動でのY軸反転をやめ、そのままの値を代入します
-				vertex.texcoord = {texcoord.x, texcoord.y};
+				vertex.texcoord = { texcoord.x, texcoord.y };
 
 				modelData.vertices.push_back(vertex);
 			}
@@ -115,6 +121,61 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 	return modelData;
 }
 
+Animation Model::LoadAnimation(const std::string& directoryPath, const std::string& filename)
+{
+	Animation animation;
+	Assimp::Importer importer;
+	std::string filePath = directoryPath + "/" + filename;
+
+	// アニメーションを含むシーンを読み込む
+	const aiScene* scene = importer.ReadFile(filePath.c_str(), 0);
+	assert(scene->mNumAnimations != 0);
+
+	aiAnimation* animationAssimp = scene->mAnimations[0];
+	animation.duration = static_cast<float>(animationAssimp->mDuration / animationAssimp->mTicksPerSecond);
+
+	for (uint32_t channeIndex = 0; channeIndex < animationAssimp->mNumChannels; channeIndex++) {
+		aiNodeAnim* nodeAnimtionAssimp = animationAssimp->mChannels[channeIndex];
+		NodeAnimation& nodeAnimation = animation.nodeAnimations[nodeAnimtionAssimp->mNodeName.C_Str()];
+
+		// 1. Translate (位置) の解析
+		for (uint32_t keyIndex = 0; keyIndex < nodeAnimtionAssimp->mNumPositionKeys; keyIndex++)
+		{
+			aiVectorKey& keyAssimp = nodeAnimtionAssimp->mPositionKeys[keyIndex];
+			KeyframeVector3 keyframe;
+			keyframe.time = static_cast<float>(keyAssimp.mTime / animationAssimp->mTicksPerSecond);
+			keyframe.value = { -keyAssimp.mValue.x, keyAssimp.mValue.y, keyAssimp.mValue.z };
+			nodeAnimation.translate.keyframes.push_back(keyframe);
+		}
+
+		// 2. Rotate (回転) の解析
+		for (uint32_t keyIndex = 0; keyIndex < nodeAnimtionAssimp->mNumRotationKeys; keyIndex++)
+		{
+			aiQuatKey& keyAssimp = nodeAnimtionAssimp->mRotationKeys[keyIndex];
+			KeyframeQuaternion keyframe;
+			keyframe.time = static_cast<float>(keyAssimp.mTime / animationAssimp->mTicksPerSecond);
+
+			// X軸が反転している座標系（例: 左手系）に合わせるための一般的なクォータニオンの変換
+			// ※お使いのQuaternion構造体のメンバ順 (x, y, z, w) に合わせて初期化しています。
+			keyframe.value = { keyAssimp.mValue.x, -keyAssimp.mValue.y, -keyAssimp.mValue.z, keyAssimp.mValue.w };
+			nodeAnimation.rotate.keyframes.push_back(keyframe);
+		}
+
+		// 3. Scale (スケール) の解析
+		for (uint32_t keyIndex = 0; keyIndex < nodeAnimtionAssimp->mNumScalingKeys; keyIndex++)
+		{
+			aiVectorKey& keyAssimp = nodeAnimtionAssimp->mScalingKeys[keyIndex];
+			KeyframeVector3 keyframe;
+			keyframe.time = static_cast<float>(keyAssimp.mTime / animationAssimp->mTicksPerSecond);
+
+			// スケールは通常そのままの値を使用します
+			keyframe.value = { keyAssimp.mValue.x, keyAssimp.mValue.y, keyAssimp.mValue.z };
+			nodeAnimation.scale.keyframes.push_back(keyframe);
+		}
+	}
+
+	return animation;
+}
 Node Model::ReadNode(aiNode* aiNode) {
 	Node result;
 	aiMatrix4x4 aiLocalMatrix = aiNode->mTransformation;
@@ -195,7 +256,7 @@ void Model::CreateMaterialData() {
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 
 	// 既存の設定
-	materialData->color = {1.0f, 1.0f, 1.0f, 1.0f};
+	materialData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	materialData->enableLighting = 1; // 1にするとライティング有効
 	materialData->uvTransform = MakeIdentity4x4();
 

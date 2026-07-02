@@ -20,6 +20,8 @@ float Length(const Vector3& v);
 Vector3 Normalize(const Vector3& v);
 Vector3 NormalizeReturnVector(const Vector3& v);
 
+Vector3 Leap(const Vector3& v1, const Vector3& v2, const float t);
+
 	// 数値の表記
 void VectorScreenPrintf(int x, int y, const Vector3& vector, const char* label);
 // クロス積
@@ -31,7 +33,6 @@ struct Vector4 {
 	Vector4 operator-(const Vector4& other) const { return Vector4(x - other.x, y - other.y, z - other.z, w - other.w); }
 };
 
-
 /// <summary>
 /// 2次元ベクトル
 /// </summary>
@@ -39,3 +40,4 @@ struct Vector2 {
 	float x;
 	float y;
 };
+

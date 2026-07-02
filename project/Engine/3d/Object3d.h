@@ -22,6 +22,7 @@ class Object3d {
 public:
 	void Initialize();
 	void Update();
+	void UpdateAnimation();
 	void Draw();
 	void SetModel(Model* model) { this->model = model; }
 	void SetModel(const std::string& filePath);
@@ -117,4 +118,9 @@ private:
 	Transform transform;
 	Camera* camera = nullptr;
 	std::string envMapTexturePath = "Resources/rostock_laage_airport_4k.dds";
+	float animationTime = 0.0f;
+	Animation animation;
 };
+
+Vector3 CalculateValue(const std::vector<KeyframeVector3>& keyflames, float time);
+Quaternion CalculateValue(const std::vector<KeyframeQuaternion>& keyframes, float time);

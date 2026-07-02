@@ -124,8 +124,10 @@ Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(const std::wstring
 	    L"-T",
 	    profile,
 	    L"-Zi",
+#ifdef DEBUG
 	    L"-Qembed_debug",
 	    L"-Od",
+#endif // DEBUG
 	    L"-Zpr"};
 	// 実際にShaderをコンパイルする
 	IDxcResult* shaderResult = nullptr;

@@ -1,12 +1,13 @@
 #pragma once
 #include <string>
 #include <vector>
-#include "Matrix.h"
+#include"Quaternion.h"
 #include <format>
 #include <fstream>
 #include <locale>
 #include <strsafe.h>
 #include <wrl.h>
+#include <map>
 
 struct TransformationMatrix {
 	Matrix4x4 WVP;
@@ -69,7 +70,7 @@ struct Particle {
 	Vector4 endColor;     // 消える時の色
 	Vector3 startScale;   // 発生時の大きさ
 	Vector3 endScale;     // 消える時の大きさ
-}; 
+};
 
 struct Emitter {
 	Transform transform; // エミッタの位置情報
@@ -134,3 +135,27 @@ struct ParticleSetting {
 	ParticleMeshType meshType;
 	BlendMode blendMode;
 };
+
+template <typename tValue>
+struct Keyframe {
+	float time; // キーフレームの時間
+	tValue value; // キーフレームの値
+};
+using KeyframeVector3 = Keyframe<Vector3>;
+using KeyframeQuaternion = Keyframe<Quaternion>;
+
+template <typename tValue>
+struct AnimationCurve {
+	std::vector<Keyframe<tValue>> keyframes;
+};
+struct NodeAnimation {
+	AnimationCurve<Vector3> translate;
+	AnimationCurve<Quaternion> rotate;
+	AnimationCurve<Vector3> scale;
+};
+
+struct Animation {
+	float duration; // アニメーションの総時間
+	std::map<std::string, NodeAnimation> nodeAnimations; // ノード名とそのアニメーションのマッピング
+};
+

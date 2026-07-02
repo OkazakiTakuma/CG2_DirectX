@@ -3,8 +3,52 @@
 #include "Model.h"
 #include "ModelManager.h"
 #include "Object3dCommon.h"
+#include"Quaternion.h"
 #include <cmath>
+Vector3 CalculateValue(const std::vector<KeyframeVector3>& keyflames, float time)
+{
 
+	assert(!keyflames.empty());
+	if (keyflames.size() == 1 || time <= keyflames[0].time) {
+		return keyflames[0].value;
+	}
+	for (size_t index; index < keyflames.size() - 1; index++) {
+		size_t newIndex = index + 1;
+		if (keyflames[index].time <= time && time <= keyflames[newIndex].time) {
+			float t = (time - keyflames[index].time) / (keyflames[newIndex].time - keyflames[index].time);
+			return Leap(keyflames[index].value, keyflames[newIndex].value, t);
+		}
+	}
+	return(*keyflames.rbegin()).value;
+}
+
+Quaternion CalculateValue(const std::vector<KeyframeQuaternion>& keyframes, float time)
+{
+	assert(!keyframes.empty());
+
+	// キーフレームが1つだけ、または指定時間が最初のキーフレームより前の場合
+	if (keyframes.size() == 1 || time <= keyframes[0].time) {
+		return keyframes[0].value;
+	}
+
+	// 適切なキーフレームを探して補間する
+	// ※元のコードで size_t index; となっていたため、 = 0 で初期化するよう修正しました
+	for (size_t index = 0; index < keyframes.size() - 1; index++) {
+		size_t nextIndex = index + 1;
+
+		// 現在の時間が、この2つのキーフレームの間にある場合
+		if (keyframes[index].time <= time && time <= keyframes[nextIndex].time) {
+			// 2つのキーフレーム間の進行割合(t)を 0.0 ～ 1.0 の範囲で計算
+			float t = (time - keyframes[index].time) / (keyframes[nextIndex].time - keyframes[index].time);
+
+			// Slerp関数を使って滑らかに回転を補間する
+			return Slerp(keyframes[index].value, keyframes[nextIndex].value, t);
+		}
+	}
+
+	// 時間が最後のキーフレームを超えている場合は、最後の値をそのまま返す
+	return keyframes.back().value;
+}
 void Object3d::Initialize() {
 	// シングルトンから共通設定とデフォルトカメラを取得
 	Object3dCommon* common = Object3dCommon::GetInstance();
@@ -215,13 +259,32 @@ void Object3d::Update() {
 		transformationMatrix->WVP = wvpMatrix;
 		transformationMatrix->world = worldMatrix;
 		cameraData->worldPosition = camera->GetTranslate();
+		if (model->GetIsAnimation()) {
+			animationTime += 1.0f / 60.0f;
+			animationTime = std::fmod(animationTime, animation.duration);
+			NodeAnimation& rootNodeAnimation = animation.nodeAnimations[model->GetRootNode().name];
+			Vector3 translate = CalculateValue(rootNodeAnimation.translate, animationTime);
+			Quaternion rotate = CalculateValue(rootNodeAnimation.rotate, animationTime);
+			Vector3 scale = CalculateValue(rootNodeAnimation.scale, animationTime);
+		
+			
+
+
+		}
 	}
 	else {
 		transformationMatrix->WVP = worldMatrix;
 		transformationMatrix->world = worldMatrix;
 	}
 
+
 	cameraData->environmentMultiplier = environmentMultiplier;
+}
+
+void Object3d::UpdateAnimation()
+{
+
+
 }
 
 void Object3d::Draw() {
@@ -256,7 +319,14 @@ void Object3d::Draw() {
 	}
 }
 
-void Object3d::SetModel(const std::string& filePath) { model = ModelManager::GetInstance()->FindModel(filePath); }
+void Object3d::SetModel(const std::string& filePath) {
+	model = ModelManager::GetInstance()->FindModel(filePath);
+	if (model->GetIsAnimation()) {
+		animation = model->GetAnimation();
+	}
+}
+
+
 
 Object3d::~Object3d() {
 	if (wvpResorceModel) wvpResorceModel->Unmap(0, nullptr);
@@ -301,3 +371,5 @@ void Object3d::SetPointLight(const Vector4& color, const Vector3& position, floa
 void Object3d::SetEnvironmentMultiplier(float multiplier) {
 	environmentMultiplier = multiplier;
 }
+
+

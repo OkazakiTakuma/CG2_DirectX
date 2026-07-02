@@ -176,6 +176,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\2d\LineCommon.cpp" />
     <ClCompile Include="Engine\3d\InstancingModel.cpp" />
     <ClCompile Include="Engine\3d\InstancingModelCommon.cpp" />
+    <ClCompile Include="Engine\math\Quaternion.cpp" />
     <ClCompile Include="scene\SceneFactory.cpp" />
     <ClCompile Include="scene\SceneManager.cpp" />
     <ClCompile Include="scene\GamePlayScene.cpp" />
@@ -297,6 +298,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\2d\LineCommon.h" />
     <ClInclude Include="Engine\3d\InstancingModel.h" />
     <ClInclude Include="Engine\3d\InstancingModelCommon.h" />
+    <ClInclude Include="Engine\math\Quaternion.h" />
     <ClInclude Include="scene\SceneFactory.h" />
     <ClInclude Include="scene\SceneManager.h" />
     <ClInclude Include="scene\GamePlayScene.h" />

@@ -13,8 +13,10 @@ public:
 	void Inithialize(DirectXCommon* dxCommon);
 	static ModelManager* GetInstance();
 	void Finalize();
-	void LoadModel(const std::string& filePath);
+	void LoadModel(const std::string& filePath,bool isAnimation=false,const std::string& directoryPath="");
 	Model* FindModel(const std::string& filePath);
+
+
 
 private:
 	std::map<std::string, std::unique_ptr<Model>> models;

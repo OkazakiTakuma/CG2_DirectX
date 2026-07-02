@@ -456,23 +456,52 @@ void ParticleManager::Draw(Camera* camera) {
 			if (index >= numInstance)
 				break;
 
-			Matrix4x4 scaleMatrix = MakeScaleMatrix(particle.transform.scale);
-			Matrix4x4 rotateMatrix = MakeRotateXYZMatrix(particle.transform.rotate); // 回転行列
-			Matrix4x4 translateMatrix = MakeTranslateMatrix(particle.transform.translate);
-
-			// ─── ★追加：ビルボードON/OFFの切り替え ───
+			// 1. 回転行列を取得（回転が0の場合は余計な計算をスキップ）
 			Matrix4x4 finalRotateMatrix;
 			if (particle.isBillboard) {
 				// ビルボードON：パーティクルの回転にビルボード行列を合成する
-				finalRotateMatrix = Multiply(rotateMatrix, billboardMatrix);
+				if (particle.transform.rotate.x == 0.0f && particle.transform.rotate.y == 0.0f && particle.transform.rotate.z == 0.0f) {
+					finalRotateMatrix = billboardMatrix;
+				}
+				else {
+					Matrix4x4 rotateMatrix = MakeRotateXYZMatrix(particle.transform.rotate);
+					finalRotateMatrix = Multiply(rotateMatrix, billboardMatrix);
+				}
 			}
 			else {
-				// ビルボードOFF：パーティクル自身の回転行列のみを使用する（3D空間に配置される）
-				finalRotateMatrix = rotateMatrix;
+				// ビルボードOFF：パーティクル自身の回転行列のみを使用する
+				if (particle.transform.rotate.x == 0.0f && particle.transform.rotate.y == 0.0f && particle.transform.rotate.z == 0.0f) {
+					finalRotateMatrix = MakeIdentity4x4();
+				}
+				else {
+					finalRotateMatrix = MakeRotateXYZMatrix(particle.transform.rotate);
+				}
 			}
 
-			// 合成した回転行列を使って worldMatrix を計算する
-			Matrix4x4 worldMatrix = Multiply(scaleMatrix, Multiply(finalRotateMatrix, translateMatrix));
+			// 2. 個別の Multiply(行列乗算) を使わずに worldMatrix を直接アフィン合成する
+			// M = S * R * T 相当の計算を直接代入で行う
+			Matrix4x4 worldMatrix = finalRotateMatrix;
+
+			// スケール(S)を適用（X, Y, Z軸それぞれの回転ベクトルの長さをスケール倍する）
+			worldMatrix.m[0][0] *= particle.transform.scale.x;
+			worldMatrix.m[0][1] *= particle.transform.scale.x;
+			worldMatrix.m[0][2] *= particle.transform.scale.x;
+
+			worldMatrix.m[1][0] *= particle.transform.scale.y;
+			worldMatrix.m[1][1] *= particle.transform.scale.y;
+			worldMatrix.m[1][2] *= particle.transform.scale.y;
+
+			worldMatrix.m[2][0] *= particle.transform.scale.z;
+			worldMatrix.m[2][1] *= particle.transform.scale.z;
+			worldMatrix.m[2][2] *= particle.transform.scale.z;
+
+			// 平行移動(T)を適用（4行目に座標を代入）
+			worldMatrix.m[3][0] = particle.transform.translate.x;
+			worldMatrix.m[3][1] = particle.transform.translate.y;
+			worldMatrix.m[3][2] = particle.transform.translate.z;
+			worldMatrix.m[3][3] = 1.0f;
+
+			// 3. WVP = worldMatrix * viewProjection
 			Matrix4x4 wvp = Multiply(worldMatrix, viewProjection);
 
 			group.instanceDataPtr[index].WVP = wvp;

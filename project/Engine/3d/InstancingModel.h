@@ -24,6 +24,9 @@ public:
     // 溜まった座標データをGPUに転送し、一括で描画する
     void Draw(Camera* camera);
 
+    ~InstancingModel(); // デストラクタを追加
+    // 環境マップのテクスチャパスを設定する
+    void SetEnvironmentMapPath(const std::string& path) { envMapTexturePath_ = path; }
 private:
     Model* model_ = nullptr;
     uint32_t maxInstanceCount_ = 1000; // 最大描画数
@@ -37,4 +40,24 @@ private:
 
     // バッファを生成する内部関数
     void CreateInstanceBuffer();
+
+    // ★追加: ライティングやカメラ用の定数バッファ構造体とリソース
+    struct DirectionalLight {
+        Vector4 color;     // 光の色
+        Vector3 direction; // 光の方向
+        float intensity;   // 光の強度
+    };
+    struct CameraForGPU {
+        Vector3 worldPosition;
+        float environmentMultiplier; // 環境マップの強さ
+    };
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> lightResource_;
+    DirectionalLight* lightData_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource_;
+    CameraForGPU* cameraData_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> pointLightResource_;
+    PointLight* pointLightData_ = nullptr;
+    std::string envMapTexturePath_; // 環境マップのテクスチャパス
+    void CreateConstantBuffers();
 };

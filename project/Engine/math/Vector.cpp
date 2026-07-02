@@ -49,6 +49,17 @@ Vector3 NormalizeReturnVector(const Vector3& v) {
 	return Vector3(v.x / length, v.y / length, v.z / length);
 }
 
+Vector3 Leap(const Vector3& v1, const Vector3& v2, const float t)
+{
+	Vector3 result;
+
+	// 各成分（X, Y, Z）について線形補間を計算する
+	result.x = v1.x + (v2.x - v1.x) * t;
+	result.y = v1.y + (v2.y - v1.y) * t;
+	result.z = v1.z + (v2.z - v1.z) * t;
+
+	return result;
+}
 void VectorScreenPrintf(int posX, int posY, const Vector3& vector, const char* label) {
 	const int kColumnWidth = 60;
 
@@ -58,4 +69,5 @@ Vector3 Cross(const Vector3& v1, const Vector3& v2) {
 	Vector3 cross = {v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x};
 	return cross;
 }
+
 

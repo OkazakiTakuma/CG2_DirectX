@@ -1,5 +1,6 @@
 #include "InstancingModel.h"
 #include "Object3dCommon.h" // DirectXCommon を取得するため
+#include "TextureManager.h"
 
 void InstancingModel::Initialize(Model* model, uint32_t maxInstanceCount) {
     model_ = model;
@@ -9,6 +10,15 @@ void InstancingModel::Initialize(Model* model, uint32_t maxInstanceCount) {
     transforms_.reserve(maxInstanceCount_);
 
     CreateInstanceBuffer();
+    CreateConstantBuffers(); // バッファ作成
+}
+
+InstancingModel::~InstancingModel() {
+    // マップ解除
+    if (instanceBuffer_) instanceBuffer_->Unmap(0, nullptr);
+    if (lightResource_) lightResource_->Unmap(0, nullptr);
+    if (cameraResource_) cameraResource_->Unmap(0, nullptr);
+    if (pointLightResource_) pointLightResource_->Unmap(0, nullptr);
 }
 
 void InstancingModel::CreateInstanceBuffer() {
@@ -20,6 +30,32 @@ void InstancingModel::CreateInstanceBuffer() {
 
     // 書き込み用にマップしっぱなしにしておく
     instanceBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedData_));
+}
+
+void InstancingModel::CreateConstantBuffers() {
+    auto dxCommon = Object3dCommon::GetInstance()->GetDxCommon();
+
+    // ライトバッファ作成と初期化
+    lightResource_ = dxCommon->CreateBufferResource(sizeof(DirectionalLight));
+    lightResource_->Map(0, nullptr, reinterpret_cast<void**>(&lightData_));
+    lightData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+    lightData_->direction = { 0.0f, -1.0f, 0.0f };
+    lightData_->intensity = 1.0f;
+
+    // カメラバッファ作成
+    cameraResource_ = dxCommon->CreateBufferResource(sizeof(CameraForGPU));
+    cameraResource_->Map(0, nullptr, reinterpret_cast<void**>(&cameraData_));
+    cameraData_->worldPosition = { 0.0f, 0.0f, -10.0f };
+    cameraData_->environmentMultiplier = 0.0f; // 環境マップは無効化
+
+    // ポイントライトバッファ作成（初期状態は強度0で無効化）
+    pointLightResource_ = dxCommon->CreateBufferResource(sizeof(PointLight));
+    pointLightResource_->Map(0, nullptr, reinterpret_cast<void**>(&pointLightData_));
+    pointLightData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+    pointLightData_->position = { 0.0f, 0.0f, 0.0f };
+    pointLightData_->intensity = 0.0f;
+    pointLightData_->radius = 10.0f;
+    pointLightData_->decay = 1.0f;
 }
 
 void InstancingModel::AddInstance(const Transform& transform) {
@@ -38,28 +74,44 @@ void InstancingModel::Draw(Camera* camera) {
 
         mappedData_[i].world = worldMatrix;
         mappedData_[i].WVP = Multiply(worldMatrix, camera->GetViewProjectionMatrix());
-
-        // 法線用の逆転置行列（スケールを含まないようにする処理など）
-        // ※ここでは簡易的に MakeIdentity4x4() にしていますが、必要に応じて計算関数を入れてください
         mappedData_[i].WorldInverseTranspose = MakeIdentity4x4();
     }
 
+    // カメラ座標を最新に更新
+    cameraData_->worldPosition = camera->GetTranslate();
+
     auto commandList = Object3dCommon::GetInstance()->GetDxCommon()->GetCommandList();
 
-    // 2. インスタンスバッファ(t2)をシェーダーにセット
-    // ※ 注意: ルートシグネチャの設定に合わせて番号(RootParameterIndex)を変える必要があります
+    // 2. 描画準備
+    SrvManager::GetInstance()->PreDraw();
+
+    // [2] t2: Instancing Data (SRV)
     commandList->SetGraphicsRootShaderResourceView(2, instanceBuffer_->GetGPUVirtualAddress());
 
-    // 3. モデルの描画準備（頂点バッファやマテリアルのセット）
-    model_->Draw();
+    // 頂点バッファのセット
+    commandList->IASetVertexBuffers(0, 1, &model_->vertexBufferView);
+    // [0] b0: Material
+    commandList->SetGraphicsRootConstantBufferView(0, model_->materialResource->GetGPUVirtualAddress());
+    // [1] t0: Texture
+    commandList->SetGraphicsRootDescriptorTable(1, TextureManager::GetInstance()->GetSRVHandleGPU(model_->modelData.material.textureFilePath));
 
-    // 4. 一括描画（DrawIndexedInstanced）
-    // （modelData.indices.size() を取得するゲッターがModelクラスにあると仮定）
-    // uint32_t indexCount = model_->GetIndexCount(); 
-    uint32_t indexCount = 0; // ※ここは実際のインデックス数を入れてください
+    // [3] b2: DirectionalLight
+    commandList->SetGraphicsRootConstantBufferView(3, lightResource_->GetGPUVirtualAddress());
+    // [4] b3: CameraInfo
+    commandList->SetGraphicsRootConstantBufferView(4, cameraResource_->GetGPUVirtualAddress());
+    // [5] b4: PointLight
+    commandList->SetGraphicsRootConstantBufferView(5, pointLightResource_->GetGPUVirtualAddress());
 
-    commandList->DrawIndexedInstanced(indexCount, instanceCount, 0, 0, 0);
+    // [6] t1: EnvironmentMap (バインド漏れエラーを防ぐためテクスチャと同じハンドルを流しておく)
+    std::string envPath = envMapTexturePath_.empty()
+        ? "Resources/rostock_laage_airport_4k.dds"
+        : envMapTexturePath_;
+    commandList->SetGraphicsRootDescriptorTable(6, TextureManager::GetInstance()->GetSRVHandleGPU(envPath));
 
-    // 5. 描画が終わったらリストを空にして、次のフレームに備える
+    // 3. 一括描画（DrawInstanced）
+    uint32_t vertexCount = model_->GetVertexCount();
+    commandList->DrawInstanced(vertexCount, instanceCount, 0, 0);
+
+    // 4. 描画が終わったらリストを空にして、次のフレームに備える
     transforms_.clear();
 }
