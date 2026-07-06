@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "DirectXCommon.h"
 #include <wrl.h>
 #include "Camera.h"
@@ -8,7 +8,7 @@ public:
 	static SkyBoxCommon* GetInstance();
 
 	void Initialize(DirectXCommon* dxCommon);
-	void SetDraw(); // パイプラインとルートシグネチャをコマンドリストにセット
+	void SetDraw();
 	void Finalize();
 
 	DirectXCommon* GetDxCommon() const { return dxCommon_; }

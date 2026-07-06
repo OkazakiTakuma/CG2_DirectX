@@ -11,7 +11,7 @@ Quaternion Multiply(const Quaternion& q1, const Quaternion& q2) {
 
 Quaternion IdentityQuaternion() {
 
-	Quaternion result = {0.0f, 0.0f, 0.0f, 1.0f};
+	Quaternion result = { 0.0f, 0.0f, 0.0f, 1.0f };
 	return result;
 }
 
@@ -59,10 +59,10 @@ Quaternion MakeRotateAxisAngleQuaternion(const Vector3 axis, const float angle) 
 }
 
 Vector3 RotateVector(const Vector3& v, const Quaternion& q) {
-	Quaternion p = {v.x, v.y, v.z, 0.0f};
+	Quaternion p = { v.x, v.y, v.z, 0.0f };
 	Quaternion qConjugate = Conjugate(q);
 	Quaternion rotatedP = Multiply(Multiply(q, p), qConjugate);
-	return Vector3{rotatedP.x, rotatedP.y, rotatedP.z};
+	return Vector3{ rotatedP.x, rotatedP.y, rotatedP.z };
 }
 
 Matrix4x4 MakeRotateMatrix(const Quaternion& q) {

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Matrix.h"
 #include "Screen.h"
 #include "Vector.h"
@@ -8,15 +8,12 @@
 #include <string>
 #include <wrl.h>
 
-// 前方宣言は不要になります（GetInstanceを使用するため）
 class Sprite {
 public:
-	// 第1引数の SpriteCommon* を削除
 	void Initialize(std::string textureFilePath);
 	void Update();
 	void Draw();
 
-	// --- ゲッター・セッター群 (変更なし) ---
 	const Transform& GetTransform() { return transform; };
 	void SetTransform(const Transform& newTransform) { transform = newTransform; }
 	const Transform& GetUVTransform() { return uvTransform; }
@@ -70,7 +67,6 @@ private:
         {0.0f, 0.0f, 0.0f}
     };
 
-	// SpriteCommon* spriteCommon; // シングルトン化により削除
 
 	TransformationMatrix* transformationMatrixData = nullptr;
 	Vector2 size = {0, 0};

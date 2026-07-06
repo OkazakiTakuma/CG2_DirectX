@@ -3,10 +3,57 @@
 #include "Model.h"
 #include "ModelManager.h"
 #include "Object3dCommon.h"
+#include"Quaternion.h"
 #include <cmath>
+Vector3 CalculateValue(const std::vector<KeyframeVector3>& keyflames, float time)
+{
+
+	assert(!keyflames.empty());
+	if (keyflames.size() == 1 || time <= keyflames[0].time) {
+		return keyflames[0].value;
+	}
+	for (size_t index = 0; index < keyflames.size() - 1; index++) {
+		size_t newIndex = index + 1;
+		if (keyflames[index].time <= time && time <= keyflames[newIndex].time) {
+			float t = (time - keyflames[index].time) / (keyflames[newIndex].time - keyflames[index].time);
+			return Leap(keyflames[index].value, keyflames[newIndex].value, t);
+		}
+	}
+	return(*keyflames.rbegin()).value;
+}
+
+Quaternion CalculateValue(const std::vector<KeyframeQuaternion>& keyframes, float time)
+{
+	assert(!keyframes.empty());
+
+	if (keyframes.size() == 1 || time <= keyframes[0].time) {
+		return keyframes[0].value;
+	}
+
+	for (size_t index = 0; index < keyframes.size() - 1; index++) {
+		size_t nextIndex = index + 1;
+
+		if (keyframes[index].time <= time && time <= keyframes[nextIndex].time) {
+			float t = (time - keyframes[index].time) / (keyframes[nextIndex].time - keyframes[index].time);
+
+			return Slerp(keyframes[index].value, keyframes[nextIndex].value, t);
+		}
+	}
+
+	return keyframes.back().value;
+}
+
+namespace {
+Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate)
+{
+	Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
+	Matrix4x4 rotateMatrix = MakeRotateMatrix(rotate);
+	Matrix4x4 translateMatrix = MakeTranslateMatrix(translate);
+	return Multiply(Multiply(scaleMatrix, rotateMatrix), translateMatrix);
+}
+}
 
 void Object3d::Initialize() {
-	// シングルトンから共通設定とデフォルトカメラを取得
 	Object3dCommon* common = Object3dCommon::GetInstance();
 
 	CreateWVPResource();
@@ -15,22 +62,18 @@ void Object3d::Initialize() {
 	CreatePointLightResource();
 
 	transform = {
-		{1.0f, 1.0f, 1.0f}, // スケール
-		{0.0f, 0.0f, 0.0f}, // 回転
-		{0.0f, 0.0f, 0.0f}  // 平行移動
+		{1.0f, 1.0f, 1.0f},
+		{0.0f, 0.0f, 0.0f},
+		{0.0f, 0.0f, 0.0f}
 	};
 
-	// 環境マップの強さを初期化
 	environmentMultiplier = 0.0f;
-	// 共通設定に登録されているデフォルトカメラをセット
 	this->camera = common->GetDefaultCamera();
 }
-// 外から環境マップのテクスチャを切り替えるための関数
 void Object3d::SetEnvironmentMap(const std::string& textureFilePath) {
 	envMapTexturePath = textureFilePath;
 
 	// =======================================================
-	// ★追加：テクスチャがセットされたので、強さを「1.0f（オン）」にする
 	// =======================================================
 	environmentMultiplier = 1.0f;
 }
@@ -65,7 +108,6 @@ void Object3d::CreatePointLightResource() {
 	pointLightData->decay = 1.0f;
 }
 
-// 蓋の生成フラグを追加したシリンダー生成
 void Object3d::CreateCylinder(float radius, float height, uint32_t subdivision, bool createTopCap, bool createBottomCap) {
 	std::vector<VertexData> vertices;
 	std::vector<uint32_t> indices;
@@ -73,7 +115,6 @@ void Object3d::CreateCylinder(float radius, float height, uint32_t subdivision, 
 	float halfHeight = height / 2.0f;
 
 	// -------------------------------------------------------
-	// 1. 側面（Side）の生成
 	// -------------------------------------------------------
 	for (uint32_t i = 0; i <= subdivision; ++i) {
 		float theta = (float)i / (float)subdivision * 2.0f * pi;
@@ -99,7 +140,6 @@ void Object3d::CreateCylinder(float radius, float height, uint32_t subdivision, 
 	}
 
 	// -------------------------------------------------------
-	// 2. 上面（Top Cap）の生成 (蓋パーツ)
 	// -------------------------------------------------------
 	if (createTopCap) {
 		uint32_t topCenterIndex = (uint32_t)vertices.size();
@@ -125,7 +165,6 @@ void Object3d::CreateCylinder(float radius, float height, uint32_t subdivision, 
 	}
 
 	// -------------------------------------------------------
-	// 3. 底面（Bottom Cap）の生成 (底パーツ)
 	// -------------------------------------------------------
 	if (createBottomCap) {
 		uint32_t bottomCenterIndex = (uint32_t)vertices.size();
@@ -153,7 +192,6 @@ void Object3d::CreateCylinder(float radius, float height, uint32_t subdivision, 
 	cylinderIndexCount = (uint32_t)indices.size();
 
 	// -------------------------------------------------------
-	// 4. DirectX12 バッファの生成とデータ転送
 	// -------------------------------------------------------
 	DirectXCommon* dxCommon = Object3dCommon::GetInstance()->GetDxCommon();
 
@@ -199,7 +237,6 @@ void Object3d::SetTexture(const std::string& textureFilePath) {
 }
 
 void Object3d::Update() {
-	// ★追加：データが作られていない場合はエラーを防ぐため処理を抜ける
 	if (!transformationMatrix || !cameraData) {
 		return;
 	}
@@ -211,27 +248,48 @@ void Object3d::Update() {
 	}
 
 	if (camera) {
+		cameraData->worldPosition = camera->GetTranslate();
+		if (model && model->GetIsAnimation() && animation.duration > 0.0f) {
+			animationTime += 1.0f / 60.0f;
+			animationTime = std::fmod(animationTime, animation.duration);
+			auto rootNodeAnimationItr = animation.nodeAnimations.find(model->GetRootNode().name);
+			if (rootNodeAnimationItr != animation.nodeAnimations.end()) {
+				NodeAnimation& rootNodeAnimation = rootNodeAnimationItr->second;
+				Vector3 translate = rootNodeAnimation.translate.keyframes.empty() ? Vector3{ 0.0f, 0.0f, 0.0f } : CalculateValue(rootNodeAnimation.translate.keyframes, animationTime);
+				Quaternion rotate = rootNodeAnimation.rotate.keyframes.empty() ? IdentityQuaternion() : CalculateValue(rootNodeAnimation.rotate.keyframes, animationTime);
+				Vector3 scale = rootNodeAnimation.scale.keyframes.empty() ? Vector3{ 1.0f, 1.0f, 1.0f } : CalculateValue(rootNodeAnimation.scale.keyframes, animationTime);
+				Matrix4x4 animationMatrix = MakeAffineMatrix(scale, rotate, translate);
+				worldMatrix = Multiply(animationMatrix, MakeAffineMatrix(transform.scale, transform.rotate, transform.translate));
+			}
+		}
 		Matrix4x4 wvpMatrix = Multiply(worldMatrix, camera->GetViewProjectionMatrix());
 		transformationMatrix->WVP = wvpMatrix;
 		transformationMatrix->world = worldMatrix;
-		cameraData->worldPosition = camera->GetTranslate();
+		transformationMatrix->WorldInverseTranspose = Transpose(Inverse(worldMatrix));
 	}
 	else {
 		transformationMatrix->WVP = worldMatrix;
 		transformationMatrix->world = worldMatrix;
+		transformationMatrix->WorldInverseTranspose = Transpose(Inverse(worldMatrix));
 	}
+
 
 	cameraData->environmentMultiplier = environmentMultiplier;
 }
 
+void Object3d::UpdateAnimation()
+{
+
+
+}
+
 void Object3d::Draw() {
-	// 念のため、前回の安全対策（Nullチェック）も追加しておきます
 	if (!wvpResorceModel || !lightResource || !cameraResource || !pointLightResource) return;
 
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList = Object3dCommon::GetInstance()->GetDxCommon()->GetCommandList();
 
 	commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
-	commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress()); // ←★2番はライトが使っている！
+	commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(4, cameraResource->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(5, pointLightResource->GetGPUVirtualAddress());
 	D3D12_GPU_DESCRIPTOR_HANDLE envMapHandle = TextureManager::GetInstance()->GetSRVHandleGPU(envMapTexturePath);
@@ -246,7 +304,6 @@ void Object3d::Draw() {
 		}
 		if (isTextureSetCylinder) {
 			// =======================================================
-			// ★修正：ここの「2」を「3」に変更してください！！
 			// =======================================================
 			commandList->SetGraphicsRootDescriptorTable(3, textureHandleCylinder);
 		}
@@ -256,7 +313,14 @@ void Object3d::Draw() {
 	}
 }
 
-void Object3d::SetModel(const std::string& filePath) { model = ModelManager::GetInstance()->FindModel(filePath); }
+void Object3d::SetModel(const std::string& filePath) {
+	model = ModelManager::GetInstance()->FindModel(filePath);
+	if (model && model->GetIsAnimation()) {
+		animation = model->GetAnimation();
+	}
+}
+
+
 
 Object3d::~Object3d() {
 	if (wvpResorceModel) wvpResorceModel->Unmap(0, nullptr);
@@ -301,3 +365,5 @@ void Object3d::SetPointLight(const Vector4& color, const Vector3& position, floa
 void Object3d::SetEnvironmentMultiplier(float multiplier) {
 	environmentMultiplier = multiplier;
 }
+
+

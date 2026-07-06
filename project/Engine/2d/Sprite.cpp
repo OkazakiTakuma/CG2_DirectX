@@ -1,24 +1,18 @@
-#include "Sprite.h"
+﻿#include "Sprite.h"
 #include "SpriteCommon.h"
 #include "TextureManager.h"
-#include "WinApp.h" // Screen関連の定数を使用するため
+#include "WinApp.h"
 
 void Sprite::Initialize(std::string textureFilePath) {
-	// シングルトンからインスタンスを取得
 	SpriteCommon* common = SpriteCommon::GetInstance();
 	if (common == nullptr) {
-		assert(false && "SpriteCommonのインスタンス自体が存在しません");
+		assert(false && "SpriteCommon instance does not exist.");
 	}
 
-	// 2. dxCommonの取得
 	DirectXCommon* dxCommon = common->GetDxCommon();
 	if (dxCommon == nullptr) {
-		// ★ おそらくここで止まります！
-		// これが null ということは、SpriteCommon::Initialize(dxCommon) が
-		// まだ実行されていない、ということです。
-		assert(false && "SpriteCommonがInitializeされていません！dxCommonがnullです。");
+		assert(false && "SpriteCommon is not initialized. dxCommon is null.");
 	}
-	// インデックスバッファの作成
 	indexResource = dxCommon->CreateBufferResource(sizeof(uint32_t) * 6);
 	assert(indexResource != nullptr);
 	indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress();
@@ -26,7 +20,6 @@ void Sprite::Initialize(std::string textureFilePath) {
 	indexBufferView.Format = DXGI_FORMAT_R32_UINT;
 	indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
 
-	// 頂点バッファの作成
 	vertexResource = dxCommon->CreateBufferResource(sizeof(VertexData) * 4);
 	assert(vertexResource != nullptr);
 	vertexBufferview.BufferLocation = vertexResource->GetGPUVirtualAddress();
@@ -34,7 +27,6 @@ void Sprite::Initialize(std::string textureFilePath) {
 	vertexBufferview.StrideInBytes = sizeof(VertexData);
 	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 
-	// マテリアルリソースの作成
 	materialResource = dxCommon->CreateBufferResource(sizeof(Material));
 	assert(materialResource != nullptr);
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
@@ -42,7 +34,6 @@ void Sprite::Initialize(std::string textureFilePath) {
 	materialData->enableLighting = false;
 	materialData->uvTransform = MakeIdentity4x4();
 
-	// TransformationMatrixリソースの作成
 	transformationMatrixResource = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));
 	assert(transformationMatrixResource != nullptr);
 	transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
@@ -57,7 +48,6 @@ void Sprite::Initialize(std::string textureFilePath) {
 }
 
 void Sprite::Update() {
-	// --- 頂点計算・行列計算ロジック (変更なし) ---
 	indexData[0] = 0;
 	indexData[1] = 1;
 	indexData[2] = 2;
@@ -96,17 +86,14 @@ void Sprite::Update() {
 	Matrix4x4 projectionMatrix = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
 	transformationMatrixData->WVP = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 	transformationMatrixData->world = worldMatrix;
-	transformationMatrixData->WorldInverseTranspose = worldMatrix; // 2Dスプライトなので転置は同じ
+	transformationMatrixData->WorldInverseTranspose = worldMatrix;
 	materialData->uvTransform = MakeAffineMatrix(uvTransform.scale, uvTransform.rotate, uvTransform.translate);
 
 }
 
 void Sprite::Draw() {
-	// シングルトンから共通設定を取得
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList = SpriteCommon::GetInstance()->GetDxCommon()->GetCommandList();
 
-	// SrvManagerなどはグローバルにアクセス可能な前提
-	// SrvManager::GetInstance()->preDraw(); // 必要に応じて
 
 	commandList->IASetVertexBuffers(0, 1, &vertexBufferview);
 	commandList->IASetIndexBuffer(&indexBufferView);

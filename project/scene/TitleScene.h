@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "BaseScene.h"
 class TitleScene: public BaseScene {
@@ -12,7 +12,7 @@ public:
 
 private:
 	void ImGuiUpdate();
-	SceneManager* sceneManager = nullptr; // シーンマネージャーへのポインタ（所有権は持たない）
+	SceneManager* sceneManager = nullptr;
 
 
 };

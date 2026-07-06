@@ -7,7 +7,7 @@ void TitleScene::Initialize() {  }
 
 void TitleScene::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
-		SceneManager::GetInstance()->ChengeScene("GAMEPLAY");
+		sceneManager->ChengeScene("GAMEPLAY");
 
 	}
 }

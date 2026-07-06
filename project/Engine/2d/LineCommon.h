@@ -2,27 +2,26 @@
 
 #include "DirectXCommon.h"
 #include "struct.h"
+
+#include <array>
 #include <d3d12.h>
 #include <wrl.h>
-#include <array>
 
 const uint32_t kCountOfBlendMode = 6;
 
 class LineCommon {
 public:
-    // シングルトンインスタンスの取得
     static LineCommon* GetInstance();
 
-    // 初期化
+    // Prepares the line rendering pipeline with shared DirectX resources.
     void Initialize(DirectXCommon* dxCommon);
 
-    // 終了処理
+    // Releases GPU-side pipeline objects.
     void Finalize();
 
-    // 描画前設定（ブレンドモードを指定）
+    // Sets the pipeline state used for line rendering.
     void SetDraw(uint32_t blendMode = kBlendModeNormal);
 
-    // ゲッター
     DirectXCommon* GetDxCommon() const { return dxCommon_; }
 
 private:
@@ -37,6 +36,6 @@ private:
 private:
     DirectXCommon* dxCommon_ = nullptr;
     Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = nullptr;
-    // ブレンドモードごとのパイプラインステート
+    // Pipeline states are cached by blend mode.
     std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, kCountOfBlendMode> graphicsPipelineStates;
 };

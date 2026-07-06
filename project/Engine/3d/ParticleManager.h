@@ -16,7 +16,7 @@
 class Camera;
 class ParticleManager {
 public:
-	void Initialize(DirectXCommon* dxCommon); // 初期化時にセット
+	void Initialize(DirectXCommon* dxCommon);
 	static ParticleManager* GetInstance();
 	void Finalize();
 	static const uint32_t kMaxParticle;
@@ -35,13 +35,11 @@ public:
 		uint32_t instanceCount = 0;
 		ParticleForGPU* instanceDataPtr;
 
-		// ★追加：このグループがどのブレンドモードで描画されるか（初期値は通常ブレンド）
 		BlendMode blendMode = kBlendModeNormal;
-		// ─── ★追加：グループ個別のメッシュ情報 ───
-		ParticleMeshType meshType = kMeshTypeQuad; // メッシュの種類
-		Microsoft::WRL::ComPtr<ID3D12Resource> vertBuff = nullptr; // 専用の頂点バッファ
-		D3D12_VERTEX_BUFFER_VIEW vbView{}; // 専用の頂点バッファビュー
-		uint32_t vertexCount = 0; // 頂点数
+		ParticleMeshType meshType = kMeshTypeQuad;
+		Microsoft::WRL::ComPtr<ID3D12Resource> vertBuff = nullptr;
+		D3D12_VERTEX_BUFFER_VIEW vbView{};
+		uint32_t vertexCount = 0;
 	};
 	ParticleGroup* GetGroup(const std::string& groupName);
 

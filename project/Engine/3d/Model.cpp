@@ -10,9 +10,13 @@
 #include <sstream>
 using namespace Logger;
 
-void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename) {
+void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename, const bool isAnimation) {
 	this->modelCommon_ = modelCommon;
+	this->isAnimation_ = isAnimation;
 	modelData = LoadModelFile(directoryPath, filename);
+	if (isAnimation) {
+		animation = LoadAnimation(directoryPath, filename);
+	}
 	CreateVertexdata();
 	CreateMaterialData();
 	TextureManager::GetInstance()->LoadTexture(modelData.material.textureFilePath);
@@ -20,14 +24,10 @@ void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPat
 }
 
 Model::~Model() {
-	// デストラクタで Finalize を呼ぶことで、
-	// 手動で呼び忘れても delete 時にリソースが解放されるようにする
 	Finalize();
 }
 
 void Model::Finalize() {
-	// 1. マップ解除 (Unmap)
-	// Mapしたリソースが生きている場合のみUnmapする
 	if (vertexResource) {
 		vertexResource->Unmap(0, nullptr);
 	}
@@ -35,16 +35,12 @@ void Model::Finalize() {
 		materialResource->Unmap(0, nullptr);
 	}
 
-	// 2. ComPtr の解放 (Reset)
 	vertexResource.Reset();
 	materialResource.Reset();
 
-	// 3. メンバ変数のクリア
 	materialData = nullptr;
 	modelCommon_ = nullptr;
 
-	// vertexBufferView などは構造体なので Reset は不要だが、
-	// 安全のためにゼロクリアしておくとデバッグしやすい
 	vertexBufferView = {};
 }
 
@@ -66,7 +62,6 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 	const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_FlipWindingOrder | aiProcess_FlipUVs);
 	assert(scene != nullptr && scene->HasMeshes());
 
-	// メッシュの読み込み（ボーン関係なし）
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; meshIndex++) {
 		aiMesh* mesh = scene->mMeshes[meshIndex];
 		assert(mesh->HasNormals());
@@ -85,6 +80,7 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 				VertexData vertex;
 				vertex.position = { position.x * -1.0f, position.y, position.z, 1.0f };
 				vertex.normal = { normal.x * -1.0f, normal.y, normal.z };
+
 				vertex.texcoord = { texcoord.x, texcoord.y };
 
 				modelData.vertices.push_back(vertex);
@@ -92,7 +88,6 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 		}
 	}
 
-	// マテリアルの読み込み
 	for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; materialIndex++) {
 		aiMaterial* material = scene->mMaterials[materialIndex];
 		if (material->GetTextureCount(aiTextureType_DIFFUSE) != 0) {
@@ -102,19 +97,67 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 		}
 	}
 
-	// ノード階層の読み込み
 	if (scene->mRootNode != nullptr) {
 		modelData.rootNode = ReadNode(scene->mRootNode);
 	}
 
 	return modelData;
 }
+
+Animation Model::LoadAnimation(const std::string& directoryPath, const std::string& filename)
+{
+	Animation animation;
+	Assimp::Importer importer;
+	std::string filePath = directoryPath + "/" + filename;
+
+	const aiScene* scene = importer.ReadFile(filePath.c_str(), 0);
+	assert(scene->mNumAnimations != 0);
+
+	aiAnimation* animationAssimp = scene->mAnimations[0];
+	double ticksPerSecond = animationAssimp->mTicksPerSecond != 0.0 ? animationAssimp->mTicksPerSecond : 25.0;
+	animation.duration = static_cast<float>(animationAssimp->mDuration / ticksPerSecond);
+
+	for (uint32_t channeIndex = 0; channeIndex < animationAssimp->mNumChannels; channeIndex++) {
+		aiNodeAnim* nodeAnimtionAssimp = animationAssimp->mChannels[channeIndex];
+		NodeAnimation& nodeAnimation = animation.nodeAnimations[nodeAnimtionAssimp->mNodeName.C_Str()];
+
+		for (uint32_t keyIndex = 0; keyIndex < nodeAnimtionAssimp->mNumPositionKeys; keyIndex++)
+		{
+			aiVectorKey& keyAssimp = nodeAnimtionAssimp->mPositionKeys[keyIndex];
+			KeyframeVector3 keyframe;
+			keyframe.time = static_cast<float>(keyAssimp.mTime / ticksPerSecond);
+			keyframe.value = { -keyAssimp.mValue.x, keyAssimp.mValue.y, keyAssimp.mValue.z };
+			nodeAnimation.translate.keyframes.push_back(keyframe);
+		}
+
+		for (uint32_t keyIndex = 0; keyIndex < nodeAnimtionAssimp->mNumRotationKeys; keyIndex++)
+		{
+			aiQuatKey& keyAssimp = nodeAnimtionAssimp->mRotationKeys[keyIndex];
+			KeyframeQuaternion keyframe;
+			keyframe.time = static_cast<float>(keyAssimp.mTime / ticksPerSecond);
+
+			keyframe.value = { keyAssimp.mValue.x, -keyAssimp.mValue.y, -keyAssimp.mValue.z, keyAssimp.mValue.w };
+			nodeAnimation.rotate.keyframes.push_back(keyframe);
+		}
+
+		for (uint32_t keyIndex = 0; keyIndex < nodeAnimtionAssimp->mNumScalingKeys; keyIndex++)
+		{
+			aiVectorKey& keyAssimp = nodeAnimtionAssimp->mScalingKeys[keyIndex];
+			KeyframeVector3 keyframe;
+			keyframe.time = static_cast<float>(keyAssimp.mTime / ticksPerSecond);
+
+			keyframe.value = { keyAssimp.mValue.x, keyAssimp.mValue.y, keyAssimp.mValue.z };
+			nodeAnimation.scale.keyframes.push_back(keyframe);
+		}
+	}
+
+	return animation;
+}
 Node Model::ReadNode(aiNode* aiNode) {
 	Node result;
 	aiMatrix4x4 aiLocalMatrix = aiNode->mTransformation;
-	aiLocalMatrix.Transpose(); // 行列を転置
+	aiLocalMatrix.Transpose();
 
-	// 1要素ずつ代入する（最も安全）
 	result.localMatrix.m[0][0] = aiLocalMatrix.a1;
 	result.localMatrix.m[0][1] = aiLocalMatrix.a2;
 	result.localMatrix.m[0][2] = aiLocalMatrix.a3;
@@ -166,37 +209,24 @@ MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, c
 void Model::CreateVertexdata() {
 	vertexResource = modelCommon_->GetDxCommon()->CreateBufferResource(sizeof(VertexData) * modelData.vertices.size());
 
-	// 頂点バッファビューの作成
 
-	// リソースの先頭のアドレスから使う
-	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress(); // GPU仮想アドレス
-	// 使用するリソースのサイズは頂点のサイズ * 頂点数
-	vertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size()); // 頂点バッファのサイズ
-	// 1頂点のサイズ
-	vertexBufferView.StrideInBytes = sizeof(VertexData); // 1頂点のサイズ
+	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
+	vertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size());
+	vertexBufferView.StrideInBytes = sizeof(VertexData);
 
 	VertexData* vertexDataModel = nullptr;
-	// 書き込むためのアドレスを取得
 	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataModel));
 	std::memcpy(vertexDataModel, modelData.vertices.data(), sizeof(VertexData) * modelData.vertices.size());
 }
 
 void Model::CreateMaterialData() {
-	// リソースを作成（新しく作った DirectXCommon のメソッドを利用してもOKです）
 	materialResource = modelCommon_->GetDxCommon()->CreateBufferResource(sizeof(Material));
 
-	// 書き込むためのアドレスを取得
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 
-	// 既存の設定
-	materialData->color = {1.0f, 1.0f, 1.0f, 1.0f};
-	materialData->enableLighting = 1; // 1にするとライティング有効
+	materialData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	materialData->enableLighting = 1;
 	materialData->uvTransform = MakeIdentity4x4();
 
-	// ★追加：光沢の強さを設定
-	// 値が大きいほど、ハイライトが鋭く（小さく）なります（例：20.0f 〜 100.0f）
 	materialData->shininess = 20.0f;
 }
-
-// --- Model.cpp の最後に追加 ---
-

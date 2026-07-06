@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Matrix.h"
 #include "Screen.h"
 #include "Vector.h"
@@ -20,7 +20,7 @@
 #include <sstream>
 #include <string>
 #include <strsafe.h>
-#include <wrl.h> // ← まだ使っていなくても DirectXTex が内部で使います
+#include <wrl.h>
 #pragma comment(lib, "DirectXTex.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "struct.h"
 #include <map>
 #include <memory>
@@ -8,12 +8,13 @@
 class Model;
 class ModelCommon;
 class DirectXCommon;
+
 class ModelManager {
 public:
-	void Initialize(DirectXCommon* dxCommon);
 	static ModelManager* GetInstance();
+	void Inithialize(DirectXCommon* dxCommon);
 	void Finalize();
-	void LoadModel(const std::string& filePath);
+	void LoadModel(const std::string& filePath, bool isAnimation = false, const std::string& directoryPath = "/");
 	Model* FindModel(const std::string& filePath);
 
 private:

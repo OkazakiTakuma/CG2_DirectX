@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include"BaseScene.h"
 
 
@@ -21,14 +21,13 @@ private:
 	bool isShowSphere_ = true;
 	bool isShowCylinder_ = true;
 	bool isShowParticles_ = true;
+	std::unique_ptr<Audio> audio_ = nullptr;
 	std::unique_ptr<Sprite> sprite = nullptr;
 
 	std::vector<std::unique_ptr<Sprite>> sprites;
 	std::unique_ptr<Object3d> object3d = nullptr;
 	std::unique_ptr<Object3d> sphereObject = nullptr;
 	std::unique_ptr<Object3d> cylinderObject = nullptr;
-	std::unique_ptr<SkinnedObject3d> simpleObject = nullptr;
-
 
 	std::vector<std::unique_ptr<ParticleEmitter>> emitters_;
 	int currentParticleIndex_ = 0;
@@ -45,7 +44,6 @@ private:
 	bool isFlipY = false;
 	Vector2 textureLeftTop={0.0f, 0.0f};
 	Vector2 textureSize={0.0f, 0.0f};
-	// モデルのパラメータ調整
 	Vector3 modelPosition={0.0f, 0.0f, 0.0f};
 	Vector3 modelRotate={0.0f, 0.0f, 0.0f};
 	Vector3 modelScale={1.0f, 1.0f, 1.0f};
@@ -53,8 +51,8 @@ private:
 	Vector4 lightColor = {1.0f, 1.0f, 1.0f, 1.0f};
 	Vector3 lightDirection = {0.0f, -1.0f, 0.0f};
 	float lightIntensity = 1.0f;	
-	bool isParticleEmit = false;          // パーティクル発生のON/OFF
-	SceneManager* sceneManager = nullptr; // シーンマネージャーへのポインタ（所有権は持たない）
+	bool isParticleEmit = false;
+	SceneManager* sceneManager = nullptr;
 	std::unique_ptr<SkyBox> skyBox = nullptr;
 	std::unique_ptr<InstancingModel> instancingModel_ = nullptr;
 

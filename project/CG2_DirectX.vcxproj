@@ -88,6 +88,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)..\generated\Outputs\$(Configuration)\;$(SolutionDir)externals\assimp\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>imgui.lib;assimp-vc143-mdd.lib</AdditionalDependencies>
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
       <Command>copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
@@ -115,6 +116,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)..\generated\Outputs\$(Configuration)\;$(SolutionDir)externals\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>user32.lib;assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
       <Command>copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
@@ -145,6 +147,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <LinkTimeCodeGeneration />
       <AdditionalLibraryDirectories>$(SolutionDir)..\generated\Outputs\$(Configuration)\;$(SolutionDir)externals\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>imgui.lib;assimp-vc143-mt.lib</AdditionalDependencies>
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
       <Command>copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
@@ -176,7 +179,6 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\2d\LineCommon.cpp" />
     <ClCompile Include="Engine\3d\InstancingModel.cpp" />
     <ClCompile Include="Engine\3d\InstancingModelCommon.cpp" />
-    <ClCompile Include="Engine\math\Physics.cpp" />
     <ClCompile Include="Engine\math\Quaternion.cpp" />
     <ClCompile Include="scene\SceneFactory.cpp" />
     <ClCompile Include="scene\SceneManager.cpp" />
@@ -196,9 +198,6 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\2d\TextureManager.cpp" />
     <ClCompile Include="Engine\base\SrvManager.cpp" />
     <ClCompile Include="scene\TitleScene.cpp" />
-    <ClCompile Include="Engine\3d\SkinnedModel.cpp" />
-    <ClCompile Include="Engine\3d\SkinnedObject3d.cpp" />
-    <ClCompile Include="Engine\3d\SkinnedObject3dCommon.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Resources\Shader\FullScreen.PS.hlsl">
@@ -263,9 +262,6 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="Resources\Shader\SkinnedObject3d.VS.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\3d\Camera.h" />
@@ -286,8 +282,6 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\base\D3DResouceLeakCheker.h" />
     <ClInclude Include="Engine\base\DirectXCommon.h" />
     <ClInclude Include="Engine\math\Matrix.h" />
-    <ClInclude Include="Engine\math\Physics.h" />
-    <ClInclude Include="Engine\math\Quaternion.h" />
     <ClInclude Include="Engine\math\Screen.h" />
     <ClInclude Include="Engine\math\Vector.h" />
     <ClInclude Include="Engine\base\Input.h" />
@@ -307,13 +301,11 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\2d\LineCommon.h" />
     <ClInclude Include="Engine\3d\InstancingModel.h" />
     <ClInclude Include="Engine\3d\InstancingModelCommon.h" />
+    <ClInclude Include="Engine\math\Quaternion.h" />
     <ClInclude Include="scene\SceneFactory.h" />
     <ClInclude Include="scene\SceneManager.h" />
     <ClInclude Include="scene\GamePlayScene.h" />
     <ClInclude Include="scene\TitleScene.h" />
-    <ClInclude Include="Engine\3d\SkinnedModel.h" />
-    <ClInclude Include="Engine\3d\SkinnedObject3d.h" />
-    <ClInclude Include="Engine\3d\SkinnedObject3dCommon.h" />
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)'!='Release'">
     <ProjectReference Include="..\imgui\imgui.vcxproj" />

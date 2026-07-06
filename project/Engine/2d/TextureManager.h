@@ -12,20 +12,18 @@
 
 class TextureManager {
 public:
-	void Initialize(DirectXCommon* dxcommon); // 初期化時にセット
 	static TextureManager* GetInstance();
+	void Initialize(DirectXCommon* dxcommon);
 	void Finalize();
 	void Rerease();
+	void LoadTexture(const std::string& filepath);
 	static uint32_t kSRVIndexTop;
 	uint32_t GetTextureIndexByFilePath(const std::string& filepath);
-	// TextureManager.h 内の修正例
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVHandleGPU(const std::string& filePath) {
-		// 修正: シングルトンからチェックを行う
 		assert(!SrvManager::GetInstance()->IsOverAllocated());
 		assert(textureDatas.contains(filePath));
 		return textureDatas.at(filePath).srvHandleGPU;
 	}
-	void LoadTexture(const std::string& filepath);
 	void SetDirectXCommon(DirectXCommon* dxCommon) { dxCommon_ = dxCommon; }
 	const DirectX::TexMetadata& GetTextureMetadata(const std::string& filePath) {
 		assert(!SrvManager::GetInstance()->IsOverAllocated());
@@ -60,5 +58,5 @@ private:
 
 	std::unordered_map<std::string, TextureData> textureDatas;
 	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12Resource>> textureResources_;
-	DirectXCommon* dxCommon_ = nullptr; // メンバとして保持
+	DirectXCommon* dxCommon_ = nullptr;
 };

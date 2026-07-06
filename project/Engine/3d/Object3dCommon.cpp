@@ -2,7 +2,6 @@
 
 using namespace Logger;
 
-// 静的インスタンスの取得
 Object3dCommon* Object3dCommon::GetInstance() {
 	static Object3dCommon instance;
 	return &instance;
@@ -12,16 +11,12 @@ void Object3dCommon::Initialize(DirectXCommon* dxCommon) {
 	assert(dxCommon);
 	this->dxCommon_ = dxCommon;
 
-	// パイプラインステートの生成（内部でルートシグネチャも生成）
 	CreatePipelineState();
 }
 
 void Object3dCommon::SetDraw() {
-	// パイプラインステートの設定
 	dxCommon_->GetCommandList()->SetPipelineState(graphicsPipelineState.Get());
-	// ルートシグネチャの設定
 	dxCommon_->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());
-	// プリミティブ形状の設定（三角形リスト）
 	dxCommon_->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
@@ -35,21 +30,18 @@ void Object3dCommon::Finalize() {
 void Object3dCommon::CreateRootSignature() {
 	HRESULT hr;
 
-	// 既存のテクスチャ(t0)用デスクリプタレンジ
 	D3D12_DESCRIPTOR_RANGE descriptorRange[1] = {};
 	descriptorRange[0].BaseShaderRegister = 0;
 	descriptorRange[0].NumDescriptors = 1;
 	descriptorRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	// ★追加：環境マップ(t1)用デスクリプタレンジ
 	D3D12_DESCRIPTOR_RANGE descriptorRangeEnvMap[1] = {};
-	descriptorRangeEnvMap[0].BaseShaderRegister = 1; // t1レジスタ
+	descriptorRangeEnvMap[0].BaseShaderRegister = 1;
 	descriptorRangeEnvMap[0].NumDescriptors = 1;
 	descriptorRangeEnvMap[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRangeEnvMap[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	// ★変更：ルートパラメータの数を6から7に増やす
 	D3D12_ROOT_PARAMETER rootParameters[7] = {};
 
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -69,7 +61,7 @@ void Object3dCommon::CreateRootSignature() {
 	rootParameters[3].DescriptorTable.pDescriptorRanges = descriptorRange;
 	rootParameters[3].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
 
-	rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // カメラ用CBV
+	rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[4].Descriptor.ShaderRegister = 3; // b3
 
@@ -77,13 +69,11 @@ void Object3dCommon::CreateRootSignature() {
 	rootParameters[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[5].Descriptor.ShaderRegister = 4; // b4
 
-	// ★追加：環境マップ用のルートパラメータ（インデックス6）
 	rootParameters[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameters[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[6].DescriptorTable.pDescriptorRanges = descriptorRangeEnvMap;
 	rootParameters[6].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeEnvMap);
 
-	// スタティックサンプラー（変更なし）
 	D3D12_STATIC_SAMPLER_DESC staticSamplers[1] = {};
 	staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	staticSamplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -97,7 +87,7 @@ void Object3dCommon::CreateRootSignature() {
 	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	descriptionRootSignature.pParameters = rootParameters;
-	descriptionRootSignature.NumParameters = _countof(rootParameters); // ここは自動で7になります
+	descriptionRootSignature.NumParameters = _countof(rootParameters);
 	descriptionRootSignature.pStaticSamplers = staticSamplers;
 	descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 
@@ -116,7 +106,6 @@ void Object3dCommon::CreatePipelineState() {
 	HRESULT hr;
 	CreateRootSignature();
 
-	// InputLayoutの設定
 	D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
 	inputElementDescs[0].SemanticName = "POSITION";
 	inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -134,23 +123,20 @@ void Object3dCommon::CreatePipelineState() {
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
 	inputLayoutDesc.NumElements = _countof(inputElementDescs);
 
-	// BlendStateの設定 (Multiplyをデフォルトとして設定されていたものを維持)
 	D3D12_BLEND_DESC blendDesc{};
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	blendDesc.RenderTarget[0].BlendEnable = TRUE;
 	blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
 	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_SRC_COLOR; // Multiply設定
+	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_SRC_COLOR;
 	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
 	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
 
-	// RasterizerStateの設定
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK; // 裏面カリング
+	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
-	// Shaderのコンパイル
 	auto vertexShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Object3d.VS.hlsl", L"vs_6_0");
 	auto pixelShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Object3d.PS.hlsl", L"ps_6_0");
 	assert(vertexShaderBlob != nullptr);

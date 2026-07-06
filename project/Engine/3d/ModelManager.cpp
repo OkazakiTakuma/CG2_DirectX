@@ -4,7 +4,7 @@
 
 ModelManager* ModelManager::instance = nullptr;
 
-void ModelManager::Initialize(DirectXCommon* dxCommon) {
+void ModelManager::Inithialize(DirectXCommon* dxCommon) {
 	modelCommon = new ModelCommon;
 	modelCommon->Initialize(dxCommon);
 }
@@ -21,12 +21,12 @@ void ModelManager::Finalize() {
 	instance = nullptr;
 }
 
-void ModelManager::LoadModel(const std::string& filePath) {
+void ModelManager::LoadModel(const std::string& filePath, bool isAnimation, const std::string& directoryPath) {
 	if (models.contains(filePath)) {
 		return;
 	}
 	std::unique_ptr<Model> model = std::make_unique<Model>();
-	model->Initialize(modelCommon, "resources", filePath);
+	model->Initialize(modelCommon, "Resources" + directoryPath, filePath, isAnimation);
 	models.insert(std::make_pair(filePath, std::move(model)));
 }
 
