@@ -88,6 +88,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)..\generated\Outputs\$(Configuration)\;$(SolutionDir)externals\assimp\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>imgui.lib;assimp-vc143-mdd.lib</AdditionalDependencies>
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
       <Command>copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
@@ -115,6 +116,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)..\generated\Outputs\$(Configuration)\;$(SolutionDir)externals\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>user32.lib;assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
       <Command>copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
@@ -145,6 +147,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <LinkTimeCodeGeneration />
       <AdditionalLibraryDirectories>$(SolutionDir)..\generated\Outputs\$(Configuration)\;$(SolutionDir)externals\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>imgui.lib;assimp-vc143-mt.lib</AdditionalDependencies>
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
       <Command>copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"

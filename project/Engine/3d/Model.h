@@ -13,13 +13,10 @@
 class ModelCommon;
 class Model {
 public:
-	friend class InstancingModel; // ★これを追加
+	friend class InstancingModel;
 
-	// 初期化
 	void Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename,const bool isAnimation);
-	// 終了
 	void Finalize();
-	// 描画前処理
 	void Draw();
 	~Model();
 	const Node& GetRootNode() const { return modelData.rootNode; }

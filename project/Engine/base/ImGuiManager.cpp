@@ -1,10 +1,9 @@
-#include "ImGuiManager.h"
+﻿#include "ImGuiManager.h"
 
 #ifdef USE_IMGUI
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #endif
 
-// 静적インスタンスの取得
 ImGuiManager* ImGuiManager::GetInstance() {
 	static ImGuiManager instance;
 	return &instance;
@@ -14,23 +13,20 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 #ifdef USE_IMGUI
 	dxcommon = dxCommon;
 
-	// コンテキスト作成
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
 
-	// プラットフォームとレンダラーの初期化
 	ImGui_ImplWin32_Init(winApp->GetHwnd());
 
 	ImGui_ImplDX12_InitInfo initInfo{};
 	SrvManager* srvManager = SrvManager::GetInstance();
 
 	initInfo.Device = dxCommon->GetDevice().Get();
-	initInfo.NumFramesInFlight = dxCommon->GetSwapChainResourceCount();
+	initInfo.NumFramesInFlight = static_cast<int>(dxCommon->GetSwapChainResourceCount());
 	initInfo.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	initInfo.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	initInfo.SrvDescriptorHeap = srvManager->GetDescriptorHeap().Get();
 
-	// デスクリプタ割り当て関数 (SrvManagerを利用)
 	initInfo.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle) {
 		SrvManager* srvmanager = SrvManager::GetInstance();
 		uint32_t index = srvmanager->Allocate();
@@ -40,7 +36,6 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 
 	initInfo.CommandQueue = dxCommon->GetCommandQueue().Get();
 	initInfo.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_desc_handle) {
-		// 解放が必要な場合はここに記述
 	};
 
 	ImGui_ImplDX12_Init(&initInfo);
@@ -72,19 +67,14 @@ void ImGuiManager::End() {
 
 void ImGuiManager::Draw() {
 #ifdef USE_IMGUI
-	// ImGuiの内部的な描画準備
 	ImGui::Render();
 
-	// コマンドリストを取得
 	auto commandList = dxcommon->GetCommandList();
 
-	// ====== 【ここを追加】 ======
-	// SrvManagerからデスクリプタヒープを取得して、コマンドリストにセットする！
 	ID3D12DescriptorHeap* ppHeaps[] = { SrvManager::GetInstance()->GetDescriptorHeap().Get() };
 	commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 	// ============================
 
-	// ImGuiの描画コマンドを積む
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 #endif
 }

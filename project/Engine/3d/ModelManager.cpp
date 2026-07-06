@@ -26,7 +26,7 @@ void ModelManager::LoadModel(const std::string& filePath, bool isAnimation, cons
 		return;
 	}
 	std::unique_ptr<Model> model = std::make_unique<Model>();
-	model->Initialize(modelCommon, "Resources"+directoryPath, filePath);
+	model->Initialize(modelCommon, "Resources" + directoryPath, filePath, isAnimation);
 	models.insert(std::make_pair(filePath, std::move(model)));
 }
 

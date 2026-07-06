@@ -2,6 +2,7 @@
 #include "AbstractSceneFactory.h"
 #include "Camera.h"
 #include "FlameWork.h"
+#include "SceneManager.h"
 #include <memory>
 
 class Game : public FlameWork {
@@ -16,5 +17,6 @@ private:
 	std::unique_ptr<Camera> camera = nullptr;
 	bool endRequest = false;
 	std::unique_ptr<AbstractSceneFactory> sceneFactory = nullptr;
+	std::unique_ptr<SceneManager> sceneManager = nullptr;
 
 };

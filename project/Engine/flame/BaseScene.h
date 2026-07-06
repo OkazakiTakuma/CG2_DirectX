@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Audio.h"
 #include "Camera.h"
 #include "ImGuiManager.h"
@@ -31,10 +31,8 @@ public:
 	virtual void Finalize();
 	virtual ~BaseScene();
 
-	// シーンマネージャーの所有権を渡すなら unique_ptr を受け取る方が安全です。
-	// 既存コードと互換を保つなら引数は SceneManager* のままにできます。
 	virtual void SetSceneManager(SceneManager* manager) { sceneManager = manager; }
 
 private:
-	SceneManager* sceneManager = nullptr; // シーンマネージャーへのポインタ（所有権は持たない）
+	SceneManager* sceneManager = nullptr;
 };

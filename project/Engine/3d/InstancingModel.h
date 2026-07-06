@@ -6,7 +6,6 @@
 #include <d3d12.h>
 #include <wrl.h>
 
-// インスタンシング描画用のGPUに送る行列データ
 struct InstancingMatrixData {
     Matrix4x4 WVP;
     Matrix4x4 world;
@@ -15,41 +14,33 @@ struct InstancingMatrixData {
 
 class InstancingModel {
 public:
-    // 初期化（最大描画数を決めてバッファを作る）
     void Initialize(Model* model, uint32_t maxInstanceCount);
 
-    // 毎フレーム、描画したい座標を追加する
     void AddInstance(const Transform& transform);
 
-    // 溜まった座標データをGPUに転送し、一括で描画する
     void Draw(Camera* camera);
 
-    ~InstancingModel(); // デストラクタを追加
-    // 環境マップのテクスチャパスを設定する
+    ~InstancingModel();
     void SetEnvironmentMapPath(const std::string& path) { envMapTexturePath_ = path; }
 private:
     Model* model_ = nullptr;
-    uint32_t maxInstanceCount_ = 1000; // 最大描画数
+    uint32_t maxInstanceCount_ = 1000;
 
-    // 追加された座標データのリスト
     std::vector<Transform> transforms_;
 
-    // GPUへ送るための配列バッファ（StructuredBuffer）
     Microsoft::WRL::ComPtr<ID3D12Resource> instanceBuffer_;
     InstancingMatrixData* mappedData_ = nullptr;
 
-    // バッファを生成する内部関数
     void CreateInstanceBuffer();
 
-    // ★追加: ライティングやカメラ用の定数バッファ構造体とリソース
     struct DirectionalLight {
-        Vector4 color;     // 光の色
-        Vector3 direction; // 光の方向
-        float intensity;   // 光の強度
+        Vector4 color;
+        Vector3 direction;
+        float intensity;
     };
     struct CameraForGPU {
         Vector3 worldPosition;
-        float environmentMultiplier; // 環境マップの強さ
+        float environmentMultiplier;
     };
 
     Microsoft::WRL::ComPtr<ID3D12Resource> lightResource_;
@@ -58,6 +49,6 @@ private:
     CameraForGPU* cameraData_ = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Resource> pointLightResource_;
     PointLight* pointLightData_ = nullptr;
-    std::string envMapTexturePath_; // 環境マップのテクスチャパス
+    std::string envMapTexturePath_;
     void CreateConstantBuffers();
 };

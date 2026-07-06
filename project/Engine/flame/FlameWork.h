@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Audio.h"
 #include "Camera.h"
 #include "D3DResouceLeakCheker.h"
@@ -38,19 +38,15 @@
 class FlameWork {
 public:
 	virtual ~FlameWork() = default;
+
 	virtual void Initialize();
-
 	virtual void Update();
-
 	virtual void Draw();
-
 	virtual void Finalize();
+	void Run();
 
 	virtual bool IsEndRequest() const { return endRequest; };
 
-
-
-	void Run();
 
 private:
 	bool endRequest = false;

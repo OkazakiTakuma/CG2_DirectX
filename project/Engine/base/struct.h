@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <string>
 #include <vector>
 #include"Quaternion.h"
@@ -35,12 +35,12 @@ struct Material {
 	int32_t enableLighting;
 	float padding[3];
 	Matrix4x4 uvTransform;
-	float shininess;   // ★追加
-	float padding2[3]; // 16バイトアライメントのためのパディング
+	float shininess;
+	float padding2[3];
 };
 
 struct MaterialData {
-	std::string textureFilePath; // テクスチャファイルのパス
+	std::string textureFilePath;
 	uint32_t textureIndex = 0;
 };
 
@@ -52,7 +52,7 @@ struct Node {
 };
 
 struct ModelData {
-	std::vector<VertexData> vertices; // 頂点データ
+	std::vector<VertexData> vertices;
 	MaterialData material;
 	Node rootNode;
 };
@@ -64,19 +64,18 @@ struct Particle {
 	float currentTime;
 	bool isBillboard;
 
-	// ★以下を追加（時間変化と加速度用）
-	Vector3 acceleration; // 加速度（重力など）
-	Vector4 startColor;   // 発生時の色
-	Vector4 endColor;     // 消える時の色
-	Vector3 startScale;   // 発生時の大きさ
-	Vector3 endScale;     // 消える時の大きさ
+	Vector3 acceleration;
+	Vector4 startColor;
+	Vector4 endColor;
+	Vector3 startScale;
+	Vector3 endScale;
 };
 
 struct Emitter {
-	Transform transform; // エミッタの位置情報
-	uint32_t count;       // パーティクルの数
-	float frequency;      // 発生頻度（秒間）
-	float frequencyTimer; // 発生頻度タイマー
+	Transform transform;
+	uint32_t count;
+	float frequency;
+	float frequencyTimer;
 };
 struct ParticleForGPU {
 	Matrix4x4 WVP;
@@ -89,23 +88,21 @@ struct SoundData {
 };
 
 struct PointLight {
-	Vector4 color;    // 光の色
-	Vector3 position; // 光の位置
-	float intensity;  // 光の強度
-	float radius;     // 光の半径
-	float decay;      // 光の減衰率
-	float padding[2]; // ★16バイトアライメントのためのパディング
+	Vector4 color;
+	Vector3 position;
+	float intensity;
+	float radius;
+	float decay;
+	float padding[2];
 };
 
 struct ParticleEmitParam {
 	Vector3 scale = { 1.0f, 1.0f, 1.0f };
-	// ★追加: 消える時の大きさ（デフォルトは0にしてスッと消えるように）
 	Vector3 endScale = { 0.0f, 0.0f, 0.0f };
 
 	Vector3 baseVelocity = { 0.0f, 0.0f, 0.0f };
 	Vector3 randomVelocityRange = { 0.1f, 0.1f, 0.1f };
 
-	// ★追加: 加速度（Yをマイナスにすれば重力になります）
 	Vector3 acceleration = { 0.0f, 0.0f, 0.0f };
 
 	Vector3 randomPositionRange = { 0.0f, 0.0f, 0.0f };
@@ -115,7 +112,6 @@ struct ParticleEmitParam {
 	Vector3 randomRotateRange = { 0.0f, 0.0f, 0.0f };
 	Vector4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-	// ★追加: 消える時の色（デフォルトはアルファ値を0にして透明にする）
 	Vector4 endColor = { 1.0f, 1.0f, 1.0f, 0.0f };
 
 	Vector3 randomScaleRange = { 0.0f, 0.0f, 0.0f };
@@ -124,8 +120,8 @@ struct ParticleEmitParam {
 };
 
 enum ParticleMeshType {
-	kMeshTypeQuad, // 通常の四角形
-	kMeshTypeRing,  // リング形状
+	kMeshTypeQuad,
+	kMeshTypeRing,
 	kMeshTypeCylinder
 };
 
@@ -138,8 +134,8 @@ struct ParticleSetting {
 
 template <typename tValue>
 struct Keyframe {
-	float time; // キーフレームの時間
-	tValue value; // キーフレームの値
+	float time;
+	tValue value;
 };
 using KeyframeVector3 = Keyframe<Vector3>;
 using KeyframeQuaternion = Keyframe<Quaternion>;
@@ -155,7 +151,7 @@ struct NodeAnimation {
 };
 
 struct Animation {
-	float duration; // アニメーションの総時間
-	std::map<std::string, NodeAnimation> nodeAnimations; // ノード名とそのアニメーションのマッピング
+	float duration = 0.0f;
+	std::map<std::string, NodeAnimation> nodeAnimations;
 };
 

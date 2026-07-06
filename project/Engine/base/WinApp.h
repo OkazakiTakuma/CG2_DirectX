@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <Windows.h>
 #include <cstdint>
 class WinApp {
@@ -11,14 +11,12 @@ public:
 
 	bool ProcessMessage();
 
-	// クライアント領域のサイズを指定
 
-	static const int32_t kClientWidth = 1280; // クライアント領域の幅
+	static const int32_t kClientWidth = 1280;
 
-	static const int32_t kClientHeight = 720; // クライアント領域の高さ
+	static const int32_t kClientHeight = 720;
 
 private:
 	HWND hwnd = nullptr;
-	// ウィンドウクラスの設定
 	WNDCLASS wc = {};
 };

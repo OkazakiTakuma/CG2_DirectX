@@ -1,13 +1,16 @@
-#pragma 
+#pragma once
 
 class DirectXCommon;
+
 class ModelCommon {
-	public:
-	// 初期化
+public:
+	// Initializes the shared model rendering resources.
 	void Initialize(DirectXCommon* dxCommon);
-	// 終了
+
+	// Releases model rendering resources.
 	void Finalize();
-	// 描画前処理
+
+	// Sets the pipeline state used for model rendering.
 	void SetDraw();
 
 	DirectXCommon* GetDxCommon() { return dxCommon_; }

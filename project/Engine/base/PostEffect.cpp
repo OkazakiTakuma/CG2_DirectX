@@ -1,7 +1,7 @@
-#include "PostEffect.h"
+﻿#include "PostEffect.h"
 #include "SrvManager.h"
 #include "WinApp.h"
-#include "imGuiManager.h" // ImGuiを使用するために追加
+#include "imGuiManager.h"
 #include <cassert>
 
 PostEffect* PostEffect::GetInstance() {
@@ -13,16 +13,13 @@ void PostEffect::Initialize(DirectXCommon* dxCommon) {
 	assert(dxCommon);
 	dxCommon_ = dxCommon;
 
-	// 各種リソースの生成
 	CreateTextureResource();
 	CreateRtv();
 	CreateDsv();
 	CreateSrv();
-	// 頂点データはシェーダー内で生成されるため呼ばない
 	CreateRootSignature();
 	CreatePipelineState();
 
-	// 色変更用の定数バッファを作成する
 	CreateColorBuffer();
 }
 
@@ -113,16 +110,13 @@ void PostEffect::CreateRootSignature() {
 	descriptorRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	// パラメータを2つに増やす（[0]テクスチャ用, [1]色変更用の定数バッファ）
 	D3D12_ROOT_PARAMETER rootParameters[2] = {};
 
-	// [0] テクスチャ (t0) の設定
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[0].DescriptorTable.pDescriptorRanges = descriptorRange;
 	rootParameters[0].DescriptorTable.NumDescriptorRanges = 1;
 
-	// [1] 色変更用の定数バッファ (b0) の設定を追加
 	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[1].Descriptor.ShaderRegister = 0;
@@ -137,7 +131,7 @@ void PostEffect::CreateRootSignature() {
 
 	D3D12_ROOT_SIGNATURE_DESC descriptionSignature{};
 	descriptionSignature.pParameters = rootParameters;
-	descriptionSignature.NumParameters = 2; // パラメータ数を2に変更
+	descriptionSignature.NumParameters = 2;
 	descriptionSignature.pStaticSamplers = staticSamplers;
 	descriptionSignature.NumStaticSamplers = 1;
 	descriptionSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
@@ -153,7 +147,6 @@ void PostEffect::CreateRootSignature() {
 }
 
 void PostEffect::CreatePipelineState() {
-	// 【注意】シェーダーファイル名が異なる場合は、ご自身の環境に合わせて書き換えてください
 	auto vertexShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/CopyImage.VS.hlsl", L"vs_6_0");
 	auto pixelShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/FullScreen.PS.hlsl", L"ps_6_0");
 	assert(vertexShaderBlob && pixelShaderBlob);
@@ -193,7 +186,6 @@ void PostEffect::CreatePipelineState() {
 }
 
 void PostEffect::CreateColorBuffer() {
-	// 256バイトアラインメントでバッファサイズを設定
 	uint32_t sizeIB = (sizeof(ColorData) + 0xff) & ~0xff;
 
 	D3D12_HEAP_PROPERTIES heapProps{};
@@ -208,37 +200,31 @@ void PostEffect::CreateColorBuffer() {
 	resourceDesc.SampleDesc.Count = 1;
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	// バッファの生成
 	HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
 		&heapProps, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
 		IID_PPV_ARGS(&colorBuffer_));
 
-	// 💡【追加】生成に失敗した場合はここで止める（クラッシュを防ぐ）
 	if (FAILED(hr)) {
 		assert(false && "Failed to create ColorBuffer");
 		return;
 	}
 
-	// 💡【追加】CPUがデータを読み込まないことを明示してマップする
 	D3D12_RANGE readRange{};
 	readRange.Begin = 0;
 	readRange.End = 0;
 
 	hr = colorBuffer_->Map(0, &readRange, reinterpret_cast<void**>(&colorData_));
 
-	// 💡【追加】Mapに失敗した場合の安全対策
 	if (FAILED(hr) || colorData_ == nullptr) {
 		assert(false && "Failed to map ColorBuffer");
 		return;
 	}
 
-	// 正常にマップできた場合のみ初期値を書き込む
 	colorData_->r = tintColor_[0];
 	colorData_->g = tintColor_[1];
 	colorData_->b = tintColor_[2];
 	colorData_->a = tintColor_[3];
 
-	// 初期状態はグレースケールON
 	colorData_->enableGrayscale = 0;
 }
 void PostEffect::PreDrawScene() {
@@ -303,7 +289,6 @@ void PostEffect::Draw() {
 
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// 定数バッファとテクスチャをコマンドリストにセット
 	commandList->SetGraphicsRootDescriptorTable(0, srvHandleGPU_);
 	commandList->SetGraphicsRootConstantBufferView(1, colorBuffer_->GetGPUVirtualAddress());
 
@@ -314,11 +299,8 @@ void PostEffect::DrawImGui() {
 #ifdef _DEBUG
 	ImGui::Begin("PostEffect Settings");
 
-	// これはオフスクリーンレンダリング自体のON/OFF（前回実装したもの）
 	ImGui::Checkbox("Enable PostEffect", &isActive_);
 
-	// 💡【追加】シェーダー側のグレースケール機能のON/OFF
-	// bool型の変数で受け取り、構造体のint32_tに変換して入れます
 	bool isGrayscale = (colorData_->enableGrayscale != 0);
 	if (ImGui::Checkbox("Apply Grayscale", &isGrayscale)) {
 		colorData_->enableGrayscale = isGrayscale ? 1 : 0;

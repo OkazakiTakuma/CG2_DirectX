@@ -28,10 +28,8 @@ Matrix4x4 operator-(const Matrix4x4& m1, const Matrix4x4& m2) { return Subtract(
 Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2) {
 	Matrix4x4 multiply{};
 
-	// 各行と各列を掛け合わせる
-	for (int i = 0; i < 4; i++) {     // 行ループ
-		for (int j = 0; j < 4; j++) { // 列ループ
-			// 行列の要素を計算して格納
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
 			multiply.m[i][j] = m1.m[i][0] * m2.m[0][j] + m1.m[i][1] * m2.m[1][j] + m1.m[i][2] * m2.m[2][j] + m1.m[i][3] * m2.m[3][j];
 		}
 	}
@@ -64,11 +62,11 @@ Vector3 MultiplyVector3(const Matrix4x4& m, const Vector3& v) {
 		result.y /= m.m[3][3];
 		result.z /= m.m[3][3];
 	}
-	if (m.m[3][0] == 0.0f && m.m[3][1] == 0.0f && m.m[3][2] == 0.0f && m.m[3][3] == 0.0f) { // 行列がゼロ行列の場合
-		assert(false); // エラーを発生させる
+	if (m.m[3][0] == 0.0f && m.m[3][1] == 0.0f && m.m[3][2] == 0.0f && m.m[3][3] == 0.0f) {
+		assert(false);
 	}
 	if (m.m[3][0] == 0.0f && m.m[3][1] == 0.0f && m.m[3][2] == 0.0f && m.m[3][3] == 0.0f) {
-		assert(false); // エラーを発生させる
+		assert(false);
 	}
 	return result;
 }
@@ -245,13 +243,11 @@ Vector3 Transformation(const Vector3& vector, const Matrix4x4& matrix) {
 	result.z = vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + 1.0f * matrix.m[3][2];
 	float w = vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] + vector.z * matrix.m[2][3] + 1.0f * matrix.m[3][3];
 
-	// wが0の場合の処理
 	if (w != 0.0f) {
 		result.x /= w;
 		result.y /= w;
 		result.z /= w;
 	} else {
-		// デフォルト値を設定するか、エラー処理を行う
 		result.x = 0.0f;
 		result.y = 0.0f;
 		result.z = 0.0f;
@@ -268,7 +264,7 @@ Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float botto
 	orthographicMatrix.m[1][1] = 2.0f / (top - bottom);
 	orthographicMatrix.m[3][1] = -(top + bottom) / (top - bottom);
 
-	orthographicMatrix.m[2][2] = -2.0f / (zFar - zNear); // 奥行きを -1 ～ 1 にマッピング
+	orthographicMatrix.m[2][2] = -2.0f / (zFar - zNear);
 	orthographicMatrix.m[3][2] = -(zFar + zNear) / (zFar - zNear);
 
 	orthographicMatrix.m[3][3] = 1;
@@ -281,11 +277,11 @@ Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip
 
 	float f = 1.0f / tanf(fovY / 2.0f); // cotangent
 
-	m.m[0][0] = f / aspectRatio;                            // xスケール
-	m.m[1][1] = f;                                          // yスケール
-	m.m[2][2] = farClip / (farClip - nearClip);             // zスケール
-	m.m[2][3] = 1.0f;                                       // z→w用スケール
-	m.m[3][2] = -nearClip * farClip / (farClip - nearClip); // zバイアス
+	m.m[0][0] = f / aspectRatio;
+	m.m[1][1] = f;
+	m.m[2][2] = farClip / (farClip - nearClip);
+	m.m[2][3] = 1.0f;
+	m.m[3][2] = -nearClip * farClip / (farClip - nearClip);
 
 	m.m[0][1] = m.m[0][2] = m.m[0][3] = 0.0f;
 	m.m[1][0] = m.m[1][2] = m.m[1][3] = 0.0f;
