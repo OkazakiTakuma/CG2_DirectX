@@ -1,5 +1,7 @@
 #pragma once
 #include"Vector.h"
+#include"Quaternion.h"
+
 /// <summary>
 /// </summary>
 struct Matrix4x4 {
@@ -9,9 +11,15 @@ struct Matrix4x4 {
 
 /// <summary>
 /// </summary>
-struct Transform {
+struct EulerTransform {
 	Vector3 scale;
 	Vector3 rotate;
+	Vector3 translate;
+};
+
+struct QuaternionTransform {
+	Vector3 scale;
+	Quaternion rotate;
 	Vector3 translate;
 };
 

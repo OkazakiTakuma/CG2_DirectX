@@ -1,5 +1,9 @@
-﻿#pragma once
-#include"BaseScene.h"
+#pragma once
+#include "BaseScene.h"
+#include "GameObject.h"
+#include "Object3dComponent.h"
+#include "ParticleEmitterComponent.h"
+#include "SpriteComponent.h"
 
 
 class GamePlayScene: public BaseScene {
@@ -22,21 +26,27 @@ private:
 	bool isShowCylinder_ = true;
 	bool isShowParticles_ = true;
 	std::unique_ptr<Audio> audio_ = nullptr;
-	std::unique_ptr<Sprite> sprite = nullptr;
+	std::unique_ptr<GameObject> spriteObject_ = nullptr;
+	SpriteComponent* sprite = nullptr;
 
-	std::vector<std::unique_ptr<Sprite>> sprites;
-	std::unique_ptr<Object3d> object3d = nullptr;
-	std::unique_ptr<Object3d> sphereObject = nullptr;
-	std::unique_ptr<Object3d> cylinderObject = nullptr;
+	std::vector<std::unique_ptr<GameObject>> spriteObjects_;
+	std::vector<SpriteComponent*> sprites;
+	std::unique_ptr<GameObject> object3dObject_ = nullptr;
+	Object3dComponent* object3d = nullptr;
+	std::unique_ptr<GameObject> sphereGameObject_ = nullptr;
+	Object3dComponent* sphereObject = nullptr;
+	std::unique_ptr<GameObject> cylinderGameObject_ = nullptr;
+	Object3dComponent* cylinderObject = nullptr;
 
-	std::vector<std::unique_ptr<ParticleEmitter>> emitters_;
+	std::vector<std::unique_ptr<GameObject>> emitterObjects_;
+	std::vector<ParticleEmitterComponent*> emitters_;
 	int currentParticleIndex_ = 0;
 	std::vector<std::string> availableTextures_;
 	Vector3 cameraPosition={0.0f, 0.0f, 0.0f};
 	Vector3 cameraRotate={0.0f, 0.0f, 0.0f};
 
-	Transform trsprite={};
-	Transform trspriteUV={};
+	EulerTransform trsprite={};
+	EulerTransform trspriteUV={};
 	Vector4 spriteColor={};
 	Vector2 spriteSize={};
 	Vector2 anchor={0.0f, 0.0f};
@@ -47,6 +57,7 @@ private:
 	Vector3 modelPosition={0.0f, 0.0f, 0.0f};
 	Vector3 modelRotate={0.0f, 0.0f, 0.0f};
 	Vector3 modelScale={1.0f, 1.0f, 1.0f};
+	void LoadSceneModels();
 	void ImGuiUpdate();
 	Vector4 lightColor = {1.0f, 1.0f, 1.0f, 1.0f};
 	Vector3 lightDirection = {0.0f, -1.0f, 0.0f};

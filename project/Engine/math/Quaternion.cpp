@@ -1,4 +1,5 @@
 #include "Quaternion.h"
+#include "Matrix.h"
 #include <cmath>
 Quaternion Multiply(const Quaternion& q1, const Quaternion& q2) {
 	Quaternion result;

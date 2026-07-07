@@ -1,6 +1,8 @@
 #pragma once
 #include"Vector.h"
-#include"Matrix.h"
+
+struct Matrix4x4;
+
 struct Quaternion {
 	float x, y, z, w;
 };

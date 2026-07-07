@@ -69,6 +69,7 @@ void Object3d::Initialize() {
 
 	environmentMultiplier = 0.0f;
 	this->camera = common->GetDefaultCamera();
+	TextureManager::GetInstance()->LoadTexture(envMapTexturePath);
 }
 void Object3d::SetEnvironmentMap(const std::string& textureFilePath) {
 	envMapTexturePath = textureFilePath;
@@ -88,6 +89,71 @@ void Object3d::CreateWVPResource() {
 void Object3d::CreateCameraResource() {
 	cameraResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(CameraForGPU));
 	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
+}
+
+Skeleton Object3d::CreateSkeleton(const Node& rootNode) {
+	Skeleton result;
+	result.root = CreateJoint(rootNode, std::nullopt, result.joints, result.jointMap);
+	return result;
+}
+
+int32_t Object3d::CreateJoint(const Node& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints, std::map<std::string, int32_t>& jointMap) {
+	Joint joint;
+	joint.transform = node.transform;
+	joint.localMatrix = node.localMatrix;
+	joint.skeletonSpaceMatrix = MakeIdentity4x4();
+	joint.name = node.name;
+	joint.index = static_cast<int32_t>(joints.size());
+	joint.parent = parent;
+
+	jointMap[joint.name] = joint.index;
+	joints.push_back(joint);
+
+	for (const Node& child : node.children) {
+		const int32_t childIndex = CreateJoint(child, joint.index, joints, jointMap);
+		joints[joint.index].children.push_back(childIndex);
+	}
+
+	return joint.index;
+}
+
+void Object3d::ApplyAnimationToSkeleton() {
+	if (!hasSkeleton || animation.duration <= 0.0f) {
+		return;
+	}
+
+	for (Joint& joint : skeleton.joints) {
+		auto animationItr = animation.nodeAnimations.find(joint.name);
+		if (animationItr == animation.nodeAnimations.end()) {
+			continue;
+		}
+
+		NodeAnimation& nodeAnimation = animationItr->second;
+		if (!nodeAnimation.translate.keyframes.empty()) {
+			joint.transform.translate = CalculateValue(nodeAnimation.translate.keyframes, animationTime);
+		}
+		if (!nodeAnimation.rotate.keyframes.empty()) {
+			joint.transform.rotate = CalculateValue(nodeAnimation.rotate.keyframes, animationTime);
+		}
+		if (!nodeAnimation.scale.keyframes.empty()) {
+			joint.transform.scale = CalculateValue(nodeAnimation.scale.keyframes, animationTime);
+		}
+	}
+}
+
+void Object3d::UpdateSkeleton() {
+	if (!hasSkeleton) {
+		return;
+	}
+
+	for (Joint& joint : skeleton.joints) {
+		joint.localMatrix = MakeAffineMatrix(joint.transform.scale, joint.transform.rotate, joint.transform.translate);
+		if (joint.parent) {
+			joint.skeletonSpaceMatrix = Multiply(joint.localMatrix, skeleton.joints[*joint.parent].skeletonSpaceMatrix);
+		} else {
+			joint.skeletonSpaceMatrix = joint.localMatrix;
+		}
+	}
 }
 
 void Object3d::CreateDirectionalLightResource() {
@@ -244,24 +310,21 @@ void Object3d::Update() {
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 
 	if (model) {
-		worldMatrix = Multiply(model->GetRootNode().localMatrix, worldMatrix);
+		if (model->GetIsAnimation() && animation.duration > 0.0f) {
+			animationTime += 1.0f / 60.0f;
+			animationTime = std::fmod(animationTime, animation.duration);
+			ApplyAnimationToSkeleton();
+		}
+
+		UpdateSkeleton();
+		const Matrix4x4 modelLocalMatrix = hasSkeleton && skeleton.root >= 0 && skeleton.root < static_cast<int32_t>(skeleton.joints.size())
+		    ? skeleton.joints[skeleton.root].skeletonSpaceMatrix
+		    : model->GetRootNode().localMatrix;
+		worldMatrix = Multiply(modelLocalMatrix, worldMatrix);
 	}
 
 	if (camera) {
 		cameraData->worldPosition = camera->GetTranslate();
-		if (model && model->GetIsAnimation() && animation.duration > 0.0f) {
-			animationTime += 1.0f / 60.0f;
-			animationTime = std::fmod(animationTime, animation.duration);
-			auto rootNodeAnimationItr = animation.nodeAnimations.find(model->GetRootNode().name);
-			if (rootNodeAnimationItr != animation.nodeAnimations.end()) {
-				NodeAnimation& rootNodeAnimation = rootNodeAnimationItr->second;
-				Vector3 translate = rootNodeAnimation.translate.keyframes.empty() ? Vector3{ 0.0f, 0.0f, 0.0f } : CalculateValue(rootNodeAnimation.translate.keyframes, animationTime);
-				Quaternion rotate = rootNodeAnimation.rotate.keyframes.empty() ? IdentityQuaternion() : CalculateValue(rootNodeAnimation.rotate.keyframes, animationTime);
-				Vector3 scale = rootNodeAnimation.scale.keyframes.empty() ? Vector3{ 1.0f, 1.0f, 1.0f } : CalculateValue(rootNodeAnimation.scale.keyframes, animationTime);
-				Matrix4x4 animationMatrix = MakeAffineMatrix(scale, rotate, translate);
-				worldMatrix = Multiply(animationMatrix, MakeAffineMatrix(transform.scale, transform.rotate, transform.translate));
-			}
-		}
 		Matrix4x4 wvpMatrix = Multiply(worldMatrix, camera->GetViewProjectionMatrix());
 		transformationMatrix->WVP = wvpMatrix;
 		transformationMatrix->world = worldMatrix;
@@ -292,6 +355,10 @@ void Object3d::Draw() {
 	commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(4, cameraResource->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(5, pointLightResource->GetGPUVirtualAddress());
+	if (envMapTexturePath.empty()) {
+		envMapTexturePath = "Resources/rostock_laage_airport_4k.dds";
+	}
+	TextureManager::GetInstance()->LoadTexture(envMapTexturePath);
 	D3D12_GPU_DESCRIPTOR_HANDLE envMapHandle = TextureManager::GetInstance()->GetSRVHandleGPU(envMapTexturePath);
 	commandList->SetGraphicsRootDescriptorTable(6, envMapHandle);
 
@@ -313,11 +380,23 @@ void Object3d::Draw() {
 	}
 }
 
-void Object3d::SetModel(const std::string& filePath) {
-	model = ModelManager::GetInstance()->FindModel(filePath);
+void Object3d::SetModel(Model* newModel) {
+	model = newModel;
+	hasSkeleton = false;
+	skeleton = {};
+	animationTime = 0.0f;
 	if (model && model->GetIsAnimation()) {
 		animation = model->GetAnimation();
 	}
+	if (model) {
+		skeleton = CreateSkeleton(model->GetRootNode());
+		hasSkeleton = !skeleton.joints.empty();
+		UpdateSkeleton();
+	}
+}
+
+void Object3d::SetModel(const std::string& filePath) {
+	SetModel(ModelManager::GetInstance()->FindModel(filePath));
 }
 
 

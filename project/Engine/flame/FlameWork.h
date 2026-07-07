@@ -44,6 +44,7 @@ public:
 	virtual void Draw();
 	virtual void Finalize();
 	void Run();
+	void ToggleFullscreen();
 
 	virtual bool IsEndRequest() const { return endRequest; };
 

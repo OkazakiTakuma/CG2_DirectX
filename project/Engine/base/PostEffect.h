@@ -60,10 +60,18 @@ private:
 	struct ColorData {
 		float r, g, b, a;
 		int32_t enableGrayscale;
+		int32_t enableVignetting;
+		float vignetteIntensity;
+		float vignetteRadius;
+		float vignetteSoftness;
 		float padding[3];
 	};
 
 	ColorData* colorData_ = nullptr;
 
 	float tintColor_[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	bool enableVignetting_ = false;
+	float vignetteIntensity_ = 0.65f;
+	float vignetteRadius_ = 0.55f;
+	float vignetteSoftness_ = 0.35f;
 };

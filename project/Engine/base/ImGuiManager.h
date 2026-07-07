@@ -4,9 +4,9 @@
 #include "WinApp.h"
 
 #ifdef USE_IMGUI
-#include "../imgui/imgui.h"
-#include "../imgui/imgui_impl_dx12.h"
-#include "../imgui/imgui_impl_win32.h"
+#include "../../../imgui/imgui.h"
+#include "../../../imgui/imgui_impl_dx12.h"
+#include "../../../imgui/imgui_impl_win32.h"
 #endif
 
 class ImGuiManager {
@@ -25,10 +25,13 @@ public:
 
 private:
 	ImGuiManager() = default;
+	void SetupExternalEditorDockSpaces();
+	void DrawUtilityWindows();
 
 	ImGuiManager(const ImGuiManager&) = delete;
 	ImGuiManager& operator=(const ImGuiManager&) = delete;
 
 private:
 	DirectXCommon* dxcommon = nullptr;
+	HWND gameWindowHandle_ = nullptr;
 };

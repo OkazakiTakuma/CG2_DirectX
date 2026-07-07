@@ -2,6 +2,7 @@
 #include "AbstractSceneFactory.h"
 
 #include <memory>
+#include <string>
 
 class BaseScene;
 
@@ -19,6 +20,7 @@ public:
 	void DrawSkyBox();
 	void Draw2D();
 	void Draw3D();
+	void DrawEditorImGui();
 
 	void SetSceneFactory(AbstractSceneFactory* factory) { sceneFactory_ = factory; }
 
@@ -26,4 +28,7 @@ private:
 	std::unique_ptr<BaseScene> scene_ = nullptr;
 	std::unique_ptr<BaseScene> nextScene_ = nullptr;
 	AbstractSceneFactory* sceneFactory_ = nullptr;
+	std::string currentSceneName_ = "None";
+	std::string nextSceneName_ = "None";
+	int selectedSceneIndex_ = 0;
 };

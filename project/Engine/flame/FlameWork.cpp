@@ -92,6 +92,12 @@ void FlameWork::Update() {
 
 void FlameWork::Draw() {}
 
+void FlameWork::ToggleFullscreen() {
+	if (winApp) {
+		winApp->ToggleFullscreen();
+	}
+}
+
 void FlameWork::Finalize() {
 	ParticleManager::GetInstance()->Finalize();
 	ModelManager::GetInstance()->Finalize();

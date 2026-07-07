@@ -52,10 +52,7 @@ ParticleManager* ParticleManager::GetInstance() {
 }
 
 void ParticleManager::Finalize() {
-	for (auto& group : particleGroups_) {
-		group.second.instanceResource.Reset();
-	}
-	particleGroups_.clear();
+	ClearGroups();
 
 	rootSignature.Reset();
 	for (auto& pso : graphicsPipelineStates) {
@@ -63,6 +60,14 @@ void ParticleManager::Finalize() {
 	}
 	delete instance;
 	instance = nullptr;
+}
+
+void ParticleManager::ClearGroups() {
+	for (auto& group : particleGroups_) {
+		group.second.instanceResource.Reset();
+		group.second.vertBuff.Reset();
+	}
+	particleGroups_.clear();
 }
 void ParticleManager::Initialize(DirectXCommon* dxCommon) {
 

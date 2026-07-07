@@ -40,9 +40,9 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metaData);
 
 	Microsoft::WRL::ComPtr<ID3D12Device> GetDevice() { return device.Get(); }
-	IDxcCompiler3* GetDxcCompiler() { return dxcCompiler; }
-	IDxcUtils* GetDxcUtils() { return dxcUtils; }
-	IDxcIncludeHandler* GetIncludeHandler() { return includeHandler; }
+	IDxcCompiler3* GetDxcCompiler() { return dxcCompiler.Get(); }
+	IDxcUtils* GetDxcUtils() { return dxcUtils.Get(); }
+	IDxcIncludeHandler* GetIncludeHandler() { return includeHandler.Get(); }
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetCommandList() { return commandList.Get(); }
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> GetCommandAllocator() { return commandAllocator.Get(); }
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> GetCommandQueue() { return commandQueue.Get(); }
@@ -118,9 +118,9 @@ private:
 	HANDLE fenceEvent;
 	D3D12_VIEWPORT viewport{};
 	D3D12_RECT scissorRect{};
-	IDxcCompiler3* dxcCompiler = nullptr;
-	IDxcUtils* dxcUtils = nullptr;
-	IDxcIncludeHandler* includeHandler = nullptr;
+	Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler = nullptr;
+	Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils = nullptr;
+	Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler = nullptr;
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
 
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;

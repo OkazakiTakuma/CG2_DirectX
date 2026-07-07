@@ -7,6 +7,7 @@
 #include <mfreadwrite.h>
 #include <string>
 #include <vector>
+#include <wrl.h>
 #include <xaudio2.h>
 
 #pragma comment(lib, "xaudio2.lib")
@@ -28,7 +29,7 @@ public:
 	void Play(const SoundData& soundData, int mode = 0);
 
 private:
-	IXAudio2* pXAudio2 = nullptr;
+	Microsoft::WRL::ComPtr<IXAudio2> pXAudio2 = nullptr;
 	IXAudio2MasteringVoice* pMasterVoice = nullptr;
 	bool isInitialized_ = false;
 };

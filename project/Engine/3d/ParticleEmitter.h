@@ -63,7 +63,7 @@ public:
 
 private:
 	std::string groupName_;
-	Transform transform_;
+	EulerTransform transform_;
 	uint32_t count_;
 	float frequency_;
 	float frequencyTimer_;

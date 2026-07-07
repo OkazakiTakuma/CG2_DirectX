@@ -16,7 +16,7 @@ class InstancingModel {
 public:
     void Initialize(Model* model, uint32_t maxInstanceCount);
 
-    void AddInstance(const Transform& transform);
+    void AddInstance(const EulerTransform& transform);
 
     void Draw(Camera* camera);
 
@@ -26,7 +26,7 @@ private:
     Model* model_ = nullptr;
     uint32_t maxInstanceCount_ = 1000;
 
-    std::vector<Transform> transforms_;
+    std::vector<EulerTransform> transforms_;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> instanceBuffer_;
     InstancingMatrixData* mappedData_ = nullptr;

@@ -226,6 +226,10 @@ void PostEffect::CreateColorBuffer() {
 	colorData_->a = tintColor_[3];
 
 	colorData_->enableGrayscale = 0;
+	colorData_->enableVignetting = enableVignetting_ ? 1 : 0;
+	colorData_->vignetteIntensity = vignetteIntensity_;
+	colorData_->vignetteRadius = vignetteRadius_;
+	colorData_->vignetteSoftness = vignetteSoftness_;
 }
 void PostEffect::PreDrawScene() {
 	auto commandList = dxCommon_->GetCommandList();
@@ -296,8 +300,24 @@ void PostEffect::Draw() {
 }
 
 void PostEffect::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
+#ifndef IMGUI_HAS_DOCK
+	const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+	const float leftWidth = 270.0f;
+	const float panelWidth = 260.0f;
+	const float width = displaySize.x > 0.0f ? displaySize.x : 1280.0f;
+	const float x = (width - panelWidth) * 0.5f;
+
+	ImGui::SetNextWindowPos(ImVec2(x > leftWidth ? x : leftWidth, 0.0f), ImGuiCond_Always);
+	ImGui::SetNextWindowSize(ImVec2(panelWidth, 130.0f), ImGuiCond_Always);
+	ImGui::Begin(
+	    "PostEffect Settings",
+	    nullptr,
+	    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings
+	);
+#else
 	ImGui::Begin("PostEffect Settings");
+#endif
 
 	ImGui::Checkbox("Enable PostEffect", &isActive_);
 
@@ -311,6 +331,25 @@ void PostEffect::DrawImGui() {
 		colorData_->g = tintColor_[1];
 		colorData_->b = tintColor_[2];
 		colorData_->a = tintColor_[3];
+	}
+
+	if (ImGui::Checkbox("Apply Vignetting", &enableVignetting_)) {
+		colorData_->enableVignetting = enableVignetting_ ? 1 : 0;
+	}
+	if (!enableVignetting_) {
+		ImGui::BeginDisabled();
+	}
+	if (ImGui::SliderFloat("Vignette Intensity", &vignetteIntensity_, 0.0f, 1.0f)) {
+		colorData_->vignetteIntensity = vignetteIntensity_;
+	}
+	if (ImGui::SliderFloat("Vignette Radius", &vignetteRadius_, 0.0f, 1.5f)) {
+		colorData_->vignetteRadius = vignetteRadius_;
+	}
+	if (ImGui::SliderFloat("Vignette Softness", &vignetteSoftness_, 0.01f, 1.0f)) {
+		colorData_->vignetteSoftness = vignetteSoftness_;
+	}
+	if (!enableVignetting_) {
+		ImGui::EndDisabled();
 	}
 
 	ImGui::End();

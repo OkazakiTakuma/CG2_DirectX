@@ -43,6 +43,7 @@ void Sprite::Initialize(std::string textureFilePath) {
 
 	size = {640.0f, 360.0f};
 	filepath = textureFilePath;
+	TextureManager::GetInstance()->LoadTexture(filepath);
 	textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(textureFilePath);
 	AdjustTextureSize();
 }

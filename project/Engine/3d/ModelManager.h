@@ -3,6 +3,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 
 class Model;
@@ -16,6 +17,7 @@ public:
 	void Finalize();
 	void LoadModel(const std::string& filePath, bool isAnimation = false, const std::string& directoryPath = "/");
 	Model* FindModel(const std::string& filePath);
+	std::vector<std::string> GetLoadedModelNames() const;
 
 private:
 	std::map<std::string, std::unique_ptr<Model>> models;
@@ -24,5 +26,5 @@ private:
 	~ModelManager() = default;
 	ModelManager(ModelManager&) = default;
 	ModelManager& operator=(const ModelManager&) = delete;
-	ModelCommon* modelCommon = nullptr;
+	std::unique_ptr<ModelCommon> modelCommon = nullptr;
 };

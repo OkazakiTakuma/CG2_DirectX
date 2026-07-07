@@ -37,6 +37,10 @@ void Game::Update() {
 	}
 	Input::GetInstance()->Update();
 
+	if (Input::GetInstance()->TriggerKey(DIK_F11)) {
+		ToggleFullscreen();
+	}
+
 	sceneManager->Update();
 
 	if (Input::GetInstance()->TriggerKey(DIK_ESCAPE)) {

@@ -10,6 +10,15 @@
 #include <sstream>
 using namespace Logger;
 
+namespace {
+Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate) {
+	Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
+	Matrix4x4 rotateMatrix = MakeRotateMatrix(rotate);
+	Matrix4x4 translateMatrix = MakeTranslateMatrix(translate);
+	return Multiply(Multiply(scaleMatrix, rotateMatrix), translateMatrix);
+}
+}
+
 void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename, const bool isAnimation) {
 	this->modelCommon_ = modelCommon;
 	this->isAnimation_ = isAnimation;
@@ -94,7 +103,17 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 			aiString texturePath;
 			material->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath);
 			modelData.material.textureFilePath = directoryPath + "/" + texturePath.C_Str();
+			break;
 		}
+		if (material->GetTextureCount(aiTextureType_BASE_COLOR) != 0) {
+			aiString texturePath;
+			material->GetTexture(aiTextureType_BASE_COLOR, 0, &texturePath);
+			modelData.material.textureFilePath = directoryPath + "/" + texturePath.C_Str();
+			break;
+		}
+	}
+	if (modelData.material.textureFilePath.empty()) {
+		modelData.material.textureFilePath = "Resources/uvChecker.png";
 	}
 
 	if (scene->mRootNode != nullptr) {
@@ -155,28 +174,15 @@ Animation Model::LoadAnimation(const std::string& directoryPath, const std::stri
 }
 Node Model::ReadNode(aiNode* aiNode) {
 	Node result;
-	aiMatrix4x4 aiLocalMatrix = aiNode->mTransformation;
-	aiLocalMatrix.Transpose();
+	aiVector3D scale;
+	aiQuaternion rotate;
+	aiVector3D translate;
+	aiNode->mTransformation.Decompose(scale, rotate, translate);
 
-	result.localMatrix.m[0][0] = aiLocalMatrix.a1;
-	result.localMatrix.m[0][1] = aiLocalMatrix.a2;
-	result.localMatrix.m[0][2] = aiLocalMatrix.a3;
-	result.localMatrix.m[0][3] = aiLocalMatrix.a4;
-
-	result.localMatrix.m[1][0] = aiLocalMatrix.b1;
-	result.localMatrix.m[1][1] = aiLocalMatrix.b2;
-	result.localMatrix.m[1][2] = aiLocalMatrix.b3;
-	result.localMatrix.m[1][3] = aiLocalMatrix.b4;
-
-	result.localMatrix.m[2][0] = aiLocalMatrix.c1;
-	result.localMatrix.m[2][1] = aiLocalMatrix.c2;
-	result.localMatrix.m[2][2] = aiLocalMatrix.c3;
-	result.localMatrix.m[2][3] = aiLocalMatrix.c4;
-
-	result.localMatrix.m[3][0] = aiLocalMatrix.d1;
-	result.localMatrix.m[3][1] = aiLocalMatrix.d2;
-	result.localMatrix.m[3][2] = aiLocalMatrix.d3;
-	result.localMatrix.m[3][3] = aiLocalMatrix.d4;
+	result.transform.scale = {scale.x, scale.y, scale.z};
+	result.transform.rotate = {rotate.x, -rotate.y, -rotate.z, rotate.w};
+	result.transform.translate = {-translate.x, translate.y, translate.z};
+	result.localMatrix = MakeAffineMatrix(result.transform.scale, result.transform.rotate, result.transform.translate);
 
 	result.name = aiNode->mName.C_Str();
 	result.children.reserve(aiNode->mNumChildren);

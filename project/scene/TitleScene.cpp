@@ -17,6 +17,7 @@ void TitleScene::Draw2D() {}
 void TitleScene::Draw3D() {}
 
 void TitleScene::Finalize() {
+	BaseScene::Finalize();
 }
 
 void TitleScene::ImGuiUpdate() {}
