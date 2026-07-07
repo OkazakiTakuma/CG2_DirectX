@@ -23,7 +23,7 @@ public:
 	void Update();
 	void Draw();
 	void UpdateAnimation();
-	void SetModel(Model* model) { this->model = model; }
+	void SetModel(Model* model);
 	void SetModel(const std::string& filePath);
 	~Object3d();
 
@@ -71,6 +71,10 @@ private:
 	CameraForGPU* cameraData = nullptr;
 
 	void CreateCameraResource();
+	Skeleton CreateSkeleton(const Node& rootNode);
+	int32_t CreateJoint(const Node& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints, std::map<std::string, int32_t>& jointMap);
+	void ApplyAnimationToSkeleton();
+	void UpdateSkeleton();
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResorceModel;
 	TransformationMatrix* transformationMatrix = nullptr;
@@ -111,11 +115,13 @@ private:
 	bool isPointLightSet = true;
 	float environmentMultiplier = 1.0f;
 
-	Transform transform;
+	EulerTransform transform;
 	Camera* camera = nullptr;
 	std::string envMapTexturePath = "Resources/rostock_laage_airport_4k.dds";
 	float animationTime = 0.0f;
 	Animation animation;
+	Skeleton skeleton;
+	bool hasSkeleton = false;
 };
 
 Vector3 CalculateValue(const std::vector<KeyframeVector3>& keyflames, float time);

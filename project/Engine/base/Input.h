@@ -17,6 +17,7 @@ public:
 	bool PushKey(BYTE keyNumber);
 	bool TriggerKey(BYTE keyNumber);
 	bool ReleaseKey(BYTE keyNumber);
+	LONG GetMouseWheelDelta() const { return mouseWheelDelta; }
 
 private:
 	Input() = default;
@@ -28,9 +29,12 @@ private:
 
 private:
 	ComPtr<IDirectInputDevice8> keyboard;
+	ComPtr<IDirectInputDevice8> mouse;
 	ComPtr<IDirectInput8> directInput;
 	BYTE key[256] = {};
 	BYTE preKey[256] = {};
+	DIMOUSESTATE2 mouseState = {};
+	LONG mouseWheelDelta = 0;
 
 	WinApp* winApp = nullptr;
 };

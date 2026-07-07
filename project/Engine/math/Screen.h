@@ -2,6 +2,7 @@
 #include <math.h>
 #include "Vector.h"
 
+
 /// <summary>
 /// </summary>
 struct Matrix3x3 {

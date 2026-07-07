@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Matrix.h"
 #include "Screen.h"
 #include "Vector.h"
@@ -14,10 +14,10 @@ public:
 	void Update();
 	void Draw();
 
-	const Transform& GetTransform() { return transform; };
-	void SetTransform(const Transform& newTransform) { transform = newTransform; }
-	const Transform& GetUVTransform() { return uvTransform; }
-	void SetUVTransform(const Transform& newUVTransform) { uvTransform = newUVTransform; }
+	const EulerTransform& GetTransform() { return transform; };
+	void SetTransform(const EulerTransform& newTransform) { transform = newTransform; }
+	const EulerTransform& GetUVTransform() { return uvTransform; }
+	void SetUVTransform(const EulerTransform& newUVTransform) { uvTransform = newUVTransform; }
 	const Vector4& GetColor() const { return materialData->color; }
 	void SetColor(const Vector4& newColor) { materialData->color = newColor; }
 	const Vector2 GetSize() const { return size; }
@@ -56,12 +56,12 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource;
 
-	Transform transform{
+	EulerTransform transform{
 	    {1.0f, 1.0f, 1.0f},
         {0.0f, 0.0f, 0.0f},
         {0.0f, 0.0f, 0.0f}
     };
-	Transform uvTransform{
+	EulerTransform uvTransform{
 	    {1.0f, 1.0f, 1.0f},
         {0.0f, 0.0f, 0.0f},
         {0.0f, 0.0f, 0.0f}

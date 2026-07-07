@@ -1,7 +1,8 @@
-﻿#pragma once
+#pragma once
 #include <string>
 #include <vector>
-#include"Quaternion.h"
+#include <optional>
+#include"Matrix.h"
 #include <format>
 #include <fstream>
 #include <locale>
@@ -46,6 +47,7 @@ struct MaterialData {
 
 // Define Node before ModelData so it is a complete type when used
 struct Node {
+	QuaternionTransform transform;
 	Matrix4x4 localMatrix;
 	std::string name;
 	std::vector<Node> children;
@@ -57,7 +59,7 @@ struct ModelData {
 	Node rootNode;
 };
 struct Particle {
-	Transform transform;
+	EulerTransform transform;
 	Vector3 velocity;
 	Vector4 color;
 	float lifeTime;
@@ -72,7 +74,7 @@ struct Particle {
 };
 
 struct Emitter {
-	Transform transform;
+	EulerTransform transform;
 	uint32_t count;
 	float frequency;
 	float frequencyTimer;
@@ -155,3 +157,20 @@ struct Animation {
 	std::map<std::string, NodeAnimation> nodeAnimations;
 };
 
+struct Joint
+{
+	QuaternionTransform transform;
+	Matrix4x4 localMatrix;
+	Matrix4x4 skeletonSpaceMatrix;
+	std::string name;
+	std::vector<int32_t> children;
+	int32_t index;
+	std::optional<int32_t> parent;
+};
+
+struct Skeleton
+{
+	int32_t root;
+	std::map<std::string, int32_t> jointMap;
+	std::vector<Joint> joints;
+};

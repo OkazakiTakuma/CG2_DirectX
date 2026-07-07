@@ -1,9 +1,98 @@
 #include "GamePlayScene.h"
 #include "SceneManager.h"
+#include <cstring>
 #include <ModelManager.h>
 #include"InstancingModelCommon.h"
 
+namespace {
+ImVec2 GetPrimaryWorkPos() {
+	const ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
+	if (platformIO.Monitors.Size > 0) {
+		return platformIO.Monitors[0].WorkPos;
+	}
+	return ImVec2(0.0f, 0.0f);
+}
+
+ImVec2 GetPrimaryWorkSize() {
+	const ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
+	if (platformIO.Monitors.Size > 0) {
+		return platformIO.Monitors[0].WorkSize;
+	}
+	return ImVec2(1280.0f, 720.0f);
+}
+
+float ClampFloat(float value, float minValue, float maxValue) {
+	if (maxValue < minValue) {
+		return minValue;
+	}
+	if (value < minValue) {
+		return minValue;
+	}
+	if (value > maxValue) {
+		return maxValue;
+	}
+	return value;
+}
+
+ImVec2 ClampWindowPosToWorkArea(const ImVec2& pos, const ImVec2& size) {
+	const ImVec2 workPos = GetPrimaryWorkPos();
+	const ImVec2 workSize = GetPrimaryWorkSize();
+	const float maxX = workPos.x + workSize.x - size.x;
+	const float maxY = workPos.y + workSize.y - size.y;
+	return ImVec2(
+	    ClampFloat(pos.x, workPos.x, maxX),
+	    ClampFloat(pos.y, workPos.y, maxY)
+	);
+}
+
+struct EditorLayout {
+	ImVec2 hierarchyPos;
+	ImVec2 hierarchySize;
+	ImVec2 inspectorPos;
+	ImVec2 inspectorSize;
+	ImVec2 particlePos;
+	ImVec2 particleSize;
+};
+
+EditorLayout MakeEditorLayout() {
+	const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+	const float leftWidth = 270.0f;
+	const float rightWidth = 360.0f;
+	const float bottomHeight = 240.0f;
+	const float width = displaySize.x > 0.0f ? displaySize.x : 1280.0f;
+	const float height = displaySize.y > 0.0f ? displaySize.y : 720.0f;
+
+	EditorLayout layout{};
+	layout.hierarchyPos = ImVec2(0.0f, 0.0f);
+	layout.hierarchySize = ImVec2(leftWidth, height - bottomHeight);
+	layout.inspectorPos = ImVec2(width - rightWidth, 0.0f);
+	layout.inspectorSize = ImVec2(rightWidth, height);
+	layout.particlePos = ImVec2(leftWidth, height - bottomHeight);
+	layout.particleSize = ImVec2(width - leftWidth - rightWidth, bottomHeight);
+	return layout;
+}
+
+bool BeginEditorPanel(const char* name, const ImVec2& pos, const ImVec2& size) {
+#ifdef IMGUI_HAS_DOCK
+	(void)pos;
+	(void)size;
+	return ImGui::Begin(name);
+#else
+	const ImGuiWindowFlags flags =
+	    ImGuiWindowFlags_NoMove |
+	    ImGuiWindowFlags_NoCollapse |
+	    ImGuiWindowFlags_NoSavedSettings;
+
+	ImGui::SetNextWindowPos(pos, ImGuiCond_Always);
+	ImGui::SetNextWindowSize(size, ImGuiCond_Always);
+	return ImGui::Begin(name, nullptr, flags);
+#endif
+}
+}
+
 void GamePlayScene::Initialize() {
+	LoadSceneModels();
+
 	std::vector<std::string> allTextures = {
 			"Resources/circle.png",
 			"Resources/uvChecker.png",
@@ -21,7 +110,8 @@ void GamePlayScene::Initialize() {
 			availableTextures_.push_back(path);
 		}
 	}
-	sprite = std::make_unique<Sprite>();
+	spriteObject_ = std::make_unique<GameObject>();
+	sprite = spriteObject_->AddComponent<SpriteComponent>();
 	sprite->Initialize("Resources/uvChecker.png");
 	audio_ = std::make_unique<Audio>();
 	audio_->Initialize();
@@ -31,36 +121,34 @@ void GamePlayScene::Initialize() {
 	skyBox = std::make_unique<SkyBox>();
 	skyBox->Initialize("Resources/rostock_laage_airport_4k.dds");
 	for (int i = 0; i < 5; i++) {
-		std::unique_ptr<Sprite> sprits = std::make_unique<Sprite>();
+		auto spriteObject = std::make_unique<GameObject>();
+		SpriteComponent* sprits = spriteObject->AddComponent<SpriteComponent>();
 		if (i == 1 || i == 3) {
 			sprits->Initialize("Resources/uvChecker.png");
 		}
 		else {
 			sprits->Initialize("Resources/monsterball.png");
 		}
-		sprites.push_back(std::move(sprits));
-		Transform transform;
+		sprites.push_back(sprits);
+		spriteObjects_.push_back(std::move(spriteObject));
+		EulerTransform transform;
 		transform.scale = { 50.0f, 50.0f, 1.0f };
 		transform.translate = { 100.0f + i * 90.0f, 200.0f, 0.0f };
 		// sprits->SetTransform(transform);
 	}
 
-	object3d = std::make_unique<Object3d>();
-	object3d->Initialize();
-	ModelManager::GetInstance()->LoadModel("AnimatedCube.gltf", true, "/Cube");
-	object3d->SetModel("AnimatedCube.gltf");
-	ModelManager::GetInstance()->LoadModel("axis.obj");
+	object3dObject_ = std::make_unique<GameObject>();
+	object3d = object3dObject_->AddComponent<Object3dComponent>();
+	object3d->SetModel("simpleSkin.gltf");
 
-	sphereObject = std::make_unique<Object3d>();
-	sphereObject->Initialize();
-	ModelManager::GetInstance()->LoadModel("sphere.obj");
+	sphereGameObject_ = std::make_unique<GameObject>();
+	sphereObject = sphereGameObject_->AddComponent<Object3dComponent>();
 	sphereObject->SetModel("sphere.obj");
 	sphereObject->SetTranslate({ 0.0f, 10.0f, 3.0f });
 	sphereObject->SetScale({ 1.0f, 1.0f, 1.0f });
 	sphereObject->SetRotate({ 0.0f, 0.0f, 0.0f });
-	cylinderObject = std::make_unique<Object3d>();
-
-	cylinderObject->Initialize();
+	cylinderGameObject_ = std::make_unique<GameObject>();
+	cylinderObject = cylinderGameObject_->AddComponent<Object3dComponent>();
 
 	cylinderObject->CreateCylinder(1.0f, 2.0f, 16, true, true);
 	cylinderObject->SetTexture("Resources/gradationLine.png");
@@ -68,13 +156,12 @@ void GamePlayScene::Initialize() {
 	// =================================================
 	std::vector<std::string> particleTypes = { "Fire", "Dust", "Slash","Slash_Trace","Lightning" };
 
-	ModelManager::GetInstance()->LoadModel("sphere.obj");
-
 	instancingModel_ = std::make_unique<InstancingModel>();
 	instancingModel_->Initialize(ModelManager::GetInstance()->FindModel("sphere.obj"), 10);
 	instancingModel_->SetEnvironmentMapPath("Resources/rostock_laage_airport_4k.dds");
 	for (const auto& groupName : particleTypes) {
-		auto newEmitter = std::make_unique<ParticleEmitter>();
+		auto emitterObject = std::make_unique<GameObject>();
+		ParticleEmitterComponent* newEmitter = emitterObject->AddComponent<ParticleEmitterComponent>();
 
 		newEmitter->SetGroupName(groupName);
 
@@ -143,7 +230,8 @@ void GamePlayScene::Initialize() {
 		newEmitter->SetTexture(texPath);
 		// newEmitter->SetTranslate({0.0f, 0.0f, 0.0f});
 		ParticleManager::GetInstance()->SetGroupBlendMode(newEmitter->GetGroupName(), newEmitter->GetBlendMode());
-		emitters_.push_back(std::move(newEmitter));
+		emitters_.push_back(newEmitter);
+		emitterObjects_.push_back(std::move(emitterObject));
 	}
 
 #pragma endregion
@@ -151,6 +239,13 @@ void GamePlayScene::Initialize() {
 	SoundData fanfare = {};
 	audio_->LoadWave(L"Resources/fanfare.wav", fanfare);
 	//audio_->Play(fanfare, 0);
+}
+
+void GamePlayScene::LoadSceneModels() {
+	ModelManager::GetInstance()->LoadModel("AnimatedCube.gltf", true, "/Cube");
+	ModelManager::GetInstance()->LoadModel("simpleSkin.gltf", true, "/simpleSkin");
+	ModelManager::GetInstance()->LoadModel("axis.obj");
+	ModelManager::GetInstance()->LoadModel("sphere.obj");
 }
 
 void GamePlayScene::Update() {
@@ -166,11 +261,11 @@ void GamePlayScene::Update() {
 	}
 	ParticleManager::GetInstance()->Update();
 	Object3dCommon::GetInstance()->GetDefaultCamera()->Update();
-	object3d->Update();
+	object3dObject_->Update();
 
-	cylinderObject->Update();for (int i = 0; i < 10; ++i) {
+	cylinderGameObject_->Update();for (int i = 0; i < 10; ++i) {
 		for (int j = 0; j < 10; ++j) {
-			Transform transform;
+			EulerTransform transform;
 			transform.scale = { 0.5f, 0.5f, 0.5f };
 			transform.rotate = { 0.0f, 0.0f, 0.0f };
 			transform.translate = { -20.0f + i * 4.0f, 0.0f, -20.0f + j * 4.0f };
@@ -178,12 +273,14 @@ void GamePlayScene::Update() {
 			instancingModel_->AddInstance(transform);
 		}
 	}
-	sprite->Update();
+	spriteObject_->Update();
+	for (auto& spriteObject : spriteObjects_) {
+		spriteObject->Update();
+	}
 	for (auto& s : sprites) {
-		s->Update();
 		s->SetSize({ 100.0f, 100.0f });
 	}
-	sphereObject->Update();
+	sphereGameObject_->Update();
 	if (Input::GetInstance()->TriggerKey(DIK_A)) {
 		Vector3 targetPos = { 0.0f, -5.0f, 10.0f };
 
@@ -213,27 +310,27 @@ void GamePlayScene::DrawSkyBox() {
 
 void GamePlayScene::Draw2D() {
 	if (isShowSprite_) {
-		sprite->Draw();
+		spriteObject_->Draw();
 	}
 
 	if (isShowSprites_) {
-		for (auto& s : sprites) {
-			s->Draw();
+		for (auto& spriteObject : spriteObjects_) {
+			spriteObject->Draw();
 		}
 	}
 }
 
 void GamePlayScene::Draw3D() {
 	if (isShowObject3D_) {
-		object3d->Draw();
+		object3dObject_->Draw();
 	}
 
 	if (isShowCylinder_) {
-		cylinderObject->Draw();
+		cylinderGameObject_->Draw();
 	}
 
 	if (isShowSphere_) {
-		sphereObject->Draw();
+		sphereGameObject_->Draw();
 	}
 
 	if (isShowInstancing_) {
@@ -248,16 +345,34 @@ void GamePlayScene::Draw3D() {
 }
 
 void GamePlayScene::Finalize() {
+	BaseScene::Finalize();
 	if (audio_) {
 		audio_->Finalize();
 		audio_.reset();
 	}
+	sprite = nullptr;
+	sprites.clear();
+	emitters_.clear();
+	object3d = nullptr;
+	sphereObject = nullptr;
+	cylinderObject = nullptr;
+	spriteObject_.reset();
+	spriteObjects_.clear();
+	emitterObjects_.clear();
+	ParticleManager::GetInstance()->ClearGroups();
+	object3dObject_.reset();
+	sphereGameObject_.reset();
+	cylinderGameObject_.reset();
 }
 
 void GamePlayScene::ImGuiUpdate() {
 #ifdef USE_IMGUI
 	cameraPosition = Object3dCommon::GetInstance()->GetDefaultCamera()->GetTranslate();
 	cameraRotate = Object3dCommon::GetInstance()->GetDefaultCamera()->GetRotate();
+	if (!ImGui::GetIO().WantCaptureMouse) {
+		const float wheelZoomSpeed = 0.01f;
+		cameraPosition.z = ClampFloat(cameraPosition.z + static_cast<float>(Input::GetInstance()->GetMouseWheelDelta()) * wheelZoomSpeed, -100.0f, -1.0f);
+	}
 
 	trsprite = sprite->GetTransform();
 	trspriteUV = sprite->GetUVTransform();
@@ -287,68 +402,86 @@ void GamePlayScene::ImGuiUpdate() {
 	float pointLightRadius = object3d->GetPointLightRadius();
 	float pointLightDecay = object3d->GetPointLightDecay();
 	bool isPointLightSet = object3d->GetIsPointLightSet();
+	const EditorLayout layout = MakeEditorLayout();
 
-	ImGui::Begin("Display Settings");
+	if (BeginEditorPanel("Hierarchy", layout.hierarchyPos, layout.hierarchySize)) {
+		ImGui::Text("Scene Visibility");
+		ImGui::Separator();
 
-	ImGui::Checkbox("Show SkyBox", &isShowSkyBox_);
-	ImGui::Checkbox("Show Main Sprite", &isShowSprite_);
-	ImGui::Checkbox("Show Array Sprites", &isShowSprites_);
-	ImGui::Checkbox("Show Plane", &isShowObject3D_);
-	ImGui::Checkbox("Show InstancingModel", &isShowInstancing_);
-	ImGui::Checkbox("Show Sphere", &isShowSphere_);
-	ImGui::Checkbox("Show Cylinder", &isShowCylinder_);
-	ImGui::Checkbox("Show Particles", &isShowParticles_);
+		ImGui::Checkbox("Show SkyBox", &isShowSkyBox_);
+		ImGui::Checkbox("Show Main Sprite", &isShowSprite_);
+		ImGui::Checkbox("Show Array Sprites", &isShowSprites_);
+		ImGui::Checkbox("Show Plane", &isShowObject3D_);
+		ImGui::Checkbox("Show InstancingModel", &isShowInstancing_);
+		ImGui::Checkbox("Show Sphere", &isShowSphere_);
+		ImGui::Checkbox("Show Cylinder", &isShowCylinder_);
+		ImGui::Checkbox("Show Particles", &isShowParticles_);
 
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Text("System Info");
+		ImGui::Text("Frame Rate : %.1f FPS", ImGui::GetIO().Framerate);
+		ImGui::Text("Frame Time : %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
+
+		static bool showDemoWindow = false;
+		ImGui::Checkbox("Show ImGui Demo Window", &showDemoWindow);
+		if (showDemoWindow) {
+			ImGui::ShowDemoWindow(&showDemoWindow);
+		}
+	}
 	ImGui::End();
 
-	ImGui::Begin("Camera Settings");
-	ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
-	ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
-	ImGui::SliderAngle("camera rotate y", &cameraRotate.y);
-	ImGui::SliderAngle("camera rotate z", &cameraRotate.z);
-	ImGui::End();
-	ImGui::Begin("Model Settings");
-	ImGui::DragFloat3("model pos", &modelPosition.x, 0.1f);
-	ImGui::SliderAngle("model rotate x", &modelRotate.x);
-	ImGui::SliderAngle("model rotate y", &modelRotate.y);
-	ImGui::SliderAngle("model rotate z", &modelRotate.z);
-	ImGui::DragFloat3("model scale", &modelScale.x, 0.1f);
-	ImGui::DragFloat("environment multiplier", &environmentMultiplier, 0.01f, 0.0f, 1.0f);
-	ImGui::DragFloat3("sphere pos", &spherepos.x, 0.1f);
-	ImGui::DragFloat3("sphere rotate", &sphererot.x, 0.1f);
-	ImGui::DragFloat3("sphere scale", &spherescl.x, 0.1f);
+	if (BeginEditorPanel("Inspector", layout.inspectorPos, layout.inspectorSize)) {
+		if (ImGui::CollapsingHeader("Camera Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+			ImGui::DragFloat3("camera pos", &cameraPosition.x, 0.1f);
+			ImGui::SliderAngle("camera rotate x", &cameraRotate.x);
+			ImGui::SliderAngle("camera rotate y", &cameraRotate.y);
+			ImGui::SliderAngle("camera rotate z", &cameraRotate.z);
+		}
+
+		if (ImGui::CollapsingHeader("Model Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+			ImGui::DragFloat3("model pos", &modelPosition.x, 0.1f);
+			ImGui::SliderAngle("model rotate x", &modelRotate.x);
+			ImGui::SliderAngle("model rotate y", &modelRotate.y);
+			ImGui::SliderAngle("model rotate z", &modelRotate.z);
+			ImGui::DragFloat3("model scale", &modelScale.x, 0.1f);
+			ImGui::DragFloat("environment multiplier", &environmentMultiplier, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat3("sphere pos", &spherepos.x, 0.1f);
+			ImGui::DragFloat3("sphere rotate", &sphererot.x, 0.1f);
+			ImGui::DragFloat3("sphere scale", &spherescl.x, 0.1f);
+		}
+
+		if (ImGui::CollapsingHeader("Sprite Settings")) {
+			ImGui::DragFloat2("sprite pos", &trsprite.translate.x, 0.3f);
+			ImGui::SliderAngle("sprite rotate", &trsprite.rotate.z);
+			ImGui::DragFloat2("sprite scale", &spriteSize.x, 0.3f);
+			ImGui::ColorEdit4("sprite color", &spriteColor.x);
+			ImGui::DragFloat2("anchor point", &anchor.x, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat2("texture left top", &textureLeftTop.x, 1.0f, 0.0f, 512.0f);
+			ImGui::DragFloat2("texture size", &textureSize.x, 1.0f, 0.0f, 512.0f);
+			ImGui::Checkbox("Flip X", &isFlipX);
+			ImGui::Checkbox("Flip Y", &isFlipY);
+			ImGui::DragFloat2("UV translate", &trspriteUV.translate.x, 0.01f, -10.0f, 10.0f);
+			ImGui::DragFloat2("UV scale", &trspriteUV.scale.x, 0.01f, 0.0f, 10.0f);
+			ImGui::SliderAngle("UV rotate", &trspriteUV.rotate.z);
+		}
+
+		if (ImGui::CollapsingHeader("Light Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+			ImGui::ColorEdit4("light color", &lightColor.x);
+			ImGui::DragFloat3("light direction", &lightDirection.x, 0.1f, -1.0f, 1.0f);
+			ImGui::DragFloat("light intensity", &lightIntensity, 0.1f, 0.0f, 10.0f);
+			ImGui::Checkbox("point light set", &isPointLightSet);
+			ImGui::ColorEdit4("point light color", &pointLightColor.x);
+			ImGui::DragFloat3("point light position", &pointLightPosition.x, 0.1f);
+			ImGui::DragFloat("point light intensity", &pointLightIntensity, 0.1f, 0.0f, 10.0f);
+			ImGui::DragFloat("point light radius", &pointLightRadius, 0.1f, 0.0f, 20.0f);
+			ImGui::DragFloat("point light decay", &pointLightDecay, 0.1f, 0.0f, 10.0f);
+			ImGui::DragFloat("environment multiplier", &environmentMultiplier, 0.01f, 0.0f, 1.0f);
+		}
+	}
 	ImGui::End();
 
-	ImGui::Begin("Sprite Settings");
-	ImGui::DragFloat2("sprite pos", &trsprite.translate.x, 0.3f);
-	ImGui::SliderAngle("sprite rotate", &trsprite.rotate.z);
-	ImGui::DragFloat2("sprite scale", &spriteSize.x, 0.3f);
-	ImGui::ColorEdit4("sprite color", &spriteColor.x);
-	ImGui::DragFloat2("anchor point", &anchor.x, 0.01f, 0.0f, 1.0f);
-	ImGui::DragFloat2("texture left top", &textureLeftTop.x, 1.0f, 0.0f, 512.0f);
-	ImGui::DragFloat2("texture size", &textureSize.x, 1.0f, 0.0f, 512.0f);
-	ImGui::Checkbox("Flip X", &isFlipX);
-	ImGui::Checkbox("Flip Y", &isFlipY);
-	ImGui::DragFloat2("UV translate", &trspriteUV.translate.x, 0.01f, -10.0f, 10.0f);
-	ImGui::DragFloat2("UV scale", &trspriteUV.scale.x, 0.01f, 0.0f, 10.0f);
-	ImGui::SliderAngle("UV rotate", &trspriteUV.rotate.z);
-	ImGui::End();
-
-	ImGui::Begin("Light Settings");
-
-	ImGui::ColorEdit4("light color", &lightColor.x);
-	ImGui::DragFloat3("light direction", &lightDirection.x, 0.1f, -1.0f, 1.0f);
-	ImGui::DragFloat("light intensity", &lightIntensity, 0.1f, 0.0f, 10.0f);
-	ImGui::Checkbox("point light set", &isPointLightSet);
-	ImGui::ColorEdit4("point light color", &pointLightColor.x);
-	ImGui::DragFloat3("point light position", &pointLightPosition.x, 0.1f);
-	ImGui::DragFloat("point light intensity", &pointLightIntensity, 0.1f, 0.0f, 10.0f);
-	ImGui::DragFloat("point light radius", &pointLightRadius, 0.1f, 0.0f, 20.0f);
-	ImGui::DragFloat("point light decay", &pointLightDecay, 0.1f, 0.0f, 10.0f);
-	ImGui::DragFloat("environment multiplier", &environmentMultiplier, 0.01f, 0.0f, 1.0f);
-
-	ImGui::End();
-	ImGui::Begin("Particle Editor");
+	BeginEditorPanel("Particle Editor", layout.particlePos, layout.particleSize);
 
 	std::vector<const char*> emitterNames;
 	for (const auto& emitter : emitters_) {
@@ -476,20 +609,6 @@ void GamePlayScene::ImGuiUpdate() {
 		for (auto& emitter : emitters_) {
 			emitter->SaveToJson("Resources/Data/emit_status.json");
 		}
-	}
-
-	ImGui::End();
-	ImGui::Begin("System Info");
-
-	ImGui::Text("Frame Rate : %.1f FPS", ImGui::GetIO().Framerate);
-	ImGui::Text("Frame Time : %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
-
-	ImGui::Separator();
-
-	static bool showDemoWindow = false;
-	ImGui::Checkbox("Show ImGui Demo Window", &showDemoWindow);
-	if (showDemoWindow) {
-		ImGui::ShowDemoWindow(&showDemoWindow);
 	}
 
 	ImGui::End();

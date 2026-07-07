@@ -51,7 +51,7 @@ void InstancingModel::CreateConstantBuffers() {
     pointLightData_->decay = 1.0f;
 }
 
-void InstancingModel::AddInstance(const Transform& transform) {
+void InstancingModel::AddInstance(const EulerTransform& transform) {
     if (transforms_.size() < maxInstanceCount_) {
         transforms_.push_back(transform);
     }

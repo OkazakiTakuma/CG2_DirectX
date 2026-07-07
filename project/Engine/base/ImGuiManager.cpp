@@ -1,6 +1,8 @@
 ﻿#include "ImGuiManager.h"
 
 #ifdef USE_IMGUI
+#include "../../../imgui/imgui_internal.h"
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #endif
 
@@ -12,9 +14,19 @@ ImGuiManager* ImGuiManager::GetInstance() {
 void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] DirectXCommon* dxCommon) {
 #ifdef USE_IMGUI
 	dxcommon = dxCommon;
+	gameWindowHandle_ = winApp->GetHwnd();
 
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
+
+	ImGuiIO& io = ImGui::GetIO();
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+#ifdef IMGUI_HAS_DOCK
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+	io.ConfigViewportsNoAutoMerge = true;
+	io.ConfigViewportsNoTaskBarIcon = true;
+#endif
 
 	ImGui_ImplWin32_Init(winApp->GetHwnd());
 
@@ -48,6 +60,7 @@ void ImGuiManager::Finalize() {
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 	dxcommon = nullptr;
+	gameWindowHandle_ = nullptr;
 #endif
 }
 
@@ -56,6 +69,92 @@ void ImGuiManager::Begin() {
 	ImGui_ImplWin32_NewFrame();
 	ImGui_ImplDX12_NewFrame();
 	ImGui::NewFrame();
+	SetupExternalEditorDockSpaces();
+	DrawUtilityWindows();
+#endif
+}
+
+void ImGuiManager::SetupExternalEditorDockSpaces() {
+#if defined(USE_IMGUI) && defined(IMGUI_HAS_DOCK)
+	static bool isLayoutBuilt = false;
+	static bool wasFullscreen = false;
+	static ImVec2 previousClientSize = {};
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+	const ImGuiID dockspaceId = ImGui::GetID("UnityStyleEditorDockSpace");
+	const ImGuiDockNodeFlags dockspaceFlags =
+	    ImGuiDockNodeFlags_PassthruCentralNode |
+	    ImGuiDockNodeFlags_NoDockingOverCentralNode;
+	const bool isFullscreen = gameWindowHandle_ ? (GetWindowLongPtr(gameWindowHandle_, GWL_STYLE) & WS_OVERLAPPEDWINDOW) == 0 : false;
+	RECT clientRect{};
+	GetClientRect(gameWindowHandle_, &clientRect);
+	const ImVec2 clientSize = ImVec2(
+	    static_cast<float>(clientRect.right - clientRect.left),
+	    static_cast<float>(clientRect.bottom - clientRect.top)
+	);
+	const ImVec2 layoutSize = clientSize.x > 0.0f && clientSize.y > 0.0f ? clientSize : viewport->Size;
+
+	ImGui::DockSpaceOverViewport(dockspaceId, viewport, dockspaceFlags);
+
+	if (isFullscreen != wasFullscreen || layoutSize.x != previousClientSize.x || layoutSize.y != previousClientSize.y) {
+		isLayoutBuilt = false;
+		wasFullscreen = isFullscreen;
+		previousClientSize = layoutSize;
+	}
+
+	if (!isLayoutBuilt) {
+		ImGui::DockBuilderRemoveNode(dockspaceId);
+		ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace | dockspaceFlags);
+		ImGui::DockBuilderSetNodePos(dockspaceId, viewport->Pos);
+		ImGui::DockBuilderSetNodeSize(dockspaceId, layoutSize);
+
+		ImGuiID mainId = dockspaceId;
+		ImGuiID leftId = 0;
+		ImGuiID rightId = 0;
+		ImGuiID bottomId = 0;
+		const float leftWidth = 160.0f;
+		const float rightWidth = 260.0f;
+		const float bottomHeight = 160.0f;
+		const float leftRatio = leftWidth / layoutSize.x;
+		const float rightRatio = rightWidth / (layoutSize.x - leftWidth);
+		const float bottomRatio = bottomHeight / layoutSize.y;
+
+		ImGui::DockBuilderSplitNode(mainId, ImGuiDir_Left, leftRatio, &leftId, &mainId);
+		ImGui::DockBuilderSplitNode(mainId, ImGuiDir_Right, rightRatio, &rightId, &mainId);
+		ImGui::DockBuilderSplitNode(mainId, ImGuiDir_Down, bottomRatio, &bottomId, &mainId);
+
+		ImGui::DockBuilderDockWindow("Hierarchy", leftId);
+		ImGui::DockBuilderDockWindow("Scene Objects", leftId);
+		ImGui::DockBuilderDockWindow("Inspector", rightId);
+		ImGui::DockBuilderDockWindow("Object Inspector", rightId);
+		ImGui::DockBuilderDockWindow("Scene Manager", rightId);
+		ImGui::DockBuilderDockWindow("PostEffect Settings", rightId);
+		ImGui::DockBuilderDockWindow("Particle Editor", bottomId);
+		ImGui::DockBuilderDockWindow("Project", bottomId);
+		ImGui::DockBuilderDockWindow("Console", bottomId);
+
+		ImGui::DockBuilderFinish(dockspaceId);
+		isLayoutBuilt = true;
+	}
+#endif
+}
+
+void ImGuiManager::DrawUtilityWindows() {
+#ifdef USE_IMGUI
+	if (ImGui::Begin("Project")) {
+		ImGui::Text("Assets");
+		ImGui::Separator();
+		ImGui::Text("Resources");
+	}
+	ImGui::End();
+
+	if (ImGui::Begin("Console")) {
+		ImGui::Text("Ready %.1f FPS", ImGui::GetIO().Framerate);
+		if (gameWindowHandle_) {
+			const LONG_PTR style = GetWindowLongPtr(gameWindowHandle_, GWL_STYLE);
+			ImGui::Text("F11: %s", (style & WS_OVERLAPPEDWINDOW) ? "Windowed" : "Fullscreen");
+		}
+	}
+	ImGui::End();
 #endif
 }
 
@@ -67,8 +166,6 @@ void ImGuiManager::End() {
 
 void ImGuiManager::Draw() {
 #ifdef USE_IMGUI
-	ImGui::Render();
-
 	auto commandList = dxcommon->GetCommandList();
 
 	ID3D12DescriptorHeap* ppHeaps[] = { SrvManager::GetInstance()->GetDescriptorHeap().Get() };
@@ -76,5 +173,10 @@ void ImGuiManager::Draw() {
 	// ============================
 
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
+
+#ifdef IMGUI_HAS_DOCK
+	ImGui::UpdatePlatformWindows();
+	ImGui::RenderPlatformWindowsDefault();
+#endif
 #endif
 }

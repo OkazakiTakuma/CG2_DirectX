@@ -24,8 +24,7 @@ bool Audio::Initialize() {
 
 	hr = pXAudio2->CreateMasteringVoice(&pMasterVoice);
 	if (FAILED(hr)) {
-		pXAudio2->Release();
-		pXAudio2 = nullptr;
+		pXAudio2.Reset();
 		MFShutdown();
 		return false;
 	}
@@ -40,10 +39,7 @@ void Audio::Finalize() {
 		pMasterVoice = nullptr;
 	}
 
-	if (pXAudio2 != nullptr) {
-		pXAudio2->Release();
-		pXAudio2 = nullptr;
-	}
+	pXAudio2.Reset();
 
 	if (isInitialized_) {
 		MFShutdown();
@@ -52,36 +48,33 @@ void Audio::Finalize() {
 }
 
 bool Audio::LoadWave(const std::wstring& filename, SoundData& outData) {
-	IMFSourceReader* pReader = nullptr;
+	Microsoft::WRL::ComPtr<IMFSourceReader> pReader = nullptr;
 	HRESULT hr = MFCreateSourceReaderFromURL(filename.c_str(), nullptr, &pReader);
 	if (FAILED(hr)) {
 		return false;
 	}
 
-	IMFMediaType* pPartialType = nullptr;
+	Microsoft::WRL::ComPtr<IMFMediaType> pPartialType = nullptr;
 	hr = MFCreateMediaType(&pPartialType);
 	if (FAILED(hr)) {
-		pReader->Release();
 		return false;
 	}
 
 	pPartialType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
 	pPartialType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
-	pReader->SetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, nullptr, pPartialType);
-	pPartialType->Release();
+	pReader->SetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, nullptr, pPartialType.Get());
 
-	IMFMediaType* pUncompressedAudioType = nullptr;
+	Microsoft::WRL::ComPtr<IMFMediaType> pUncompressedAudioType = nullptr;
 	pReader->GetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, &pUncompressedAudioType);
 	UINT32 cbFormat = 0;
 	WAVEFORMATEX* pWav = nullptr;
-	MFCreateWaveFormatExFromMFMediaType(pUncompressedAudioType, &pWav, &cbFormat);
+	MFCreateWaveFormatExFromMFMediaType(pUncompressedAudioType.Get(), &pWav, &cbFormat);
 	outData.wfx = *pWav;
 	CoTaskMemFree(pWav);
-	pUncompressedAudioType->Release();
 
 	outData.buffer.clear();
 	while (true) {
-		IMFSample* pSample = nullptr;
+		Microsoft::WRL::ComPtr<IMFSample> pSample = nullptr;
 		DWORD flags = 0;
 		pReader->ReadSample(MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0, nullptr, &flags, nullptr, &pSample);
 		if (flags & MF_SOURCE_READERF_ENDOFSTREAM) {
@@ -91,7 +84,7 @@ bool Audio::LoadWave(const std::wstring& filename, SoundData& outData) {
 			continue;
 		}
 
-		IMFMediaBuffer* pBuffer = nullptr;
+		Microsoft::WRL::ComPtr<IMFMediaBuffer> pBuffer = nullptr;
 		pSample->ConvertToContiguousBuffer(&pBuffer);
 		BYTE* pAudioData = nullptr;
 		DWORD cbCurrentLength = 0;
@@ -102,11 +95,8 @@ bool Audio::LoadWave(const std::wstring& filename, SoundData& outData) {
 		std::memcpy(&outData.buffer[oldSize], pAudioData, cbCurrentLength);
 
 		pBuffer->Unlock();
-		pBuffer->Release();
-		pSample->Release();
 	}
 
-	pReader->Release();
 	return true;
 }
 

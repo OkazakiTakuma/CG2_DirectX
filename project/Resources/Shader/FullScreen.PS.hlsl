@@ -3,11 +3,14 @@
 Texture2D<float4> gTexture : register(t0);
 SamplerState gSampler : register(s0);
 
-// 💡【変更】定数バッファにフラグを追加
 cbuffer ColorInfo : register(b0)
 {
     float4 tintColor;
-    int enableGrayscale; // 1ならON、0ならOFF
+    int enableGrayscale;
+    int enableVignetting;
+    float vignetteIntensity;
+    float vignetteRadius;
+    float vignetteSoftness;
 };
 
 struct PixelShaderOutPut
@@ -18,21 +21,25 @@ struct PixelShaderOutPut
 PixelShaderOutPut main(VertexShaderOutput input)
 {
     PixelShaderOutPut output;
-    
+
     float4 baseColor = gTexture.Sample(gSampler, input.uv);
-    
-    // 💡【変更】フラグによって処理を分ける
+    float4 resultColor = baseColor;
+
     if (enableGrayscale != 0)
     {
-        // ONの場合：グレースケールにしてから色(tintColor)を掛ける
         float gray = dot(baseColor.rgb, float3(0.299f, 0.587f, 0.114f));
-        output.color = float4(gray, gray, gray, baseColor.a) * tintColor;
+        resultColor = float4(gray, gray, gray, baseColor.a);
     }
-    else
+
+    if (enableVignetting != 0)
     {
-        // OFFの場合：元の色にそのまま色(tintColor)を掛ける
-        output.color = baseColor * tintColor;
+        float2 centeredUv = input.uv - float2(0.5f, 0.5f);
+        float distanceFromCenter = length(centeredUv);
+        float edgeFactor = smoothstep(vignetteRadius, vignetteRadius + vignetteSoftness, distanceFromCenter);
+        float vignette = 1.0f - saturate(edgeFactor * vignetteIntensity);
+        resultColor.rgb *= vignette;
     }
-    
+
+    output.color = resultColor * tintColor;
     return output;
 }

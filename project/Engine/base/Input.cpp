@@ -32,10 +32,20 @@ void Input::Initialize(WinApp* winApp) {
 
 	hr = keyboard->SetCooperativeLevel(winApp->GetHwnd(), DISCL_NONEXCLUSIVE | DISCL_NOWINKEY | DISCL_FOREGROUND);
 	assert(SUCCEEDED(hr));
+
+	hr = directInput->CreateDevice(GUID_SysMouse, mouse.GetAddressOf(), NULL);
+	assert(SUCCEEDED(hr));
+
+	hr = mouse->SetDataFormat(&c_dfDIMouse2);
+	assert(SUCCEEDED(hr));
+
+	hr = mouse->SetCooperativeLevel(winApp->GetHwnd(), DISCL_NONEXCLUSIVE | DISCL_FOREGROUND);
+	assert(SUCCEEDED(hr));
 }
 
 void Input::Update() {
 	memcpy(preKey, key, sizeof(key));
+	mouseWheelDelta = 0;
 
 	HRESULT hr = keyboard->Acquire();
 
@@ -44,6 +54,20 @@ void Input::Update() {
 	if (FAILED(hr)) {
 		keyboard->Acquire();
 		keyboard->GetDeviceState(sizeof(key), key);
+	}
+
+	if (mouse) {
+		hr = mouse->Acquire();
+		hr = mouse->GetDeviceState(sizeof(mouseState), &mouseState);
+
+		if (FAILED(hr)) {
+			mouse->Acquire();
+			hr = mouse->GetDeviceState(sizeof(mouseState), &mouseState);
+		}
+
+		if (SUCCEEDED(hr)) {
+			mouseWheelDelta = mouseState.lZ;
+		}
 	}
 }
 
