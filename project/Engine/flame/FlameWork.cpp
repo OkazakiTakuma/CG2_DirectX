@@ -101,6 +101,7 @@ void FlameWork::ToggleFullscreen() {
 void FlameWork::Finalize() {
 	ParticleManager::GetInstance()->Finalize();
 	ModelManager::GetInstance()->Finalize();
+	InstancingModelCommon::GetInstance()->Finalize();
 	Object3dCommon::GetInstance()->Finalize();
 	LineDrawer::GetInstance()->Finalize();
 	LineCommon::GetInstance()->Finalize();
@@ -112,8 +113,15 @@ void FlameWork::Finalize() {
 	ImGuiManager::GetInstance()->Finalize();
 	SrvManager::GetInstance()->Finalize();
 
-	dxCommon->Release();
-	winApp->Finalize();
+	if (dxCommon) {
+		dxCommon->Release();
+		dxCommon.reset();
+	}
+	if (winApp) {
+		winApp->Finalize();
+		winApp.reset();
+	}
+	Checker.reset();
 }
 
 void FlameWork::Run() {

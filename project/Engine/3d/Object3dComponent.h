@@ -67,6 +67,8 @@ public:
 	void SetEnvironmentMultiplier(float multiplier) { object3d_->SetEnvironmentMultiplier(multiplier); }
 	void IsPointLightSet(bool isSet) { object3d_->IsPointLightSet(isSet); }
 	void SetEnvironmentMap(const std::string& textureFilePath) { object3d_->SetEnvironmentMap(textureFilePath); }
+	void SetDrawSkeleton(bool isDraw) { object3d_->SetDrawSkeleton(isDraw); }
+	bool GetDrawSkeleton() const { return object3d_->GetDrawSkeleton(); }
 
 	const Vector4 GetLightColor() const { return object3d_->GetLightColor(); }
 	const Vector3 GetLightDirection() const { return object3d_->GetLightDirection(); }

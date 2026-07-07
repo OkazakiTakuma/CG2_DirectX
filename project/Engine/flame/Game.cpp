@@ -78,5 +78,8 @@ void Game::Draw() {
 }
 
 void Game::Finalize() {
+	sceneManager.reset();
+	sceneFactory.reset();
+	camera.reset();
 	FlameWork::Finalize();
 }

@@ -405,7 +405,43 @@ D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetGPUDescriptorHandle(const Microsof
 }
 
 void DirectXCommon::Release() {
+	if (commandQueue && fence) {
+		fenceValue++;
+		commandQueue->Signal(fence.Get(), fenceValue);
+		if (fence->GetCompletedValue() < fenceValue && fenceEvent) {
+			fence->SetEventOnCompletion(fenceValue, fenceEvent);
+			WaitForSingleObject(fenceEvent, INFINITE);
+		}
+	}
 
+	if (fenceEvent) {
+		CloseHandle(fenceEvent);
+		fenceEvent = nullptr;
+	}
+
+	xAudio2.Reset();
+	includeHandler.Reset();
+	dxcCompiler.Reset();
+	dxcUtils.Reset();
+	fence.Reset();
+	commandList.Reset();
+	commandAllocator.Reset();
+	commandQueue.Reset();
+
+	for (Microsoft::WRL::ComPtr<ID3D12Resource>& swapChainResource : swapChainResources) {
+		swapChainResource.Reset();
+	}
+	swapChain.Reset();
+
+	depthStencilResource.Reset();
+	depthStenecilResource.Reset();
+	wvpResorce.Reset();
+	wvpResorceModel.Reset();
+	rtvDescriptorHeap.Reset();
+	dsvDescriptorHeap.Reset();
+	device.Reset();
+	dxgiFactory.Reset();
+	winApp = nullptr;
 }
 
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateRenderTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, int32_t width, int32_t height, DXGI_FORMAT format, const Vector4 color) {

@@ -303,9 +303,9 @@ void PostEffect::DrawImGui() {
 #ifdef USE_IMGUI
 #ifndef IMGUI_HAS_DOCK
 	const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
-	const float leftWidth = 270.0f;
-	const float panelWidth = 260.0f;
 	const float width = displaySize.x > 0.0f ? displaySize.x : 1280.0f;
+	const float panelWidth = width < 900.0f ? 220.0f : 260.0f;
+	const float leftWidth = width * 0.18f;
 	const float x = (width - panelWidth) * 0.5f;
 
 	ImGui::SetNextWindowPos(ImVec2(x > leftWidth ? x : leftWidth, 0.0f), ImGuiCond_Always);

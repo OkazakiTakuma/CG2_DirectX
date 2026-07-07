@@ -246,9 +246,13 @@ void BaseScene::DrawEditorInspector() {
 	const char* gizmoOperationLabels[] = {"Move", "Rotate", "Scale"};
 	ImGui::Combo("Gizmo Operation", &gizmoOperationIndex_, gizmoOperationLabels, _countof(gizmoOperationLabels));
 
-	if (selectedObject->GetComponent<Object3dComponent>()) {
+	if (Object3dComponent* object3dComponent = selectedObject->GetComponent<Object3dComponent>()) {
 		ImGui::Separator();
 		ImGui::Text("Object3dComponent");
+		bool isDrawSkeleton = object3dComponent->GetDrawSkeleton();
+		if (ImGui::Checkbox("Draw Skeleton", &isDrawSkeleton)) {
+			object3dComponent->SetDrawSkeleton(isDrawSkeleton);
+		}
 	}
 	if (selectedObject->GetComponent<SpriteComponent>()) {
 		ImGui::Separator();

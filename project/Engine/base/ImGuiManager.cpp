@@ -6,6 +6,21 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #endif
 
+namespace {
+float ClampLayoutValue(float value, float minValue, float maxValue) {
+	if (maxValue < minValue) {
+		return maxValue;
+	}
+	if (value < minValue) {
+		return minValue;
+	}
+	if (value > maxValue) {
+		return maxValue;
+	}
+	return value;
+}
+}
+
 ImGuiManager* ImGuiManager::GetInstance() {
 	static ImGuiManager instance;
 	return &instance;
@@ -86,7 +101,9 @@ void ImGuiManager::SetupExternalEditorDockSpaces() {
 	    ImGuiDockNodeFlags_NoDockingOverCentralNode;
 	const bool isFullscreen = gameWindowHandle_ ? (GetWindowLongPtr(gameWindowHandle_, GWL_STYLE) & WS_OVERLAPPEDWINDOW) == 0 : false;
 	RECT clientRect{};
-	GetClientRect(gameWindowHandle_, &clientRect);
+	if (gameWindowHandle_) {
+		GetClientRect(gameWindowHandle_, &clientRect);
+	}
 	const ImVec2 clientSize = ImVec2(
 	    static_cast<float>(clientRect.right - clientRect.left),
 	    static_cast<float>(clientRect.bottom - clientRect.top)
@@ -111,12 +128,13 @@ void ImGuiManager::SetupExternalEditorDockSpaces() {
 		ImGuiID leftId = 0;
 		ImGuiID rightId = 0;
 		ImGuiID bottomId = 0;
-		const float leftWidth = 160.0f;
-		const float rightWidth = 260.0f;
-		const float bottomHeight = 160.0f;
-		const float leftRatio = leftWidth / layoutSize.x;
-		const float rightRatio = rightWidth / (layoutSize.x - leftWidth);
-		const float bottomRatio = bottomHeight / layoutSize.y;
+		const float leftWidth = ClampLayoutValue(layoutSize.x * 0.18f, 140.0f, layoutSize.x * 0.35f);
+		const float rightWidth = ClampLayoutValue(layoutSize.x * 0.24f, 180.0f, layoutSize.x * 0.40f);
+		const float bottomHeight = ClampLayoutValue(layoutSize.y * 0.24f, 120.0f, layoutSize.y * 0.40f);
+		const float widthAfterLeft = layoutSize.x - leftWidth;
+		const float leftRatio = layoutSize.x > 0.0f ? leftWidth / layoutSize.x : 0.18f;
+		const float rightRatio = widthAfterLeft > 0.0f ? rightWidth / widthAfterLeft : 0.24f;
+		const float bottomRatio = layoutSize.y > 0.0f ? bottomHeight / layoutSize.y : 0.24f;
 
 		ImGui::DockBuilderSplitNode(mainId, ImGuiDir_Left, leftRatio, &leftId, &mainId);
 		ImGui::DockBuilderSplitNode(mainId, ImGuiDir_Right, rightRatio, &rightId, &mainId);

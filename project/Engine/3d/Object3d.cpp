@@ -1,5 +1,7 @@
 #include "Object3d.h"
 #include "../2d/TextureManager.h"
+#include "../2d/LineDrawer.h"
+#include "../base/SrvManager.h"
 #include "Model.h"
 #include "ModelManager.h"
 #include "Object3dCommon.h"
@@ -50,6 +52,43 @@ Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const
 	Matrix4x4 rotateMatrix = MakeRotateMatrix(rotate);
 	Matrix4x4 translateMatrix = MakeTranslateMatrix(translate);
 	return Multiply(Multiply(scaleMatrix, rotateMatrix), translateMatrix);
+}
+
+Vector3 GetTranslateFromMatrix(const Matrix4x4& matrix)
+{
+	return {matrix.m[3][0], matrix.m[3][1], matrix.m[3][2]};
+}
+
+void DrawDebugWireSphere(const Vector3& center, float radius, const Vector4& color)
+{
+	constexpr uint32_t kSegmentCount = 8;
+	constexpr float kTwoPi = 6.28318530718f;
+
+	for (uint32_t index = 0; index < kSegmentCount; ++index) {
+		const float currentAngle = kTwoPi * static_cast<float>(index) / static_cast<float>(kSegmentCount);
+		const float nextAngle = kTwoPi * static_cast<float>(index + 1) / static_cast<float>(kSegmentCount);
+
+		const float currentCos = std::cos(currentAngle) * radius;
+		const float currentSin = std::sin(currentAngle) * radius;
+		const float nextCos = std::cos(nextAngle) * radius;
+		const float nextSin = std::sin(nextAngle) * radius;
+
+		LineDrawer::GetInstance()->DrawLine(
+		    {center.x + currentCos, center.y + currentSin, center.z},
+		    {center.x + nextCos, center.y + nextSin, center.z},
+		    color
+		);
+		LineDrawer::GetInstance()->DrawLine(
+		    {center.x, center.y + currentCos, center.z + currentSin},
+		    {center.x, center.y + nextCos, center.z + nextSin},
+		    color
+		);
+		LineDrawer::GetInstance()->DrawLine(
+		    {center.x + currentCos, center.y, center.z + currentSin},
+		    {center.x + nextCos, center.y, center.z + nextSin},
+		    color
+		);
+	}
 }
 }
 
@@ -317,9 +356,14 @@ void Object3d::Update() {
 		}
 
 		UpdateSkeleton();
-		const Matrix4x4 modelLocalMatrix = hasSkeleton && skeleton.root >= 0 && skeleton.root < static_cast<int32_t>(skeleton.joints.size())
-		    ? skeleton.joints[skeleton.root].skeletonSpaceMatrix
-		    : model->GetRootNode().localMatrix;
+		if (model->HasSkinCluster()) {
+			model->ApplySkinning(skeleton);
+		}
+		const Matrix4x4 modelLocalMatrix = model->HasSkinCluster()
+		    ? MakeIdentity4x4()
+		    : hasSkeleton && skeleton.root >= 0 && skeleton.root < static_cast<int32_t>(skeleton.joints.size())
+		          ? skeleton.joints[skeleton.root].skeletonSpaceMatrix
+		          : model->GetRootNode().localMatrix;
 		worldMatrix = Multiply(modelLocalMatrix, worldMatrix);
 	}
 
@@ -350,6 +394,7 @@ void Object3d::Draw() {
 	if (!wvpResorceModel || !lightResource || !cameraResource || !pointLightResource) return;
 
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList = Object3dCommon::GetInstance()->GetDxCommon()->GetCommandList();
+	SrvManager::GetInstance()->PreDraw();
 
 	commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
@@ -364,6 +409,7 @@ void Object3d::Draw() {
 
 	if (model) {
 		model->Draw();
+		DrawDebugSkeleton();
 	}
 	else if (cylinderIndexCount > 0) {
 		if (materialResourceCylinder) {
@@ -377,6 +423,33 @@ void Object3d::Draw() {
 		commandList->IASetVertexBuffers(0, 1, &vertexBufferViewCylinder);
 		commandList->IASetIndexBuffer(&indexBufferViewCylinder);
 		commandList->DrawIndexedInstanced(cylinderIndexCount, 1, 0, 0, 0);
+	}
+}
+
+void Object3d::DrawDebugSkeleton() {
+	if (!isDrawSkeleton_ || !hasSkeleton || skeleton.joints.empty()) {
+		return;
+	}
+
+	const Matrix4x4 objectWorldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+	const Vector4 boneColor = {1.0f, 0.85f, 0.1f, 1.0f};
+	const Vector4 jointColor = {0.2f, 0.8f, 1.0f, 1.0f};
+	const float jointSphereRadius = 0.05f;
+
+	for (const Joint& joint : skeleton.joints) {
+		const Matrix4x4 jointWorldMatrix = Multiply(joint.skeletonSpaceMatrix, objectWorldMatrix);
+		const Vector3 jointPosition = GetTranslateFromMatrix(jointWorldMatrix);
+
+		DrawDebugWireSphere(jointPosition, jointSphereRadius, jointColor);
+
+		if (!joint.parent) {
+			continue;
+		}
+
+		const Joint& parent = skeleton.joints[*joint.parent];
+		const Matrix4x4 parentWorldMatrix = Multiply(parent.skeletonSpaceMatrix, objectWorldMatrix);
+		const Vector3 parentPosition = GetTranslateFromMatrix(parentWorldMatrix);
+		LineDrawer::GetInstance()->DrawLine(parentPosition, jointPosition, boneColor);
 	}
 }
 

@@ -115,7 +115,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources[2] = {nullptr};
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence = nullptr;
 	uint16_t fenceValue = 0;
-	HANDLE fenceEvent;
+	HANDLE fenceEvent = nullptr;
 	D3D12_VIEWPORT viewport{};
 	D3D12_RECT scissorRect{};
 	Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler = nullptr;
@@ -127,5 +127,5 @@ private:
 
 	std::chrono::steady_clock::time_point reference_;
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
-	IXAudio2MasteringVoice* masteringVoice;
+	IXAudio2MasteringVoice* masteringVoice = nullptr;
 };
