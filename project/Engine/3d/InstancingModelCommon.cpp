@@ -16,6 +16,12 @@ void InstancingModelCommon::Initialize(DirectXCommon* dxCommon) {
     CreatePipelineState();
 }
 
+void InstancingModelCommon::Finalize() {
+    rootSignature_.Reset();
+    pipelineState_.Reset();
+    dxCommon_ = nullptr;
+}
+
 void InstancingModelCommon::SetDraw() {
     auto commandList = dxCommon_->GetCommandList();
     commandList->SetPipelineState(pipelineState_.Get());

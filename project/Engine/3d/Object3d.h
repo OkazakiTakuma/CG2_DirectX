@@ -25,6 +25,9 @@ public:
 	void UpdateAnimation();
 	void SetModel(Model* model);
 	void SetModel(const std::string& filePath);
+	void DrawDebugSkeleton();
+	void SetDrawSkeleton(bool isDraw) { isDrawSkeleton_ = isDraw; }
+	bool GetDrawSkeleton() const { return isDrawSkeleton_; }
 	~Object3d();
 
 	void CreateCylinder(float radius = 1.0f, float height = 2.0f, uint32_t subdivision = 16, bool createTopCap = true, bool createBottomCap = true);
@@ -122,6 +125,7 @@ private:
 	Animation animation;
 	Skeleton skeleton;
 	bool hasSkeleton = false;
+	bool isDrawSkeleton_ = false;
 };
 
 Vector3 CalculateValue(const std::vector<KeyframeVector3>& keyflames, float time);

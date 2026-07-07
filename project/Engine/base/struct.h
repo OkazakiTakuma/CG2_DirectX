@@ -40,6 +40,18 @@ struct Material {
 	float padding2[3];
 };
 
+struct VertexWeghtData
+{
+	float weght;
+	uint32_t vertexIndex;
+};
+
+struct JointWeghtData
+{
+	Matrix4x4 inverseBindPoseMatrix;
+	std::vector<VertexWeghtData> vertexWeights;
+};
+
 struct MaterialData {
 	std::string textureFilePath;
 	uint32_t textureIndex = 0;
@@ -54,7 +66,9 @@ struct Node {
 };
 
 struct ModelData {
+	std::map<std::string, JointWeghtData> skincluserData;
 	std::vector<VertexData> vertices;
+	std::vector<uint32_t> indices;
 	MaterialData material;
 	Node rootNode;
 };

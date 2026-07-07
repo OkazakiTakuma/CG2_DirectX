@@ -8,6 +8,7 @@ public:
     static InstancingModelCommon* GetInstance();
 
     void Initialize(DirectXCommon* dxCommon);
+    void Finalize();
     void SetDraw();
 
 private:
