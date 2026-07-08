@@ -241,14 +241,22 @@ void PostEffect::ApplySettingsToBuffer() {
 	colorData_->enableRadialBlur = enableRadialBlur_ ? 1 : 0;
 	colorData_->enableRandom = enableRandom_ ? 1 : 0;
 	colorData_->radialBlurSamples = radialBlurSamples_;
+	colorData_->enableOutline = enableOutline_ ? 1 : 0;
 	colorData_->vignetteIntensity = vignetteIntensity_;
 	colorData_->vignetteRadius = vignetteRadius_;
 	colorData_->vignetteSoftness = vignetteSoftness_;
 	colorData_->radialBlurStrength = radialBlurStrength_;
 	colorData_->randomStrength = randomStrength_;
+	colorData_->outlineStrength = outlineStrength_;
+	colorData_->outlineThreshold = outlineThreshold_;
+	colorData_->outlineThickness = outlineThickness_;
 	colorData_->time = time_;
 	colorData_->texelSize[0] = 1.0f / static_cast<float>(WinApp::kClientWidth);
 	colorData_->texelSize[1] = 1.0f / static_cast<float>(WinApp::kClientHeight);
+	colorData_->outlineColor[0] = outlineColor_[0];
+	colorData_->outlineColor[1] = outlineColor_[1];
+	colorData_->outlineColor[2] = outlineColor_[2];
+	colorData_->outlineColor[3] = outlineColor_[3];
 	colorData_->padding = 0.0f;
 }
 
@@ -278,6 +286,9 @@ void PostEffect::UpdateHotkeys() {
 	}
 	if (triggered(DIK_7, DIK_NUMPAD7)) {
 		enableVignetting_ = !enableVignetting_;
+	}
+	if (triggered(DIK_8, DIK_NUMPAD8)) {
+		enableOutline_ = !enableOutline_;
 	}
 
 	ApplySettingsToBuffer();
@@ -418,6 +429,21 @@ void PostEffect::DrawImGui() {
 		colorData_->randomStrength = randomStrength_;
 	}
 	if (!enableRandom_) {
+		ImGui::EndDisabled();
+	}
+
+	ImGui::Separator();
+	if (ImGui::Checkbox("Apply Outline", &enableOutline_)) {
+		colorData_->enableOutline = enableOutline_ ? 1 : 0;
+	}
+	if (!enableOutline_) {
+		ImGui::BeginDisabled();
+	}
+	ImGui::ColorEdit4("Outline Color", outlineColor_);
+	ImGui::SliderFloat("Outline Strength", &outlineStrength_, 0.0f, 2.0f);
+	ImGui::SliderFloat("Outline Threshold", &outlineThreshold_, 0.01f, 0.5f);
+	ImGui::SliderFloat("Outline Thickness", &outlineThickness_, 0.5f, 4.0f);
+	if (!enableOutline_) {
 		ImGui::EndDisabled();
 	}
 

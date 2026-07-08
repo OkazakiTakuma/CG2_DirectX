@@ -69,13 +69,18 @@ private:
 		int32_t enableRadialBlur;
 		int32_t enableRandom;
 		int32_t radialBlurSamples;
+		int32_t enableOutline;
 		float vignetteIntensity;
 		float vignetteRadius;
 		float vignetteSoftness;
 		float radialBlurStrength;
 		float randomStrength;
+		float outlineStrength;
+		float outlineThreshold;
+		float outlineThickness;
 		float time;
 		float texelSize[2];
+		float outlineColor[4];
 		float padding;
 	};
 
@@ -88,11 +93,16 @@ private:
 	bool enableGaussianFilter_ = false;
 	bool enableRadialBlur_ = false;
 	bool enableRandom_ = false;
+	bool enableOutline_ = false;
 	float vignetteIntensity_ = 0.65f;
 	float vignetteRadius_ = 0.0f;
 	float vignetteSoftness_ = 0.35f;
 	float radialBlurStrength_ = 0.08f;
 	int radialBlurSamples_ = 12;
 	float randomStrength_ = 0.04f;
+	float outlineStrength_ = 1.0f;
+	float outlineThreshold_ = 0.12f;
+	float outlineThickness_ = 1.0f;
+	float outlineColor_[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	float time_ = 0.0f;
 };

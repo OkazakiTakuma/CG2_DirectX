@@ -13,13 +13,18 @@ cbuffer ColorInfo : register(b0)
     int enableRadialBlur;
     int enableRandom;
     int radialBlurSamples;
+    int enableOutline;
     float vignetteIntensity;
     float vignetteRadius;
     float vignetteSoftness;
     float radialBlurStrength;
     float randomStrength;
+    float outlineStrength;
+    float outlineThreshold;
+    float outlineThickness;
     float time;
     float2 texelSize;
+    float4 outlineColor;
     float padding;
 };
 
@@ -92,6 +97,38 @@ float4 ApplyRadialBlur(float2 uv)
     return color / (float)sampleCount;
 }
 
+float Luminance(float3 color)
+{
+    return dot(color, float3(0.299f, 0.587f, 0.114f));
+}
+
+float4 ApplyOutline(float2 uv, float4 sourceColor)
+{
+    const float2 offset = texelSize * outlineThickness;
+    const float centerLuminance = Luminance(sourceColor.rgb);
+    float maxDifference = 0.0f;
+
+    [unroll]
+    for (int y = -1; y <= 1; ++y)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            if (x == 0 && y == 0)
+            {
+                continue;
+            }
+
+            const float3 sampleColor = gTexture.Sample(gSampler, uv + float2(x, y) * offset).rgb;
+            maxDifference = max(maxDifference, abs(centerLuminance - Luminance(sampleColor)));
+        }
+    }
+
+    const float edge = smoothstep(outlineThreshold, outlineThreshold + 0.05f, maxDifference) * outlineStrength;
+    sourceColor.rgb = lerp(sourceColor.rgb, outlineColor.rgb, saturate(edge));
+    return sourceColor;
+}
+
 PixelShaderOutPut main(VertexShaderOutput input)
 {
     PixelShaderOutPut output;
@@ -118,6 +155,11 @@ PixelShaderOutPut main(VertexShaderOutput input)
     {
         float gray = dot(resultColor.rgb, float3(0.299f, 0.587f, 0.114f));
         resultColor = float4(gray, gray, gray, resultColor.a);
+    }
+
+    if (enableOutline != 0)
+    {
+        resultColor = ApplyOutline(input.uv, resultColor);
     }
 
     if (enableVignetting != 0)
