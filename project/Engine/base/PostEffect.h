@@ -22,6 +22,8 @@ public:
 
 	void DrawImGui();
 
+	void UpdateHotkeys();
+
 	bool IsActive() const { return isActive_; }
 
 private:
@@ -38,6 +40,7 @@ private:
 	void CreatePipelineState();
 
 	void CreateColorBuffer();
+	void ApplySettingsToBuffer();
 
 private:
 	DirectXCommon* dxCommon_ = nullptr;
@@ -61,17 +64,35 @@ private:
 		float r, g, b, a;
 		int32_t enableGrayscale;
 		int32_t enableVignetting;
+		int32_t enableSmoothing;
+		int32_t enableGaussianFilter;
+		int32_t enableRadialBlur;
+		int32_t enableRandom;
+		int32_t radialBlurSamples;
 		float vignetteIntensity;
 		float vignetteRadius;
 		float vignetteSoftness;
-		float padding[3];
+		float radialBlurStrength;
+		float randomStrength;
+		float time;
+		float texelSize[2];
+		float padding;
 	};
 
 	ColorData* colorData_ = nullptr;
 
 	float tintColor_[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	bool enableGrayscale_ = false;
 	bool enableVignetting_ = false;
+	bool enableSmoothing_ = false;
+	bool enableGaussianFilter_ = false;
+	bool enableRadialBlur_ = false;
+	bool enableRandom_ = false;
 	float vignetteIntensity_ = 0.65f;
-	float vignetteRadius_ = 0.55f;
+	float vignetteRadius_ = 0.0f;
 	float vignetteSoftness_ = 0.35f;
+	float radialBlurStrength_ = 0.08f;
+	int radialBlurSamples_ = 12;
+	float randomStrength_ = 0.04f;
+	float time_ = 0.0f;
 };

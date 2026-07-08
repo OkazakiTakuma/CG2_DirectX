@@ -22,6 +22,7 @@ void Game::Initialize() {
 	ParticleManager::GetInstance()->SetCamera(camera.get());
 	sceneFactory = std::make_unique<SceneFactory>();
 	sceneManager = std::make_unique<SceneManager>();
+	sceneManager->SetFallbackCamera(camera.get());
 	sceneManager->SetSceneFactory(sceneFactory.get());
 	sceneManager->ChengeScene("TITLE");
 	SkyBoxCommon::GetInstance()->SetDefaultCamera(camera.get());
@@ -40,6 +41,7 @@ void Game::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_F11)) {
 		ToggleFullscreen();
 	}
+	PostEffect::GetInstance()->UpdateHotkeys();
 
 	sceneManager->Update();
 
@@ -51,23 +53,35 @@ void Game::Update() {
 void Game::Draw() {
 #pragma region Setup
 
-	PostEffect::GetInstance()->PreDrawScene();
+	if (PostEffect::GetInstance()->IsActive()) {
+		PostEffect::GetInstance()->PreDrawScene();
 
-	Object3dCommon::GetInstance()->SetDraw();
-	sceneManager->Draw3D();
-	LineDrawer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
-	SkyBoxCommon::GetInstance()->SetDraw();
-	sceneManager->DrawSkyBox();
+		Object3dCommon::GetInstance()->SetDraw();
+		sceneManager->Draw3D();
+		LineDrawer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
+		SkyBoxCommon::GetInstance()->SetDraw();
+		sceneManager->DrawSkyBox();
 
-	SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeNone);
-	sceneManager->Draw2D();
+		SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeNone);
+		sceneManager->Draw2D();
 
-	PostEffect::GetInstance()->PostDrawScene();
+		PostEffect::GetInstance()->PostDrawScene();
 
+		SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
 
-	SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
+		PostEffect::GetInstance()->Draw();
+	} else {
+		SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
 
-	PostEffect::GetInstance()->Draw();
+		Object3dCommon::GetInstance()->SetDraw();
+		sceneManager->Draw3D();
+		LineDrawer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
+		SkyBoxCommon::GetInstance()->SetDraw();
+		sceneManager->DrawSkyBox();
+
+		SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeNone);
+		sceneManager->Draw2D();
+	}
 	PostEffect::GetInstance()->DrawImGui();
 	ImGuiManager::GetInstance()->End();
 	ImGuiManager::GetInstance()->Draw();

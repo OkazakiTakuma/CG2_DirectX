@@ -36,11 +36,5 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState = nullptr;
 
-	struct VertexData {
-		Vector4 position;
-		Vector3 normal;
-		Vector2 uv;
-	};
-
 	Camera* defaultCamera = nullptr;
 };

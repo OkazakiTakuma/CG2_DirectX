@@ -29,6 +29,8 @@ struct VertexData {
 	Vector4 position;
 	Vector2 texcoord;
 	Vector3 normal;
+	uint32_t boneIndices[4] = {};
+	Vector4 boneWeights = {0.0f, 0.0f, 0.0f, 0.0f};
 };
 
 struct Material {
@@ -50,6 +52,7 @@ struct JointWeghtData
 {
 	Matrix4x4 inverseBindPoseMatrix;
 	std::vector<VertexWeghtData> vertexWeights;
+	uint32_t paletteIndex = 0;
 };
 
 struct MaterialData {

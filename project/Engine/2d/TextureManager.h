@@ -15,7 +15,8 @@ public:
 	static TextureManager* GetInstance();
 	void Initialize(DirectXCommon* dxcommon);
 	void Finalize();
-	void Rerease();
+	void Release();
+	void Rerease() { Release(); }
 	void LoadTexture(const std::string& filepath);
 	static uint32_t kSRVIndexTop;
 	uint32_t GetTextureIndexByFilePath(const std::string& filepath);

@@ -7,23 +7,47 @@ struct TransformationMatrix
     float4x4 WorldInverseTranspose;
 };
 ConstantBuffer<TransformationMatrix> gTransformationMatrix : register(b1);
+StructuredBuffer<float4x4> gSkinningMatrices : register(t2);
 
 struct VertexShaderInput
 {
     float4 position : POSITION;
     float2 texcoord : TEXCOORD0;
     float3 normal : NORMAL;
+    uint4 boneIndex : BONEINDEX;
+    float4 boneWeight : BONEWEIGHT;
 };
 
 VertexShaderOutput main(VertexShaderInput input)
 {
     VertexShaderOutput output;
-    output.position = mul(input.position, gTransformationMatrix.WVP);
+    float4 localPosition = input.position;
+    float3 localNormal = input.normal;
+    const float totalWeight = input.boneWeight.x + input.boneWeight.y + input.boneWeight.z + input.boneWeight.w;
+
+    if (totalWeight > 0.0f)
+    {
+        const float4 skinWeight = input.boneWeight / totalWeight;
+
+        localPosition =
+            mul(input.position, gSkinningMatrices[input.boneIndex.x]) * skinWeight.x +
+            mul(input.position, gSkinningMatrices[input.boneIndex.y]) * skinWeight.y +
+            mul(input.position, gSkinningMatrices[input.boneIndex.z]) * skinWeight.z +
+            mul(input.position, gSkinningMatrices[input.boneIndex.w]) * skinWeight.w;
+        localPosition.w = 1.0f;
+
+        localNormal =
+            mul(input.normal, (float3x3)gSkinningMatrices[input.boneIndex.x]) * skinWeight.x +
+            mul(input.normal, (float3x3)gSkinningMatrices[input.boneIndex.y]) * skinWeight.y +
+            mul(input.normal, (float3x3)gSkinningMatrices[input.boneIndex.z]) * skinWeight.z +
+            mul(input.normal, (float3x3)gSkinningMatrices[input.boneIndex.w]) * skinWeight.w;
+        localNormal = normalize(localNormal);
+    }
+
+    output.position = mul(localPosition, gTransformationMatrix.WVP);
     output.texcoord = input.texcoord;
-    // ★法線にワールド行列を適用（スケーリング考慮のためfloat3x3でキャスト）
-    output.normal = normalize(mul(input.normal, (float3x3) gTransformationMatrix.WorldInverseTranspose));
-    // ★頂点のワールド座標を計算して渡す
-    output.worldPosition = mul(input.position, gTransformationMatrix.world).xyz;
-    
+    output.normal = normalize(mul(localNormal, (float3x3)gTransformationMatrix.WorldInverseTranspose));
+    output.worldPosition = mul(localPosition, gTransformationMatrix.world).xyz;
+
     return output;
 }

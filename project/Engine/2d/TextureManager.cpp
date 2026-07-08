@@ -30,7 +30,7 @@ void TextureManager::Finalize() {
 	instance = nullptr;
 }
 
-void TextureManager::Rerease() {}
+void TextureManager::Release() {}
 
 uint32_t TextureManager::GetTextureIndexByFilePath(const std::string& filepath) {
 	assert(!SrvManager::GetInstance()->IsOverAllocated());

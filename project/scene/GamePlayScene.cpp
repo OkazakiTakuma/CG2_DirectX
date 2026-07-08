@@ -5,6 +5,7 @@
 #include"InstancingModelCommon.h"
 
 namespace {
+#ifdef USE_IMGUI
 ImVec2 GetPrimaryWorkPos() {
 	const ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
 	if (platformIO.Monitors.Size > 0) {
@@ -103,6 +104,7 @@ bool BeginEditorPanel(const char* name, const ImVec2& pos, const ImVec2& size) {
 	return ImGui::Begin(name, nullptr, flags);
 #endif
 }
+#endif
 }
 
 void GamePlayScene::Initialize() {

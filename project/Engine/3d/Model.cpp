@@ -3,8 +3,10 @@
 #include "../3d/ModelCommon.h"
 #include "../base/Logger.h"
 #include <assimp/Importer.hpp>
+#include <assimp/config.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <sstream>
@@ -47,6 +49,49 @@ Vector3 TransformNormal(const Vector3& normal, const Matrix4x4& matrix) {
 	result.y = normal.x * matrix.m[0][1] + normal.y * matrix.m[1][1] + normal.z * matrix.m[2][1];
 	result.z = normal.x * matrix.m[0][2] + normal.y * matrix.m[1][2] + normal.z * matrix.m[2][2];
 	return result;
+}
+
+void AddJointInfluence(VertexData& vertex, uint32_t paletteIndex, float weight) {
+	float* weights[] = {
+	    &vertex.boneWeights.x,
+	    &vertex.boneWeights.y,
+	    &vertex.boneWeights.z,
+	    &vertex.boneWeights.w,
+	};
+	for (uint32_t index = 0; index < 4; index++) {
+		if (*weights[index] <= 0.0f) {
+			vertex.boneIndices[index] = paletteIndex;
+			*weights[index] = weight;
+			return;
+		}
+	}
+
+	uint32_t lightestIndex = 0;
+	for (uint32_t index = 1; index < 4; index++) {
+		if (*weights[index] < *weights[lightestIndex]) {
+			lightestIndex = index;
+		}
+	}
+	if (weight > *weights[lightestIndex]) {
+		vertex.boneIndices[lightestIndex] = paletteIndex;
+		*weights[lightestIndex] = weight;
+	}
+}
+
+void NormalizeJointInfluences(VertexData& vertex) {
+	const float totalWeight =
+	    vertex.boneWeights.x +
+	    vertex.boneWeights.y +
+	    vertex.boneWeights.z +
+	    vertex.boneWeights.w;
+	if (totalWeight <= 0.0f) {
+		return;
+	}
+
+	vertex.boneWeights.x /= totalWeight;
+	vertex.boneWeights.y /= totalWeight;
+	vertex.boneWeights.z /= totalWeight;
+	vertex.boneWeights.w /= totalWeight;
 }
 }
 
@@ -104,8 +149,9 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 	ModelData modelData;
 	Assimp::Importer importer;
 	std::string filePath = directoryPath + "/" + filename;
+	importer.SetPropertyInteger(AI_CONFIG_PP_LBW_MAX_WEIGHTS, 4);
 
-	const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_FlipWindingOrder | aiProcess_FlipUVs);
+	const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_LimitBoneWeights);
 	assert(scene != nullptr && scene->HasMeshes());
 
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; meshIndex++) {
@@ -127,17 +173,29 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 			modelData.vertices.push_back(vertex);
 		}
 
+		uint32_t nextPaletteIndex = static_cast<uint32_t>(modelData.skincluserData.size());
 		for (uint32_t boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
 			aiBone* bone = mesh->mBones[boneIndex];
-			JointWeghtData& jointWeightData = modelData.skincluserData[bone->mName.C_Str()];
+			const std::string boneName = bone->mName.C_Str();
+			auto jointWeightItr = modelData.skincluserData.find(boneName);
+			if (jointWeightItr == modelData.skincluserData.end()) {
+				jointWeightItr = modelData.skincluserData.emplace(boneName, JointWeghtData{}).first;
+				jointWeightItr->second.paletteIndex = nextPaletteIndex++;
+			}
+
+			JointWeghtData& jointWeightData = jointWeightItr->second;
 			jointWeightData.inverseBindPoseMatrix = ConvertAssimpMatrix(bone->mOffsetMatrix);
 
 			for (uint32_t weightIndex = 0; weightIndex < bone->mNumWeights; weightIndex++) {
 				const aiVertexWeight& weight = bone->mWeights[weightIndex];
+				const uint32_t vertexIndex = vertexOffset + weight.mVertexId;
 				jointWeightData.vertexWeights.push_back({
 				    weight.mWeight,
-				    vertexOffset + weight.mVertexId
+				    vertexIndex
 				});
+				if (vertexIndex < modelData.vertices.size()) {
+					AddJointInfluence(modelData.vertices[vertexIndex], jointWeightData.paletteIndex, weight.mWeight);
+				}
 			}
 		}
 
@@ -172,6 +230,10 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 
 	if (scene->mRootNode != nullptr) {
 		modelData.rootNode = ReadNode(scene->mRootNode);
+	}
+
+	for (VertexData& vertex : modelData.vertices) {
+		NormalizeJointInfluences(vertex);
 	}
 
 	return modelData;
@@ -268,6 +330,8 @@ MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, c
 
 void Model::CreateVertexdata() {
 	originalVertices_ = modelData.vertices;
+	skinnedVertices_ = originalVertices_;
+	skinWeights_.assign(originalVertices_.size(), 0.0f);
 	vertexResource = modelCommon_->GetDxCommon()->CreateBufferResource(sizeof(VertexData) * modelData.vertices.size());
 
 
@@ -303,15 +367,54 @@ void Model::CreateMaterialData() {
 	materialData->shininess = 20.0f;
 }
 
+uint32_t Model::GetSkinningPaletteSize() const {
+	return modelData.skincluserData.empty() ? 1u : static_cast<uint32_t>(modelData.skincluserData.size());
+}
+
+void Model::BuildSkinningPalette(const Skeleton& skeleton, std::vector<Matrix4x4>& palette) const {
+	const uint32_t paletteSize = GetSkinningPaletteSize();
+	if (palette.size() != paletteSize) {
+		palette.resize(paletteSize);
+	}
+	for (Matrix4x4& matrix : palette) {
+		matrix = MakeIdentity4x4();
+	}
+
+	for (const auto& [jointName, jointWeightData] : modelData.skincluserData) {
+		if (jointWeightData.paletteIndex >= palette.size()) {
+			continue;
+		}
+
+		const auto jointItr = skeleton.jointMap.find(jointName);
+		if (jointItr == skeleton.jointMap.end()) {
+			continue;
+		}
+
+		const int32_t jointIndex = jointItr->second;
+		if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(skeleton.joints.size())) {
+			continue;
+		}
+
+		palette[jointWeightData.paletteIndex] = Multiply(jointWeightData.inverseBindPoseMatrix, skeleton.joints[jointIndex].skeletonSpaceMatrix);
+	}
+}
+
 void Model::ApplySkinning(const Skeleton& skeleton) {
 	if (modelData.skincluserData.empty() || originalVertices_.empty() || !vertexData) {
 		return;
 	}
 
-	std::vector<VertexData> skinnedVertices = originalVertices_;
-	std::vector<float> totalWeights(originalVertices_.size(), 0.0f);
+	if (skinnedVertices_.size() != originalVertices_.size()) {
+		skinnedVertices_.resize(originalVertices_.size());
+	}
+	if (skinWeights_.size() != originalVertices_.size()) {
+		skinWeights_.resize(originalVertices_.size());
+	}
 
-	for (VertexData& vertex : skinnedVertices) {
+	std::copy(originalVertices_.begin(), originalVertices_.end(), skinnedVertices_.begin());
+	std::fill(skinWeights_.begin(), skinWeights_.end(), 0.0f);
+
+	for (VertexData& vertex : skinnedVertices_) {
 		vertex.position = {0.0f, 0.0f, 0.0f, 0.0f};
 		vertex.normal = {0.0f, 0.0f, 0.0f};
 	}
@@ -340,7 +443,7 @@ void Model::ApplySkinning(const Skeleton& skeleton) {
 			);
 			const Vector3 skinnedNormal = TransformNormal(sourceVertex.normal, skinningMatrix);
 
-			VertexData& destinationVertex = skinnedVertices[vertexWeight.vertexIndex];
+			VertexData& destinationVertex = skinnedVertices_[vertexWeight.vertexIndex];
 			destinationVertex.position.x += skinnedPosition.x * vertexWeight.weght;
 			destinationVertex.position.y += skinnedPosition.y * vertexWeight.weght;
 			destinationVertex.position.z += skinnedPosition.z * vertexWeight.weght;
@@ -348,20 +451,19 @@ void Model::ApplySkinning(const Skeleton& skeleton) {
 			destinationVertex.normal.x += skinnedNormal.x * vertexWeight.weght;
 			destinationVertex.normal.y += skinnedNormal.y * vertexWeight.weght;
 			destinationVertex.normal.z += skinnedNormal.z * vertexWeight.weght;
-			totalWeights[vertexWeight.vertexIndex] += vertexWeight.weght;
+			skinWeights_[vertexWeight.vertexIndex] += vertexWeight.weght;
 		}
 	}
 
-	for (size_t vertexIndex = 0; vertexIndex < skinnedVertices.size(); vertexIndex++) {
-		if (totalWeights[vertexIndex] <= 0.0f) {
-			skinnedVertices[vertexIndex] = originalVertices_[vertexIndex];
+	for (size_t vertexIndex = 0; vertexIndex < skinnedVertices_.size(); vertexIndex++) {
+		if (skinWeights_[vertexIndex] <= 0.0f) {
+			skinnedVertices_[vertexIndex] = originalVertices_[vertexIndex];
 			continue;
 		}
 
-		skinnedVertices[vertexIndex].position.w = 1.0f;
-		skinnedVertices[vertexIndex].normal = NormalizeReturnVector(skinnedVertices[vertexIndex].normal);
+		skinnedVertices_[vertexIndex].position.w = 1.0f;
+		skinnedVertices_[vertexIndex].normal = NormalizeReturnVector(skinnedVertices_[vertexIndex].normal);
 	}
 
-	modelData.vertices = skinnedVertices;
-	std::memcpy(vertexData, modelData.vertices.data(), sizeof(VertexData) * modelData.vertices.size());
+	std::memcpy(vertexData, skinnedVertices_.data(), sizeof(VertexData) * skinnedVertices_.size());
 }

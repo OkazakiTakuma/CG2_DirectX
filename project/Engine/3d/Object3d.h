@@ -74,6 +74,8 @@ private:
 	CameraForGPU* cameraData = nullptr;
 
 	void CreateCameraResource();
+	void CreateSkinningPaletteResource(uint32_t paletteCount);
+	void UpdateSkinningPaletteResource();
 	Skeleton CreateSkeleton(const Node& rootNode);
 	int32_t CreateJoint(const Node& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints, std::map<std::string, int32_t>& jointMap);
 	void ApplyAnimationToSkeleton();
@@ -113,6 +115,10 @@ private:
 	};
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceCylinder;
 	MaterialData* materialDataCylinder = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> skinningPaletteResource;
+	Matrix4x4* skinningPaletteData = nullptr;
+	uint32_t skinningPaletteCapacity_ = 0;
+	std::vector<Matrix4x4> skinningPalette_;
 
 	Model* model = nullptr;
 	bool isPointLightSet = true;

@@ -252,7 +252,7 @@ void DirectXCommon::CreateDevice() {
 		DXGI_ADAPTER_DESC3 adapterDesc{};
 		hr = useAdapter->GetDesc3(&adapterDesc);
 		assert(SUCCEEDED(hr));
-		if (adapterDesc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE) {
+		if ((adapterDesc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE) == 0) {
 
 			std::wstring wdesc(adapterDesc.Description);
 			std::string desc = ConvertString(wdesc);

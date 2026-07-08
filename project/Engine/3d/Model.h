@@ -28,12 +28,16 @@ public:
 	Animation GetAnimation() { return animation; };
 	const bool GetIsAnimation() { return isAnimation_; };
 	bool HasSkinCluster() const { return !modelData.skincluserData.empty(); }
+	uint32_t GetSkinningPaletteSize() const;
+	void BuildSkinningPalette(const Skeleton& skeleton, std::vector<Matrix4x4>& palette) const;
 	void ApplySkinning(const Skeleton& skeleton);
 
 private:
 	ModelCommon* modelCommon_ = nullptr;
 	ModelData modelData;
 	std::vector<VertexData> originalVertices_;
+	std::vector<VertexData> skinnedVertices_;
+	std::vector<float> skinWeights_;
 	Animation animation;
 	bool isAnimation_;
 	static ModelData LoadModelFile(const std::string& directoryPath, const std::string& filename);

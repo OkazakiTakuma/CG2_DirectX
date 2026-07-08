@@ -1,4 +1,5 @@
-﻿#include "PostEffect.h"
+#include "PostEffect.h"
+#include "Input.h"
 #include "SrvManager.h"
 #include "WinApp.h"
 #include "imGuiManager.h"
@@ -39,9 +40,9 @@ void PostEffect::CreateTextureResource() {
 
 	D3D12_CLEAR_VALUE clearValue{};
 	clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	clearValue.Color[0] = 1.0f;
-	clearValue.Color[1] = 0.0f;
-	clearValue.Color[2] = 0.0f;
+	clearValue.Color[0] = 0.1f;
+	clearValue.Color[1] = 0.25f;
+	clearValue.Color[2] = 0.5f;
 	clearValue.Color[3] = 1.0f;
 
 	HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &textureDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue, IID_PPV_ARGS(&textureResource_));
@@ -220,16 +221,66 @@ void PostEffect::CreateColorBuffer() {
 		return;
 	}
 
+	ApplySettingsToBuffer();
+}
+
+void PostEffect::ApplySettingsToBuffer() {
+	if (colorData_ == nullptr) {
+		return;
+	}
+
 	colorData_->r = tintColor_[0];
 	colorData_->g = tintColor_[1];
 	colorData_->b = tintColor_[2];
 	colorData_->a = tintColor_[3];
 
-	colorData_->enableGrayscale = 0;
+	colorData_->enableGrayscale = enableGrayscale_ ? 1 : 0;
 	colorData_->enableVignetting = enableVignetting_ ? 1 : 0;
+	colorData_->enableSmoothing = enableSmoothing_ ? 1 : 0;
+	colorData_->enableGaussianFilter = enableGaussianFilter_ ? 1 : 0;
+	colorData_->enableRadialBlur = enableRadialBlur_ ? 1 : 0;
+	colorData_->enableRandom = enableRandom_ ? 1 : 0;
+	colorData_->radialBlurSamples = radialBlurSamples_;
 	colorData_->vignetteIntensity = vignetteIntensity_;
 	colorData_->vignetteRadius = vignetteRadius_;
 	colorData_->vignetteSoftness = vignetteSoftness_;
+	colorData_->radialBlurStrength = radialBlurStrength_;
+	colorData_->randomStrength = randomStrength_;
+	colorData_->time = time_;
+	colorData_->texelSize[0] = 1.0f / static_cast<float>(WinApp::kClientWidth);
+	colorData_->texelSize[1] = 1.0f / static_cast<float>(WinApp::kClientHeight);
+	colorData_->padding = 0.0f;
+}
+
+void PostEffect::UpdateHotkeys() {
+	Input* input = Input::GetInstance();
+	const auto triggered = [input](BYTE key, BYTE numpadKey) {
+		return input->TriggerKey(key) || input->TriggerKey(numpadKey);
+	};
+
+	if (triggered(DIK_1, DIK_NUMPAD1)) {
+		isActive_ = !isActive_;
+	}
+	if (triggered(DIK_2, DIK_NUMPAD2)) {
+		enableGrayscale_ = !enableGrayscale_;
+	}
+	if (triggered(DIK_3, DIK_NUMPAD3)) {
+		enableSmoothing_ = !enableSmoothing_;
+	}
+	if (triggered(DIK_4, DIK_NUMPAD4)) {
+		enableGaussianFilter_ = !enableGaussianFilter_;
+	}
+	if (triggered(DIK_5, DIK_NUMPAD5)) {
+		enableRadialBlur_ = !enableRadialBlur_;
+	}
+	if (triggered(DIK_6, DIK_NUMPAD6)) {
+		enableRandom_ = !enableRandom_;
+	}
+	if (triggered(DIK_7, DIK_NUMPAD7)) {
+		enableVignetting_ = !enableVignetting_;
+	}
+
+	ApplySettingsToBuffer();
 }
 void PostEffect::PreDrawScene() {
 	auto commandList = dxCommon_->GetCommandList();
@@ -252,7 +303,7 @@ void PostEffect::PreDrawScene() {
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
 	commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
-	const float clearColor[] = { 1.0f, 0.0f, 0.0f, 1.0f };
+	const float clearColor[] = {0.1f, 0.25f, 0.5f, 1.0f};
 	commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 	commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
@@ -287,6 +338,8 @@ void PostEffect::PostDrawScene() {
 void PostEffect::Draw() {
 	auto commandList = dxCommon_->GetCommandList();
 	SrvManager::GetInstance()->PreDraw();
+	time_ += 1.0f / 60.0f;
+	ApplySettingsToBuffer();
 
 	commandList->SetGraphicsRootSignature(rootSignature_.Get());
 	commandList->SetPipelineState(graphicsPipelineState_.Get());
@@ -321,10 +374,7 @@ void PostEffect::DrawImGui() {
 
 	ImGui::Checkbox("Enable PostEffect", &isActive_);
 
-	bool isGrayscale = (colorData_->enableGrayscale != 0);
-	if (ImGui::Checkbox("Apply Grayscale", &isGrayscale)) {
-		colorData_->enableGrayscale = isGrayscale ? 1 : 0;
-	}
+	ImGui::Checkbox("Apply Grayscale", &enableGrayscale_);
 
 	if (ImGui::ColorEdit4("Tint Color", tintColor_)) {
 		colorData_->r = tintColor_[0];
@@ -333,6 +383,45 @@ void PostEffect::DrawImGui() {
 		colorData_->a = tintColor_[3];
 	}
 
+	ImGui::Separator();
+	if (ImGui::Checkbox("Apply Smoothing", &enableSmoothing_)) {
+		colorData_->enableSmoothing = enableSmoothing_ ? 1 : 0;
+	}
+
+	if (ImGui::Checkbox("Apply Gaussian Filter", &enableGaussianFilter_)) {
+		colorData_->enableGaussianFilter = enableGaussianFilter_ ? 1 : 0;
+	}
+
+	if (ImGui::Checkbox("Apply Radial Blur", &enableRadialBlur_)) {
+		colorData_->enableRadialBlur = enableRadialBlur_ ? 1 : 0;
+	}
+	if (!enableRadialBlur_) {
+		ImGui::BeginDisabled();
+	}
+	if (ImGui::SliderFloat("Radial Strength", &radialBlurStrength_, 0.0f, 0.3f)) {
+		colorData_->radialBlurStrength = radialBlurStrength_;
+	}
+	if (ImGui::SliderInt("Radial Samples", &radialBlurSamples_, 2, 32)) {
+		colorData_->radialBlurSamples = radialBlurSamples_;
+	}
+	if (!enableRadialBlur_) {
+		ImGui::EndDisabled();
+	}
+
+	if (ImGui::Checkbox("Apply Random", &enableRandom_)) {
+		colorData_->enableRandom = enableRandom_ ? 1 : 0;
+	}
+	if (!enableRandom_) {
+		ImGui::BeginDisabled();
+	}
+	if (ImGui::SliderFloat("Random Strength", &randomStrength_, 0.0f, 0.3f)) {
+		colorData_->randomStrength = randomStrength_;
+	}
+	if (!enableRandom_) {
+		ImGui::EndDisabled();
+	}
+
+	ImGui::Separator();
 	if (ImGui::Checkbox("Apply Vignetting", &enableVignetting_)) {
 		colorData_->enableVignetting = enableVignetting_ ? 1 : 0;
 	}
@@ -352,6 +441,7 @@ void PostEffect::DrawImGui() {
 		ImGui::EndDisabled();
 	}
 
+	ApplySettingsToBuffer();
 	ImGui::End();
 #endif
 }

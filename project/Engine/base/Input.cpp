@@ -45,7 +45,10 @@ void Input::Initialize(WinApp* winApp) {
 
 void Input::Update() {
 	memcpy(preKey, key, sizeof(key));
+	preMouseState = mouseState;
 	mouseWheelDelta = 0;
+	mouseMoveX = 0;
+	mouseMoveY = 0;
 
 	HRESULT hr = keyboard->Acquire();
 
@@ -66,7 +69,29 @@ void Input::Update() {
 		}
 
 		if (SUCCEEDED(hr)) {
+			mouseMoveX = mouseState.lX;
+			mouseMoveY = mouseState.lY;
 			mouseWheelDelta = mouseState.lZ;
+		}
+	}
+
+	if (winApp && winApp->GetHwnd()) {
+		POINT cursorPosition{};
+		if (GetCursorPos(&cursorPosition)) {
+			ScreenToClient(winApp->GetHwnd(), &cursorPosition);
+			mouseClientPosition = cursorPosition;
+		}
+
+		RECT clientRect{};
+		if (GetClientRect(winApp->GetHwnd(), &clientRect)) {
+			clientWidth = clientRect.right - clientRect.left;
+			clientHeight = clientRect.bottom - clientRect.top;
+			if (clientWidth <= 0) {
+				clientWidth = 1;
+			}
+			if (clientHeight <= 0) {
+				clientHeight = 1;
+			}
 		}
 	}
 }
@@ -76,3 +101,17 @@ bool Input::PushKey(BYTE keyNumber) { return key[keyNumber] & 0x80; }
 bool Input::TriggerKey(BYTE keyNumber) { return (key[keyNumber] & 0x80) && !(preKey[keyNumber] & 0x80); }
 
 bool Input::ReleaseKey(BYTE keyNumber) { return !(key[keyNumber] & 0x80) && (preKey[keyNumber] & 0x80); }
+
+bool Input::PushMouseButton(int buttonIndex) const {
+	if (buttonIndex < 0 || buttonIndex >= 8) {
+		return false;
+	}
+	return (mouseState.rgbButtons[buttonIndex] & 0x80) != 0;
+}
+
+bool Input::TriggerMouseButton(int buttonIndex) const {
+	if (buttonIndex < 0 || buttonIndex >= 8) {
+		return false;
+	}
+	return (mouseState.rgbButtons[buttonIndex] & 0x80) != 0 && (preMouseState.rgbButtons[buttonIndex] & 0x80) == 0;
+}
