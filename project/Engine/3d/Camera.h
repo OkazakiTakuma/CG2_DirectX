@@ -15,6 +15,10 @@ public:
 	void SetAspectRatio(float aspect) { aspectRatio = aspect; }
 	void SetNearClip(float nearC) { nearClip = nearC; }
 	void SetFarClip(float farC) { farClip = farC; }
+	float GetFovY() const { return fovY; }
+	float GetAspectRatio() const { return aspectRatio; }
+	float GetNearClip() const { return nearClip; }
+	float GetFarClip() const { return farClip; }
 
 	const Matrix4x4& GetWorldMatrix() const { return worldMatrix; }
 	const Matrix4x4& GetViewMatrix() const { return viewMatrix; }

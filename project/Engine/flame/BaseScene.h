@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Audio.h"
 #include "Camera.h"
+#include "CameraComponent.h"
 #include "GameObject.h"
 #include "ImGuiManager.h"
 #include "Input.h"
@@ -18,6 +19,7 @@
 #include "struct.h"
 #include <Object3d.h>
 #include "Object3dComponent.h"
+#include "OBBColliderComponent.h"
 #include "SpriteComponent.h"
 #include "InstancingModel.h"
 #include <memory>
@@ -32,7 +34,8 @@ public:
 		Object3dSphere,
 		Object3dCylinder,
 		Sprite,
-		LoadedModel
+		LoadedModel,
+		Camera
 	};
 
 	virtual void Initialize();
@@ -49,6 +52,7 @@ public:
 	void DrawSceneObjects3D();
 	void DrawEditorImGui();
 	void SetSceneName(const std::string& sceneName) { sceneName_ = sceneName; }
+	void SetFallbackCamera(Camera* camera) { fallbackCamera_ = camera; }
 	void SaveEditorObjects();
 	void LoadEditorObjects();
 
@@ -58,6 +62,17 @@ private:
 	void DrawEditorHierarchy();
 	void DrawEditorInspector();
 	void DrawEditorGizmo();
+	void DrawCameraInspector(GameObject* selectedObject);
+	void DrawOBBColliderInspector(GameObject* selectedObject);
+	void UpdateEditorObjectPicking();
+	void UpdateEditorCameraControl();
+	void UpdateColliderCollisions();
+	void ApplyCamera(Camera* camera);
+	void ApplyActiveCamera();
+	void ResolveCameraLinks();
+	void SetActiveCameraObject(GameObject* object);
+	GameObject* FindFirstCameraObject();
+	GameObject* FindObjectByName(const std::string& name) const;
 	std::string MakeUniqueObjectName(const std::string& baseName) const;
 	std::string GetSceneObjectFilePath() const;
 	EditorCreateType EditorCreateTypeFromName(const std::string& typeName) const;
@@ -71,4 +86,6 @@ private:
 	int selectedLoadedModelIndex_ = 0;
 	bool isGizmoEnabled_ = true;
 	int gizmoOperationIndex_ = 0;
+	std::string activeCameraObjectName_;
+	Camera* fallbackCamera_ = nullptr;
 };

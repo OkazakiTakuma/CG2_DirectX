@@ -1,8 +1,10 @@
 #include "SceneManager.h"
 
 #include "Object3dCommon.h"
+#include "ParticleManager.h"
 #include "BaseScene.h"
 #include "SpriteCommon.h"
+#include "SkyBoxCommon.h"
 
 #include <assert.h>
 
@@ -25,6 +27,7 @@ int FindSceneIndex(const std::string& sceneName) {
 void SceneManager::Update() {
 	if (nextScene_) {
 		if (scene_) {
+			ApplyFallbackCamera();
 			scene_->Finalize();
 			scene_.reset();
 		}
@@ -35,6 +38,7 @@ void SceneManager::Update() {
 		selectedSceneIndex_ = FindSceneIndex(currentSceneName_);
 
 		scene_->SetSceneName(currentSceneName_);
+		scene_->SetFallbackCamera(fallbackCamera_);
 		scene_->Initialize();
 		scene_->LoadEditorObjects();
 	}
@@ -98,9 +102,20 @@ void SceneManager::DrawEditorImGui() {
 
 SceneManager::~SceneManager() {
 	if (scene_) {
+		ApplyFallbackCamera();
 		scene_->Finalize();
 		scene_.reset();
 	}
+}
+
+void SceneManager::ApplyFallbackCamera() {
+	if (!fallbackCamera_) {
+		return;
+	}
+
+	Object3dCommon::GetInstance()->SetDefaultCamera(fallbackCamera_);
+	SkyBoxCommon::GetInstance()->SetDefaultCamera(fallbackCamera_);
+	ParticleManager::GetInstance()->SetCamera(fallbackCamera_);
 }
 
 void SceneManager::ChengeScene(const std::string& sceneName) {

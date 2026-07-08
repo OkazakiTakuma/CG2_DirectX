@@ -18,6 +18,14 @@ public:
 	bool TriggerKey(BYTE keyNumber);
 	bool ReleaseKey(BYTE keyNumber);
 	LONG GetMouseWheelDelta() const { return mouseWheelDelta; }
+	LONG GetMouseMoveX() const { return mouseMoveX; }
+	LONG GetMouseMoveY() const { return mouseMoveY; }
+	bool PushMouseButton(int buttonIndex) const;
+	bool TriggerMouseButton(int buttonIndex) const;
+	LONG GetMouseClientX() const { return mouseClientPosition.x; }
+	LONG GetMouseClientY() const { return mouseClientPosition.y; }
+	LONG GetClientWidth() const { return clientWidth; }
+	LONG GetClientHeight() const { return clientHeight; }
 
 private:
 	Input() = default;
@@ -34,7 +42,13 @@ private:
 	BYTE key[256] = {};
 	BYTE preKey[256] = {};
 	DIMOUSESTATE2 mouseState = {};
+	DIMOUSESTATE2 preMouseState = {};
 	LONG mouseWheelDelta = 0;
+	LONG mouseMoveX = 0;
+	LONG mouseMoveY = 0;
+	POINT mouseClientPosition = {};
+	LONG clientWidth = 1;
+	LONG clientHeight = 1;
 
 	WinApp* winApp = nullptr;
 };

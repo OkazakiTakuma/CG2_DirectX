@@ -1,4 +1,4 @@
-﻿#include "FlameWork.h"
+#include "FlameWork.h"
 #include <strsafe.h>
 #include <d3d12.h>
 #include <d3d12sdklayers.h>
@@ -57,7 +57,11 @@ void FlameWork::Initialize() {
 	Microsoft::WRL::ComPtr<ID3D12Debug1> debugController1 = nullptr;
 	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController1)))) {
 		debugController1->EnableDebugLayer();
+#ifdef ENABLE_D3D12_GPU_VALIDATION
 		debugController1->SetEnableGPUBasedValidation(TRUE);
+#else
+		debugController1->SetEnableGPUBasedValidation(FALSE);
+#endif
 	}
 
 #endif // _DEBUG

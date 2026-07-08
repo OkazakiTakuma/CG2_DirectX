@@ -150,6 +150,9 @@
     <ClCompile Include="Engine\3d\InstancingModelCommon.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Engine\collision\CollisionPrimitive.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="Engine\math\Quaternion.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -261,6 +264,9 @@
     <ClInclude Include="Engine\3d\Camera.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Engine\3d\CameraComponent.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="Engine\3d\Model.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -292,6 +298,12 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Engine\3d\InstancingModelCommon.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\3d\OBBColliderComponent.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\collision\CollisionPrimitive.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Engine\math\Quaternion.h">

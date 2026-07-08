@@ -95,6 +95,8 @@ void DrawDebugWireSphere(const Vector3& center, float radius, const Vector4& col
 void Object3d::Initialize() {
 	Object3dCommon* common = Object3dCommon::GetInstance();
 
+	environmentMultiplier = 0.0f;
+
 	CreateWVPResource();
 	CreateDirectionalLightResource();
 	CreateCameraResource();
@@ -106,7 +108,6 @@ void Object3d::Initialize() {
 		{0.0f, 0.0f, 0.0f}
 	};
 
-	environmentMultiplier = 0.0f;
 	this->camera = common->GetDefaultCamera();
 	TextureManager::GetInstance()->LoadTexture(envMapTexturePath);
 }
@@ -128,6 +129,42 @@ void Object3d::CreateWVPResource() {
 void Object3d::CreateCameraResource() {
 	cameraResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(CameraForGPU));
 	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
+	cameraData->worldPosition = {0.0f, 0.0f, 0.0f};
+	cameraData->environmentMultiplier = environmentMultiplier;
+}
+
+void Object3d::CreateSkinningPaletteResource(uint32_t paletteCount) {
+	paletteCount = paletteCount > 0 ? paletteCount : 1;
+	if (skinningPaletteData) {
+		skinningPaletteResource->Unmap(0, nullptr);
+		skinningPaletteData = nullptr;
+	}
+
+	skinningPaletteCapacity_ = paletteCount;
+	skinningPaletteResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(Matrix4x4) * skinningPaletteCapacity_);
+	skinningPaletteResource->Map(0, nullptr, reinterpret_cast<void**>(&skinningPaletteData));
+	for (uint32_t index = 0; index < skinningPaletteCapacity_; index++) {
+		skinningPaletteData[index] = MakeIdentity4x4();
+	}
+}
+
+void Object3d::UpdateSkinningPaletteResource() {
+	if (!skinningPaletteData) {
+		CreateSkinningPaletteResource(1);
+	}
+
+	if (!model || !model->HasSkinCluster()) {
+		skinningPaletteData[0] = MakeIdentity4x4();
+		return;
+	}
+
+	const uint32_t requiredPaletteCount = model->GetSkinningPaletteSize();
+	if (requiredPaletteCount > skinningPaletteCapacity_) {
+		CreateSkinningPaletteResource(requiredPaletteCount);
+	}
+
+	model->BuildSkinningPalette(skeleton, skinningPalette_);
+	std::memcpy(skinningPaletteData, skinningPalette_.data(), sizeof(Matrix4x4) * skinningPalette_.size());
 }
 
 Skeleton Object3d::CreateSkeleton(const Node& rootNode) {
@@ -356,15 +393,15 @@ void Object3d::Update() {
 		}
 
 		UpdateSkeleton();
-		if (model->HasSkinCluster()) {
-			model->ApplySkinning(skeleton);
-		}
+		UpdateSkinningPaletteResource();
 		const Matrix4x4 modelLocalMatrix = model->HasSkinCluster()
 		    ? MakeIdentity4x4()
 		    : hasSkeleton && skeleton.root >= 0 && skeleton.root < static_cast<int32_t>(skeleton.joints.size())
 		          ? skeleton.joints[skeleton.root].skeletonSpaceMatrix
 		          : model->GetRootNode().localMatrix;
 		worldMatrix = Multiply(modelLocalMatrix, worldMatrix);
+	} else {
+		UpdateSkinningPaletteResource();
 	}
 
 	if (camera) {
@@ -400,6 +437,10 @@ void Object3d::Draw() {
 	commandList->SetGraphicsRootConstantBufferView(2, lightResource->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(4, cameraResource->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootConstantBufferView(5, pointLightResource->GetGPUVirtualAddress());
+	if (!skinningPaletteResource) {
+		CreateSkinningPaletteResource(1);
+	}
+	commandList->SetGraphicsRootShaderResourceView(7, skinningPaletteResource->GetGPUVirtualAddress());
 	if (envMapTexturePath.empty()) {
 		envMapTexturePath = "Resources/rostock_laage_airport_4k.dds";
 	}
@@ -465,6 +506,10 @@ void Object3d::SetModel(Model* newModel) {
 		skeleton = CreateSkeleton(model->GetRootNode());
 		hasSkeleton = !skeleton.joints.empty();
 		UpdateSkeleton();
+		CreateSkinningPaletteResource(model->GetSkinningPaletteSize());
+		UpdateSkinningPaletteResource();
+	} else {
+		CreateSkinningPaletteResource(1);
 	}
 }
 
@@ -478,6 +523,7 @@ Object3d::~Object3d() {
 	if (wvpResorceModel) wvpResorceModel->Unmap(0, nullptr);
 	if (lightResource) lightResource->Unmap(0, nullptr);
 	if (materialResourceCylinder) materialResourceCylinder->Unmap(0, nullptr);
+	if (skinningPaletteResource) skinningPaletteResource->Unmap(0, nullptr);
 
 	wvpResorceModel.Reset();
 	lightResource.Reset();
@@ -486,12 +532,14 @@ Object3d::~Object3d() {
 	vertexResourceCylinder.Reset();
 	indexResourceCylinder.Reset();
 	materialResourceCylinder.Reset();
+	skinningPaletteResource.Reset();
 
 	transformationMatrix = nullptr;
 	cameraData = nullptr;
 	directionallightData = nullptr;
 	pointLightData = nullptr;
 	materialDataCylinder = nullptr;
+	skinningPaletteData = nullptr;
 	camera = nullptr;
 	model = nullptr;
 }

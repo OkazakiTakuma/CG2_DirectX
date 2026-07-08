@@ -129,7 +129,7 @@ void SpriteCommon::CreatePipelineState() {
 	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
-	auto vertexShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Object3d.VS.hlsl", L"vs_6_0");
+	auto vertexShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Sprite.VS.hlsl", L"vs_6_0");
 	auto pixelShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Object3d.PS.hlsl", L"ps_6_0");
 	assert(vertexShaderBlob != nullptr);
 	assert(pixelShaderBlob != nullptr);

@@ -38,9 +38,9 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 #ifdef IMGUI_HAS_DOCK
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-	io.ConfigViewportsNoAutoMerge = true;
-	io.ConfigViewportsNoTaskBarIcon = true;
+	io.ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
+	io.ConfigViewportsNoAutoMerge = false;
+	io.ConfigViewportsNoTaskBarIcon = false;
 #endif
 
 	ImGui_ImplWin32_Init(winApp->GetHwnd());
@@ -192,9 +192,5 @@ void ImGuiManager::Draw() {
 
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
-#ifdef IMGUI_HAS_DOCK
-	ImGui::UpdatePlatformWindows();
-	ImGui::RenderPlatformWindowsDefault();
-#endif
 #endif
 }
