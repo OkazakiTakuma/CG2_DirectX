@@ -6,17 +6,28 @@
 
 using namespace Logger;
 
+/// <summary>
+/// 共有インスタンスを取得します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 LineCommon* LineCommon::GetInstance() {
 	static LineCommon instance;
 	return &instance;
 }
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <param name="dxCommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 void LineCommon::Initialize(DirectXCommon* dxCommon) {
 	assert(dxCommon);
 	dxCommon_ = dxCommon;
 	CreatePipelineState();
 }
 
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void LineCommon::Finalize() {
 	rootSignature.Reset();
 	for (auto& pso : graphicsPipelineStates) {
@@ -25,6 +36,10 @@ void LineCommon::Finalize() {
 	dxCommon_ = nullptr;
 }
 
+/// <summary>
+/// Draw を設定します。
+/// </summary>
+/// <param name="blendMode">描画時に使用するブレンドモードを指定します。</param>
 void LineCommon::SetDraw(uint32_t blendMode) {
 	assert(dxCommon_);
 	assert(blendMode < graphicsPipelineStates.size());
@@ -35,6 +50,9 @@ void LineCommon::SetDraw(uint32_t blendMode) {
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 }
 
+/// <summary>
+/// RootSignature を作成し、利用できる状態にします。
+/// </summary>
 void LineCommon::CreateRootSignature() {
 	D3D12_ROOT_PARAMETER rootParameters[1] = {};
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -70,6 +88,9 @@ void LineCommon::CreateRootSignature() {
 	assert(SUCCEEDED(hr));
 }
 
+/// <summary>
+/// PipelineState を作成し、利用できる状態にします。
+/// </summary>
 void LineCommon::CreatePipelineState() {
 	CreateRootSignature();
 

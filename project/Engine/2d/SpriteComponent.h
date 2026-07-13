@@ -7,10 +7,17 @@
 
 class SpriteComponent : public Component {
 public:
+	/// <summary>
+	/// 必要なリソースを準備し、オブジェクトを初期化します。
+	/// </summary>
 	void Initialize() override {
 		sprite_ = std::make_unique<Sprite>();
 	}
 
+	/// <summary>
+	/// 必要なリソースを準備し、オブジェクトを初期化します。
+	/// </summary>
+	/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 	void Initialize(const std::string& textureFilePath) {
 		if (!sprite_) {
 			sprite_ = std::make_unique<Sprite>();
@@ -18,6 +25,9 @@ public:
 		sprite_->Initialize(textureFilePath);
 	}
 
+	/// <summary>
+	/// 毎フレームの状態更新を行います。
+	/// </summary>
 	void Update() override {
 		if (sprite_) {
 			SyncOwnerTransformToSprite();
@@ -25,6 +35,9 @@ public:
 		}
 	}
 
+	/// <summary>
+	/// 2D 要素の描画処理を行います。
+	/// </summary>
 	void Draw2D() override {
 		if (sprite_) {
 			SpriteCommon::GetInstance()->SetDraw(kBlendModeNone);
@@ -32,11 +45,20 @@ public:
 		}
 	}
 
+	/// <summary>
+	/// 確保したリソースを解放し、終了処理を行います。
+	/// </summary>
 	void Finalize() override {
 		sprite_.reset();
 	}
 
 	Sprite* GetSprite() const { return sprite_.get(); }
+	void SetTexture(const std::string& textureFilePath) {
+		if (sprite_) {
+			sprite_->SetTexture(textureFilePath);
+		}
+	}
+	std::string GetTextureFilePath() const { return sprite_ ? sprite_->GetTextureFilePath() : std::string(); }
 
 	const EulerTransform& GetTransform() { return sprite_->GetTransform(); }
 	void SetTransform(const EulerTransform& transform) { sprite_->SetTransform(transform); }
@@ -58,6 +80,9 @@ public:
 	void SetTextureSize(const Vector2& size) { sprite_->SetTextureSize(size); }
 
 private:
+	/// <summary>
+	/// SyncOwnerTransformToSprite の処理を行います。
+	/// </summary>
 	void SyncOwnerTransformToSprite() {
 		if (!sprite_ || GetOwner() == nullptr) {
 			return;

@@ -1,4 +1,4 @@
-﻿#include "ImGuiManager.h"
+#include "ImGuiManager.h"
 
 #ifdef USE_IMGUI
 #include "../../../imgui/imgui_internal.h"
@@ -7,6 +7,13 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #endif
 
 namespace {
+/// <summary>
+/// ClampLayoutValue の処理を行います。
+/// </summary>
+/// <param name="value">計算に使用する値を指定します。</param>
+/// <param name="minValue">範囲判定に使用する値を指定します。</param>
+/// <param name="maxValue">範囲判定に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 float ClampLayoutValue(float value, float minValue, float maxValue) {
 	if (maxValue < minValue) {
 		return maxValue;
@@ -26,6 +33,11 @@ ImGuiManager* ImGuiManager::GetInstance() {
 	return &instance;
 }
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <param name="winApp">ウィンドウ管理オブジェクトを指定します。</param>
+/// <param name="dxCommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] DirectXCommon* dxCommon) {
 #ifdef USE_IMGUI
 	dxcommon = dxCommon;
@@ -54,6 +66,13 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 	initInfo.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	initInfo.SrvDescriptorHeap = srvManager->GetDescriptorHeap().Get();
 
+	/// <summary>
+	/// [] の処理を行います。
+	/// </summary>
+	/// <param name="info">info に使用する値を指定します。</param>
+	/// <param name="out_cpu_desc_handle">out_cpu_desc_handle に使用する値を指定します。</param>
+	/// <param name="out_gpu_desc_handle">out_gpu_desc_handle に使用する値を指定します。</param>
+	/// <returns>処理結果を返します。</returns>
 	initInfo.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle) {
 		SrvManager* srvmanager = SrvManager::GetInstance();
 		uint32_t index = srvmanager->Allocate();
@@ -62,15 +81,27 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 	};
 
 	initInfo.CommandQueue = dxCommon->GetCommandQueue().Get();
+	/// <summary>
+	/// [] の処理を行います。
+	/// </summary>
+	/// <param name="info">info に使用する値を指定します。</param>
+	/// <param name="cpu_desc_handle">cpu_desc_handle に使用する値を指定します。</param>
+	/// <param name="gpu_desc_handle">gpu_desc_handle に使用する値を指定します。</param>
+	/// <returns>処理結果を返します。</returns>
 	initInfo.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_desc_handle) {
 	};
 
 	ImGui_ImplDX12_Init(&initInfo);
+	performanceMonitor_.Initialize();
 #endif
 }
 
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void ImGuiManager::Finalize() {
 #ifdef USE_IMGUI
+	performanceMonitor_.Finalize();
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
@@ -79,8 +110,12 @@ void ImGuiManager::Finalize() {
 #endif
 }
 
+/// <summary>
+/// Begin の処理を行います。
+/// </summary>
 void ImGuiManager::Begin() {
 #ifdef USE_IMGUI
+	performanceMonitor_.Update();
 	ImGui_ImplWin32_NewFrame();
 	ImGui_ImplDX12_NewFrame();
 	ImGui::NewFrame();
@@ -89,6 +124,9 @@ void ImGuiManager::Begin() {
 #endif
 }
 
+/// <summary>
+/// upExternalEditorDockSpaces を設定します。
+/// </summary>
 void ImGuiManager::SetupExternalEditorDockSpaces() {
 #if defined(USE_IMGUI) && defined(IMGUI_HAS_DOCK)
 	static bool isLayoutBuilt = false;
@@ -125,27 +163,36 @@ void ImGuiManager::SetupExternalEditorDockSpaces() {
 		ImGui::DockBuilderSetNodeSize(dockspaceId, layoutSize);
 
 		ImGuiID mainId = dockspaceId;
+		ImGuiID topId = 0;
 		ImGuiID leftId = 0;
 		ImGuiID rightId = 0;
 		ImGuiID bottomId = 0;
+		const float topHeight = ClampLayoutValue(layoutSize.y * 0.08f, 44.0f, 72.0f);
 		const float leftWidth = ClampLayoutValue(layoutSize.x * 0.18f, 140.0f, layoutSize.x * 0.35f);
 		const float rightWidth = ClampLayoutValue(layoutSize.x * 0.24f, 180.0f, layoutSize.x * 0.40f);
 		const float bottomHeight = ClampLayoutValue(layoutSize.y * 0.24f, 120.0f, layoutSize.y * 0.40f);
+		const float heightAfterTop = layoutSize.y - topHeight;
 		const float widthAfterLeft = layoutSize.x - leftWidth;
+		const float topRatio = layoutSize.y > 0.0f ? topHeight / layoutSize.y : 0.08f;
 		const float leftRatio = layoutSize.x > 0.0f ? leftWidth / layoutSize.x : 0.18f;
 		const float rightRatio = widthAfterLeft > 0.0f ? rightWidth / widthAfterLeft : 0.24f;
-		const float bottomRatio = layoutSize.y > 0.0f ? bottomHeight / layoutSize.y : 0.24f;
+		const float bottomRatio = heightAfterTop > 0.0f ? bottomHeight / heightAfterTop : 0.24f;
 
+		ImGui::DockBuilderSplitNode(mainId, ImGuiDir_Up, topRatio, &topId, &mainId);
 		ImGui::DockBuilderSplitNode(mainId, ImGuiDir_Left, leftRatio, &leftId, &mainId);
 		ImGui::DockBuilderSplitNode(mainId, ImGuiDir_Right, rightRatio, &rightId, &mainId);
 		ImGui::DockBuilderSplitNode(mainId, ImGuiDir_Down, bottomRatio, &bottomId, &mainId);
 
+		ImGui::DockBuilderDockWindow("Editor Toolbar", topId);
+		ImGui::DockBuilderDockWindow("Component Manager", leftId);
 		ImGui::DockBuilderDockWindow("Hierarchy", leftId);
 		ImGui::DockBuilderDockWindow("Scene Objects", leftId);
+		ImGui::DockBuilderDockWindow("Component Inspector", rightId);
 		ImGui::DockBuilderDockWindow("Inspector", rightId);
 		ImGui::DockBuilderDockWindow("Object Inspector", rightId);
 		ImGui::DockBuilderDockWindow("Scene Manager", rightId);
-		ImGui::DockBuilderDockWindow("PostEffect Settings", rightId);
+		ImGui::DockBuilderDockWindow("PostEffect Settings", bottomId);
+		ImGui::DockBuilderDockWindow("Post Effects", bottomId);
 		ImGui::DockBuilderDockWindow("Particle Editor", bottomId);
 		ImGui::DockBuilderDockWindow("Project", bottomId);
 		ImGui::DockBuilderDockWindow("Console", bottomId);
@@ -156,6 +203,9 @@ void ImGuiManager::SetupExternalEditorDockSpaces() {
 #endif
 }
 
+/// <summary>
+/// DrawUtilityWindows の処理を行います。
+/// </summary>
 void ImGuiManager::DrawUtilityWindows() {
 #ifdef USE_IMGUI
 	if (ImGui::Begin("Project")) {
@@ -167,6 +217,19 @@ void ImGuiManager::DrawUtilityWindows() {
 
 	if (ImGui::Begin("Console")) {
 		ImGui::Text("Ready %.1f FPS", ImGui::GetIO().Framerate);
+		const float cpuUsage = performanceMonitor_.GetCpuUsagePercent();
+		ImGui::Text("CPU Usage : %.1f%%", cpuUsage);
+		ImGui::ProgressBar(cpuUsage / 100.0f, ImVec2(-1.0f, 0.0f));
+		if (performanceMonitor_.IsGpuUsageAvailable()) {
+			const float gpuUsage = performanceMonitor_.GetGpuUsagePercent();
+			const float gpu3DUsage = performanceMonitor_.GetGpu3DUsagePercent();
+			ImGui::Text("GPU Usage : %.1f%%", gpuUsage);
+			ImGui::ProgressBar(gpuUsage / 100.0f, ImVec2(-1.0f, 0.0f));
+			ImGui::Text("GPU 3D    : %.1f%%", gpu3DUsage);
+			ImGui::ProgressBar(gpu3DUsage / 100.0f, ImVec2(-1.0f, 0.0f));
+		} else {
+			ImGui::Text("GPU Usage : N/A");
+		}
 		if (gameWindowHandle_) {
 			const LONG_PTR style = GetWindowLongPtr(gameWindowHandle_, GWL_STYLE);
 			ImGui::Text("F11: %s", (style & WS_OVERLAPPEDWINDOW) ? "Windowed" : "Fullscreen");
@@ -176,12 +239,18 @@ void ImGuiManager::DrawUtilityWindows() {
 #endif
 }
 
+/// <summary>
+/// End の処理を行います。
+/// </summary>
 void ImGuiManager::End() {
 #ifdef USE_IMGUI
 	ImGui::Render();
 #endif
 }
 
+/// <summary>
+/// 現在の状態をもとに描画処理を行います。
+/// </summary>
 void ImGuiManager::Draw() {
 #ifdef USE_IMGUI
 	auto commandList = dxcommon->GetCommandList();

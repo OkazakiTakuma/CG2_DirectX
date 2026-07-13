@@ -5,6 +5,11 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #endif // USE_IMGUI
 
+/// <summary>
+/// WindowProc の処理を行います。
+/// </summary>
+/// <param name="msg">msg に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 #ifdef USE_IMGUI
 
@@ -20,6 +25,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
 void WinApp::Initialize() {
 	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 
@@ -39,8 +47,7 @@ void WinApp::Initialize() {
 	SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
 	const int32_t windowWidth = wrc.right - wrc.left;
 	const int32_t windowHeight = wrc.bottom - wrc.top;
-	const int32_t editorLeftMargin = 248;
-	const int32_t x = workArea.left + editorLeftMargin;
+	const int32_t x = workArea.left + 8;
 	const int32_t y = workArea.top + 8;
 #else
 	const int32_t windowWidth = wrc.right - wrc.left;
@@ -65,10 +72,36 @@ void WinApp::Initialize() {
 	ShowWindow(hwnd, SW_SHOW);
 	windowStyle_ = GetWindowLongPtr(hwnd, GWL_STYLE);
 	GetWindowPlacement(hwnd, &windowPlacement_);
+	UpdateClientSize();
 };
 
-void WinApp::Update() {}
+void WinApp::Update() {
+	UpdateClientSize();
+}
 
+void WinApp::UpdateClientSize() {
+	if (!hwnd) {
+		clientWidth_ = kClientWidth;
+		clientHeight_ = kClientHeight;
+		return;
+	}
+
+	RECT clientRect{};
+	if (GetClientRect(hwnd, &clientRect)) {
+		clientWidth_ = clientRect.right - clientRect.left;
+		clientHeight_ = clientRect.bottom - clientRect.top;
+		if (clientWidth_ <= 0) {
+			clientWidth_ = 1;
+		}
+		if (clientHeight_ <= 0) {
+			clientHeight_ = 1;
+		}
+	}
+}
+
+/// <summary>
+/// Fullscreen の状態を切り替えます。
+/// </summary>
 void WinApp::ToggleFullscreen() {
 	if (!hwnd) {
 		return;
@@ -93,6 +126,7 @@ void WinApp::ToggleFullscreen() {
 		    SWP_NOOWNERZORDER | SWP_FRAMECHANGED
 		);
 		isFullscreen_ = true;
+		UpdateClientSize();
 		return;
 	}
 
@@ -108,12 +142,20 @@ void WinApp::ToggleFullscreen() {
 	    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED
 	);
 	isFullscreen_ = false;
+	UpdateClientSize();
 }
 
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void WinApp::Finalize() {
 	CloseWindow(hwnd);
 	CoUninitialize();
 }
+/// <summary>
+/// Windows メッセージを処理し、終了要求の有無を返します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 bool WinApp::ProcessMessage() {
 	MSG msg = {};
 
@@ -126,5 +168,6 @@ bool WinApp::ProcessMessage() {
 		}
 	}
 
+	UpdateClientSize();
 	return false;
 }

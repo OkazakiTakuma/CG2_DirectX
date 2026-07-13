@@ -6,6 +6,10 @@ Audio::Audio() = default;
 
 Audio::~Audio() { Finalize(); }
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 bool Audio::Initialize() {
 	if (isInitialized_) {
 		return true;
@@ -33,6 +37,9 @@ bool Audio::Initialize() {
 	return true;
 }
 
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void Audio::Finalize() {
 	if (pMasterVoice != nullptr) {
 		pMasterVoice->DestroyVoice();
@@ -47,6 +54,12 @@ void Audio::Finalize() {
 	}
 }
 
+/// <summary>
+/// Wave を読み込み、内部データへ反映します。
+/// </summary>
+/// <param name="filename">読み込みまたは保存に使用するファイルパスを指定します。</param>
+/// <param name="outData">outData に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 bool Audio::LoadWave(const std::wstring& filename, SoundData& outData) {
 	Microsoft::WRL::ComPtr<IMFSourceReader> pReader = nullptr;
 	HRESULT hr = MFCreateSourceReaderFromURL(filename.c_str(), nullptr, &pReader);
@@ -100,6 +113,11 @@ bool Audio::LoadWave(const std::wstring& filename, SoundData& outData) {
 	return true;
 }
 
+/// <summary>
+/// 読み込まれた音声データを再生します。
+/// </summary>
+/// <param name="soundData">soundData に使用する値を指定します。</param>
+/// <param name="mode">mode に使用する値を指定します。</param>
 void Audio::Play(const SoundData& soundData, int mode) {
 	if (!pXAudio2) {
 		return;

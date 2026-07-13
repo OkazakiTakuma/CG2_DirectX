@@ -1,6 +1,8 @@
 #include "CopyImage.hlsli"
 
 Texture2D<float4> gTexture : register(t0);
+Texture2D<float> gDepthTexture : register(t1);
+Texture2D<float> gDissolveMask : register(t2);
 SamplerState gSampler : register(s0);
 
 cbuffer ColorInfo : register(b0)
@@ -14,6 +16,7 @@ cbuffer ColorInfo : register(b0)
     int enableRandom;
     int radialBlurSamples;
     int enableOutline;
+    int enableDissolve;
     float vignetteIntensity;
     float vignetteRadius;
     float vignetteSoftness;
@@ -22,10 +25,13 @@ cbuffer ColorInfo : register(b0)
     float outlineStrength;
     float outlineThreshold;
     float outlineThickness;
+    float dissolveThreshold;
+    float dissolveEdgeWidth;
     float time;
     float2 texelSize;
+    float2 paddingTexel;
     float4 outlineColor;
-    float padding;
+    float4 dissolveEdgeColor;
 };
 
 struct PixelShaderOutPut
@@ -97,16 +103,11 @@ float4 ApplyRadialBlur(float2 uv)
     return color / (float)sampleCount;
 }
 
-float Luminance(float3 color)
-{
-    return dot(color, float3(0.299f, 0.587f, 0.114f));
-}
-
-float4 ApplyOutline(float2 uv, float4 sourceColor)
+float4 ApplyDepthOutline(float2 uv, float4 sourceColor)
 {
     const float2 offset = texelSize * outlineThickness;
-    const float centerLuminance = Luminance(sourceColor.rgb);
-    float maxDifference = 0.0f;
+    const float centerDepth = gDepthTexture.Sample(gSampler, uv);
+    float maxDepthDifference = 0.0f;
 
     [unroll]
     for (int y = -1; y <= 1; ++y)
@@ -119,13 +120,24 @@ float4 ApplyOutline(float2 uv, float4 sourceColor)
                 continue;
             }
 
-            const float3 sampleColor = gTexture.Sample(gSampler, uv + float2(x, y) * offset).rgb;
-            maxDifference = max(maxDifference, abs(centerLuminance - Luminance(sampleColor)));
+            const float sampleDepth = gDepthTexture.Sample(gSampler, uv + float2(x, y) * offset);
+            maxDepthDifference = max(maxDepthDifference, abs(centerDepth - sampleDepth));
         }
     }
 
-    const float edge = smoothstep(outlineThreshold, outlineThreshold + 0.05f, maxDifference) * outlineStrength;
+    const float edge = smoothstep(outlineThreshold, outlineThreshold + 0.002f, maxDepthDifference) * outlineStrength;
     sourceColor.rgb = lerp(sourceColor.rgb, outlineColor.rgb, saturate(edge));
+    return sourceColor;
+}
+
+float4 ApplyDissolve(float2 uv, float4 sourceColor)
+{
+    const float animatedMask = gDissolveMask.Sample(gSampler, uv + float2(time * 0.015f, time * 0.01f));
+    clip(animatedMask - dissolveThreshold);
+
+    const float edgeWidth = max(dissolveEdgeWidth, 0.0001f);
+    const float edge = 1.0f - smoothstep(dissolveThreshold, dissolveThreshold + edgeWidth, animatedMask);
+    sourceColor.rgb = lerp(sourceColor.rgb, dissolveEdgeColor.rgb, saturate(edge) * dissolveEdgeColor.a);
     return sourceColor;
 }
 
@@ -133,8 +145,7 @@ PixelShaderOutPut main(VertexShaderOutput input)
 {
     PixelShaderOutPut output;
 
-    float4 baseColor = gTexture.Sample(gSampler, input.uv);
-    float4 resultColor = baseColor;
+    float4 resultColor = gTexture.Sample(gSampler, input.uv);
 
     if (enableSmoothing != 0)
     {
@@ -159,7 +170,7 @@ PixelShaderOutPut main(VertexShaderOutput input)
 
     if (enableOutline != 0)
     {
-        resultColor = ApplyOutline(input.uv, resultColor);
+        resultColor = ApplyDepthOutline(input.uv, resultColor);
     }
 
     if (enableVignetting != 0)
@@ -175,6 +186,11 @@ PixelShaderOutPut main(VertexShaderOutput input)
     {
         const float noise = Random(input.uv) * 2.0f - 1.0f;
         resultColor.rgb += noise * randomStrength;
+    }
+
+    if (enableDissolve != 0)
+    {
+        resultColor = ApplyDissolve(input.uv, resultColor);
     }
 
     output.color = resultColor * tintColor;

@@ -6,6 +6,10 @@
 
 namespace {
 #ifdef USE_IMGUI
+/// <summary>
+/// PrimaryWorkPos を取得します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 ImVec2 GetPrimaryWorkPos() {
 	const ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
 	if (platformIO.Monitors.Size > 0) {
@@ -14,6 +18,10 @@ ImVec2 GetPrimaryWorkPos() {
 	return ImVec2(0.0f, 0.0f);
 }
 
+/// <summary>
+/// PrimaryWorkSize を取得します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 ImVec2 GetPrimaryWorkSize() {
 	const ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
 	if (platformIO.Monitors.Size > 0) {
@@ -22,6 +30,13 @@ ImVec2 GetPrimaryWorkSize() {
 	return ImVec2(1280.0f, 720.0f);
 }
 
+/// <summary>
+/// ClampFloat の処理を行います。
+/// </summary>
+/// <param name="value">計算に使用する値を指定します。</param>
+/// <param name="minValue">範囲判定に使用する値を指定します。</param>
+/// <param name="maxValue">範囲判定に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 float ClampFloat(float value, float minValue, float maxValue) {
 	if (maxValue < minValue) {
 		return minValue;
@@ -35,6 +50,13 @@ float ClampFloat(float value, float minValue, float maxValue) {
 	return value;
 }
 
+/// <summary>
+/// ClampLayoutValue の処理を行います。
+/// </summary>
+/// <param name="value">計算に使用する値を指定します。</param>
+/// <param name="minValue">範囲判定に使用する値を指定します。</param>
+/// <param name="maxValue">範囲判定に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 float ClampLayoutValue(float value, float minValue, float maxValue) {
 	if (maxValue < minValue) {
 		return maxValue;
@@ -48,6 +70,12 @@ float ClampLayoutValue(float value, float minValue, float maxValue) {
 	return value;
 }
 
+/// <summary>
+/// ClampWindowPosToWorkArea の処理を行います。
+/// </summary>
+/// <param name="pos">pos に使用する値を指定します。</param>
+/// <param name="size">size に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 ImVec2 ClampWindowPosToWorkArea(const ImVec2& pos, const ImVec2& size) {
 	const ImVec2 workPos = GetPrimaryWorkPos();
 	const ImVec2 workSize = GetPrimaryWorkSize();
@@ -68,6 +96,10 @@ struct EditorLayout {
 	ImVec2 particleSize;
 };
 
+/// <summary>
+/// EditorLayout を生成して返します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 EditorLayout MakeEditorLayout() {
 	const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
 	const float width = displaySize.x > 0.0f ? displaySize.x : 1280.0f;
@@ -88,6 +120,13 @@ EditorLayout MakeEditorLayout() {
 	return layout;
 }
 
+/// <summary>
+/// BeginEditorPanel の処理を行います。
+/// </summary>
+/// <param name="name">name に使用する値を指定します。</param>
+/// <param name="pos">pos に使用する値を指定します。</param>
+/// <param name="size">size に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 bool BeginEditorPanel(const char* name, const ImVec2& pos, const ImVec2& size) {
 #ifdef IMGUI_HAS_DOCK
 	(void)pos;
@@ -107,6 +146,9 @@ bool BeginEditorPanel(const char* name, const ImVec2& pos, const ImVec2& size) {
 #endif
 }
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
 void GamePlayScene::Initialize() {
 	LoadSceneModels();
 
@@ -115,7 +157,8 @@ void GamePlayScene::Initialize() {
 			"Resources/uvChecker.png",
 			"Resources/monsterball.png",
 			"Resources/rostock_laage_airport_4k.dds",
-			"Resources/gradationLine.png"
+			"Resources/gradationLine.png",
+			"Resources/terrain/grass.png"
 	};
 
 	availableTextures_.clear();
@@ -136,14 +179,22 @@ void GamePlayScene::Initialize() {
 	ParticleManager::GetInstance()->ClearGroups();
 }
 
+/// <summary>
+/// SceneModels を読み込み、内部データへ反映します。
+/// </summary>
 void GamePlayScene::LoadSceneModels() {
 	ModelManager::GetInstance()->LoadModel("AnimatedCube.gltf", true, "/Cube");
 	ModelManager::GetInstance()->LoadModel("simpleSkin.gltf", true, "/simpleSkin");
 	ModelManager::GetInstance()->LoadModel("sneakWalk.gltf", true, "/human");
+	ModelManager::GetInstance()->LoadModel("walk.gltf", true, "/human");
 	ModelManager::GetInstance()->LoadModel("axis.obj");
 	ModelManager::GetInstance()->LoadModel("sphere.obj");
+	ModelManager::GetInstance()->LoadModel("terrain.obj", false, "/terrain");
 }
 
+/// <summary>
+/// 毎フレームの状態更新を行います。
+/// </summary>
 void GamePlayScene::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 		sceneManager->ChengeScene("TITLE");
@@ -199,12 +250,19 @@ void GamePlayScene::Update() {
 	ImGuiUpdate();
 }
 
+/// <summary>
+/// スカイボックスの描画処理を行います。
+/// </summary>
 void GamePlayScene::DrawSkyBox() {
+	BaseScene::DrawSkyBox();
 	if (isShowSkyBox_ && skyBox) {
 		 skyBox->Draw();
 	}
 }
 
+/// <summary>
+/// 2D 要素の描画処理を行います。
+/// </summary>
 void GamePlayScene::Draw2D() {
 	if (isShowSprite_ && spriteObject_) {
 		spriteObject_->Draw();
@@ -217,6 +275,9 @@ void GamePlayScene::Draw2D() {
 	}
 }
 
+/// <summary>
+/// 3D 要素の描画処理を行います。
+/// </summary>
 void GamePlayScene::Draw3D() {
 	if (isShowObject3D_ && object3dObject_) {
 		object3dObject_->Draw();
@@ -241,6 +302,9 @@ void GamePlayScene::Draw3D() {
 	}
 }
 
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void GamePlayScene::Finalize() {
 	BaseScene::Finalize();
 	if (audio_) {
@@ -264,13 +328,16 @@ void GamePlayScene::Finalize() {
 	skyBox.reset();
 }
 
+/// <summary>
+/// ImGui によるデバッグ用 UI の表示と編集処理を行います。
+/// </summary>
 void GamePlayScene::ImGuiUpdate() {
 #ifdef USE_IMGUI
 	cameraPosition = Object3dCommon::GetInstance()->GetDefaultCamera()->GetTranslate();
 	cameraRotate = Object3dCommon::GetInstance()->GetDefaultCamera()->GetRotate();
 	if (!ImGui::GetIO().WantCaptureMouse) {
 		const float wheelZoomSpeed = 0.01f;
-		cameraPosition.z = ClampFloat(cameraPosition.z + static_cast<float>(Input::GetInstance()->GetMouseWheelDelta()) * wheelZoomSpeed, -100.0f, -1.0f);
+		cameraPosition.z += static_cast<float>(Input::GetInstance()->GetMouseWheelDelta()) * wheelZoomSpeed;
 	}
 
 	const EditorLayout editorLayout = MakeEditorLayout();

@@ -136,7 +136,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <Optimization>Disabled</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\audio;$(ProjectDir)engine\3d;$(ProjectDir)engine\base;$(ProjectDir)engine\math;$(ProjectDir)externals\DirectXTex;$(ProjectDir)DirectXTex;$(ProjectDir)imgui;$(ProjectDir)engine\flame;$(ProjectDir)scene;$(ProjectDir)engine\2d;$(ProjectDir)externals\nlohmann</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\audio;$(ProjectDir)engine\3d;$(ProjectDir)engine\base;$(ProjectDir)engine\math;$(ProjectDir)externals\DirectXTex;$(ProjectDir)DirectXTex;$(ProjectDir)imgui;$(ProjectDir)engine\flame;$(ProjectDir)scene;$(ProjectDir)engine\2d;$(ProjectDir)externals\nlohmann;$(ProjectDir)Player</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -166,12 +166,16 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\3d\SkyBox.cpp" />
     <ClCompile Include="Engine\3d\SkyBoxCommon.cpp" />
     <ClCompile Include="Engine\flame\BaseScene.cpp" />
+    <ClCompile Include="Engine\flame\BaseSceneEditor.cpp" />
+    <ClCompile Include="Engine\flame\BaseSceneRuntime.cpp" />
+    <ClCompile Include="Engine\flame\BaseSceneSerialization.cpp" />
     <ClCompile Include="Engine\audio\Audio.cpp" />
     <ClCompile Include="Engine\base\D3DResouceLeakCheker.cpp" />
     <ClCompile Include="Engine\base\DirectXCommon.cpp" />
     <ClCompile Include="Engine\base\Input.cpp" />
     <ClCompile Include="Engine\base\Logger.cpp" />
     <ClCompile Include="Engine\base\ImGuiManager.cpp" />
+    <ClCompile Include="Engine\base\PerformanceMonitor.cpp" />
     <ClCompile Include="Engine\flame\Game.cpp" />
     <ClCompile Include="Engine\flame\FlameWork.cpp" />
     <ClCompile Include="Engine\base\PostEffect.cpp" />
@@ -181,6 +185,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\3d\InstancingModelCommon.cpp" />
     <ClCompile Include="Engine\collision\CollisionPrimitive.cpp" />
     <ClCompile Include="Engine\math\Quaternion.cpp" />
+    <ClCompile Include="Player\Player.cpp" />
     <ClCompile Include="scene\SceneFactory.cpp" />
     <ClCompile Include="scene\SceneManager.cpp" />
     <ClCompile Include="scene\GamePlayScene.cpp" />
@@ -263,6 +268,21 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <FxCompile Include="Resources\Shader\SkyBox.PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\SkyBox.VS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\Sprite.VS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\3d\Camera.h" />
@@ -279,6 +299,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\math\algorithm.h" />
     <ClInclude Include="Engine\flame\AbstractSceneFactory.h" />
     <ClInclude Include="Engine\flame\BaseScene.h" />
+    <ClInclude Include="Engine\flame\BaseSceneHelpers.h" />
     <ClInclude Include="Engine\audio\Audio.h" />
     <ClInclude Include="Engine\base\struct.h" />
     <ClInclude Include="Engine\base\D3DResouceLeakCheker.h" />
@@ -296,16 +317,24 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\2d\TextureManager.h" />
     <ClInclude Include="Engine\base\SrvManager.h" />
     <ClInclude Include="Engine\base\ImGuiManager.h" />
+    <ClInclude Include="Engine\base\PerformanceMonitor.h" />
     <ClInclude Include="Engine\flame\Game.h" />
     <ClInclude Include="Engine\flame\FlameWork.h" />
     <ClInclude Include="Engine\base\PostEffect.h" />
     <ClInclude Include="Engine\2d\LineDrawer.h" />
     <ClInclude Include="Engine\2d\LineCommon.h" />
+    <ClInclude Include="Engine\2d\SpriteComponent.h" />
     <ClInclude Include="Engine\3d\InstancingModel.h" />
     <ClInclude Include="Engine\3d\InstancingModelCommon.h" />
     <ClInclude Include="Engine\3d\OBBColliderComponent.h" />
+    <ClInclude Include="Engine\3d\Object3dComponent.h" />
+    <ClInclude Include="Engine\3d\ParticleEmitterComponent.h" />
+    <ClInclude Include="Engine\3d\SphereColliderComponent.h" />
     <ClInclude Include="Engine\collision\CollisionPrimitive.h" />
+    <ClInclude Include="Engine\flame\Component.h" />
+    <ClInclude Include="Engine\flame\GameObject.h" />
     <ClInclude Include="Engine\math\Quaternion.h" />
+    <ClInclude Include="Player\Player.h" />
     <ClInclude Include="scene\SceneFactory.h" />
     <ClInclude Include="scene\SceneManager.h" />
     <ClInclude Include="scene\GamePlayScene.h" />
@@ -324,6 +353,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <None Include="Resources\Shader\Object3d.hlsli" />
     <None Include="Resources\Shader\Particle.hlsli" />
     <None Include="Resources\Shader\CopyImage.hlsli" />
+    <None Include="Resources\Shader\SkyBox.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

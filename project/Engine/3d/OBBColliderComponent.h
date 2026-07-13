@@ -8,14 +8,25 @@
 
 class OBBColliderComponent : public Component {
 public:
+	/// <summary>
+	/// 3D 要素の描画処理を行います。
+	/// </summary>
 	void Draw3D() override {
+#ifndef USE_IMGUI
+		return;
+#else
 		if (!isDrawDebug_) {
 			return;
 		}
 
 		DrawDebugOBB(GetWorldOBB(), isColliding_ ? Vector4{1.0f, 0.2f, 0.2f, 1.0f} : Vector4{0.2f, 1.0f, 0.2f, 1.0f});
+#endif
 	}
 
+	/// <summary>
+	/// WorldOBB を取得します。
+	/// </summary>
+	/// <returns>処理結果を返します。</returns>
 	OBBColliderShape GetWorldOBB() const {
 		OBBColliderShape result{};
 		if (!GetOwner()) {
@@ -55,10 +66,17 @@ public:
 	const Vector3& GetHalfSize() const { return halfSize_; }
 	void SetDrawDebug(bool isDrawDebug) { isDrawDebug_ = isDrawDebug; }
 	bool GetDrawDebug() const { return isDrawDebug_; }
+	void SetPushBackEnabled(bool isPushBackEnabled) { isPushBackEnabled_ = isPushBackEnabled; }
+	bool GetPushBackEnabled() const { return isPushBackEnabled_; }
 	void SetColliding(bool isColliding) { isColliding_ = isColliding; }
 	bool IsColliding() const { return isColliding_; }
 
 private:
+	/// <summary>
+	/// DrawDebugOBB の処理を行います。
+	/// </summary>
+	/// <param name="obb">obb に使用する値を指定します。</param>
+	/// <param name="color">色を指定します。</param>
 	static void DrawDebugOBB(const OBBColliderShape& obb, const Vector4& color) {
 		Vector3 vertices[8]{};
 		for (int i = 0; i < 8; ++i) {
@@ -86,5 +104,6 @@ private:
 	Vector3 centerOffset_{0.0f, 0.0f, 0.0f};
 	Vector3 halfSize_{0.5f, 0.5f, 0.5f};
 	bool isDrawDebug_ = true;
+	bool isPushBackEnabled_ = false;
 	bool isColliding_ = false;
 };

@@ -3,31 +3,48 @@
 #include "SrvManager.h"
 #include "WinApp.h"
 #include "imGuiManager.h"
+#include <algorithm>
 #include <cassert>
+#include <cmath>
+#include <vector>
 
+/// <summary>
+/// 共有インスタンスを取得します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 PostEffect* PostEffect::GetInstance() {
 	static PostEffect instance;
 	return &instance;
 }
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <param name="dxCommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 void PostEffect::Initialize(DirectXCommon* dxCommon) {
 	assert(dxCommon);
 	dxCommon_ = dxCommon;
+	renderWidth_ = dxCommon_->GetRenderWidth();
+	renderHeight_ = dxCommon_->GetRenderHeight();
 
 	CreateTextureResource();
 	CreateRtv();
 	CreateDsv();
 	CreateSrv();
+	CreateDissolveMask();
 	CreateRootSignature();
 	CreatePipelineState();
 
 	CreateColorBuffer();
 }
 
+/// <summary>
+/// TextureResource を作成し、利用できる状態にします。
+/// </summary>
 void PostEffect::CreateTextureResource() {
 	D3D12_RESOURCE_DESC textureDesc{};
-	textureDesc.Width = WinApp::kClientWidth;
-	textureDesc.Height = WinApp::kClientHeight;
+	textureDesc.Width = renderWidth_;
+	textureDesc.Height = renderHeight_;
 	textureDesc.MipLevels = 1;
 	textureDesc.DepthOrArraySize = 1;
 	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -49,6 +66,9 @@ void PostEffect::CreateTextureResource() {
 	assert(SUCCEEDED(hr));
 }
 
+/// <summary>
+/// Rtv を作成し、利用できる状態にします。
+/// </summary>
 void PostEffect::CreateRtv() {
 	rtvHeap_ = dxCommon_->CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1, false);
 
@@ -59,13 +79,16 @@ void PostEffect::CreateRtv() {
 	dxCommon_->GetDevice()->CreateRenderTargetView(textureResource_.Get(), &rtvDesc, rtvHeap_->GetCPUDescriptorHandleForHeapStart());
 }
 
+/// <summary>
+/// Dsv を作成し、利用できる状態にします。
+/// </summary>
 void PostEffect::CreateDsv() {
 	D3D12_RESOURCE_DESC depthDesc{};
-	depthDesc.Width = WinApp::kClientWidth;
-	depthDesc.Height = WinApp::kClientHeight;
+	depthDesc.Width = renderWidth_;
+	depthDesc.Height = renderHeight_;
 	depthDesc.MipLevels = 1;
 	depthDesc.DepthOrArraySize = 1;
-	depthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	depthDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
 	depthDesc.SampleDesc.Count = 1;
 	depthDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	depthDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
@@ -89,9 +112,14 @@ void PostEffect::CreateDsv() {
 	dxCommon_->GetDevice()->CreateDepthStencilView(depthBuffer_.Get(), &dsvDesc, dsvHeap_->GetCPUDescriptorHandleForHeapStart());
 }
 
+/// <summary>
+/// Srv を作成し、利用できる状態にします。
+/// </summary>
 void PostEffect::CreateSrv() {
 	SrvManager* srvManager = SrvManager::GetInstance();
-	srvIndex_ = srvManager->Allocate();
+	if (srvIndex_ == UINT32_MAX) {
+		srvIndex_ = srvManager->Allocate();
+	}
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -102,25 +130,109 @@ void PostEffect::CreateSrv() {
 	dxCommon_->GetDevice()->CreateShaderResourceView(textureResource_.Get(), &srvDesc, srvManager->GetCPUDescriptorHandle(srvIndex_));
 
 	srvHandleGPU_ = srvManager->GetGPUDescriptorHandle(srvIndex_);
+
+	if (depthSrvIndex_ == UINT32_MAX) {
+		depthSrvIndex_ = srvManager->Allocate();
+	}
+	D3D12_SHADER_RESOURCE_VIEW_DESC depthSrvDesc{};
+	depthSrvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+	depthSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	depthSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	depthSrvDesc.Texture2D.MipLevels = 1;
+	dxCommon_->GetDevice()->CreateShaderResourceView(depthBuffer_.Get(), &depthSrvDesc, srvManager->GetCPUDescriptorHandle(depthSrvIndex_));
+	depthSrvHandleGPU_ = srvManager->GetGPUDescriptorHandle(depthSrvIndex_);
 }
 
-void PostEffect::CreateRootSignature() {
-	D3D12_DESCRIPTOR_RANGE descriptorRange[1] = {};
-	descriptorRange[0].BaseShaderRegister = 0;
-	descriptorRange[0].NumDescriptors = 1;
-	descriptorRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+void PostEffect::CreateDissolveMask() {
+	if (dissolveMaskResource_) {
+		return;
+	}
 
-	D3D12_ROOT_PARAMETER rootParameters[2] = {};
+	constexpr uint32_t maskSize = 256;
+	D3D12_RESOURCE_DESC textureDesc{};
+	textureDesc.Width = maskSize;
+	textureDesc.Height = maskSize;
+	textureDesc.MipLevels = 1;
+	textureDesc.DepthOrArraySize = 1;
+	textureDesc.Format = DXGI_FORMAT_R8_UNORM;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+	D3D12_HEAP_PROPERTIES heapProps{};
+	heapProps.Type = D3D12_HEAP_TYPE_CUSTOM;
+	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+
+	HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
+	    &heapProps,
+	    D3D12_HEAP_FLAG_NONE,
+	    &textureDesc,
+	    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+	    nullptr,
+	    IID_PPV_ARGS(&dissolveMaskResource_)
+	);
+	assert(SUCCEEDED(hr));
+
+	std::vector<uint8_t> mask(maskSize * maskSize);
+	for (uint32_t y = 0; y < maskSize; ++y) {
+		for (uint32_t x = 0; x < maskSize; ++x) {
+			const float wave = std::sin(static_cast<float>(x) * 0.13f) + std::sin(static_cast<float>(y) * 0.17f);
+			const uint32_t hash = (x * 1973u) ^ (y * 9277u) ^ ((x + y) * 26699u);
+			const float noise = static_cast<float>((hash ^ (hash >> 13)) & 0xffu) / 255.0f;
+			const float value = std::clamp((wave * 0.18f) + (noise * 0.82f), 0.0f, 1.0f);
+			mask[(y * maskSize) + x] = static_cast<uint8_t>(value * 255.0f);
+		}
+	}
+
+	hr = dissolveMaskResource_->WriteToSubresource(0, nullptr, mask.data(), maskSize, maskSize * maskSize);
+	assert(SUCCEEDED(hr));
+
+	SrvManager* srvManager = SrvManager::GetInstance();
+	if (dissolveMaskSrvIndex_ == UINT32_MAX) {
+		dissolveMaskSrvIndex_ = srvManager->Allocate();
+	}
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Format = DXGI_FORMAT_R8_UNORM;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	dxCommon_->GetDevice()->CreateShaderResourceView(dissolveMaskResource_.Get(), &srvDesc, srvManager->GetCPUDescriptorHandle(dissolveMaskSrvIndex_));
+	dissolveMaskSrvHandleGPU_ = srvManager->GetGPUDescriptorHandle(dissolveMaskSrvIndex_);
+}
+
+/// <summary>
+/// RootSignature を作成し、利用できる状態にします。
+/// </summary>
+void PostEffect::CreateRootSignature() {
+	D3D12_DESCRIPTOR_RANGE descriptorRanges[3] = {};
+	for (uint32_t index = 0; index < _countof(descriptorRanges); ++index) {
+		descriptorRanges[index].BaseShaderRegister = index;
+		descriptorRanges[index].NumDescriptors = 1;
+		descriptorRanges[index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		descriptorRanges[index].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	}
+
+	D3D12_ROOT_PARAMETER rootParameters[4] = {};
 
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	rootParameters[0].DescriptorTable.pDescriptorRanges = descriptorRange;
+	rootParameters[0].DescriptorTable.pDescriptorRanges = &descriptorRanges[0];
 	rootParameters[0].DescriptorTable.NumDescriptorRanges = 1;
 
 	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[1].Descriptor.ShaderRegister = 0;
+
+	rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[2].DescriptorTable.pDescriptorRanges = &descriptorRanges[1];
+	rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
+
+	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[3].DescriptorTable.pDescriptorRanges = &descriptorRanges[2];
+	rootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
 
 	D3D12_STATIC_SAMPLER_DESC staticSamplers[1] = {};
 	staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -132,7 +244,7 @@ void PostEffect::CreateRootSignature() {
 
 	D3D12_ROOT_SIGNATURE_DESC descriptionSignature{};
 	descriptionSignature.pParameters = rootParameters;
-	descriptionSignature.NumParameters = 2;
+	descriptionSignature.NumParameters = _countof(rootParameters);
 	descriptionSignature.pStaticSamplers = staticSamplers;
 	descriptionSignature.NumStaticSamplers = 1;
 	descriptionSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
@@ -147,6 +259,9 @@ void PostEffect::CreateRootSignature() {
 	assert(SUCCEEDED(hr));
 }
 
+/// <summary>
+/// PipelineState を作成し、利用できる状態にします。
+/// </summary>
 void PostEffect::CreatePipelineState() {
 	auto vertexShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/CopyImage.VS.hlsl", L"vs_6_0");
 	auto pixelShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/FullScreen.PS.hlsl", L"ps_6_0");
@@ -186,6 +301,9 @@ void PostEffect::CreatePipelineState() {
 	assert(SUCCEEDED(hr));
 }
 
+/// <summary>
+/// ColorBuffer を作成し、利用できる状態にします。
+/// </summary>
 void PostEffect::CreateColorBuffer() {
 	uint32_t sizeIB = (sizeof(ColorData) + 0xff) & ~0xff;
 
@@ -224,6 +342,9 @@ void PostEffect::CreateColorBuffer() {
 	ApplySettingsToBuffer();
 }
 
+/// <summary>
+/// SettingsToBuffer を現在の状態へ反映します。
+/// </summary>
 void PostEffect::ApplySettingsToBuffer() {
 	if (colorData_ == nullptr) {
 		return;
@@ -242,6 +363,7 @@ void PostEffect::ApplySettingsToBuffer() {
 	colorData_->enableRandom = enableRandom_ ? 1 : 0;
 	colorData_->radialBlurSamples = radialBlurSamples_;
 	colorData_->enableOutline = enableOutline_ ? 1 : 0;
+	colorData_->enableDissolve = enableDissolve_ ? 1 : 0;
 	colorData_->vignetteIntensity = vignetteIntensity_;
 	colorData_->vignetteRadius = vignetteRadius_;
 	colorData_->vignetteSoftness = vignetteSoftness_;
@@ -250,18 +372,69 @@ void PostEffect::ApplySettingsToBuffer() {
 	colorData_->outlineStrength = outlineStrength_;
 	colorData_->outlineThreshold = outlineThreshold_;
 	colorData_->outlineThickness = outlineThickness_;
+	colorData_->dissolveThreshold = dissolveThreshold_;
+	colorData_->dissolveEdgeWidth = dissolveEdgeWidth_;
 	colorData_->time = time_;
-	colorData_->texelSize[0] = 1.0f / static_cast<float>(WinApp::kClientWidth);
-	colorData_->texelSize[1] = 1.0f / static_cast<float>(WinApp::kClientHeight);
+	colorData_->texelSize[0] = 1.0f / static_cast<float>(renderWidth_);
+	colorData_->texelSize[1] = 1.0f / static_cast<float>(renderHeight_);
+	colorData_->paddingTexel[0] = 0.0f;
+	colorData_->paddingTexel[1] = 0.0f;
 	colorData_->outlineColor[0] = outlineColor_[0];
 	colorData_->outlineColor[1] = outlineColor_[1];
 	colorData_->outlineColor[2] = outlineColor_[2];
 	colorData_->outlineColor[3] = outlineColor_[3];
-	colorData_->padding = 0.0f;
+	colorData_->dissolveEdgeColor[0] = dissolveEdgeColor_[0];
+	colorData_->dissolveEdgeColor[1] = dissolveEdgeColor_[1];
+	colorData_->dissolveEdgeColor[2] = dissolveEdgeColor_[2];
+	colorData_->dissolveEdgeColor[3] = dissolveEdgeColor_[3];
 }
 
+void PostEffect::ResizeIfNeeded() {
+	if (!dxCommon_) {
+		return;
+	}
+
+	const int32_t width = dxCommon_->GetRenderWidth();
+	const int32_t height = dxCommon_->GetRenderHeight();
+	if (width == renderWidth_ && height == renderHeight_) {
+		return;
+	}
+
+	ResizeResources(width, height);
+}
+
+void PostEffect::ResizeResources(int32_t width, int32_t height) {
+	if (width <= 0 || height <= 0) {
+		return;
+	}
+
+	renderWidth_ = width;
+	renderHeight_ = height;
+	sceneTextureReadyAsSrv_ = false;
+	depthTextureReadyAsSrv_ = false;
+	textureResource_.Reset();
+	depthBuffer_.Reset();
+	rtvHeap_.Reset();
+	dsvHeap_.Reset();
+
+	CreateTextureResource();
+	CreateRtv();
+	CreateDsv();
+	CreateSrv();
+	ApplySettingsToBuffer();
+}
+
+/// <summary>
+/// UpdateHotkeys の処理を行います。
+/// </summary>
 void PostEffect::UpdateHotkeys() {
 	Input* input = Input::GetInstance();
+	/// <summary>
+	/// [input] の処理を行います。
+	/// </summary>
+	/// <param name="key">key に使用する値を指定します。</param>
+	/// <param name="numpadKey">numpadKey に使用する値を指定します。</param>
+	/// <returns>処理結果を返します。</returns>
 	const auto triggered = [input](BYTE key, BYTE numpadKey) {
 		return input->TriggerKey(key) || input->TriggerKey(numpadKey);
 	};
@@ -290,25 +463,41 @@ void PostEffect::UpdateHotkeys() {
 	if (triggered(DIK_8, DIK_NUMPAD8)) {
 		enableOutline_ = !enableOutline_;
 	}
+	if (triggered(DIK_9, DIK_NUMPAD9)) {
+		enableDissolve_ = !enableDissolve_;
+	}
 
 	ApplySettingsToBuffer();
 }
+/// <summary>
+/// PreDrawScene の処理を行います。
+/// </summary>
 void PostEffect::PreDrawScene() {
+	ResizeIfNeeded();
 	auto commandList = dxCommon_->GetCommandList();
-
-	static bool isFirstFrame = true;
 
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Transition.pResource = textureResource_.Get();
-	barrier.Transition.StateBefore = isFirstFrame ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	barrier.Transition.StateBefore = sceneTextureReadyAsSrv_ ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
 	if (barrier.Transition.StateBefore != barrier.Transition.StateAfter) {
 		commandList->ResourceBarrier(1, &barrier);
 	}
 
-	isFirstFrame = false;
+	if (depthTextureReadyAsSrv_) {
+		D3D12_RESOURCE_BARRIER depthBarrier{};
+		depthBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		depthBarrier.Transition.pResource = depthBuffer_.Get();
+		depthBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		depthBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+		depthBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		commandList->ResourceBarrier(1, &depthBarrier);
+		depthTextureReadyAsSrv_ = false;
+	}
+
+	sceneTextureReadyAsSrv_ = false;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
@@ -319,8 +508,8 @@ void PostEffect::PreDrawScene() {
 	commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	D3D12_VIEWPORT viewport{};
-	viewport.Width = static_cast<float>(WinApp::kClientWidth);
-	viewport.Height = static_cast<float>(WinApp::kClientHeight);
+	viewport.Width = static_cast<float>(renderWidth_);
+	viewport.Height = static_cast<float>(renderHeight_);
 	viewport.TopLeftX = 0;
 	viewport.TopLeftY = 0;
 	viewport.MinDepth = 0.0f;
@@ -330,11 +519,14 @@ void PostEffect::PreDrawScene() {
 	D3D12_RECT scissorRect{};
 	scissorRect.left = 0;
 	scissorRect.top = 0;
-	scissorRect.right = WinApp::kClientWidth;
-	scissorRect.bottom = WinApp::kClientHeight;
+	scissorRect.right = renderWidth_;
+	scissorRect.bottom = renderHeight_;
 	commandList->RSSetScissorRects(1, &scissorRect);
 }
 
+/// <summary>
+/// PostDrawScene の処理を行います。
+/// </summary>
 void PostEffect::PostDrawScene() {
 	auto commandList = dxCommon_->GetCommandList();
 
@@ -344,9 +536,23 @@ void PostEffect::PostDrawScene() {
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	commandList->ResourceBarrier(1, &barrier);
+	sceneTextureReadyAsSrv_ = true;
+
+	D3D12_RESOURCE_BARRIER depthBarrier{};
+	depthBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	depthBarrier.Transition.pResource = depthBuffer_.Get();
+	depthBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+	depthBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	depthBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	commandList->ResourceBarrier(1, &depthBarrier);
+	depthTextureReadyAsSrv_ = true;
 }
 
+/// <summary>
+/// 現在の状態をもとに描画処理を行います。
+/// </summary>
 void PostEffect::Draw() {
+	ResizeIfNeeded();
 	auto commandList = dxCommon_->GetCommandList();
 	SrvManager::GetInstance()->PreDraw();
 	time_ += 1.0f / 60.0f;
@@ -359,10 +565,15 @@ void PostEffect::Draw() {
 
 	commandList->SetGraphicsRootDescriptorTable(0, srvHandleGPU_);
 	commandList->SetGraphicsRootConstantBufferView(1, colorBuffer_->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootDescriptorTable(2, depthSrvHandleGPU_);
+	commandList->SetGraphicsRootDescriptorTable(3, dissolveMaskSrvHandleGPU_);
 
 	commandList->DrawInstanced(3, 1, 0, 0);
 }
 
+/// <summary>
+/// ImGui によるデバッグ用 UI の表示と編集処理を行います。
+/// </summary>
 void PostEffect::DrawImGui() {
 #ifdef USE_IMGUI
 #ifndef IMGUI_HAS_DOCK
@@ -448,6 +659,20 @@ void PostEffect::DrawImGui() {
 	}
 
 	ImGui::Separator();
+	if (ImGui::Checkbox("Apply Dissolve", &enableDissolve_)) {
+		colorData_->enableDissolve = enableDissolve_ ? 1 : 0;
+	}
+	if (!enableDissolve_) {
+		ImGui::BeginDisabled();
+	}
+	ImGui::SliderFloat("Dissolve Threshold", &dissolveThreshold_, 0.0f, 1.0f);
+	ImGui::SliderFloat("Dissolve Edge Width", &dissolveEdgeWidth_, 0.001f, 0.3f);
+	ImGui::ColorEdit4("Dissolve Edge Color", dissolveEdgeColor_);
+	if (!enableDissolve_) {
+		ImGui::EndDisabled();
+	}
+
+	ImGui::Separator();
 	if (ImGui::Checkbox("Apply Vignetting", &enableVignetting_)) {
 		colorData_->enableVignetting = enableVignetting_ ? 1 : 0;
 	}
@@ -471,9 +696,13 @@ void PostEffect::DrawImGui() {
 	ImGui::End();
 #endif
 }
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void PostEffect::Finalize() {
 	textureResource_.Reset();
 	depthBuffer_.Reset();
+	dissolveMaskResource_.Reset();
 	rtvHeap_.Reset();
 	dsvHeap_.Reset();
 	rootSignature_.Reset();

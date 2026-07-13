@@ -1,9 +1,12 @@
-﻿#include "D3DResouceLeakCheker.h"
+#include "D3DResouceLeakCheker.h"
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
 #include <wrl.h>
 
+/// <summary>
+/// 破棄時に必要な解放処理を行います。
+/// </summary>
 D3DResourceLeakCheker::~D3DResourceLeakCheker() {
 
 	Microsoft::WRL::ComPtr<IDXGIDebug1> dxgiDebug;

@@ -1,12 +1,20 @@
-﻿#include "SpriteCommon.h"
+#include "SpriteCommon.h"
 
 using namespace Logger;
 
+/// <summary>
+/// 共有インスタンスを取得します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 SpriteCommon* SpriteCommon::GetInstance() {
 	static SpriteCommon instance;
 	return &instance;
 }
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <param name="dxCommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 void SpriteCommon::Initialize(DirectXCommon* dxCommon) {
 	assert(dxCommon);
 	this->dxCommon_ = dxCommon;
@@ -14,12 +22,19 @@ void SpriteCommon::Initialize(DirectXCommon* dxCommon) {
 	CreatePipelineState();
 }
 
+/// <summary>
+/// Draw を設定します。
+/// </summary>
+/// <param name="blendMode">描画時に使用するブレンドモードを指定します。</param>
 void SpriteCommon::SetDraw(uint32_t blendMode) {
 	dxCommon_->GetCommandList()->SetPipelineState(graphicsPipelineStates[blendMode].Get());
 	dxCommon_->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());
 	dxCommon_->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void SpriteCommon::Finalize() {
 	rootSignature.Reset();
 	for (auto& pso : graphicsPipelineStates) {
@@ -28,6 +43,9 @@ void SpriteCommon::Finalize() {
 	dxCommon_ = nullptr;
 }
 
+/// <summary>
+/// RootSignature を作成し、利用できる状態にします。
+/// </summary>
 void SpriteCommon::CreateRootSignature() {
 	HRESULT hr;
 
@@ -104,6 +122,9 @@ void SpriteCommon::CreateRootSignature() {
 	assert(SUCCEEDED(hr));
 }
 
+/// <summary>
+/// PipelineState を作成し、利用できる状態にします。
+/// </summary>
 void SpriteCommon::CreatePipelineState() {
 	HRESULT hr;
 	CreateRootSignature();

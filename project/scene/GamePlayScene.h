@@ -8,11 +8,29 @@
 
 class GamePlayScene: public BaseScene {
 public:
+	/// <summary>
+	/// 必要なリソースを準備し、オブジェクトを初期化します。
+	/// </summary>
 	void Initialize() override;
+	/// <summary>
+	/// 毎フレームの状態更新を行います。
+	/// </summary>
 	void Update() override;
+	/// <summary>
+	/// スカイボックスの描画処理を行います。
+	/// </summary>
 	void DrawSkyBox() override;
+	/// <summary>
+	/// 2D 要素の描画処理を行います。
+	/// </summary>
 	void Draw2D() override;
+	/// <summary>
+	/// 3D 要素の描画処理を行います。
+	/// </summary>
 	void Draw3D() override;
+	/// <summary>
+	/// 確保したリソースを解放し、終了処理を行います。
+	/// </summary>
 	void Finalize() override;
 	void SetSceneManager(SceneManager* manager) override { sceneManager = manager; }
 
@@ -57,7 +75,13 @@ private:
 	Vector3 modelPosition={0.0f, 0.0f, 0.0f};
 	Vector3 modelRotate={0.0f, 0.0f, 0.0f};
 	Vector3 modelScale={1.0f, 1.0f, 1.0f};
+	/// <summary>
+	/// SceneModels を読み込み、内部データへ反映します。
+	/// </summary>
 	void LoadSceneModels();
+	/// <summary>
+	/// ImGui によるデバッグ用 UI の表示と編集処理を行います。
+	/// </summary>
 	void ImGuiUpdate();
 	Vector4 lightColor = {1.0f, 1.0f, 1.0f, 1.0f};
 	Vector3 lightDirection = {0.0f, -1.0f, 0.0f};

@@ -3,11 +3,19 @@
 
 using namespace Logger;
 
+/// <summary>
+/// 共有インスタンスを取得します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 Object3dCommon* Object3dCommon::GetInstance() {
 	static Object3dCommon instance;
 	return &instance;
 }
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <param name="dxCommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 void Object3dCommon::Initialize(DirectXCommon* dxCommon) {
 	assert(dxCommon);
 	this->dxCommon_ = dxCommon;
@@ -15,12 +23,18 @@ void Object3dCommon::Initialize(DirectXCommon* dxCommon) {
 	CreatePipelineState();
 }
 
+/// <summary>
+/// Draw を設定します。
+/// </summary>
 void Object3dCommon::SetDraw() {
 	dxCommon_->GetCommandList()->SetPipelineState(graphicsPipelineState.Get());
 	dxCommon_->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());
 	dxCommon_->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void Object3dCommon::Finalize() {
 	rootSignature.Reset();
 	graphicsPipelineState.Reset();
@@ -28,6 +42,9 @@ void Object3dCommon::Finalize() {
 	defaultCamera = nullptr;
 }
 
+/// <summary>
+/// RootSignature を作成し、利用できる状態にします。
+/// </summary>
 void Object3dCommon::CreateRootSignature() {
 	HRESULT hr;
 
@@ -107,6 +124,9 @@ void Object3dCommon::CreateRootSignature() {
 	hr = dxCommon_->GetDevice()->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
 	assert(SUCCEEDED(hr));
 }
+/// <summary>
+/// PipelineState を作成し、利用できる状態にします。
+/// </summary>
 void Object3dCommon::CreatePipelineState() {
 	HRESULT hr;
 	CreateRootSignature();

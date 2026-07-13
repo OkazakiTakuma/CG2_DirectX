@@ -14,12 +14,28 @@ struct InstancingMatrixData {
 
 class InstancingModel {
 public:
+    /// <summary>
+    /// 必要なリソースを準備し、オブジェクトを初期化します。
+    /// </summary>
+    /// <param name="model">model に使用する値を指定します。</param>
+    /// <param name="maxInstanceCount">範囲判定に使用する値を指定します。</param>
     void Initialize(Model* model, uint32_t maxInstanceCount);
 
+    /// <summary>
+    /// AddInstance の処理を行います。
+    /// </summary>
+    /// <param name="transform">transform に使用する値を指定します。</param>
     void AddInstance(const EulerTransform& transform);
 
+    /// <summary>
+    /// 現在の状態をもとに描画処理を行います。
+    /// </summary>
+    /// <param name="camera">描画や座標変換に使用するカメラを指定します。</param>
     void Draw(Camera* camera);
 
+    /// <summary>
+    /// 破棄時に必要な解放処理を行います。
+    /// </summary>
     ~InstancingModel();
     void SetEnvironmentMapPath(const std::string& path) { envMapTexturePath_ = path; }
 private:
@@ -31,6 +47,9 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> instanceBuffer_;
     InstancingMatrixData* mappedData_ = nullptr;
 
+    /// <summary>
+    /// InstanceBuffer を作成し、利用できる状態にします。
+    /// </summary>
     void CreateInstanceBuffer();
 
     struct DirectionalLight {
@@ -50,5 +69,8 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> pointLightResource_;
     PointLight* pointLightData_ = nullptr;
     std::string envMapTexturePath_;
+    /// <summary>
+    /// ConstantBuffers を作成し、利用できる状態にします。
+    /// </summary>
     void CreateConstantBuffers();
 };

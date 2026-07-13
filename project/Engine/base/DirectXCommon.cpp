@@ -6,6 +6,13 @@ using namespace StringUtility;
 
 
 
+/// <summary>
+/// DescriptorHeap を作成し、利用できる状態にします。
+/// </summary>
+/// <param name="type">type に使用する値を指定します。</param>
+/// <param name="numDescriptors">numDescriptors に使用する値を指定します。</param>
+/// <param name="shaderVisible">shaderVisible に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors, bool shaderVisible) {
 	assert(device != nullptr);
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap = nullptr;
@@ -18,9 +25,16 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap
 	return descriptorHeap;
 }
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <param name="winApp">ウィンドウ管理オブジェクトを指定します。</param>
 void DirectXCommon::Initialize(WinApp* winApp) {
 	assert(winApp);
 	this->winApp = winApp;
+	winApp->UpdateClientSize();
+	renderWidth_ = winApp->GetClientWidth();
+	renderHeight_ = winApp->GetClientHeight();
 	InitializeFixFPS();
 	CreateDevice();
 	CreateCommand();
@@ -37,7 +51,11 @@ void DirectXCommon::Initialize(WinApp* winApp) {
 
 
 
+/// <summary>
+/// PreDraw の処理を行います。
+/// </summary>
 void DirectXCommon::PreDraw() {
+	ResizeIfNeeded();
 	dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
 	UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
@@ -59,6 +77,9 @@ void DirectXCommon::PreDraw() {
 
 }
 
+/// <summary>
+/// PostDraw の処理を行います。
+/// </summary>
 void DirectXCommon::PostDraw() {
 	HRESULT hr;
 	UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
@@ -77,12 +98,7 @@ void DirectXCommon::PostDraw() {
 	commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 	swapChain->Present(1, 0);
 
-	fenceValue++;
-	commandQueue->Signal(fence.Get(), fenceValue);
-	if (fence->GetCompletedValue() < fenceValue) {
-		fence->SetEventOnCompletion(fenceValue, fenceEvent);
-		WaitForSingleObject(fenceEvent, INFINITE);
-	}
+	WaitForGPU();
 	UpdateFixFPS();
 
 	hr = commandAllocator->Reset();
@@ -91,6 +107,73 @@ void DirectXCommon::PostDraw() {
 	assert(SUCCEEDED(hr));
 }
 
+void DirectXCommon::WaitForGPU() {
+	if (!commandQueue || !fence) {
+		return;
+	}
+
+	fenceValue++;
+	commandQueue->Signal(fence.Get(), fenceValue);
+	if (fence->GetCompletedValue() < fenceValue) {
+		fence->SetEventOnCompletion(fenceValue, fenceEvent);
+		WaitForSingleObject(fenceEvent, INFINITE);
+	}
+}
+
+void DirectXCommon::ResizeIfNeeded() {
+	if (!winApp || !swapChain) {
+		return;
+	}
+
+	winApp->UpdateClientSize();
+	const int32_t width = winApp->GetClientWidth();
+	const int32_t height = winApp->GetClientHeight();
+	if (width == renderWidth_ && height == renderHeight_) {
+		return;
+	}
+
+	ResizeBackBuffers(width, height);
+}
+
+void DirectXCommon::ResizeBackBuffers(int32_t width, int32_t height) {
+	if (width <= 0 || height <= 0) {
+		return;
+	}
+
+	WaitForGPU();
+
+	for (Microsoft::WRL::ComPtr<ID3D12Resource>& swapChainResource : swapChainResources) {
+		swapChainResource.Reset();
+	}
+	depthStencilResource.Reset();
+
+	HRESULT hr = swapChain->ResizeBuffers(
+	    static_cast<UINT>(_countof(swapChainResources)),
+	    static_cast<UINT>(width),
+	    static_cast<UINT>(height),
+	    swapChainDesc.Format,
+	    swapChainDesc.Flags
+	);
+	assert(SUCCEEDED(hr));
+
+	renderWidth_ = width;
+	renderHeight_ = height;
+	swapChainDesc.Width = static_cast<UINT>(width);
+	swapChainDesc.Height = static_cast<UINT>(height);
+
+	CreateRenderTargetView();
+	CreateDepthBuffer();
+	CreateDepthStencilView();
+	CreateViewportRect();
+	CreateScissorRect();
+}
+
+/// <summary>
+/// 指定された HLSL シェーダーをコンパイルします。
+/// </summary>
+/// <param name="filepath">読み込みまたは保存に使用するファイルパスを指定します。</param>
+/// <param name="profile">profile に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(const std::wstring& filepath, const wchar_t* profile) {
 	Log(ConvertString(std::format(L"Bigin CompileShader, path:{},profile:{}\n", filepath, profile)));
 	Microsoft::WRL::ComPtr<IDxcBlobEncoding> shaderSource = nullptr;
@@ -137,6 +220,11 @@ Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(const std::wstring
 	return shaderBlob;
 }
 
+/// <summary>
+/// BufferResource を作成し、利用できる状態にします。
+/// </summary>
+/// <param name="sizeInBytes">sizeInBytes に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateBufferResource(size_t sizeInBytes) {
 	HRESULT hr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
@@ -158,6 +246,11 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateBufferResource(size_
 
 	return resource;
 }
+/// <summary>
+/// TextureResource を作成し、利用できる状態にします。
+/// </summary>
+/// <param name="metaData">metaData に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(const DirectX::TexMetadata& metaData) {
 	assert(device != nullptr);
 
@@ -189,6 +282,11 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(cons
 	return resource;
 }
 
+/// <summary>
+/// UploadTextureData の処理を行います。
+/// </summary>
+/// <param name="texture">texture に使用する値を指定します。</param>
+/// <param name="mipImages">mipImages に使用する値を指定します。</param>
 void DirectXCommon::UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Resource> texture, const DirectX::ScratchImage& mipImages) {
 	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
 
@@ -211,6 +309,13 @@ void DirectXCommon::UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Resource> tex
 		}
 	}
 }
+/// <summary>
+/// DepthStenecilTextureResource を作成し、利用できる状態にします。
+/// </summary>
+/// <param name="device">device に使用する値を指定します。</param>
+/// <param name="width">幅を指定します。</param>
+/// <param name="height">高さを指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDepthStenecilTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, int32_t width, int32_t height) {
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Width = width;
@@ -242,6 +347,9 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDepthStenecilTexture
 	return resource;
 }
 
+/// <summary>
+/// Device を作成し、利用できる状態にします。
+/// </summary>
 void DirectXCommon::CreateDevice() {
 	HRESULT hr;
 	hr = CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory));
@@ -302,6 +410,9 @@ void DirectXCommon::CreateDevice() {
 #endif // Debug
 }
 
+/// <summary>
+/// Command を作成し、利用できる状態にします。
+/// </summary>
 void DirectXCommon::CreateCommand() {
 	HRESULT hr;
 	hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator));
@@ -316,10 +427,13 @@ void DirectXCommon::CreateCommand() {
 	assert(SUCCEEDED(hr));
 }
 
+/// <summary>
+/// SwapChain を作成し、利用できる状態にします。
+/// </summary>
 void DirectXCommon::CreateSwapChain() {
 	HRESULT hr;
-	swapChainDesc.Width = WinApp::kClientWidth;
-	swapChainDesc.Height = WinApp::kClientHeight;
+	swapChainDesc.Width = renderWidth_;
+	swapChainDesc.Height = renderHeight_;
 	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -339,10 +453,13 @@ void DirectXCommon::CreateSwapChain() {
 	hr = swapChain1.As(&swapChain);
 }
 
+/// <summary>
+/// DepthBuffer を作成し、利用できる状態にします。
+/// </summary>
 void DirectXCommon::CreateDepthBuffer() {
 	D3D12_RESOURCE_DESC resourceDesc{};
-	resourceDesc.Width = winApp->kClientWidth;
-	resourceDesc.Height = winApp->kClientHeight;
+	resourceDesc.Width = renderWidth_;
+	resourceDesc.Height = renderHeight_;
 	resourceDesc.MipLevels = 1;
 	resourceDesc.DepthOrArraySize = 1;
 	resourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -367,6 +484,9 @@ void DirectXCommon::CreateDepthBuffer() {
 	assert(SUCCEEDED(hr));
 }
 
+/// <summary>
+/// DescriptorHeap を作成し、利用できる状態にします。
+/// </summary>
 void DirectXCommon::CreateDescriptorHeap() {
 	descroptorSizeRTV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	descroptorSizeDSV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
@@ -375,8 +495,13 @@ void DirectXCommon::CreateDescriptorHeap() {
 	dsvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 }
 
+/// <summary>
+/// RenderTargetView を作成し、利用できる状態にします。
+/// </summary>
 void DirectXCommon::CreateRenderTargetView() {
 	HRESULT hr;
+	swapChainResources[0].Reset();
+	swapChainResources[1].Reset();
 	hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&swapChainResources[0]));
 	assert(SUCCEEDED(hr));
 	hr = swapChain->GetBuffer(1, IID_PPV_ARGS(&swapChainResources[1]));
@@ -392,18 +517,35 @@ void DirectXCommon::CreateRenderTargetView() {
 	device->CreateRenderTargetView(swapChainResources->GetAddressOf()[1], &rtvDesc, rtvHandles[1]);
 }
 
+/// <summary>
+/// CPUDescriptorHandle を取得します。
+/// </summary>
+/// <param name="descriptorHeap">descriptorHeap に使用する値を指定します。</param>
+/// <param name="descriptorSize">descriptorSize に使用する値を指定します。</param>
+/// <param name="index">対象要素のインデックスを指定します。</param>
+/// <returns>処理結果を返します。</returns>
 D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetCPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index) {
 	D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	handleCPU.ptr += (descriptorSize * index);
 	return handleCPU;
 }
 
+/// <summary>
+/// GPUDescriptorHandle を取得します。
+/// </summary>
+/// <param name="descriptorHeap">descriptorHeap に使用する値を指定します。</param>
+/// <param name="descriptorSize">descriptorSize に使用する値を指定します。</param>
+/// <param name="index">対象要素のインデックスを指定します。</param>
+/// <returns>処理結果を返します。</returns>
 D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index) {
 	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	handleGPU.ptr += (descriptorSize * index);
 	return handleGPU;
 }
 
+/// <summary>
+/// Release の処理を行います。
+/// </summary>
 void DirectXCommon::Release() {
 	if (commandQueue && fence) {
 		fenceValue++;
@@ -444,6 +586,15 @@ void DirectXCommon::Release() {
 	winApp = nullptr;
 }
 
+/// <summary>
+/// RenderTextureResource を作成し、利用できる状態にします。
+/// </summary>
+/// <param name="device">device に使用する値を指定します。</param>
+/// <param name="width">幅を指定します。</param>
+/// <param name="height">高さを指定します。</param>
+/// <param name="format">format に使用する値を指定します。</param>
+/// <param name="color">色を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateRenderTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, int32_t width, int32_t height, DXGI_FORMAT format, const Vector4 color) {
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Width = width;
@@ -478,6 +629,9 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateRenderTextureResourc
 	return renderTexture;
 }
 
+/// <summary>
+/// DepthStencilView を作成し、利用できる状態にします。
+/// </summary>
 void DirectXCommon::CreateDepthStencilView() {
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
 	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -485,6 +639,9 @@ void DirectXCommon::CreateDepthStencilView() {
 	device->CreateDepthStencilView(depthStencilResource.Get(), &dsvDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
+/// <summary>
+/// Fence を作成し、利用できる状態にします。
+/// </summary>
 void DirectXCommon::CreateFence() {
 	HRESULT hr;
 	uint16_t fenceValue = 0;
@@ -495,23 +652,32 @@ void DirectXCommon::CreateFence() {
 	assert(fenceEvent != nullptr);
 }
 
+/// <summary>
+/// ViewportRect を作成し、利用できる状態にします。
+/// </summary>
 void DirectXCommon::CreateViewportRect() {
 
-	viewport.Width = static_cast<float>(WinApp::kClientWidth);
-	viewport.Height = static_cast<float>(WinApp::kClientHeight);
+	viewport.Width = static_cast<float>(renderWidth_);
+	viewport.Height = static_cast<float>(renderHeight_);
 	viewport.MinDepth = 0.0f;
 	viewport.MaxDepth = 1.0f;
 	viewport.TopLeftX = 0.0f;
 	viewport.TopLeftY = 0.0f;
 }
 
+/// <summary>
+/// ScissorRect を作成し、利用できる状態にします。
+/// </summary>
 void DirectXCommon::CreateScissorRect() {
 	scissorRect.left = 0;
 	scissorRect.top = 0;
-	scissorRect.right = WinApp::kClientWidth;
-	scissorRect.bottom = WinApp::kClientHeight;
+	scissorRect.right = renderWidth_;
+	scissorRect.bottom = renderHeight_;
 }
 
+/// <summary>
+/// DXCompiler を作成し、利用できる状態にします。
+/// </summary>
 void DirectXCommon::CreateDXCompiler() {
 	HRESULT hr;
 	hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils));
@@ -523,6 +689,9 @@ void DirectXCommon::CreateDXCompiler() {
 	assert(SUCCEEDED(hr));
 }
 
+/// <summary>
+/// XAudio2 を作成し、利用できる状態にします。
+/// </summary>
 void DirectXCommon::CreateXAudio2() {
 	HRESULT hr;
 	hr = XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
@@ -534,6 +703,9 @@ void DirectXCommon::CreateXAudio2() {
 
 void DirectXCommon::InitializeFixFPS() { reference_ = std::chrono::high_resolution_clock::now(); }
 
+/// <summary>
+/// UpdateFixFPS の処理を行います。
+/// </summary>
 void DirectXCommon::UpdateFixFPS() {
 	const std::chrono::microseconds kMinTime(uint64_t(1000000.0f / 60.0f));
 	const std::chrono::microseconds kMinCheckTime(uint64_t(1000000.0f / 65.0f));

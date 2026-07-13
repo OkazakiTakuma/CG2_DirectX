@@ -1,25 +1,41 @@
 #pragma once
 #include "../flame/Component.h"
+#include "../flame/GameObject.h"
 #include "ParticleEmitter.h"
+#include "ParticleManager.h"
 #include <memory>
 #include <string>
 
 class ParticleEmitterComponent : public Component {
 public:
+	/// <summary>
+	/// 必要なリソースを準備し、オブジェクトを初期化します。
+	/// </summary>
 	void Initialize() override {
 		emitter_ = std::make_unique<ParticleEmitter>();
 	}
 
+	/// <summary>
+	/// 毎フレームの状態更新を行います。
+	/// </summary>
 	void Update() override {
 		Update(1.0f / 60.0f);
 	}
 
+	/// <summary>
+	/// 毎フレームの状態更新を行います。
+	/// </summary>
+	/// <param name="deltaTime">前フレームからの経過時間を指定します。</param>
 	void Update(float deltaTime) {
 		if (emitter_) {
+			SyncOwnerTransformToEmitter();
 			emitter_->Update(deltaTime);
 		}
 	}
 
+	/// <summary>
+	/// 確保したリソースを解放し、終了処理を行います。
+	/// </summary>
 	void Finalize() override {
 		emitter_.reset();
 	}
@@ -41,7 +57,10 @@ public:
 	void SetTexture(const std::string& textureFilePath) { emitter_->SetTexture(textureFilePath); }
 	void SetBaseRotate(const Vector3& baseRotate) { emitter_->SetBaseRotate(baseRotate); }
 	void SetIsActive(bool isActive) { emitter_->SetIsActive(isActive); }
-	void SetBlendMode(BlendMode mode) { emitter_->SetBlendMode(mode); }
+	void SetBlendMode(BlendMode mode) {
+		emitter_->SetBlendMode(mode);
+		ParticleManager::GetInstance()->SetGroupBlendMode(emitter_->GetGroupName(), mode);
+	}
 	void SetParam(ParticleEmitParam param) { emitter_->SetParam(param); }
 	void SetMeshType(ParticleMeshType type) { emitter_->SetMeshType(type); }
 
@@ -70,5 +89,16 @@ public:
 	void LoadFromJson(const std::string& filePath = "Resources/Data/emit_status.json") { emitter_->LoadFromJson(filePath); }
 
 private:
+	/// <summary>
+	/// GameObject の Transform をパーティクルエミッターの発生位置へ同期します。
+	/// </summary>
+	void SyncOwnerTransformToEmitter() {
+		if (!emitter_ || !GetOwner()) {
+			return;
+		}
+
+		emitter_->SetTranslate(GetOwner()->GetTransform().translate);
+	}
+
 	std::unique_ptr<ParticleEmitter> emitter_;
 };

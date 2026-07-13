@@ -1,19 +1,28 @@
-﻿// TextureManager.cpp
+// TextureManager.cpp
 #include "TextureManager.h"
 #include "ParticleManager.h"
 #include "StringUtility.h"
+#include <algorithm>
 
 TextureManager* TextureManager::instance = nullptr;
 using namespace StringUtility;
 
 uint32_t TextureManager::kSRVIndexTop = 1;
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <param name="dxcommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 void TextureManager::Initialize(DirectXCommon* dxcommon) {
 	dxCommon_ = dxcommon;
 
 	assert(dxCommon_ != nullptr);
 }
 
+/// <summary>
+/// 共有インスタンスを取得します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 TextureManager* TextureManager::GetInstance() {
 	if (instance == nullptr) {
 		instance = new TextureManager;
@@ -21,6 +30,9 @@ TextureManager* TextureManager::GetInstance() {
 	return instance;
 }
 
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void TextureManager::Finalize() {
 	for (auto& pair : textureDatas) {
 		pair.second.resource.Reset();
@@ -32,11 +44,20 @@ void TextureManager::Finalize() {
 
 void TextureManager::Release() {}
 
+/// <summary>
+/// TextureIndexByFilePath を取得します。
+/// </summary>
+/// <param name="filepath">読み込みまたは保存に使用するファイルパスを指定します。</param>
+/// <returns>処理結果を返します。</returns>
 uint32_t TextureManager::GetTextureIndexByFilePath(const std::string& filepath) {
 	assert(!SrvManager::GetInstance()->IsOverAllocated());
 	return 0;
 }
 
+/// <summary>
+/// Texture を読み込み、内部データへ反映します。
+/// </summary>
+/// <param name="filepath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 void TextureManager::LoadTexture(const std::string& filepath) {
 	HRESULT hr;
 	if (textureDatas.contains(filepath)) {
@@ -93,4 +114,18 @@ void TextureManager::LoadTexture(const std::string& filepath) {
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 
 	dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
+}
+
+/// <summary>
+/// 読み込み済みテクスチャのファイルパス一覧を取得します。
+/// </summary>
+/// <returns>読み込み済みテクスチャのファイルパス一覧を返します。</returns>
+std::vector<std::string> TextureManager::GetLoadedTextureNames() const {
+	std::vector<std::string> names;
+	names.reserve(textureDatas.size());
+	for (const auto& [filePath, textureData] : textureDatas) {
+		names.push_back(filePath);
+	}
+	std::sort(names.begin(), names.end());
+	return names;
 }

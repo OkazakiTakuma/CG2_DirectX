@@ -26,6 +26,11 @@
 using namespace Logger;
 using namespace StringUtility;
 using namespace Microsoft::WRL;
+/// <summary>
+/// ExportDump の処理を行います。
+/// </summary>
+/// <param name="exception">exception に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 static LONG WINAPI ExportDump(EXCEPTION_POINTERS* exception) {
 	SYSTEMTIME time;
 	GetLocalTime(&time);
@@ -44,6 +49,9 @@ static LONG WINAPI ExportDump(EXCEPTION_POINTERS* exception) {
 }
 
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
 void FlameWork::Initialize() {
 #pragma region Setup
 	SetUnhandledExceptionFilter(ExportDump);
@@ -88,20 +96,58 @@ void FlameWork::Initialize() {
 
 }
 
+/// <summary>
+/// 毎フレームの状態更新を行います。
+/// </summary>
 void FlameWork::Update() {
 	if (winApp->ProcessMessage()) {
 		endRequest = true;
+	}
+	if (dxCommon) {
+		dxCommon->ResizeIfNeeded();
 	}
 }
 
 void FlameWork::Draw() {}
 
+/// <summary>
+/// Fullscreen の状態を切り替えます。
+/// </summary>
 void FlameWork::ToggleFullscreen() {
 	if (winApp) {
 		winApp->ToggleFullscreen();
 	}
+	if (dxCommon) {
+		dxCommon->ResizeIfNeeded();
+	}
 }
 
+float FlameWork::GetRenderAspectRatio() const {
+	const int32_t width = GetRenderWidth();
+	const int32_t height = GetRenderHeight();
+	if (height <= 0) {
+		return 1.0f;
+	}
+	return static_cast<float>(width) / static_cast<float>(height);
+}
+
+int32_t FlameWork::GetRenderWidth() const {
+	if (dxCommon) {
+		return dxCommon->GetRenderWidth();
+	}
+	return WinApp::kClientWidth;
+}
+
+int32_t FlameWork::GetRenderHeight() const {
+	if (dxCommon) {
+		return dxCommon->GetRenderHeight();
+	}
+	return WinApp::kClientHeight;
+}
+
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void FlameWork::Finalize() {
 	ParticleManager::GetInstance()->Finalize();
 	ModelManager::GetInstance()->Finalize();
@@ -128,6 +174,9 @@ void FlameWork::Finalize() {
 	Checker.reset();
 }
 
+/// <summary>
+/// Run の処理を行います。
+/// </summary>
 void FlameWork::Run() {
 	Initialize();
 	while (true) {

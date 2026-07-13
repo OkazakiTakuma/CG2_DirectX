@@ -10,8 +10,24 @@
 
 class Sprite {
 public:
+	/// <summary>
+	/// 必要なリソースを準備し、オブジェクトを初期化します。
+	/// </summary>
+	/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 	void Initialize(std::string textureFilePath);
+	/// <summary>
+	/// 使用するテクスチャを変更します。
+	/// </summary>
+	/// <param name="textureFilePath">使用するテクスチャのファイルパスを指定します。</param>
+	void SetTexture(const std::string& textureFilePath);
+	const std::string& GetTextureFilePath() const { return filepath; }
+	/// <summary>
+	/// 毎フレームの状態更新を行います。
+	/// </summary>
 	void Update();
+	/// <summary>
+	/// 現在の状態をもとに描画処理を行います。
+	/// </summary>
 	void Draw();
 
 	const EulerTransform& GetTransform() { return transform; };
@@ -33,6 +49,9 @@ public:
 	const Vector2& GetTextureSize() const { return textureSize; }
 	void SetTextureSize(const Vector2& size) { textureSize = size; }
 
+	/// <summary>
+	/// 破棄時に必要な解放処理を行います。
+	/// </summary>
 	~Sprite();
 
 private:
@@ -77,5 +96,8 @@ private:
 	Vector2 textureLeftTop = {0.0f, 0.0f};
 	Vector2 textureSize = {512.0f, 512.0f};
 
+	/// <summary>
+	/// AdjustTextureSize の処理を行います。
+	/// </summary>
 	void AdjustTextureSize();
 };

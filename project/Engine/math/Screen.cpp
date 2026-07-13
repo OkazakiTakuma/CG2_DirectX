@@ -1,6 +1,12 @@
 #include "Screen.h"
 #include <assert.h>
 #include <math.h>
+/// <summary>
+/// Transformation の処理を行います。
+/// </summary>
+/// <param name="vector">計算に使用する値を指定します。</param>
+/// <param name="matrix">計算に使用する行列を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Vector2 Transformation(Vector2 vector, Matrix3x3 matrix) {
 	Vector2 result;
 
@@ -12,6 +18,13 @@ Vector2 Transformation(Vector2 vector, Matrix3x3 matrix) {
 	result.y /= w;
 	return result;
 };
+/// <summary>
+/// AffineMatrix を生成して返します。
+/// </summary>
+/// <param name="scale">拡大率を指定します。</param>
+/// <param name="rotate">回転量を指定します。</param>
+/// <param name="translate">位置を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix3x3 MakeAffineMatrix(Vector2 scale, float rotate, Vector2 translate) {
 
 	Matrix3x3 matrix;
@@ -29,6 +42,12 @@ Matrix3x3 MakeAffineMatrix(Vector2 scale, float rotate, Vector2 translate) {
 
 	return matrix;
 };
+/// <summary>
+/// Multply の処理を行います。
+/// </summary>
+/// <param name="matrix1">matrix1 に使用する値を指定します。</param>
+/// <param name="matrix2">matrix2 に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix3x3 Multply(Matrix3x3 matrix1, Matrix3x3 matrix2) {
 	Matrix3x3 matrixMultply;
 
@@ -47,6 +66,12 @@ Matrix3x3 Multply(Matrix3x3 matrix1, Matrix3x3 matrix2) {
 	return matrixMultply;
 };
 
+/// <summary>
+/// CameraMatrix を生成して返します。
+/// </summary>
+/// <param name="scale">拡大率を指定します。</param>
+/// <param name="position">位置を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix3x3 MakeCameraMatrix(Vector2 scale, Vector2 position) {
 	Matrix3x3 cameraWorldMatrix;
 	cameraWorldMatrix.m[0][0] = scale.x;
@@ -62,6 +87,11 @@ Matrix3x3 MakeCameraMatrix(Vector2 scale, Vector2 position) {
 	return cameraWorldMatrix;
 }
 
+/// <summary>
+/// 逆行列または逆元を計算して返します。
+/// </summary>
+/// <param name="matrix">計算に使用する行列を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix3x3 InverseMatrix(Matrix3x3 matrix) {
 	float reciprocal = 1.0f / ((matrix.m[0][0] * matrix.m[1][1] * matrix.m[2][2]) + (matrix.m[0][1] * matrix.m[1][2] * matrix.m[2][0]) + (matrix.m[0][2] * matrix.m[1][0] * matrix.m[2][1]) -
 	                           (matrix.m[0][2] * matrix.m[1][1] * matrix.m[2][0]) - (matrix.m[0][1] * matrix.m[1][0] * matrix.m[2][2]) - (matrix.m[0][0] * matrix.m[1][2] * matrix.m[2][1]));
@@ -81,6 +111,14 @@ Matrix3x3 InverseMatrix(Matrix3x3 matrix) {
 	return InverseMatrix;
 };
 
+/// <summary>
+/// OrthographicMatrix を生成して返します。
+/// </summary>
+/// <param name="left">left に使用する値を指定します。</param>
+/// <param name="top">top に使用する値を指定します。</param>
+/// <param name="right">right に使用する値を指定します。</param>
+/// <param name="bottom">bottom に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix3x3 MakeOrthographicMatrix(float left, float top, float right, float bottom) {
 	Matrix3x3 orthographicMatrix = {0};
 	orthographicMatrix.m[0][0] = 2.0f / (right - left);
@@ -98,6 +136,14 @@ Matrix3x3 MakeOrthographicMatrix(float left, float top, float right, float botto
 	return orthographicMatrix;
 }
 
+/// <summary>
+/// ViewportMatrix を生成して返します。
+/// </summary>
+/// <param name="left">left に使用する値を指定します。</param>
+/// <param name="top">top に使用する値を指定します。</param>
+/// <param name="width">幅を指定します。</param>
+/// <param name="height">高さを指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix3x3 MakeViewportMatrix(float left, float top, float width, float height) {
 	Matrix3x3 viewPortMatrix = {0};
 	viewPortMatrix.m[0][0] = (width / 2.0f);
@@ -115,6 +161,16 @@ Matrix3x3 MakeViewportMatrix(float left, float top, float width, float height) {
 	return viewPortMatrix;
 }
 
+/// <summary>
+/// ScreenPoint の処理を行います。
+/// </summary>
+/// <param name="scale">拡大率を指定します。</param>
+/// <param name="rotate">回転量を指定します。</param>
+/// <param name="position">位置を指定します。</param>
+/// <param name="cameraMatrix">cameraMatrix に使用する値を指定します。</param>
+/// <param name="kWindowsWidih">kWindowsWidih に使用する値を指定します。</param>
+/// <param name="kWindowsHeight">kWindowsHeight に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Vector2 ScreenPoint(Vector2 scale, float rotate, Vector2 position, Matrix3x3 cameraMatrix, int kWindowsWidih, int kWindowsHeight) {
 	float theta = rotate * 3.1415f;
 	Vector2 size = {0, 0};
@@ -132,6 +188,12 @@ Vector2 ScreenPoint(Vector2 scale, float rotate, Vector2 position, Matrix3x3 cam
 	return screenPosition;
 }
 
+/// <summary>
+/// DrawShaft の処理を行います。
+/// </summary>
+/// <param name="cameraMatrix">cameraMatrix に使用する値を指定します。</param>
+/// <param name="kWindowsWidih">kWindowsWidih に使用する値を指定します。</param>
+/// <param name="kWindowsHeight">kWindowsHeight に使用する値を指定します。</param>
 void DrawShaft(Matrix3x3 cameraMatrix, int kWindowsWidih, int kWindowsHeight) {
 	Matrix3x3 lineMatrix = {0};
 	Vector2 position = {0};

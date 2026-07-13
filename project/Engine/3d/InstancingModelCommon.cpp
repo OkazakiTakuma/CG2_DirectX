@@ -3,11 +3,19 @@
 
 using namespace Logger;
 
+/// <summary>
+/// 共有インスタンスを取得します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 InstancingModelCommon* InstancingModelCommon::GetInstance() {
     static InstancingModelCommon instance;
     return &instance;
 }
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <param name="dxCommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 void InstancingModelCommon::Initialize(DirectXCommon* dxCommon) {
     assert(dxCommon);
     dxCommon_ = dxCommon;
@@ -16,12 +24,18 @@ void InstancingModelCommon::Initialize(DirectXCommon* dxCommon) {
     CreatePipelineState();
 }
 
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void InstancingModelCommon::Finalize() {
     rootSignature_.Reset();
     pipelineState_.Reset();
     dxCommon_ = nullptr;
 }
 
+/// <summary>
+/// Draw を設定します。
+/// </summary>
 void InstancingModelCommon::SetDraw() {
     auto commandList = dxCommon_->GetCommandList();
     commandList->SetPipelineState(pipelineState_.Get());
@@ -29,6 +43,9 @@ void InstancingModelCommon::SetDraw() {
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
+/// <summary>
+/// RootSignature を作成し、利用できる状態にします。
+/// </summary>
 void InstancingModelCommon::CreateRootSignature() {
     HRESULT hr;
 
@@ -109,6 +126,9 @@ void InstancingModelCommon::CreateRootSignature() {
     assert(SUCCEEDED(hr));
 }
 
+/// <summary>
+/// PipelineState を作成し、利用できる状態にします。
+/// </summary>
 void InstancingModelCommon::CreatePipelineState() {
     HRESULT hr;
 
