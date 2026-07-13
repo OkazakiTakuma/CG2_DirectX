@@ -19,19 +19,61 @@ class Model;
 
 class Object3d {
 public:
+	/// <summary>
+	/// 必要なリソースを準備し、オブジェクトを初期化します。
+	/// </summary>
 	void Initialize();
+	/// <summary>
+	/// 毎フレームの状態更新を行います。
+	/// </summary>
 	void Update();
+	/// <summary>
+	/// 現在の状態をもとに描画処理を行います。
+	/// </summary>
 	void Draw();
+	/// <summary>
+	/// UpdateAnimation の処理を行います。
+	/// </summary>
 	void UpdateAnimation();
+	/// <summary>
+	/// Model を設定します。
+	/// </summary>
+	/// <param name="model">model に使用する値を指定します。</param>
 	void SetModel(Model* model);
+	/// <summary>
+	/// Model を設定します。
+	/// </summary>
+	/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 	void SetModel(const std::string& filePath);
+	/// <summary>
+	/// DrawDebugSkeleton の処理を行います。
+	/// </summary>
 	void DrawDebugSkeleton();
 	void SetDrawSkeleton(bool isDraw) { isDrawSkeleton_ = isDraw; }
 	bool GetDrawSkeleton() const { return isDrawSkeleton_; }
+	bool HasSkeleton() const { return hasSkeleton && !skeleton.joints.empty(); }
+	bool HasModel() const { return model != nullptr; }
+	/// <summary>
+	/// 破棄時に必要な解放処理を行います。
+	/// </summary>
 	~Object3d();
 
+	/// <summary>
+	/// Cylinder を作成し、利用できる状態にします。
+	/// </summary>
+	/// <param name="radius">半径を指定します。</param>
+	/// <param name="height">高さを指定します。</param>
+	/// <param name="subdivision">subdivision に使用する値を指定します。</param>
+	/// <param name="createTopCap">createTopCap に使用する値を指定します。</param>
+	/// <param name="createBottomCap">createBottomCap に使用する値を指定します。</param>
 	void CreateCylinder(float radius = 1.0f, float height = 2.0f, uint32_t subdivision = 16, bool createTopCap = true, bool createBottomCap = true);
+	/// <summary>
+	/// Texture を設定します。
+	/// </summary>
+	/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 	void SetTexture(const std::string& textureFilePath);
+	void SetModelTexture(const std::string& textureFilePath);
+	std::string GetModelTextureFilePath() const;
 
 	const Vector3& GetTranslate() { return transform.translate; };
 	void SetTranslate(const Vector3& newTransform) { transform.translate = newTransform; }
@@ -40,8 +82,26 @@ public:
 	const Vector3& GetScale() { return transform.scale; };
 	void SetScale(const Vector3& newTransformScale) { transform.scale = newTransformScale; }
 	void SetCamera(Camera* cmr) { camera = cmr; }
+	/// <summary>
+	/// DirectionalLight を設定します。
+	/// </summary>
+	/// <param name="color">色を指定します。</param>
+	/// <param name="direction">direction に使用する値を指定します。</param>
+	/// <param name="intensity">強度を指定します。</param>
 	void SetDirectionalLight(const Vector4& color, const Vector3& direction, float intensity);
+	/// <summary>
+	/// PointLight を設定します。
+	/// </summary>
+	/// <param name="color">色を指定します。</param>
+	/// <param name="position">位置を指定します。</param>
+	/// <param name="intensity">強度を指定します。</param>
+	/// <param name="radius">半径を指定します。</param>
+	/// <param name="decay">decay に使用する値を指定します。</param>
 	void SetPointLight(const Vector4& color, const Vector3& position, float intensity, float radius, float decay);
+	/// <summary>
+	/// EnvironmentMultiplier を設定します。
+	/// </summary>
+	/// <param name="multiplier">multiplier に使用する値を指定します。</param>
 	void SetEnvironmentMultiplier(float multiplier);
 	void IsPointLightSet(bool isSet) { isPointLightSet = isSet; }
 
@@ -55,6 +115,10 @@ public:
 	const float GetPointLightDecay() const { return pointLightData ? pointLightData->decay : 0.0f; }
 	const bool GetIsPointLightSet() const { return isPointLightSet; }
 	const float GetEnvironmentMultiplier() const { return environmentMultiplier; }
+	/// <summary>
+	/// EnvironmentMap を設定します。
+	/// </summary>
+	/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 	void SetEnvironmentMap(const std::string& textureFilePath);
 
 private:
@@ -73,16 +137,48 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource;
 	CameraForGPU* cameraData = nullptr;
 
+	/// <summary>
+	/// CameraResource を作成し、利用できる状態にします。
+	/// </summary>
 	void CreateCameraResource();
+	/// <summary>
+	/// SkinningPaletteResource を作成し、利用できる状態にします。
+	/// </summary>
+	/// <param name="paletteCount">paletteCount に使用する値を指定します。</param>
 	void CreateSkinningPaletteResource(uint32_t paletteCount);
+	/// <summary>
+	/// UpdateSkinningPaletteResource の処理を行います。
+	/// </summary>
 	void UpdateSkinningPaletteResource();
+	/// <summary>
+	/// Skeleton を作成し、利用できる状態にします。
+	/// </summary>
+	/// <param name="rootNode">rootNode に使用する値を指定します。</param>
+	/// <returns>処理結果を返します。</returns>
 	Skeleton CreateSkeleton(const Node& rootNode);
+	/// <summary>
+	/// Joint を作成し、利用できる状態にします。
+	/// </summary>
+	/// <param name="node">node に使用する値を指定します。</param>
+	/// <param name="parent">parent に使用する値を指定します。</param>
+	/// <param name="joints">joints に使用する値を指定します。</param>
+	/// <param name="jointMap">jointMap に使用する値を指定します。</param>
+	/// <returns>処理結果を返します。</returns>
 	int32_t CreateJoint(const Node& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints, std::map<std::string, int32_t>& jointMap);
+	/// <summary>
+	/// AnimationToSkeleton を現在の状態へ反映します。
+	/// </summary>
 	void ApplyAnimationToSkeleton();
+	/// <summary>
+	/// UpdateSkeleton の処理を行います。
+	/// </summary>
 	void UpdateSkeleton();
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResorceModel;
 	TransformationMatrix* transformationMatrix = nullptr;
+	/// <summary>
+	/// WVPResource を作成し、利用できる状態にします。
+	/// </summary>
 	void CreateWVPResource();
 	struct DirectionalLight {
 		Vector4 color;
@@ -91,9 +187,15 @@ private:
 	};
 	Microsoft::WRL::ComPtr<ID3D12Resource> lightResource;
 	DirectionalLight* directionallightData = nullptr;
+	/// <summary>
+	/// DirectionalLightResource を作成し、利用できる状態にします。
+	/// </summary>
 	void CreateDirectionalLightResource();
 	Microsoft::WRL::ComPtr<ID3D12Resource> pointLightResource;
 	PointLight* pointLightData = nullptr;
+	/// <summary>
+	/// PointLightResource を作成し、利用できる状態にします。
+	/// </summary>
 	void CreatePointLightResource();
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceCylinder;
@@ -134,5 +236,17 @@ private:
 	bool isDrawSkeleton_ = false;
 };
 
+/// <summary>
+/// CalculateValue の処理を行います。
+/// </summary>
+/// <param name="keyflames">keyflames に使用する値を指定します。</param>
+/// <param name="time">time に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Vector3 CalculateValue(const std::vector<KeyframeVector3>& keyflames, float time);
+/// <summary>
+/// CalculateValue の処理を行います。
+/// </summary>
+/// <param name="keyframes">keyframes に使用する値を指定します。</param>
+/// <param name="time">time に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Quaternion CalculateValue(const std::vector<KeyframeQuaternion>& keyframes, float time);

@@ -7,20 +7,38 @@
 
 class Object3dComponent : public Component {
 public:
+	/// <summary>
+	/// 必要なリソースを準備し、オブジェクトを初期化します。
+	/// </summary>
 	void Initialize() override {
 		object3d_ = std::make_unique<Object3d>();
 		object3d_->Initialize();
 		SyncOwnerTransformToObject();
 	}
 
+	/// <summary>
+	/// 毎フレームの状態更新を行います。
+	/// </summary>
 	void Update() override {
 		if (!object3d_) {
 			return;
 		}
 		SyncOwnerTransformToObject();
+		if (object3d_->GetIsPointLightSet()) {
+			object3d_->SetPointLight(
+			    object3d_->GetPointLightColor(),
+			    GetOwner()->GetTransform().translate,
+			    object3d_->GetPointLightIntensity(),
+			    object3d_->GetPointLightRadius(),
+			    object3d_->GetPointLightDecay()
+			);
+		}
 		object3d_->Update();
 	}
 
+	/// <summary>
+	/// 3D 要素の描画処理を行います。
+	/// </summary>
 	void Draw3D() override {
 		if (object3d_) {
 			Object3dCommon::GetInstance()->SetDraw();
@@ -28,6 +46,9 @@ public:
 		}
 	}
 
+	/// <summary>
+	/// 確保したリソースを解放し、終了処理を行います。
+	/// </summary>
 	void Finalize() override {
 		object3d_.reset();
 	}
@@ -36,31 +57,67 @@ public:
 
 	void SetModel(Model* model) { object3d_->SetModel(model); }
 	void SetModel(const std::string& filePath) { object3d_->SetModel(filePath); }
+	/// <summary>
+	/// Cylinder を作成し、利用できる状態にします。
+	/// </summary>
+	/// <param name="radius">半径を指定します。</param>
+	/// <param name="height">高さを指定します。</param>
+	/// <param name="subdivision">subdivision に使用する値を指定します。</param>
+	/// <param name="createTopCap">createTopCap に使用する値を指定します。</param>
+	/// <param name="createBottomCap">createBottomCap に使用する値を指定します。</param>
 	void CreateCylinder(float radius = 1.0f, float height = 2.0f, uint32_t subdivision = 16, bool createTopCap = true, bool createBottomCap = true) {
 		object3d_->CreateCylinder(radius, height, subdivision, createTopCap, createBottomCap);
 	}
 	void SetTexture(const std::string& textureFilePath) { object3d_->SetTexture(textureFilePath); }
+	void SetModelTexture(const std::string& textureFilePath) { object3d_->SetModelTexture(textureFilePath); }
+	std::string GetModelTextureFilePath() const { return object3d_ ? object3d_->GetModelTextureFilePath() : std::string(); }
 
 	const Vector3& GetTranslate() { return GetOwner()->GetTransform().translate; }
+	/// <summary>
+	/// Translate を設定します。
+	/// </summary>
+	/// <param name="translate">位置を指定します。</param>
 	void SetTranslate(const Vector3& translate) {
 		GetOwner()->GetTransform().translate = translate;
 		SyncOwnerTransformToObject();
 	}
 	const Vector3& GetRotate() { return GetOwner()->GetTransform().rotate; }
+	/// <summary>
+	/// Rotate を設定します。
+	/// </summary>
+	/// <param name="rotate">回転量を指定します。</param>
 	void SetRotate(const Vector3& rotate) {
 		GetOwner()->GetTransform().rotate = rotate;
 		SyncOwnerTransformToObject();
 	}
 	const Vector3& GetScale() { return GetOwner()->GetTransform().scale; }
+	/// <summary>
+	/// Scale を設定します。
+	/// </summary>
+	/// <param name="scale">拡大率を指定します。</param>
 	void SetScale(const Vector3& scale) {
 		GetOwner()->GetTransform().scale = scale;
 		SyncOwnerTransformToObject();
 	}
 
 	void SetCamera(Camera* camera) { object3d_->SetCamera(camera); }
+	/// <summary>
+	/// DirectionalLight を設定します。
+	/// </summary>
+	/// <param name="color">色を指定します。</param>
+	/// <param name="direction">direction に使用する値を指定します。</param>
+	/// <param name="intensity">強度を指定します。</param>
 	void SetDirectionalLight(const Vector4& color, const Vector3& direction, float intensity) {
 		object3d_->SetDirectionalLight(color, direction, intensity);
 	}
+	/// <summary>
+	/// PointLight を設定します。
+	/// </summary>
+	/// <param name="color">色を指定します。</param>
+	/// <param name="position">位置を指定します。</param>
+	/// <param name="intensity">強度を指定します。</param>
+	/// <param name="radius">半径を指定します。</param>
+	/// <param name="decay">decay に使用する値を指定します。</param>
 	void SetPointLight(const Vector4& color, const Vector3& position, float intensity, float radius, float decay) {
 		object3d_->SetPointLight(color, position, intensity, radius, decay);
 	}
@@ -69,6 +126,8 @@ public:
 	void SetEnvironmentMap(const std::string& textureFilePath) { object3d_->SetEnvironmentMap(textureFilePath); }
 	void SetDrawSkeleton(bool isDraw) { object3d_->SetDrawSkeleton(isDraw); }
 	bool GetDrawSkeleton() const { return object3d_->GetDrawSkeleton(); }
+	bool HasSkeleton() const { return object3d_ && object3d_->HasSkeleton(); }
+	bool HasModel() const { return object3d_ && object3d_->HasModel(); }
 
 	const Vector4 GetLightColor() const { return object3d_->GetLightColor(); }
 	const Vector3 GetLightDirection() const { return object3d_->GetLightDirection(); }
@@ -82,6 +141,9 @@ public:
 	const float GetEnvironmentMultiplier() const { return object3d_->GetEnvironmentMultiplier(); }
 
 private:
+	/// <summary>
+	/// SyncOwnerTransformToObject の処理を行います。
+	/// </summary>
 	void SyncOwnerTransformToObject() {
 		if (!object3d_ || GetOwner() == nullptr) {
 			return;

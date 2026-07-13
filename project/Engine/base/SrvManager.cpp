@@ -1,12 +1,20 @@
-﻿#include "SrvManager.h"
+#include "SrvManager.h"
 const uint32_t SrvManager::kMaxSRVCount = 512;
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <param name="dxcommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 void SrvManager::Initialize(DirectXCommon* dxcommon) {
 	this->dxCommon = dxcommon;
 	descriptorHeap = dxCommon->CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, kMaxSRVCount, true);
 	descriptrSize = dxCommon->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
+/// <summary>
+/// Allocate の処理を行います。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 uint32_t SrvManager::Allocate() {
 	assert(kMaxSRVCount > useIndex);
 	uint32_t index = useIndex;
@@ -16,18 +24,35 @@ uint32_t SrvManager::Allocate() {
 
 bool SrvManager::IsOverAllocated() const { return useIndex > kMaxSRVCount; }
 
+/// <summary>
+/// CPUDescriptorHandle を取得します。
+/// </summary>
+/// <param name="index">対象要素のインデックスを指定します。</param>
+/// <returns>処理結果を返します。</returns>
 D3D12_CPU_DESCRIPTOR_HANDLE SrvManager::GetCPUDescriptorHandle(uint32_t index) {
 	D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	handleCPU.ptr += (descriptrSize * index);
 	return handleCPU;
 }
 
+/// <summary>
+/// GPUDescriptorHandle を取得します。
+/// </summary>
+/// <param name="index">対象要素のインデックスを指定します。</param>
+/// <returns>処理結果を返します。</returns>
 D3D12_GPU_DESCRIPTOR_HANDLE SrvManager::GetGPUDescriptorHandle(uint32_t index) {
 	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	handleGPU.ptr += (descriptrSize * index);
 	return handleGPU;
 }
 
+/// <summary>
+/// SRVforTexture2D を作成し、利用できる状態にします。
+/// </summary>
+/// <param name="srvindex">対象要素のインデックスを指定します。</param>
+/// <param name="pResource">pResource に使用する値を指定します。</param>
+/// <param name="format">format に使用する値を指定します。</param>
+/// <param name="mipLevels">mipLevels に使用する値を指定します。</param>
 void SrvManager::CreateSRVforTexture2D(uint32_t srvindex, ID3D12Resource* pResource, DXGI_FORMAT format, UINT mipLevels) {
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = format;
@@ -38,6 +63,13 @@ void SrvManager::CreateSRVforTexture2D(uint32_t srvindex, ID3D12Resource* pResou
 	dxCommon->GetDevice()->CreateShaderResourceView(pResource, &srvDesc, GetCPUDescriptorHandle(srvindex));
 }
 
+/// <summary>
+/// SRVforStructuredBuffer を作成し、利用できる状態にします。
+/// </summary>
+/// <param name="srvindex">対象要素のインデックスを指定します。</param>
+/// <param name="pResource">pResource に使用する値を指定します。</param>
+/// <param name="numElements">numElements に使用する値を指定します。</param>
+/// <param name="structureByteStride">structureByteStride に使用する値を指定します。</param>
 void SrvManager::CreateSRVforStructuredBuffer(uint32_t srvindex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride) {
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
     srvDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -55,15 +87,26 @@ void SrvManager::CreateSRVforStructuredBuffer(uint32_t srvindex, ID3D12Resource*
     );
 }
 
+/// <summary>
+/// PreDraw の処理を行います。
+/// </summary>
 void SrvManager::PreDraw() {
 	ID3D12DescriptorHeap* heaps[] = {descriptorHeap.Get()};
 	dxCommon->GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
 }
 
+/// <summary>
+/// GraphicsRootDescriptorTable を設定します。
+/// </summary>
+/// <param name="rootParameterIndex">rootParameterIndex に使用する値を指定します。</param>
+/// <param name="srvIndex">対象要素のインデックスを指定します。</param>
 void SrvManager::SetGraphicsRootDescriptorTable(UINT rootParameterIndex, uint32_t srvIndex) {
 	dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(rootParameterIndex, GetGPUDescriptorHandle(srvIndex));
 }
 
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void SrvManager::Finalize() {
 	descriptorHeap.Reset();
 

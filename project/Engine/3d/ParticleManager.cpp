@@ -5,6 +5,13 @@
 #include <numbers>
 #include <cmath>
 
+/// <summary>
+/// GenerateRingVerticesForParticle の処理を行います。
+/// </summary>
+/// <param name="segments">segments に使用する値を指定します。</param>
+/// <param name="outerRadius">outerRadius に使用する値を指定します。</param>
+/// <param name="innerRadius">innerRadius に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 std::vector<VertexData> GenerateRingVerticesForParticle(uint32_t segments, float outerRadius, float innerRadius) {
 	std::vector<VertexData> vertices;
 	vertices.reserve(segments * 6);
@@ -44,6 +51,10 @@ const uint32_t ParticleManager::kMaxParticle = 512;
 
 ParticleManager* ParticleManager::instance = nullptr;
 
+/// <summary>
+/// 共有インスタンスを取得します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 ParticleManager* ParticleManager::GetInstance() {
 	if (instance == nullptr) {
 		instance = new ParticleManager;
@@ -51,8 +62,17 @@ ParticleManager* ParticleManager::GetInstance() {
 	return instance;
 }
 
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void ParticleManager::Finalize() {
 	ClearGroups();
+
+	if (sceneResource_) {
+		sceneResource_->Unmap(0, nullptr);
+	}
+	sceneResource_.Reset();
+	sceneData_ = nullptr;
 
 	rootSignature.Reset();
 	for (auto& pso : graphicsPipelineStates) {
@@ -62,6 +82,9 @@ void ParticleManager::Finalize() {
 	instance = nullptr;
 }
 
+/// <summary>
+/// ClearGroups の処理を行います。
+/// </summary>
 void ParticleManager::ClearGroups() {
 	for (auto& group : particleGroups_) {
 		group.second.instanceResource.Reset();
@@ -69,6 +92,10 @@ void ParticleManager::ClearGroups() {
 	}
 	particleGroups_.clear();
 }
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <param name="dxCommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 void ParticleManager::Initialize(DirectXCommon* dxCommon) {
 
 	dxCommon_ = dxCommon;
@@ -122,9 +149,20 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon) {
 	std::memcpy(mapped, vertices_.data(), sizeof(VertexData) * vertices_.size());
 	vertexResource_->Unmap(0, nullptr);
 
+	sceneResource_ = dxCommon_->CreateBufferResource(sizeof(ParticleSceneForGPU));
+	sceneResource_->Map(0, nullptr, reinterpret_cast<void**>(&sceneData_));
+	sceneData_->viewProjection = MakeIdentity4x4();
+	sceneData_->billboard = MakeIdentity4x4();
+
 	CreatePipelineState();
 }
 
+/// <summary>
+/// ParticleGroup を作成し、利用できる状態にします。
+/// </summary>
+/// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
+/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
+/// <param name="meshtype">meshtype に使用する値を指定します。</param>
 void ParticleManager::CreateParticleGroup(const std::string& groupName, const std::string& textureFilePath, ParticleMeshType meshtype) {
 
 	if (particleGroups_.find(groupName) != particleGroups_.end()) {
@@ -206,6 +244,9 @@ void ParticleManager::CreateParticleGroup(const std::string& groupName, const st
 }
 // ==========================================
 // ==========================================
+/// <summary>
+/// RootSignature を作成し、利用できる状態にします。
+/// </summary>
 void ParticleManager::CreateRootSignature() {
 	HRESULT hr;
 
@@ -222,7 +263,7 @@ void ParticleManager::CreateRootSignature() {
 	descriptorRangeData[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRangeData[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	D3D12_ROOT_PARAMETER rootParameters[2] = {};
+	D3D12_ROOT_PARAMETER rootParameters[3] = {};
 
 	// Param 0: Texture
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -235,6 +276,11 @@ void ParticleManager::CreateRootSignature() {
 	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	rootParameters[1].DescriptorTable.pDescriptorRanges = descriptorRangeData;
 	rootParameters[1].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeData);
+
+	// Param 2: Camera matrices
+	rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParameters[2].Descriptor.ShaderRegister = 0;
 
 	D3D12_STATIC_SAMPLER_DESC staticSamplers[1] = {};
 	staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -267,6 +313,9 @@ void ParticleManager::CreateRootSignature() {
 
 // ==========================================
 // ==========================================
+/// <summary>
+/// PipelineState を作成し、利用できる状態にします。
+/// </summary>
 void ParticleManager::CreatePipelineState() {
 	CreateRootSignature();
 
@@ -377,6 +426,10 @@ void ParticleManager::CreatePipelineState() {
 	}
 }
 
+/// <summary>
+/// 現在の状態をもとに描画処理を行います。
+/// </summary>
+/// <param name="camera">描画や座標変換に使用するカメラを指定します。</param>
 void ParticleManager::Draw(Camera* camera) {
 	auto commandList = dxCommon_->GetCommandList();
 	SrvManager::GetInstance()->PreDraw();
@@ -389,6 +442,11 @@ void ParticleManager::Draw(Camera* camera) {
 	billboardMatrix.m[3][0] = 0.0f;
 	billboardMatrix.m[3][1] = 0.0f;
 	billboardMatrix.m[3][2] = 0.0f;
+	if (sceneData_) {
+		sceneData_->viewProjection = viewProjection;
+		sceneData_->billboard = billboardMatrix;
+	}
+	commandList->SetGraphicsRootConstantBufferView(2, sceneResource_->GetGPUVirtualAddress());
 
 	for (auto& [name, group] : particleGroups_) {
 		if (group.particles.empty()) {
@@ -403,49 +461,12 @@ void ParticleManager::Draw(Camera* camera) {
 			if (index >= numInstance)
 				break;
 
-			Matrix4x4 finalRotateMatrix;
-			if (particle.isBillboard) {
-				if (particle.transform.rotate.x == 0.0f && particle.transform.rotate.y == 0.0f && particle.transform.rotate.z == 0.0f) {
-					finalRotateMatrix = billboardMatrix;
-				}
-				else {
-					Matrix4x4 rotateMatrix = MakeRotateXYZMatrix(particle.transform.rotate);
-					finalRotateMatrix = Multiply(rotateMatrix, billboardMatrix);
-				}
-			}
-			else {
-				if (particle.transform.rotate.x == 0.0f && particle.transform.rotate.y == 0.0f && particle.transform.rotate.z == 0.0f) {
-					finalRotateMatrix = MakeIdentity4x4();
-				}
-				else {
-					finalRotateMatrix = MakeRotateXYZMatrix(particle.transform.rotate);
-				}
-			}
-
-			Matrix4x4 worldMatrix = finalRotateMatrix;
-
-			worldMatrix.m[0][0] *= particle.transform.scale.x;
-			worldMatrix.m[0][1] *= particle.transform.scale.x;
-			worldMatrix.m[0][2] *= particle.transform.scale.x;
-
-			worldMatrix.m[1][0] *= particle.transform.scale.y;
-			worldMatrix.m[1][1] *= particle.transform.scale.y;
-			worldMatrix.m[1][2] *= particle.transform.scale.y;
-
-			worldMatrix.m[2][0] *= particle.transform.scale.z;
-			worldMatrix.m[2][1] *= particle.transform.scale.z;
-			worldMatrix.m[2][2] *= particle.transform.scale.z;
-
-			worldMatrix.m[3][0] = particle.transform.translate.x;
-			worldMatrix.m[3][1] = particle.transform.translate.y;
-			worldMatrix.m[3][2] = particle.transform.translate.z;
-			worldMatrix.m[3][3] = 1.0f;
-
-			// 3. WVP = worldMatrix * viewProjection
-			Matrix4x4 wvp = Multiply(worldMatrix, viewProjection);
-
-			group.instanceDataPtr[index].WVP = wvp;
-			group.instanceDataPtr[index].world = worldMatrix;
+			group.instanceDataPtr[index].translate = particle.transform.translate;
+			group.instanceDataPtr[index].isBillboard = particle.isBillboard ? 1.0f : 0.0f;
+			group.instanceDataPtr[index].scale = particle.transform.scale;
+			group.instanceDataPtr[index].padding0 = 0.0f;
+			group.instanceDataPtr[index].rotate = particle.transform.rotate;
+			group.instanceDataPtr[index].padding1 = 0.0f;
 			group.instanceDataPtr[index].color = particle.color;
 
 			index++;
@@ -464,6 +485,9 @@ void ParticleManager::Draw(Camera* camera) {
 	}
 }
 
+/// <summary>
+/// 毎フレームの状態更新を行います。
+/// </summary>
 void ParticleManager::Update() {
 	for (auto& groupPair : particleGroups_) {
 		ParticleGroup& group = groupPair.second;
@@ -511,6 +535,13 @@ void ParticleManager::Update() {
 		}
 	}
 }
+/// <summary>
+/// パーティクルを発生させます。
+/// </summary>
+/// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
+/// <param name="position">位置を指定します。</param>
+/// <param name="count">処理する個数を指定します。</param>
+/// <param name="emitParam">emitParam に使用する値を指定します。</param>
 void ParticleManager::Emit(const std::string& groupName, const Vector3& position, uint32_t count, const ParticleEmitParam& emitParam) {
 	if (particleGroups_.find(groupName) == particleGroups_.end())
 		return;
@@ -552,6 +583,11 @@ void ParticleManager::Emit(const std::string& groupName, const Vector3& position
 		group.particles.push_back(newParticle);
 	}
 }
+/// <summary>
+/// GroupTexture を設定します。
+/// </summary>
+/// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
+/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 void ParticleManager::SetGroupTexture(const std::string& groupName, const std::string& textureFilePath) {
 	if (particleGroups_.find(groupName) == particleGroups_.end()) {
 		return;
@@ -564,6 +600,11 @@ void ParticleManager::SetGroupTexture(const std::string& groupName, const std::s
 	group.material.textureIndex = TextureManager::GetInstance()->GetSrvIndex(textureFilePath);
 }
 
+/// <summary>
+/// GroupBlendMode を設定します。
+/// </summary>
+/// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
+/// <param name="blendMode">描画時に使用するブレンドモードを指定します。</param>
 void ParticleManager::SetGroupBlendMode(const std::string& groupName, BlendMode blendMode) {
 	auto it = particleGroups_.find(groupName);
 	if (it != particleGroups_.end()) {
@@ -571,6 +612,11 @@ void ParticleManager::SetGroupBlendMode(const std::string& groupName, BlendMode 
 	}
 }
 
+/// <summary>
+/// Group を取得します。
+/// </summary>
+/// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 ParticleManager::ParticleGroup* ParticleManager::GetGroup(const std::string& groupName) {
 	auto it = particleGroups_.find(groupName);
 	if (it != particleGroups_.end()) {

@@ -1,6 +1,12 @@
 #include "Quaternion.h"
 #include "Matrix.h"
 #include <cmath>
+/// <summary>
+/// 2 つの値を乗算した結果を返します。
+/// </summary>
+/// <param name="q1">計算に使用するクォータニオンを指定します。</param>
+/// <param name="q2">計算に使用するクォータニオンを指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Quaternion Multiply(const Quaternion& q1, const Quaternion& q2) {
 	Quaternion result;
 	result.w = q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z;
@@ -10,12 +16,21 @@ Quaternion Multiply(const Quaternion& q1, const Quaternion& q2) {
 	return result;
 }
 
+/// <summary>
+/// IdentityQuaternion の処理を行います。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 Quaternion IdentityQuaternion() {
 
 	Quaternion result = { 0.0f, 0.0f, 0.0f, 1.0f };
 	return result;
 }
 
+/// <summary>
+/// 値を正規化して扱いやすい状態にします。
+/// </summary>
+/// <param name="q">計算に使用するクォータニオンを指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Quaternion Normalize(const Quaternion& q) {
 	Quaternion result;
 	float norm = Norm(q);
@@ -26,6 +41,11 @@ Quaternion Normalize(const Quaternion& q) {
 	return result;
 }
 
+/// <summary>
+/// Conjugate の処理を行います。
+/// </summary>
+/// <param name="q">計算に使用するクォータニオンを指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Quaternion Conjugate(const Quaternion& q) {
 	Quaternion result;
 	result.w = q.w;
@@ -37,6 +57,11 @@ Quaternion Conjugate(const Quaternion& q) {
 
 float Norm(const Quaternion& q) { return sqrtf(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z); }
 
+/// <summary>
+/// 逆行列または逆元を計算して返します。
+/// </summary>
+/// <param name="q">計算に使用するクォータニオンを指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Quaternion Inverse(const Quaternion& q) {
 	Quaternion result;
 	float normSq = q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z;
@@ -48,6 +73,12 @@ Quaternion Inverse(const Quaternion& q) {
 	return result;
 }
 
+/// <summary>
+/// RotateAxisAngleQuaternion を生成して返します。
+/// </summary>
+/// <param name="axis">axis に使用する値を指定します。</param>
+/// <param name="angle">angle に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Quaternion MakeRotateAxisAngleQuaternion(const Vector3 axis, const float angle) {
 	Quaternion result;
 	float halfAngle = angle / 2.0f;
@@ -59,6 +90,12 @@ Quaternion MakeRotateAxisAngleQuaternion(const Vector3 axis, const float angle) 
 	return Normalize(result);
 }
 
+/// <summary>
+/// RotateVector の処理を行います。
+/// </summary>
+/// <param name="v">計算に使用する値を指定します。</param>
+/// <param name="q">計算に使用するクォータニオンを指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Vector3 RotateVector(const Vector3& v, const Quaternion& q) {
 	Quaternion p = { v.x, v.y, v.z, 0.0f };
 	Quaternion qConjugate = Conjugate(q);
@@ -66,6 +103,11 @@ Vector3 RotateVector(const Vector3& v, const Quaternion& q) {
 	return Vector3{ rotatedP.x, rotatedP.y, rotatedP.z };
 }
 
+/// <summary>
+/// RotateMatrix を生成して返します。
+/// </summary>
+/// <param name="q">計算に使用するクォータニオンを指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 MakeRotateMatrix(const Quaternion& q) {
 	Matrix4x4 result = {};
 	result.m[0][0] = 1 - 2 * (q.y * q.y + q.z * q.z);
@@ -87,6 +129,13 @@ Matrix4x4 MakeRotateMatrix(const Quaternion& q) {
 	return result;
 }
 
+/// <summary>
+/// 2 つの値を補間して結果を返します。
+/// </summary>
+/// <param name="q1">計算に使用するクォータニオンを指定します。</param>
+/// <param name="q2">計算に使用するクォータニオンを指定します。</param>
+/// <param name="t">t に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Quaternion Slerp(const Quaternion& q1, const Quaternion& q2, float t) {
 
 	float dot = q1.w * q2.w + q1.x * q2.x + q1.y * q2.y + q1.z * q2.z;

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Audio.h"
 #include "Camera.h"
 #include "D3DResouceLeakCheker.h"
@@ -39,12 +39,33 @@ class FlameWork {
 public:
 	virtual ~FlameWork() = default;
 
+	/// <summary>
+	/// 必要なリソースを準備し、オブジェクトを初期化します。
+	/// </summary>
 	virtual void Initialize();
+	/// <summary>
+	/// 毎フレームの状態更新を行います。
+	/// </summary>
 	virtual void Update();
+	/// <summary>
+	/// 現在の状態をもとに描画処理を行います。
+	/// </summary>
 	virtual void Draw();
+	/// <summary>
+	/// 確保したリソースを解放し、終了処理を行います。
+	/// </summary>
 	virtual void Finalize();
+	/// <summary>
+	/// Run の処理を行います。
+	/// </summary>
 	void Run();
+	/// <summary>
+	/// Fullscreen の状態を切り替えます。
+	/// </summary>
 	void ToggleFullscreen();
+	float GetRenderAspectRatio() const;
+	int32_t GetRenderWidth() const;
+	int32_t GetRenderHeight() const;
 
 	virtual bool IsEndRequest() const { return endRequest; };
 

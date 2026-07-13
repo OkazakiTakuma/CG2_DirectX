@@ -10,11 +10,25 @@
 
 class Object3dCommon {
 public:
+	/// <summary>
+	/// 共有インスタンスを取得します。
+	/// </summary>
+	/// <returns>処理結果を返します。</returns>
 	static Object3dCommon* GetInstance();
 
+	/// <summary>
+	/// 必要なリソースを準備し、オブジェクトを初期化します。
+	/// </summary>
+	/// <param name="dxCommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 	void Initialize(DirectXCommon* dxCommon);
+	/// <summary>
+	/// 確保したリソースを解放し、終了処理を行います。
+	/// </summary>
 	void Finalize();
 
+	/// <summary>
+	/// Draw を設定します。
+	/// </summary>
 	void SetDraw();
 
 	DirectXCommon* GetDxCommon() const { return dxCommon_; }
@@ -28,7 +42,13 @@ private:
 	Object3dCommon(const Object3dCommon&) = delete;
 	Object3dCommon& operator=(const Object3dCommon&) = delete;
 
+	/// <summary>
+	/// RootSignature を作成し、利用できる状態にします。
+	/// </summary>
 	void CreateRootSignature();
+	/// <summary>
+	/// PipelineState を作成し、利用できる状態にします。
+	/// </summary>
 	void CreatePipelineState();
 
 private:

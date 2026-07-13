@@ -2,6 +2,11 @@
 #include "Object3dCommon.h"
 #include "TextureManager.h"
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <param name="model">model に使用する値を指定します。</param>
+/// <param name="maxInstanceCount">範囲判定に使用する値を指定します。</param>
 void InstancingModel::Initialize(Model* model, uint32_t maxInstanceCount) {
     model_ = model;
     maxInstanceCount_ = maxInstanceCount;
@@ -12,6 +17,9 @@ void InstancingModel::Initialize(Model* model, uint32_t maxInstanceCount) {
     CreateConstantBuffers();
 }
 
+/// <summary>
+/// 破棄時に必要な解放処理を行います。
+/// </summary>
 InstancingModel::~InstancingModel() {
     if (instanceBuffer_) instanceBuffer_->Unmap(0, nullptr);
     if (lightResource_) lightResource_->Unmap(0, nullptr);
@@ -19,6 +27,9 @@ InstancingModel::~InstancingModel() {
     if (pointLightResource_) pointLightResource_->Unmap(0, nullptr);
 }
 
+/// <summary>
+/// InstanceBuffer を作成し、利用できる状態にします。
+/// </summary>
 void InstancingModel::CreateInstanceBuffer() {
     auto dxCommon = Object3dCommon::GetInstance()->GetDxCommon();
 
@@ -28,6 +39,9 @@ void InstancingModel::CreateInstanceBuffer() {
     instanceBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedData_));
 }
 
+/// <summary>
+/// ConstantBuffers を作成し、利用できる状態にします。
+/// </summary>
 void InstancingModel::CreateConstantBuffers() {
     auto dxCommon = Object3dCommon::GetInstance()->GetDxCommon();
 
@@ -51,12 +65,20 @@ void InstancingModel::CreateConstantBuffers() {
     pointLightData_->decay = 1.0f;
 }
 
+/// <summary>
+/// AddInstance の処理を行います。
+/// </summary>
+/// <param name="transform">transform に使用する値を指定します。</param>
 void InstancingModel::AddInstance(const EulerTransform& transform) {
     if (transforms_.size() < maxInstanceCount_) {
         transforms_.push_back(transform);
     }
 }
 
+/// <summary>
+/// 現在の状態をもとに描画処理を行います。
+/// </summary>
+/// <param name="camera">描画や座標変換に使用するカメラを指定します。</param>
 void InstancingModel::Draw(Camera* camera) {
     uint32_t instanceCount = static_cast<uint32_t>(transforms_.size());
     if (instanceCount == 0 || !model_) return;

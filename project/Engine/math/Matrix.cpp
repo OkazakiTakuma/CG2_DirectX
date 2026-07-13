@@ -5,6 +5,12 @@
 static const int kRowHeight = 20;
 static const int kColumnWidth = 60;
 static const float p = 3.1415f;
+/// <summary>
+/// 2 つの値を加算した結果を返します。
+/// </summary>
+/// <param name="m1">計算に使用する行列を指定します。</param>
+/// <param name="m2">計算に使用する行列を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 Add(const Matrix4x4& m1, const Matrix4x4& m2) {
 	Matrix4x4 add{};
 	for (int i = 0; i < 4; i++) {
@@ -15,6 +21,12 @@ Matrix4x4 Add(const Matrix4x4& m1, const Matrix4x4& m2) {
 	return add;
 }
 Matrix4x4 operator+(const Matrix4x4& m1, const Matrix4x4& m2) { return Add(m1, m2); };
+/// <summary>
+/// 2 つの値を減算した結果を返します。
+/// </summary>
+/// <param name="m1">計算に使用する行列を指定します。</param>
+/// <param name="m2">計算に使用する行列を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 Subtract(const Matrix4x4& m1, const Matrix4x4& m2) {
 	Matrix4x4 subtract{};
 	for (int i = 0; i < 4; i++) {
@@ -25,6 +37,12 @@ Matrix4x4 Subtract(const Matrix4x4& m1, const Matrix4x4& m2) {
 	return subtract;
 }
 Matrix4x4 operator-(const Matrix4x4& m1, const Matrix4x4& m2) { return Subtract(m1, m2); };
+/// <summary>
+/// 2 つの値を乗算した結果を返します。
+/// </summary>
+/// <param name="m1">計算に使用する行列を指定します。</param>
+/// <param name="m2">計算に使用する行列を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2) {
 	Matrix4x4 multiply{};
 
@@ -37,6 +55,12 @@ Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2) {
 	return multiply;
 }
 Matrix4x4 operator*(const Matrix4x4& m1, const Matrix4x4& m2) { return Multiply(m1, m2); }
+/// <summary>
+/// MultiplyVector3 の処理を行います。
+/// </summary>
+/// <param name="m">計算に使用する行列を指定します。</param>
+/// <param name="v">計算に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Vector3 MultiplyVector3(const Matrix4x4& m, const Vector3& v) {
 	Vector3 result;
 	result.x = m.m[0][0] * v.x + m.m[0][1] * v.y + m.m[0][2] * v.z + m.m[0][3];
@@ -71,6 +95,11 @@ Vector3 MultiplyVector3(const Matrix4x4& m, const Vector3& v) {
 	return result;
 }
 Vector3 operator*(const Matrix4x4& m, const Vector3& v) { return MultiplyVector3(m, v); }
+/// <summary>
+/// 逆行列または逆元を計算して返します。
+/// </summary>
+/// <param name="m">計算に使用する行列を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 Inverse(const Matrix4x4& m) {
 	float det =
 	    m.m[0][0] * m.m[1][1] * m.m[2][2] * m.m[3][3] + m.m[0][0] * m.m[1][2] * m.m[2][3] * m.m[3][1] + m.m[0][0] * m.m[1][3] * m.m[2][1] * m.m[3][2] - m.m[0][0] * m.m[1][3] * m.m[2][2] * m.m[3][1] -
@@ -134,6 +163,11 @@ Matrix4x4 Inverse(const Matrix4x4& m) {
 	                   m.m[0][1] * m.m[1][0] * m.m[2][2] - m.m[0][0] * m.m[1][2] * m.m[2][1]);
 	return Inverse;
 };
+/// <summary>
+/// 転置行列を計算して返します。
+/// </summary>
+/// <param name="m">計算に使用する行列を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 Transpose(const Matrix4x4& m) {
 	Matrix4x4 trancepose{};
 	for (int i = 0; i < 4; i++) {
@@ -144,6 +178,10 @@ Matrix4x4 Transpose(const Matrix4x4& m) {
 
 	return trancepose;
 };
+/// <summary>
+/// Identity4x4 を生成して返します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 MakeIdentity4x4() {
 	Matrix4x4 identiy = {0};
 	for (int i = 0; i < 4; i++) {
@@ -155,6 +193,11 @@ Matrix4x4 MakeIdentity4x4() {
 
 void MatrixScreenPrintf(int posX, int posY, const Matrix4x4& matrix, const char* label) {}
 
+/// <summary>
+/// TranslateMatrix を生成して返します。
+/// </summary>
+/// <param name="translate">位置を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 MakeTranslateMatrix(const Vector3& translate) {
 	Matrix4x4 translateMatrix = MakeIdentity4x4();
 	translateMatrix.m[3][0] = translate.x;
@@ -164,6 +207,11 @@ Matrix4x4 MakeTranslateMatrix(const Vector3& translate) {
 	return translateMatrix;
 }
 
+/// <summary>
+/// ScaleMatrix を生成して返します。
+/// </summary>
+/// <param name="scale">拡大率を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
 	Matrix4x4 scaleMatrix = MakeIdentity4x4();
 	scaleMatrix.m[0][0] = scale.x;
@@ -172,6 +220,11 @@ Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
 	return scaleMatrix;
 }
 
+/// <summary>
+/// RotateXMatrix を生成して返します。
+/// </summary>
+/// <param name="radiun">radiun に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 MakeRotateXMatrix(float radiun) {
 	Matrix4x4 rotateX = MakeIdentity4x4();
 	rotateX.m[1][1] = std::cos(radiun);
@@ -182,6 +235,11 @@ Matrix4x4 MakeRotateXMatrix(float radiun) {
 	return rotateX;
 }
 
+/// <summary>
+/// RotateYMatrix を生成して返します。
+/// </summary>
+/// <param name="radiun">radiun に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 MakeRotateYMatrix(float radiun) {
 	Matrix4x4 rotateY = MakeIdentity4x4();
 	rotateY.m[0][0] = std::cos(radiun);
@@ -192,6 +250,11 @@ Matrix4x4 MakeRotateYMatrix(float radiun) {
 	return rotateY;
 }
 
+/// <summary>
+/// RotateZMatrix を生成して返します。
+/// </summary>
+/// <param name="radiun">radiun に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 MakeRotateZMatrix(float radiun) {
 	Matrix4x4 rotateZ = MakeIdentity4x4();
 	rotateZ.m[0][0] = std::cos(radiun);
@@ -202,6 +265,11 @@ Matrix4x4 MakeRotateZMatrix(float radiun) {
 	return rotateZ;
 }
 
+/// <summary>
+/// RotateXYZMatrix を生成して返します。
+/// </summary>
+/// <param name="rotate">回転量を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 MakeRotateXYZMatrix(Vector3 rotate) {
 	Matrix4x4 XMatrix = MakeRotateXMatrix(rotate.x);
 	Matrix4x4 YMatrix = MakeRotateYMatrix(rotate.y);
@@ -211,6 +279,13 @@ Matrix4x4 MakeRotateXYZMatrix(Vector3 rotate) {
 	return XYZMatrix;
 }
 
+/// <summary>
+/// AffineMatrix を生成して返します。
+/// </summary>
+/// <param name="scale">拡大率を指定します。</param>
+/// <param name="rotate">回転量を指定します。</param>
+/// <param name="translate">位置を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 MakeAffineMatrix(Vector3 scale, Vector3 rotate, Vector3 translate) {
 	Matrix4x4 affineMatrix;
 	Matrix4x4 rotateMatrix = MakeRotateXYZMatrix(rotate);
@@ -235,6 +310,12 @@ Matrix4x4 MakeAffineMatrix(Vector3 scale, Vector3 rotate, Vector3 translate) {
 	affineMatrix.m[3][3] = 1.0f;
 	return affineMatrix;
 }
+/// <summary>
+/// Transformation の処理を行います。
+/// </summary>
+/// <param name="vector">計算に使用する値を指定します。</param>
+/// <param name="matrix">計算に使用する行列を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Vector3 Transformation(const Vector3& vector, const Matrix4x4& matrix) {
 	Vector3 result{};
 
@@ -255,6 +336,16 @@ Vector3 Transformation(const Vector3& vector, const Matrix4x4& matrix) {
 	return result;
 }
 
+/// <summary>
+/// OrthographicMatrix を生成して返します。
+/// </summary>
+/// <param name="left">left に使用する値を指定します。</param>
+/// <param name="top">top に使用する値を指定します。</param>
+/// <param name="right">right に使用する値を指定します。</param>
+/// <param name="bottom">bottom に使用する値を指定します。</param>
+/// <param name="zFar">zFar に使用する値を指定します。</param>
+/// <param name="zNear">zNear に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float bottom, float zFar, float zNear) {
 	Matrix4x4 orthographicMatrix = {0};
 
@@ -272,6 +363,14 @@ Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float botto
 	return orthographicMatrix;
 }
 
+/// <summary>
+/// PerspectiveFovMatrix を生成して返します。
+/// </summary>
+/// <param name="fovY">fovY に使用する値を指定します。</param>
+/// <param name="aspectRatio">aspectRatio に使用する値を指定します。</param>
+/// <param name="nearClip">nearClip に使用する値を指定します。</param>
+/// <param name="farClip">farClip に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip) {
 	Matrix4x4 m{};
 
@@ -290,6 +389,16 @@ Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip
 
 	return m;
 }
+/// <summary>
+/// ViewportMatrix を生成して返します。
+/// </summary>
+/// <param name="left">left に使用する値を指定します。</param>
+/// <param name="top">top に使用する値を指定します。</param>
+/// <param name="width">幅を指定します。</param>
+/// <param name="height">高さを指定します。</param>
+/// <param name="minDeapth">範囲判定に使用する値を指定します。</param>
+/// <param name="maxDepth">範囲判定に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDeapth, float maxDepth) {
 	Matrix4x4 viewportMatrix{};
 	viewportMatrix.m[0][0] = width / 2;

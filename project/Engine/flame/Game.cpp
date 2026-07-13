@@ -12,6 +12,9 @@
 #include <DbgHelp.h>
 #include <strsafe.h>
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
 void Game::Initialize() {
 
 	FlameWork::Initialize();
@@ -28,6 +31,9 @@ void Game::Initialize() {
 	SkyBoxCommon::GetInstance()->SetDefaultCamera(camera.get());
 }
 
+/// <summary>
+/// 毎フレームの状態更新を行います。
+/// </summary>
 void Game::Update() {
 	ImGuiManager::GetInstance()->Begin();
 	// ============================
@@ -41,6 +47,10 @@ void Game::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_F11)) {
 		ToggleFullscreen();
 	}
+	if (camera) {
+		camera->SetAspectRatio(GetRenderAspectRatio());
+		camera->Update();
+	}
 	PostEffect::GetInstance()->UpdateHotkeys();
 
 	sceneManager->Update();
@@ -50,17 +60,21 @@ void Game::Update() {
 	}
 }
 
+/// <summary>
+/// 現在の状態をもとに描画処理を行います。
+/// </summary>
 void Game::Draw() {
 #pragma region Setup
 
 	if (PostEffect::GetInstance()->IsActive()) {
 		PostEffect::GetInstance()->PreDrawScene();
 
+		SkyBoxCommon::GetInstance()->SetDraw();
+		sceneManager->DrawSkyBox();
+
 		Object3dCommon::GetInstance()->SetDraw();
 		sceneManager->Draw3D();
 		LineDrawer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
-		SkyBoxCommon::GetInstance()->SetDraw();
-		sceneManager->DrawSkyBox();
 
 		SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeNone);
 		sceneManager->Draw2D();
@@ -73,11 +87,12 @@ void Game::Draw() {
 	} else {
 		SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
 
+		SkyBoxCommon::GetInstance()->SetDraw();
+		sceneManager->DrawSkyBox();
+
 		Object3dCommon::GetInstance()->SetDraw();
 		sceneManager->Draw3D();
 		LineDrawer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
-		SkyBoxCommon::GetInstance()->SetDraw();
-		sceneManager->DrawSkyBox();
 
 		SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeNone);
 		sceneManager->Draw2D();
@@ -91,6 +106,9 @@ void Game::Draw() {
 #pragma endregion
 }
 
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void Game::Finalize() {
 	sceneManager.reset();
 	sceneFactory.reset();

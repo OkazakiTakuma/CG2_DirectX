@@ -14,6 +14,11 @@ const char* kSceneNames[] = {
     "GAMEPLAY"
 };
 
+/// <summary>
+/// SceneIndex を検索して取得します。
+/// </summary>
+/// <param name="sceneName">対象となるシーン名を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 int FindSceneIndex(const std::string& sceneName) {
 	for (int index = 0; index < static_cast<int>(_countof(kSceneNames)); ++index) {
 		if (sceneName == kSceneNames[index]) {
@@ -24,6 +29,9 @@ int FindSceneIndex(const std::string& sceneName) {
 }
 }
 
+/// <summary>
+/// 毎フレームの状態更新を行います。
+/// </summary>
 void SceneManager::Update() {
 	if (nextScene_) {
 		if (scene_) {
@@ -44,19 +52,29 @@ void SceneManager::Update() {
 	}
 
 	if (scene_) {
-		scene_->Update();
-		scene_->UpdateSceneObjects();
+		if (isScenePlaying_) {
+			scene_->Update();
+			scene_->UpdateSceneObjects();
+		} else {
+			scene_->UpdateEditorTools();
+		}
 		DrawEditorImGui();
 		scene_->DrawEditorImGui();
 	}
 }
 
+/// <summary>
+/// スカイボックスの描画処理を行います。
+/// </summary>
 void SceneManager::DrawSkyBox() {
 	if (scene_) {
 		scene_->DrawSkyBox();
 	}
 }
 
+/// <summary>
+/// 2D 要素の描画処理を行います。
+/// </summary>
 void SceneManager::Draw2D() {
 	if (scene_) {
 		scene_->Draw2D();
@@ -65,6 +83,9 @@ void SceneManager::Draw2D() {
 	}
 }
 
+/// <summary>
+/// 3D 要素の描画処理を行います。
+/// </summary>
 void SceneManager::Draw3D() {
 	if (scene_) {
 		scene_->Draw3D();
@@ -73,17 +94,23 @@ void SceneManager::Draw3D() {
 	}
 }
 
+/// <summary>
+/// DrawEditorImGui の処理を行います。
+/// </summary>
 void SceneManager::DrawEditorImGui() {
 #ifdef USE_IMGUI
-	ImGui::Begin("Scene Manager");
+	ImGui::Begin("Editor Toolbar", nullptr, ImGuiWindowFlags_NoCollapse);
 
-	ImGui::Text("Current: %s", currentSceneName_.c_str());
+	ImGui::Text("Scene: %s", currentSceneName_.c_str());
+	ImGui::SameLine();
 	if (nextScene_) {
 		ImGui::Text("Next: %s", nextSceneName_.c_str());
+		ImGui::SameLine();
 	}
 
-	ImGui::Separator();
-	ImGui::Combo("Scene", &selectedSceneIndex_, kSceneNames, _countof(kSceneNames));
+	ImGui::SetNextItemWidth(160.0f);
+	ImGui::Combo("##Scene", &selectedSceneIndex_, kSceneNames, _countof(kSceneNames));
+	ImGui::SameLine();
 
 	const bool canChange = !nextScene_ && currentSceneName_ != kSceneNames[selectedSceneIndex_];
 	if (!canChange) {
@@ -95,11 +122,20 @@ void SceneManager::DrawEditorImGui() {
 	if (!canChange) {
 		ImGui::EndDisabled();
 	}
+	ImGui::SameLine();
+	if (ImGui::Button(isScenePlaying_ ? "Pause" : "Play")) {
+		isScenePlaying_ = !isScenePlaying_;
+	}
+	ImGui::SameLine();
+	ImGui::Text("%s", isScenePlaying_ ? "Playing" : "Paused");
 
 	ImGui::End();
 #endif
 }
 
+/// <summary>
+/// 破棄時に必要な解放処理を行います。
+/// </summary>
 SceneManager::~SceneManager() {
 	if (scene_) {
 		ApplyFallbackCamera();
@@ -108,6 +144,9 @@ SceneManager::~SceneManager() {
 	}
 }
 
+/// <summary>
+/// FallbackCamera を現在の状態へ反映します。
+/// </summary>
 void SceneManager::ApplyFallbackCamera() {
 	if (!fallbackCamera_) {
 		return;
@@ -118,6 +157,10 @@ void SceneManager::ApplyFallbackCamera() {
 	ParticleManager::GetInstance()->SetCamera(fallbackCamera_);
 }
 
+/// <summary>
+/// ChengeScene の処理を行います。
+/// </summary>
+/// <param name="sceneName">対象となるシーン名を指定します。</param>
 void SceneManager::ChengeScene(const std::string& sceneName) {
 	assert(sceneFactory_);
 	assert(nextScene_ == nullptr);

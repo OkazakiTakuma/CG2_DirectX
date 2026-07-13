@@ -1,6 +1,7 @@
 #pragma once
 #include "Component.h"
 #include "../base/struct.h"
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -16,6 +17,11 @@ public:
 	GameObject& operator=(const GameObject&) = delete;
 
 	template<class T, class... Args>
+	/// <summary>
+	/// AddComponent の処理を行います。
+	/// </summary>
+	/// <param name="args">args に使用する値を指定します。</param>
+	/// <returns>処理結果を返します。</returns>
 	T* AddComponent(Args&&... args) {
 		static_assert(std::is_base_of_v<Component, T>, "T must inherit from Component.");
 
@@ -28,6 +34,10 @@ public:
 	}
 
 	template<class T>
+	/// <summary>
+	/// Component を取得します。
+	/// </summary>
+	/// <returns>処理結果を返します。</returns>
 	T* GetComponent() {
 		static_assert(std::is_base_of_v<Component, T>, "T must inherit from Component.");
 
@@ -39,14 +49,45 @@ public:
 		return nullptr;
 	}
 
+	template<class T>
+	/// <summary>
+	/// 指定した型のコンポーネントを削除します。
+	/// </summary>
+	void RemoveComponent() {
+		static_assert(std::is_base_of_v<Component, T>, "T must inherit from Component.");
+
+		components_.erase(
+		    std::remove_if(
+		        components_.begin(),
+		        components_.end(),
+		        [](const std::unique_ptr<Component>& component) {
+			        if (dynamic_cast<T*>(component.get())) {
+				        component->Finalize();
+				        return true;
+			        }
+			        return false;
+		        }
+		    ),
+		    components_.end()
+		);
+	}
+
+	/// <summary>
+	/// 毎フレームの状態更新を行います。
+	/// </summary>
 	void Update() {
+		constexpr float kDeltaTime = 1.0f / 60.0f;
 		for (const auto& component : components_) {
 			if (component->IsEnabled()) {
+				component->ApplyGravity(transform_, kDeltaTime);
 				component->Update();
 			}
 		}
 	}
 
+	/// <summary>
+	/// 現在の状態をもとに描画処理を行います。
+	/// </summary>
 	void Draw() {
 		for (const auto& component : components_) {
 			if (component->IsEnabled()) {
@@ -55,6 +96,9 @@ public:
 		}
 	}
 
+	/// <summary>
+	/// 2D 要素の描画処理を行います。
+	/// </summary>
 	void Draw2D() {
 		for (const auto& component : components_) {
 			if (component->IsEnabled()) {
@@ -63,6 +107,9 @@ public:
 		}
 	}
 
+	/// <summary>
+	/// 3D 要素の描画処理を行います。
+	/// </summary>
 	void Draw3D() {
 		for (const auto& component : components_) {
 			if (component->IsEnabled()) {
@@ -71,11 +118,22 @@ public:
 		}
 	}
 
+	/// <summary>
+	/// 確保したリソースを解放し、終了処理を行います。
+	/// </summary>
 	void Finalize() {
 		for (const auto& component : components_) {
 			component->Finalize();
 		}
 		components_.clear();
+	}
+
+	void ApplyCollisionResponse(const Vector3& collisionNormal) {
+		for (const auto& component : components_) {
+			if (component->IsEnabled()) {
+				component->ApplyCollisionResponse(collisionNormal);
+			}
+		}
 	}
 
 	EulerTransform& GetTransform() { return transform_; }
@@ -84,10 +142,13 @@ public:
 	const std::string& GetName() const { return name_; }
 	void SetEditorType(const std::string& editorType) { editorType_ = editorType; }
 	const std::string& GetEditorType() const { return editorType_; }
+	void SetParentName(const std::string& parentName) { parentName_ = parentName; }
+	const std::string& GetParentName() const { return parentName_; }
 
 private:
 	std::string name_ = "GameObject";
 	std::string editorType_ = "Empty";
+	std::string parentName_;
 	EulerTransform transform_ = {
 	    {1.0f, 1.0f, 1.0f},
 	    {0.0f, 0.0f, 0.0f},

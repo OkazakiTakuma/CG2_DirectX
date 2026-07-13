@@ -7,9 +7,21 @@
 
 class Game : public FlameWork {
 public:
+	/// <summary>
+	/// 必要なリソースを準備し、オブジェクトを初期化します。
+	/// </summary>
 	void Initialize() override;
+	/// <summary>
+	/// 毎フレームの状態更新を行います。
+	/// </summary>
 	void Update() override;
+	/// <summary>
+	/// 現在の状態をもとに描画処理を行います。
+	/// </summary>
 	void Draw() override;
+	/// <summary>
+	/// 確保したリソースを解放し、終了処理を行います。
+	/// </summary>
 	void Finalize() override;
 	bool IsEndRequest() const override { return endRequest; }	
 

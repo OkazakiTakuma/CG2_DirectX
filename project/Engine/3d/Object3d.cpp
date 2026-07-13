@@ -92,6 +92,9 @@ void DrawDebugWireSphere(const Vector3& center, float radius, const Vector4& col
 }
 }
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
 void Object3d::Initialize() {
 	Object3dCommon* common = Object3dCommon::GetInstance();
 
@@ -111,6 +114,10 @@ void Object3d::Initialize() {
 	this->camera = common->GetDefaultCamera();
 	TextureManager::GetInstance()->LoadTexture(envMapTexturePath);
 }
+/// <summary>
+/// EnvironmentMap を設定します。
+/// </summary>
+/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 void Object3d::SetEnvironmentMap(const std::string& textureFilePath) {
 	envMapTexturePath = textureFilePath;
 
@@ -118,6 +125,9 @@ void Object3d::SetEnvironmentMap(const std::string& textureFilePath) {
 	// =======================================================
 	environmentMultiplier = 1.0f;
 }
+/// <summary>
+/// WVPResource を作成し、利用できる状態にします。
+/// </summary>
 void Object3d::CreateWVPResource() {
 	wvpResorceModel = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
 	wvpResorceModel->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrix));
@@ -126,6 +136,9 @@ void Object3d::CreateWVPResource() {
 	transformationMatrix->WorldInverseTranspose = MakeIdentity4x4();
 }
 
+/// <summary>
+/// CameraResource を作成し、利用できる状態にします。
+/// </summary>
 void Object3d::CreateCameraResource() {
 	cameraResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(CameraForGPU));
 	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
@@ -133,6 +146,10 @@ void Object3d::CreateCameraResource() {
 	cameraData->environmentMultiplier = environmentMultiplier;
 }
 
+/// <summary>
+/// SkinningPaletteResource を作成し、利用できる状態にします。
+/// </summary>
+/// <param name="paletteCount">paletteCount に使用する値を指定します。</param>
 void Object3d::CreateSkinningPaletteResource(uint32_t paletteCount) {
 	paletteCount = paletteCount > 0 ? paletteCount : 1;
 	if (skinningPaletteData) {
@@ -148,6 +165,9 @@ void Object3d::CreateSkinningPaletteResource(uint32_t paletteCount) {
 	}
 }
 
+/// <summary>
+/// UpdateSkinningPaletteResource の処理を行います。
+/// </summary>
 void Object3d::UpdateSkinningPaletteResource() {
 	if (!skinningPaletteData) {
 		CreateSkinningPaletteResource(1);
@@ -167,12 +187,25 @@ void Object3d::UpdateSkinningPaletteResource() {
 	std::memcpy(skinningPaletteData, skinningPalette_.data(), sizeof(Matrix4x4) * skinningPalette_.size());
 }
 
+/// <summary>
+/// Skeleton を作成し、利用できる状態にします。
+/// </summary>
+/// <param name="rootNode">rootNode に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 Skeleton Object3d::CreateSkeleton(const Node& rootNode) {
 	Skeleton result;
 	result.root = CreateJoint(rootNode, std::nullopt, result.joints, result.jointMap);
 	return result;
 }
 
+/// <summary>
+/// Joint を作成し、利用できる状態にします。
+/// </summary>
+/// <param name="node">node に使用する値を指定します。</param>
+/// <param name="parent">parent に使用する値を指定します。</param>
+/// <param name="joints">joints に使用する値を指定します。</param>
+/// <param name="jointMap">jointMap に使用する値を指定します。</param>
+/// <returns>処理結果を返します。</returns>
 int32_t Object3d::CreateJoint(const Node& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints, std::map<std::string, int32_t>& jointMap) {
 	Joint joint;
 	joint.transform = node.transform;
@@ -193,6 +226,9 @@ int32_t Object3d::CreateJoint(const Node& node, const std::optional<int32_t>& pa
 	return joint.index;
 }
 
+/// <summary>
+/// AnimationToSkeleton を現在の状態へ反映します。
+/// </summary>
 void Object3d::ApplyAnimationToSkeleton() {
 	if (!hasSkeleton || animation.duration <= 0.0f) {
 		return;
@@ -217,6 +253,9 @@ void Object3d::ApplyAnimationToSkeleton() {
 	}
 }
 
+/// <summary>
+/// UpdateSkeleton の処理を行います。
+/// </summary>
 void Object3d::UpdateSkeleton() {
 	if (!hasSkeleton) {
 		return;
@@ -232,6 +271,9 @@ void Object3d::UpdateSkeleton() {
 	}
 }
 
+/// <summary>
+/// DirectionalLightResource を作成し、利用できる状態にします。
+/// </summary>
 void Object3d::CreateDirectionalLightResource() {
 	lightResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(DirectionalLight));
 	lightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionallightData));
@@ -240,6 +282,9 @@ void Object3d::CreateDirectionalLightResource() {
 	directionallightData->intensity = 1.0f;
 }
 
+/// <summary>
+/// PointLightResource を作成し、利用できる状態にします。
+/// </summary>
 void Object3d::CreatePointLightResource() {
 	pointLightResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(PointLight));
 	pointLightResource->Map(0, nullptr, reinterpret_cast<void**>(&pointLightData));
@@ -250,6 +295,14 @@ void Object3d::CreatePointLightResource() {
 	pointLightData->decay = 1.0f;
 }
 
+/// <summary>
+/// Cylinder を作成し、利用できる状態にします。
+/// </summary>
+/// <param name="radius">半径を指定します。</param>
+/// <param name="height">高さを指定します。</param>
+/// <param name="subdivision">subdivision に使用する値を指定します。</param>
+/// <param name="createTopCap">createTopCap に使用する値を指定します。</param>
+/// <param name="createBottomCap">createBottomCap に使用する値を指定します。</param>
 void Object3d::CreateCylinder(float radius, float height, uint32_t subdivision, bool createTopCap, bool createBottomCap) {
 	std::vector<VertexData> vertices;
 	std::vector<uint32_t> indices;
@@ -372,12 +425,37 @@ void Object3d::CreateCylinder(float radius, float height, uint32_t subdivision, 
 	}
 }
 
+/// <summary>
+/// Texture を設定します。
+/// </summary>
+/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 void Object3d::SetTexture(const std::string& textureFilePath) {
 	TextureManager::GetInstance()->LoadTexture(textureFilePath);
 	textureHandleCylinder = TextureManager::GetInstance()->GetSRVHandleGPU(textureFilePath);
 	isTextureSetCylinder = true;
 }
 
+/// <summary>
+/// 設定済みモデルの描画テクスチャを変更します。
+/// </summary>
+/// <param name="textureFilePath">使用するテクスチャのファイルパスを指定します。</param>
+void Object3d::SetModelTexture(const std::string& textureFilePath) {
+	if (model) {
+		model->SetTextureFilePath(textureFilePath);
+	}
+}
+
+/// <summary>
+/// 設定済みモデルの描画テクスチャパスを取得します。
+/// </summary>
+/// <returns>モデルのテクスチャパスを返します。</returns>
+std::string Object3d::GetModelTextureFilePath() const {
+	return model ? model->GetTextureFilePath() : std::string();
+}
+
+/// <summary>
+/// 毎フレームの状態更新を行います。
+/// </summary>
 void Object3d::Update() {
 	if (!transformationMatrix || !cameraData) {
 		return;
@@ -427,6 +505,9 @@ void Object3d::UpdateAnimation()
 
 }
 
+/// <summary>
+/// 現在の状態をもとに描画処理を行います。
+/// </summary>
 void Object3d::Draw() {
 	if (!wvpResorceModel || !lightResource || !cameraResource || !pointLightResource) return;
 
@@ -467,6 +548,9 @@ void Object3d::Draw() {
 	}
 }
 
+/// <summary>
+/// DrawDebugSkeleton の処理を行います。
+/// </summary>
 void Object3d::DrawDebugSkeleton() {
 	if (!isDrawSkeleton_ || !hasSkeleton || skeleton.joints.empty()) {
 		return;
@@ -494,6 +578,10 @@ void Object3d::DrawDebugSkeleton() {
 	}
 }
 
+/// <summary>
+/// Model を設定します。
+/// </summary>
+/// <param name="newModel">newModel に使用する値を指定します。</param>
 void Object3d::SetModel(Model* newModel) {
 	model = newModel;
 	hasSkeleton = false;
@@ -513,12 +601,19 @@ void Object3d::SetModel(Model* newModel) {
 	}
 }
 
+/// <summary>
+/// Model を設定します。
+/// </summary>
+/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 void Object3d::SetModel(const std::string& filePath) {
 	SetModel(ModelManager::GetInstance()->FindModel(filePath));
 }
 
 
 
+/// <summary>
+/// 破棄時に必要な解放処理を行います。
+/// </summary>
 Object3d::~Object3d() {
 	if (wvpResorceModel) wvpResorceModel->Unmap(0, nullptr);
 	if (lightResource) lightResource->Unmap(0, nullptr);
@@ -544,6 +639,12 @@ Object3d::~Object3d() {
 	model = nullptr;
 }
 
+/// <summary>
+/// DirectionalLight を設定します。
+/// </summary>
+/// <param name="color">色を指定します。</param>
+/// <param name="direction">direction に使用する値を指定します。</param>
+/// <param name="intensity">強度を指定します。</param>
 void Object3d::SetDirectionalLight(const Vector4& color, const Vector3& direction, float intensity) {
 	if (directionallightData) {
 		directionallightData->color = color;
@@ -552,6 +653,14 @@ void Object3d::SetDirectionalLight(const Vector4& color, const Vector3& directio
 	}
 }
 
+/// <summary>
+/// PointLight を設定します。
+/// </summary>
+/// <param name="color">色を指定します。</param>
+/// <param name="position">位置を指定します。</param>
+/// <param name="intensity">強度を指定します。</param>
+/// <param name="radius">半径を指定します。</param>
+/// <param name="decay">decay に使用する値を指定します。</param>
 void Object3d::SetPointLight(const Vector4& color, const Vector3& position, float intensity, float radius, float decay) {
 	if (pointLightData) {
 		pointLightData->color = color;
@@ -562,6 +671,10 @@ void Object3d::SetPointLight(const Vector4& color, const Vector3& position, floa
 	}
 }
 
+/// <summary>
+/// EnvironmentMultiplier を設定します。
+/// </summary>
+/// <param name="multiplier">multiplier に使用する値を指定します。</param>
 void Object3d::SetEnvironmentMultiplier(float multiplier) {
 	environmentMultiplier = multiplier;
 }

@@ -97,8 +97,12 @@ struct Emitter {
 	float frequencyTimer;
 };
 struct ParticleForGPU {
-	Matrix4x4 WVP;
-	Matrix4x4 world;
+	Vector3 translate;
+	float isBillboard;
+	Vector3 scale;
+	float padding0;
+	Vector3 rotate;
+	float padding1;
 	Vector4 color;
 };
 struct SoundData {

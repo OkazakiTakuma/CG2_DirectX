@@ -9,12 +9,20 @@ class ParticleManager;
 class ParticleEmitter {
 public:
 
+	/// <summary>
+	/// パーティクルを発生させます。
+	/// </summary>
+	/// <param name="targetPosition">targetPosition に使用する値を指定します。</param>
 	void EmitLightning(const Vector3& targetPosition);
 
+	/// <summary>
+	/// ParticleEmitter の処理を行います。
+	/// </summary>
 	ParticleEmitter();
 
 	/// <summary>
 	/// </summary>
+	/// <param name="deltaTime">前フレームからの経過時間を指定します。</param>
 	void Update(float deltaTime);
 
 	/// <summary>
@@ -31,6 +39,10 @@ public:
 	void SetRandomVelocityRange(const Vector3& range) { emitParam_.randomVelocityRange = range; }
 	void SetRandomPositionRange(const Vector3& range) { emitParam_.randomPositionRange = range; }
 	void SetLifeTime(float lifeTime) { emitParam_.lifeTime = lifeTime; }
+	/// <summary>
+	/// Texture を設定します。
+	/// </summary>
+	/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 	void SetTexture(const std::string& textureFilePath);
 	void SetBaseRotate(const Vector3& baseRotate) { emitParam_.baseRotate = baseRotate; }
 	void SetIsActive(bool isActive) { isActive_ = isActive; }
@@ -58,7 +70,15 @@ public:
 	BlendMode GetBlendMode() const { return blendMode_; }
 	ParticleMeshType GetMeshType() const { return meshType_; }
 
+	/// <summary>
+	/// ToJson を保存します。
+	/// </summary>
+	/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 	void SaveToJson(const std::string& filePath = "Resources/Data/emit_status.json");
+	/// <summary>
+	/// FromJson を読み込み、内部データへ反映します。
+	/// </summary>
+	/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 	void LoadFromJson(const std::string& filePath = "Resources/Data/emit_status.json");
 
 private:

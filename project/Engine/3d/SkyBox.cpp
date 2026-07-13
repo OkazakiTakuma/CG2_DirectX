@@ -2,16 +2,34 @@
 #include "TextureManager.h"
 #include <SrvManager.h>
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 void SkyBox::Initialize(const std::string& filePath) {
 	common_ = SkyBoxCommon::GetInstance();
 	textureFilePath = filePath;
+	TextureManager::GetInstance()->LoadTexture(textureFilePath);
 
 	CreateVertexData();
 	CreateConstantBuffers();
 	this->camera = common_->GetDefaultCamera();
 }
 
+/// <summary>
+/// 毎フレームの状態更新を行います。
+/// </summary>
 void SkyBox::Update() {
+	if (!common_) {
+		common_ = SkyBoxCommon::GetInstance();
+	}
+	if (!camera && common_) {
+		camera = common_->GetDefaultCamera();
+	}
+	if (!camera || !transformData) {
+		return;
+	}
+
     Vector3 scale = { 500.0f, 500.0f, 500.0f };
     Vector3 rotation = { 0.0f, 0.0f, 0.0f };
     Vector3 translation = { 0.0f, 0.0f, 0.0f };
@@ -30,7 +48,14 @@ void SkyBox::Update() {
     transformData->WVP = Multiply(worldMatrix, viewProjectionMatrix);
     transformData->world = worldMatrix;
 }
+/// <summary>
+/// 現在の状態をもとに描画処理を行います。
+/// </summary>
 void SkyBox::Draw() {
+	if (!common_ || !vertexResource || !indexResource || !materialResource || !transformResource || textureFilePath.empty()) {
+		return;
+	}
+
     common_->SetDraw();
     auto commandList = common_->GetDxCommon()->GetCommandList();
 
@@ -54,6 +79,9 @@ void SkyBox::Draw() {
 
     commandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
 }
+/// <summary>
+/// VertexData を作成し、利用できる状態にします。
+/// </summary>
 void SkyBox::CreateVertexData() {
     const float kSize = 1.0f;
     VertexData vertices[] = {
@@ -98,6 +126,9 @@ void SkyBox::CreateVertexData() {
     std::memcpy(mappedIndexData, indices, sizeof(uint16_t) * indexCount);
 }
 
+/// <summary>
+/// ConstantBuffers を作成し、利用できる状態にします。
+/// </summary>
 void SkyBox::CreateConstantBuffers() {
     materialResource = SkyBoxCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(Material));
     materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));

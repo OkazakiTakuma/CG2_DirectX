@@ -5,7 +5,13 @@
 
 class Camera {
 public:
+	/// <summary>
+	/// Camera の処理を行います。
+	/// </summary>
 	Camera();
+	/// <summary>
+	/// 毎フレームの状態更新を行います。
+	/// </summary>
 	void Update();
 	const Vector3& GetTranslate() { return transform.translate; }
 	void SetTranslate(const Vector3& newTransform) { transform.translate = newTransform; }

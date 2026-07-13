@@ -7,12 +7,28 @@
 
 class SkyBox {
 public:
+	/// <summary>
+	/// 必要なリソースを準備し、オブジェクトを初期化します。
+	/// </summary>
+	/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 	void Initialize(const std::string& filePath);
+	/// <summary>
+	/// 毎フレームの状態更新を行います。
+	/// </summary>
 	void Update();
+	/// <summary>
+	/// 現在の状態をもとに描画処理を行います。
+	/// </summary>
 	void Draw();
 
 private:
+	/// <summary>
+	/// VertexData を作成し、利用できる状態にします。
+	/// </summary>
 	void CreateVertexData();
+	/// <summary>
+	/// ConstantBuffers を作成し、利用できる状態にします。
+	/// </summary>
 	void CreateConstantBuffers();
 
 	SkyBoxCommon* common_ = nullptr;

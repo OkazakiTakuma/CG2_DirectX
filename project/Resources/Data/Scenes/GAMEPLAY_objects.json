@@ -1,13 +1,61 @@
 {
-    "nextObjectId": 3,
+    "activeCamera": "",
+    "nextObjectId": 8,
     "objects": [
         {
+            "children": [],
             "model": "simpleSkin.gltf",
             "name": "simpleSkin_1",
+            "obbCollider": {
+                "centerOffset": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "drawDebug": true,
+                "enabled": true,
+                "gravity": {
+                    "enabled": false,
+                    "strength": 9.800000190734863
+                },
+                "halfSize": [
+                    0.5,
+                    1.0,
+                    0.15000000596046448
+                ],
+                "pushBack": false
+            },
+            "object3d": {
+                "drawSkeleton": false,
+                "enabled": true,
+                "gravity": {
+                    "enabled": false,
+                    "strength": 9.800000190734863
+                },
+                "isPointLight": true,
+                "modelTextureFilePath": "Resources/simpleSkin/uvChecker.png",
+                "pointLight": {
+                    "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "decay": 1.0,
+                    "intensity": 1.0,
+                    "position": [
+                        0.928219735622406,
+                        0.0,
+                        0.0
+                    ],
+                    "radius": 10.0
+                }
+            },
+            "parent": "",
             "transform": {
                 "rotate": [
                     0.0,
-                    0.0,
+                    -0.0,
                     0.0
                 ],
                 "scale": [
@@ -16,7 +64,7 @@
                     1.0
                 ],
                 "translate": [
-                    0.0,
+                    0.928219735622406,
                     0.0,
                     0.0
                 ]
@@ -24,12 +72,238 @@
             "type": "LoadedModel"
         },
         {
+            "children": [],
             "model": "sneakWalk.gltf",
             "name": "sneakWalk_2",
+            "obbCollider": {
+                "centerOffset": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "drawDebug": true,
+                "enabled": true,
+                "gravity": {
+                    "enabled": false,
+                    "strength": 9.800000190734863
+                },
+                "halfSize": [
+                    0.5,
+                    0.5,
+                    0.5
+                ],
+                "pushBack": false
+            },
+            "object3d": {
+                "drawSkeleton": false,
+                "enabled": true,
+                "gravity": {
+                    "enabled": false,
+                    "strength": 9.800000190734863
+                },
+                "isPointLight": true,
+                "modelTextureFilePath": "Resources/human/white.png",
+                "pointLight": {
+                    "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "decay": 1.0,
+                    "intensity": 1.0,
+                    "position": [
+                        -0.0890066921710968,
+                        0.0,
+                        0.0
+                    ],
+                    "radius": 10.0
+                }
+            },
+            "parent": "",
             "transform": {
                 "rotate": [
                     0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "translate": [
+                    -0.0890066921710968,
                     0.0,
+                    0.0
+                ]
+            },
+            "type": "LoadedModel"
+        },
+        {
+            "camera": {
+                "enabled": true,
+                "farClip": 1000.0,
+                "followOffset": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "followTarget": "",
+                "fovY": 0.75,
+                "gravity": {
+                    "enabled": false,
+                    "strength": 9.800000190734863
+                },
+                "localOffset": [
+                    0.0,
+                    15.0,
+                    0.0
+                ],
+                "nearClip": 0.10000000149011612,
+                "overrideRotation": [
+                    1.5707963705062866,
+                    0.0,
+                    0.0
+                ],
+                "overrideRotationEnabled": true
+            },
+            "children": [],
+            "name": "Player_5",
+            "obbCollider": {
+                "centerOffset": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "drawDebug": true,
+                "enabled": true,
+                "gravity": {
+                    "enabled": false,
+                    "strength": 9.800000190734863
+                },
+                "halfSize": [
+                    0.5,
+                    1.0,
+                    0.5
+                ],
+                "pushBack": true
+            },
+            "object3d": {
+                "drawSkeleton": true,
+                "enabled": true,
+                "gravity": {
+                    "enabled": true,
+                    "strength": 9.800000190734863
+                },
+                "isPointLight": true,
+                "modelTextureFilePath": "Resources/human/white.png",
+                "pointLight": {
+                    "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "decay": 1.0,
+                    "intensity": 1.0,
+                    "position": [
+                        -3.830427646636963,
+                        -0.14795322716236115,
+                        -2.0571072101593018
+                    ],
+                    "radius": 10.0
+                }
+            },
+            "parent": "",
+            "player": {
+                "enabled": true,
+                "gravity": {
+                    "enabled": false,
+                    "strength": 9.800000190734863
+                },
+                "isAnimationModel": true,
+                "model": "walk.gltf",
+                "moveSpeed": 0.10000000149011612,
+                "spawnPoint": [
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            "transform": {
+                "rotate": [
+                    0.0,
+                    3.1415927410125732,
+                    0.0
+                ],
+                "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "translate": [
+                    -3.830427646636963,
+                    -0.1452309638261795,
+                    -2.0571072101593018
+                ]
+            },
+            "type": "Player"
+        },
+        {
+            "children": [],
+            "model": "terrain.obj",
+            "name": "terrain_7",
+            "obbCollider": {
+                "centerOffset": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "drawDebug": true,
+                "enabled": true,
+                "gravity": {
+                    "enabled": false,
+                    "strength": 9.800000190734863
+                },
+                "halfSize": [
+                    10.0,
+                    0.05000000074505806,
+                    10.0
+                ],
+                "pushBack": false
+            },
+            "object3d": {
+                "drawSkeleton": false,
+                "enabled": true,
+                "gravity": {
+                    "enabled": false,
+                    "strength": 9.800000190734863
+                },
+                "isPointLight": true,
+                "modelTextureFilePath": "Resources/terrain/grass.png",
+                "pointLight": {
+                    "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "decay": 1.0,
+                    "intensity": 1.0,
+                    "position": [
+                        0.0,
+                        -1.1952309608459473,
+                        0.0
+                    ],
+                    "radius": 10.0
+                }
+            },
+            "parent": "",
+            "transform": {
+                "rotate": [
+                    0.0,
+                    -0.0,
                     0.0
                 ],
                 "scale": [
@@ -39,12 +313,16 @@
                 ],
                 "translate": [
                     0.0,
-                    0.0,
+                    -1.1952309608459473,
                     0.0
                 ]
             },
             "type": "LoadedModel"
         }
     ],
-    "scene": "GAMEPLAY"
+    "scene": "GAMEPLAY",
+    "skyBox": {
+        "enabled": true,
+        "textureFilePath": "Resources/rostock_laage_airport_4k.dds"
+    }
 }

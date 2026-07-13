@@ -1,11 +1,19 @@
 #include "SkyBoxCommon.h"
 #include <cassert>
 
+/// <summary>
+/// 共有インスタンスを取得します。
+/// </summary>
+/// <returns>処理結果を返します。</returns>
 SkyBoxCommon* SkyBoxCommon::GetInstance() {
 	static SkyBoxCommon instance;
 	return &instance;
 }
 
+/// <summary>
+/// 必要なリソースを準備し、オブジェクトを初期化します。
+/// </summary>
+/// <param name="dxCommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 void SkyBoxCommon::Initialize(DirectXCommon* dxCommon) {
 	assert(dxCommon);
 	dxCommon_ = dxCommon;
@@ -14,6 +22,9 @@ void SkyBoxCommon::Initialize(DirectXCommon* dxCommon) {
 	CreatePipelineState();
 }
 
+/// <summary>
+/// Draw を設定します。
+/// </summary>
 void SkyBoxCommon::SetDraw() {
 	auto commandList = dxCommon_->GetCommandList();
 
@@ -22,11 +33,17 @@ void SkyBoxCommon::SetDraw() {
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
+/// <summary>
+/// 確保したリソースを解放し、終了処理を行います。
+/// </summary>
 void SkyBoxCommon::Finalize() {
 	rootSignature.Reset();
 	graphicsPipelineState.Reset();
 }
 
+/// <summary>
+/// RootSignature を作成し、利用できる状態にします。
+/// </summary>
 void SkyBoxCommon::CreateRootSignature() {
 	HRESULT hr;
 
@@ -76,6 +93,9 @@ void SkyBoxCommon::CreateRootSignature() {
 	assert(SUCCEEDED(hr));
 }
 
+/// <summary>
+/// PipelineState を作成し、利用できる状態にします。
+/// </summary>
 void SkyBoxCommon::CreatePipelineState() {
 	HRESULT hr;
 	CreateRootSignature();
