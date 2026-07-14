@@ -30,7 +30,7 @@ public:
     /// <param name="p1">p1 に使用する値を指定します。</param>
     /// <param name="p2">p2 に使用する値を指定します。</param>
     /// <param name="color">色を指定します。</param>
-    void DrawLine(const Vector3& p1, const Vector3& p2, const Vector4& color);
+    void DrawLine(const Vector3& p1, const Vector3& p2, const Vector4& color, bool ignoreDepth = false);
 
 
     /// <summary>
@@ -59,4 +59,5 @@ private:
     Matrix4x4* constData = nullptr;
 
     uint32_t currentLineCount_ = 0;
+    uint32_t currentIgnoreDepthLineCount_ = 0;
 };

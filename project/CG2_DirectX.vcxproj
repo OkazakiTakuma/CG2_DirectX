@@ -300,6 +300,8 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\flame\AbstractSceneFactory.h" />
     <ClInclude Include="Engine\flame\BaseScene.h" />
     <ClInclude Include="Engine\flame\BaseSceneHelpers.h" />
+    <ClInclude Include="Engine\flame\EnemyComponent.h" />
+    <ClInclude Include="Engine\flame\EnemySpawnPointComponent.h" />
     <ClInclude Include="Engine\audio\Audio.h" />
     <ClInclude Include="Engine\base\struct.h" />
     <ClInclude Include="Engine\base\D3DResouceLeakCheker.h" />

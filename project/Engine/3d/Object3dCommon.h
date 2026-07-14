@@ -30,6 +30,7 @@ public:
 	/// Draw を設定します。
 	/// </summary>
 	void SetDraw();
+	void SetShadowDraw();
 
 	DirectXCommon* GetDxCommon() const { return dxCommon_; }
 	void SetDefaultCamera(Camera* cmr) { defaultCamera = cmr; }
@@ -55,6 +56,7 @@ private:
 	DirectXCommon* dxCommon_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> shadowPipelineState = nullptr;
 
 	Camera* defaultCamera = nullptr;
 };

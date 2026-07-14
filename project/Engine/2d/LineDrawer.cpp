@@ -18,9 +18,9 @@ void LineDrawer::Initialize() {
     DirectXCommon* dxCommon = LineCommon::GetInstance()->GetDxCommon();
     assert(dxCommon);
 
-    vertexResource = dxCommon->CreateBufferResource(sizeof(VertexLine) * kMaxLineCount * 2);
+    vertexResource = dxCommon->CreateBufferResource(sizeof(VertexLine) * kMaxLineCount * 2 * 2);
     vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
-    vertexBufferView.SizeInBytes = sizeof(VertexLine) * kMaxLineCount * 2;
+    vertexBufferView.SizeInBytes = sizeof(VertexLine) * kMaxLineCount * 2 * 2;
     vertexBufferView.StrideInBytes = sizeof(VertexLine);
     vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 
@@ -34,17 +34,19 @@ void LineDrawer::Initialize() {
 /// <param name="p1">p1 に使用する値を指定します。</param>
 /// <param name="p2">p2 に使用する値を指定します。</param>
 /// <param name="color">色を指定します。</param>
-void LineDrawer::DrawLine(const Vector3& p1, const Vector3& p2, const Vector4& color) {
-    if (currentLineCount_ >= kMaxLineCount) return;
+void LineDrawer::DrawLine(const Vector3& p1, const Vector3& p2, const Vector4& color, bool ignoreDepth) {
+    uint32_t& lineCount = ignoreDepth ? currentIgnoreDepthLineCount_ : currentLineCount_;
+    if (lineCount >= kMaxLineCount) return;
 
-    uint32_t index = currentLineCount_ * 2;
+    const uint32_t queueOffset = ignoreDepth ? kMaxLineCount * 2 : 0;
+    uint32_t index = queueOffset + lineCount * 2;
     // 蟋狗せ
     vertexData[index].pos = p1;
     vertexData[index].color = color;
     vertexData[index + 1].pos = p2;
     vertexData[index + 1].color = color;
 
-    currentLineCount_++;
+    lineCount++;
 }
 
 /// <summary>
@@ -53,20 +55,27 @@ void LineDrawer::DrawLine(const Vector3& p1, const Vector3& p2, const Vector4& c
 /// <param name="camera">描画や座標変換に使用するカメラを指定します。</param>
 /// <param name="blendMode">描画時に使用するブレンドモードを指定します。</param>
 void LineDrawer::Draw(Camera* camera, uint32_t blendMode) {
-    if (currentLineCount_ == 0) return;
+    if (currentLineCount_ == 0 && currentIgnoreDepthLineCount_ == 0) return;
 
     *constData = camera->GetViewProjectionMatrix();
 
     auto commandList = LineCommon::GetInstance()->GetDxCommon()->GetCommandList();
 
-    LineCommon::GetInstance()->SetDraw(blendMode);
-
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
     commandList->SetGraphicsRootConstantBufferView(0, constBuffer->GetGPUVirtualAddress());
 
-    commandList->DrawInstanced(currentLineCount_ * 2, 1, 0, 0);
+    if (currentLineCount_ > 0) {
+        LineCommon::GetInstance()->SetDraw(blendMode, false);
+        commandList->DrawInstanced(currentLineCount_ * 2, 1, 0, 0);
+    }
+
+    if (currentIgnoreDepthLineCount_ > 0) {
+        LineCommon::GetInstance()->SetDraw(blendMode, true);
+        commandList->DrawInstanced(currentIgnoreDepthLineCount_ * 2, 1, kMaxLineCount * 2, 0);
+    }
 
     currentLineCount_ = 0;
+    currentIgnoreDepthLineCount_ = 0;
 }
 
 /// <summary>

@@ -1,6 +1,6 @@
 {
-    "activeCamera": "",
-    "nextObjectId": 8,
+    "activeCamera": "Player_5",
+    "nextObjectId": 9,
     "objects": [
         {
             "children": [],
@@ -26,6 +26,7 @@
                 "pushBack": false
             },
             "object3d": {
+                "animationPlaying": true,
                 "drawSkeleton": false,
                 "enabled": true,
                 "gravity": {
@@ -95,6 +96,7 @@
                 "pushBack": false
             },
             "object3d": {
+                "animationPlaying": true,
                 "drawSkeleton": false,
                 "enabled": true,
                 "gravity": {
@@ -173,7 +175,7 @@
             "obbCollider": {
                 "centerOffset": [
                     0.0,
-                    0.0,
+                    0.75,
                     0.0
                 ],
                 "drawDebug": true,
@@ -184,12 +186,13 @@
                 },
                 "halfSize": [
                     0.5,
-                    1.0,
+                    0.8500000238418579,
                     0.5
                 ],
                 "pushBack": true
             },
             "object3d": {
+                "animationPlaying": false,
                 "drawSkeleton": true,
                 "enabled": true,
                 "gravity": {
@@ -208,9 +211,9 @@
                     "decay": 1.0,
                     "intensity": 1.0,
                     "position": [
-                        -3.830427646636963,
-                        -0.14795322716236115,
-                        -2.0571072101593018
+                        -0.071780264377594,
+                        0.597277820110321,
+                        0.0
                     ],
                     "radius": 10.0
                 }
@@ -234,7 +237,7 @@
             "transform": {
                 "rotate": [
                     0.0,
-                    3.1415927410125732,
+                    1.5707963705062866,
                     0.0
                 ],
                 "scale": [
@@ -243,9 +246,9 @@
                     1.0
                 ],
                 "translate": [
-                    -3.830427646636963,
-                    -0.1452309638261795,
-                    -2.0571072101593018
+                    -0.071780264377594,
+                    0.5999999642372131,
+                    0.0
                 ]
             },
             "type": "Player"
@@ -257,7 +260,7 @@
             "obbCollider": {
                 "centerOffset": [
                     0.0,
-                    0.0,
+                    0.5,
                     0.0
                 ],
                 "drawDebug": true,
@@ -274,6 +277,7 @@
                 "pushBack": false
             },
             "object3d": {
+                "animationPlaying": true,
                 "drawSkeleton": false,
                 "enabled": true,
                 "gravity": {
@@ -318,6 +322,47 @@
                 ]
             },
             "type": "LoadedModel"
+        },
+        {
+            "children": [],
+            "enemySpawnPoint": {
+                "cameraName": "",
+                "debugPointSize": 0.5,
+                "drawDebug": true,
+                "enabled": true,
+                "enemyTypeName": "Default",
+                "gravity": {
+                    "enabled": false,
+                    "strength": 9.800000190734863
+                },
+                "groundY": 0.0,
+                "minimumRadius": 8.0,
+                "outerMargin": 5.0,
+                "pointHeight": 0.20000000298023224,
+                "spawnCount": 8,
+                "spawnEnabled": true,
+                "targetName": "Player_5"
+            },
+            "name": "EnemySpawnPoint_8",
+            "parent": "",
+            "transform": {
+                "rotate": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "translate": [
+                    -0.071780264377594,
+                    0.20000000298023224,
+                    0.0
+                ]
+            },
+            "type": "EnemySpawnPoint"
         }
     ],
     "scene": "GAMEPLAY",

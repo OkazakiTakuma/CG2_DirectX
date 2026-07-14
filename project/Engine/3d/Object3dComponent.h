@@ -128,6 +128,13 @@ public:
 	bool GetDrawSkeleton() const { return object3d_->GetDrawSkeleton(); }
 	bool HasSkeleton() const { return object3d_ && object3d_->HasSkeleton(); }
 	bool HasModel() const { return object3d_ && object3d_->HasModel(); }
+	bool HasAnimation() const { return object3d_ && object3d_->HasAnimation(); }
+	void SetAnimationPlaying(bool isPlaying) { object3d_->SetAnimationPlaying(isPlaying); }
+	bool GetAnimationPlaying() const { return object3d_ && object3d_->GetAnimationPlaying(); }
+	void RestartAnimation() { object3d_->RestartAnimation(); }
+	void ResetAnimationPoseToInitial() { object3d_->ResetAnimationPoseToInitial(); }
+	float GetAnimationTime() const { return object3d_ ? object3d_->GetAnimationTime() : 0.0f; }
+	float GetAnimationDuration() const { return object3d_ ? object3d_->GetAnimationDuration() : 0.0f; }
 
 	const Vector4 GetLightColor() const { return object3d_->GetLightColor(); }
 	const Vector3 GetLightDirection() const { return object3d_->GetLightDirection(); }

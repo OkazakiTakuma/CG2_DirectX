@@ -75,7 +75,7 @@ public:
 
 private:
 	DirectXCommon* dxCommon = nullptr;
-	uint32_t descriptrSize;
+	uint32_t descriptrSize = 0;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap;
 	uint32_t useIndex = 0;
 

@@ -2,7 +2,10 @@
 #include "struct.h"
 #include <string>
 #include <vector>
+#pragma warning(push)
+#pragma warning(disable: 26495)
 #include <json.hpp>
+#pragma warning(pop)
 
 class ParticleManager;
 

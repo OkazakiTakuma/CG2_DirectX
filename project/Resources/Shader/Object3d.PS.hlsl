@@ -56,6 +56,13 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     PixelShaderOutput output;
 
+    if (gMaterial.enableLighting < 0)
+    {
+        output.color = gMaterial.color;
+        output.color.a *= textureColor.a;
+        return output;
+    }
+
     if (gMaterial.enableLighting != 0)
     {
         // 共通の計算

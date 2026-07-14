@@ -50,7 +50,7 @@ struct VertexWeghtData
 
 struct JointWeghtData
 {
-	Matrix4x4 inverseBindPoseMatrix;
+	Matrix4x4 inverseBindPoseMatrix = MakeIdentity4x4();
 	std::vector<VertexWeghtData> vertexWeights;
 	uint32_t paletteIndex = 0;
 };
@@ -181,7 +181,9 @@ struct Animation {
 struct Joint
 {
 	QuaternionTransform transform;
+	QuaternionTransform bindTransform;
 	Matrix4x4 localMatrix;
+	Matrix4x4 bindLocalMatrix;
 	Matrix4x4 skeletonSpaceMatrix;
 	std::string name;
 	std::vector<int32_t> children;
@@ -191,7 +193,7 @@ struct Joint
 
 struct Skeleton
 {
-	int32_t root;
+	int32_t root = -1;
 	std::map<std::string, int32_t> jointMap;
 	std::vector<Joint> joints;
 };

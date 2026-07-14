@@ -35,7 +35,7 @@ public:
     /// Draw を設定します。
     /// </summary>
     /// <param name="blendMode">描画時に使用するブレンドモードを指定します。</param>
-    void SetDraw(uint32_t blendMode = kBlendModeNormal);
+    void SetDraw(uint32_t blendMode = kBlendModeNormal, bool ignoreDepth = false);
 
     DirectXCommon* GetDxCommon() const { return dxCommon_; }
 
@@ -57,6 +57,6 @@ private:
 private:
     DirectXCommon* dxCommon_ = nullptr;
     Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = nullptr;
-    // Pipeline states are cached by blend mode.
-    std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, kCountOfBlendMode> graphicsPipelineStates;
+    // Pipeline states are cached by depth mode and blend mode.
+    std::array<std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, kCountOfBlendMode>, 2> graphicsPipelineStates;
 };

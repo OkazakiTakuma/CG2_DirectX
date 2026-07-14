@@ -302,6 +302,12 @@
     <ClInclude Include="Engine\flame\BaseSceneHelpers.h">
       <Filter>Engine\flame</Filter>
     </ClInclude>
+    <ClInclude Include="Engine\flame\EnemyComponent.h">
+      <Filter>Engine\flame</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\flame\EnemySpawnPointComponent.h">
+      <Filter>Engine\flame</Filter>
+    </ClInclude>
     <ClInclude Include="Engine\flame\Component.h">
       <Filter>Engine\flame</Filter>
     </ClInclude>

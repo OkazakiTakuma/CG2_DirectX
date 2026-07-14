@@ -3,6 +3,7 @@
 #include "Object3dCommon.h"
 #include "ParticleManager.h"
 #include "BaseScene.h"
+#include "Input.h"
 #include "SpriteCommon.h"
 #include "SkyBoxCommon.h"
 
@@ -52,12 +53,14 @@ void SceneManager::Update() {
 	}
 
 	if (scene_) {
-		if (isScenePlaying_) {
+		const bool shouldAdvanceSceneTime = isScenePlaying_ || isFrameStepRequested_;
+		if (shouldAdvanceSceneTime) {
 			scene_->Update();
 			scene_->UpdateSceneObjects();
 		} else {
 			scene_->UpdateEditorTools();
 		}
+		isFrameStepRequested_ = false;
 		DrawEditorImGui();
 		scene_->DrawEditorImGui();
 	}
@@ -99,6 +102,17 @@ void SceneManager::Draw3D() {
 /// </summary>
 void SceneManager::DrawEditorImGui() {
 #ifdef USE_IMGUI
+	Input* input = Input::GetInstance();
+	if (!ImGui::GetIO().WantCaptureKeyboard) {
+		if (input && input->TriggerKey(DIK_P)) {
+			isScenePlaying_ = !isScenePlaying_;
+		}
+		if (input && input->TriggerKey(DIK_O)) {
+			isFrameStepRequested_ = true;
+			isScenePlaying_ = false;
+		}
+	}
+
 	ImGui::Begin("Editor Toolbar", nullptr, ImGuiWindowFlags_NoCollapse);
 
 	ImGui::Text("Scene: %s", currentSceneName_.c_str());
@@ -125,6 +139,17 @@ void SceneManager::DrawEditorImGui() {
 	ImGui::SameLine();
 	if (ImGui::Button(isScenePlaying_ ? "Pause" : "Play")) {
 		isScenePlaying_ = !isScenePlaying_;
+	}
+	ImGui::SameLine();
+	const bool canStepFrame = !isScenePlaying_;
+	if (!canStepFrame) {
+		ImGui::BeginDisabled();
+	}
+	if (ImGui::Button("Step")) {
+		isFrameStepRequested_ = true;
+	}
+	if (!canStepFrame) {
+		ImGui::EndDisabled();
 	}
 	ImGui::SameLine();
 	ImGui::Text("%s", isScenePlaying_ ? "Playing" : "Paused");

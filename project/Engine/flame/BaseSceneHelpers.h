@@ -10,7 +10,10 @@
 #include <filesystem>
 #include <functional>
 #include <fstream>
+#pragma warning(push)
+#pragma warning(disable: 26495)
 #include <json.hpp>
+#pragma warning(pop)
 #include <cmath>
 #include <cstring>
 #include <iomanip>
@@ -18,6 +21,7 @@
 namespace {
 constexpr float kPi = 3.14159265358979323846f;
 const char* kParticlePresetFilePath = "Resources/Data/emit_status.json";
+const char* kEnemyStatusFilePath = "Resources/Data/enemy_status.json";
 
 /// <summary>
 /// Resources以下と読み込み済みテクスチャから選択可能な画像パスを集めます。
@@ -432,6 +436,95 @@ void SaveParticlePreset(const std::string& presetName, ParticleEmitterComponent*
 	}
 }
 
+EnemyStats MakeDefaultEnemyStats() {
+	return {};
+}
+
+nlohmann::json EnemyStatsToJson(const EnemyStats& stats) {
+	nlohmann::json json;
+	json["health"] = stats.health;
+	json["attack"] = stats.attack;
+	json["speed"] = stats.speed;
+	json["shoots"] = stats.shoots;
+	json["shootingInterval"] = stats.shootingInterval;
+	json["spawnsPerMinute"] = stats.spawnsPerMinute;
+	return json;
+}
+
+EnemyStats JsonToEnemyStats(const nlohmann::json& json, const EnemyStats& fallback) {
+	EnemyStats stats = fallback;
+	if (!json.is_object()) {
+		return stats;
+	}
+
+	stats.health = json.value("health", stats.health);
+	stats.attack = json.value("attack", stats.attack);
+	stats.speed = json.value("speed", stats.speed);
+	stats.shoots = json.value("shoots", stats.shoots);
+	stats.shootingInterval = json.value("shootingInterval", stats.shootingInterval);
+	stats.spawnsPerMinute = json.value("spawnsPerMinute", stats.spawnsPerMinute);
+	stats.health = (std::max)(0.0f, stats.health);
+	stats.attack = (std::max)(0.0f, stats.attack);
+	stats.speed = (std::max)(0.0f, stats.speed);
+	stats.shootingInterval = (std::max)(0.0f, stats.shootingInterval);
+	stats.spawnsPerMinute = (std::max)(0.0f, stats.spawnsPerMinute);
+	return stats;
+}
+
+nlohmann::json LoadEnemyStatusRoot() {
+	std::ifstream ifs(kEnemyStatusFilePath);
+	if (!ifs) {
+		nlohmann::json root;
+		root["Default"] = EnemyStatsToJson(MakeDefaultEnemyStats());
+		return root;
+	}
+
+	nlohmann::json root;
+	ifs >> root;
+	if (!root.is_object()) {
+		root = nlohmann::json::object();
+	}
+	if (!root.contains("Default")) {
+		root["Default"] = EnemyStatsToJson(MakeDefaultEnemyStats());
+	}
+	return root;
+}
+
+std::vector<std::string> LoadEnemyTypeNames() {
+	std::vector<std::string> names;
+	const nlohmann::json root = LoadEnemyStatusRoot();
+	for (auto it = root.begin(); it != root.end(); ++it) {
+		names.push_back(it.key());
+	}
+	std::sort(names.begin(), names.end());
+	if (names.empty()) {
+		names.push_back("Default");
+	}
+	return names;
+}
+
+EnemyStats LoadEnemyStats(const std::string& enemyTypeName) {
+	const std::string typeName = enemyTypeName.empty() ? "Default" : enemyTypeName;
+	const nlohmann::json root = LoadEnemyStatusRoot();
+	const EnemyStats fallback = MakeDefaultEnemyStats();
+	if (!root.contains(typeName)) {
+		return fallback;
+	}
+	return JsonToEnemyStats(root.at(typeName), fallback);
+}
+
+void SaveEnemyStats(const std::string& enemyTypeName, const EnemyStats& stats) {
+	const std::string typeName = enemyTypeName.empty() ? "Default" : enemyTypeName;
+	nlohmann::json root = LoadEnemyStatusRoot();
+	root[typeName] = EnemyStatsToJson(stats);
+
+	std::filesystem::create_directories(std::filesystem::path(kEnemyStatusFilePath).parent_path());
+	std::ofstream ofs(kEnemyStatusFilePath);
+	if (ofs) {
+		ofs << std::setw(4) << root << std::endl;
+	}
+}
+
 /// <summary>
 /// エディタ生成タイプを保存用文字列へ変換します。
 /// </summary>
@@ -457,6 +550,10 @@ const char* EditorCreateTypeName(BaseScene::EditorCreateType type) {
 		return "ParticleEmitter";
 	case BaseScene::EditorCreateType::Player:
 		return "Player";
+	case BaseScene::EditorCreateType::EnemySpawnPoint:
+		return "EnemySpawnPoint";
+	case BaseScene::EditorCreateType::Enemy:
+		return "Enemy";
 	case BaseScene::EditorCreateType::Empty:
 	default:
 		return "Empty";

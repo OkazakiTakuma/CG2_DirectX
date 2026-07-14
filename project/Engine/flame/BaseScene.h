@@ -2,6 +2,8 @@
 #include "Audio.h"
 #include "Camera.h"
 #include "CameraComponent.h"
+#include "EnemyComponent.h"
+#include "EnemySpawnPointComponent.h"
 #include "GameObject.h"
 #include "ImGuiManager.h"
 #include "Input.h"
@@ -44,7 +46,9 @@ public:
 		Camera,
 		PointLight,
 		ParticleEmitter,
-		Player
+		Player,
+		EnemySpawnPoint,
+		Enemy
 	};
 
 /// <summary>
@@ -121,6 +125,8 @@ private:
 /// シーン内オブジェクトの階層ウィンドウを描画します。
 /// </summary>
 	void DrawEditorHierarchy();
+	void DrawEditorProjectAssets();
+	void HandleGameViewAssetDrop();
 	void DrawEditorCameraSelector();
 /// <summary>
 /// 選択中オブジェクトのインスペクタを描画します。
@@ -166,6 +172,9 @@ private:
 /// カメラの追従対象リンクを名前から解決します。
 /// </summary>
 	void ResolveCameraLinks();
+	void ResolveEnemySpawnPointLinks();
+	void ResolveEnemyLinks();
+	void UpdateEnemySpawning();
 /// <summary>
 /// 指定したオブジェクトのカメラをアクティブカメラに設定します。
 /// </summary>
@@ -182,6 +191,7 @@ private:
 /// 既存名と重複しないオブジェクト名を生成します。
 /// </summary>
 	std::string MakeUniqueObjectName(const std::string& baseName) const;
+	GameObject* CreateRuntimeEnemy(const std::string& enemyTypeName, const Vector3& position, GameObject* target);
 /// <summary>
 /// 現在のシーンに対応する配置JSONファイルパスを返します。
 /// </summary>
@@ -203,10 +213,12 @@ private:
 	int selectedAnimatedModelIndex_ = 0;
 	int selectedTextureIndex_ = 0;
 	int selectedParticlePresetIndex_ = 0;
+	int selectedEnemyTypeIndex_ = 0;
 	int selectedPlayerModelIndex_ = 0;
 	int selectedSkyBoxTextureIndex_ = 0;
 	int selectedInspectorComponentIndex_ = 0;
 	std::array<char, 64> particlePresetNameBuffer_ = {};
+	std::array<char, 64> enemyTypeNameBuffer_ = {};
 	bool isGizmoEnabled_ = true;
 	bool isEditorSkyBoxEnabled_ = false;
 	int gizmoOperationIndex_ = 0;

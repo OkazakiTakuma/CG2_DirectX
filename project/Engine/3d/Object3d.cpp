@@ -17,7 +17,11 @@ Vector3 CalculateValue(const std::vector<KeyframeVector3>& keyflames, float time
 	for (size_t index = 0; index < keyflames.size() - 1; index++) {
 		size_t newIndex = index + 1;
 		if (keyflames[index].time <= time && time <= keyflames[newIndex].time) {
-			float t = (time - keyflames[index].time) / (keyflames[newIndex].time - keyflames[index].time);
+			const float duration = keyflames[newIndex].time - keyflames[index].time;
+			if (duration <= 0.0f) {
+				return keyflames[newIndex].value;
+			}
+			float t = (time - keyflames[index].time) / duration;
 			return Leap(keyflames[index].value, keyflames[newIndex].value, t);
 		}
 	}
@@ -36,7 +40,11 @@ Quaternion CalculateValue(const std::vector<KeyframeQuaternion>& keyframes, floa
 		size_t nextIndex = index + 1;
 
 		if (keyframes[index].time <= time && time <= keyframes[nextIndex].time) {
-			float t = (time - keyframes[index].time) / (keyframes[nextIndex].time - keyframes[index].time);
+			const float duration = keyframes[nextIndex].time - keyframes[index].time;
+			if (duration <= 0.0f) {
+				return keyframes[nextIndex].value;
+			}
+			float t = (time - keyframes[index].time) / duration;
 
 			return Slerp(keyframes[index].value, keyframes[nextIndex].value, t);
 		}
@@ -46,6 +54,14 @@ Quaternion CalculateValue(const std::vector<KeyframeQuaternion>& keyframes, floa
 }
 
 namespace {
+float MoveTowards(float current, float target, float maxDelta)
+{
+	if (std::fabs(target - current) <= maxDelta) {
+		return target;
+	}
+	return current + (target > current ? maxDelta : -maxDelta);
+}
+
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate)
 {
 	Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
@@ -59,7 +75,26 @@ Vector3 GetTranslateFromMatrix(const Matrix4x4& matrix)
 	return {matrix.m[3][0], matrix.m[3][1], matrix.m[3][2]};
 }
 
-void DrawDebugWireSphere(const Vector3& center, float radius, const Vector4& color)
+Matrix4x4 MakePlanarShadowMatrix(const Vector3& lightDirection, float planeY)
+{
+	Vector3 direction = NormalizeReturnVector(lightDirection);
+	if (std::fabs(direction.y) < 0.001f) {
+		direction.y = direction.y < 0.0f ? -0.001f : 0.001f;
+	}
+
+	const float xFactor = direction.x / direction.y;
+	const float zFactor = direction.z / direction.y;
+	Matrix4x4 shadowMatrix = MakeIdentity4x4();
+	shadowMatrix.m[1][0] = -xFactor;
+	shadowMatrix.m[1][1] = 0.0f;
+	shadowMatrix.m[1][2] = -zFactor;
+	shadowMatrix.m[3][0] = xFactor * planeY;
+	shadowMatrix.m[3][1] = planeY;
+	shadowMatrix.m[3][2] = zFactor * planeY;
+	return shadowMatrix;
+}
+
+void DrawDebugWireSphere(const Vector3& center, float radius, const Vector4& color, bool ignoreDepth = false)
 {
 	constexpr uint32_t kSegmentCount = 8;
 	constexpr float kTwoPi = 6.28318530718f;
@@ -76,17 +111,20 @@ void DrawDebugWireSphere(const Vector3& center, float radius, const Vector4& col
 		LineDrawer::GetInstance()->DrawLine(
 		    {center.x + currentCos, center.y + currentSin, center.z},
 		    {center.x + nextCos, center.y + nextSin, center.z},
-		    color
+		    color,
+		    ignoreDepth
 		);
 		LineDrawer::GetInstance()->DrawLine(
 		    {center.x, center.y + currentCos, center.z + currentSin},
 		    {center.x, center.y + nextCos, center.z + nextSin},
-		    color
+		    color,
+		    ignoreDepth
 		);
 		LineDrawer::GetInstance()->DrawLine(
 		    {center.x + currentCos, center.y, center.z + currentSin},
 		    {center.x + nextCos, center.y, center.z + nextSin},
-		    color
+		    color,
+		    ignoreDepth
 		);
 	}
 }
@@ -104,6 +142,17 @@ void Object3d::Initialize() {
 	CreateDirectionalLightResource();
 	CreateCameraResource();
 	CreatePointLightResource();
+	shadowWvpResource = common->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
+	shadowWvpResource->Map(0, nullptr, reinterpret_cast<void**>(&shadowTransformationMatrix));
+	shadowTransformationMatrix->WVP = MakeIdentity4x4();
+	shadowTransformationMatrix->world = MakeIdentity4x4();
+	shadowTransformationMatrix->WorldInverseTranspose = MakeIdentity4x4();
+	shadowMaterialResource = common->GetDxCommon()->CreateBufferResource(sizeof(MaterialData));
+	shadowMaterialResource->Map(0, nullptr, reinterpret_cast<void**>(&shadowMaterialData));
+	shadowMaterialData->color = {0.0f, 0.0f, 0.0f, shadowAlpha_};
+	shadowMaterialData->enableLighting = -1;
+	shadowMaterialData->uvTransform = MakeIdentity4x4();
+	shadowMaterialData->shininess = 1.0f;
 
 	transform = {
 		{1.0f, 1.0f, 1.0f},
@@ -209,7 +258,9 @@ Skeleton Object3d::CreateSkeleton(const Node& rootNode) {
 int32_t Object3d::CreateJoint(const Node& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints, std::map<std::string, int32_t>& jointMap) {
 	Joint joint;
 	joint.transform = node.transform;
+	joint.bindTransform = node.transform;
 	joint.localMatrix = node.localMatrix;
+	joint.bindLocalMatrix = node.localMatrix;
 	joint.skeletonSpaceMatrix = MakeIdentity4x4();
 	joint.name = node.name;
 	joint.index = static_cast<int32_t>(joints.size());
@@ -235,20 +286,28 @@ void Object3d::ApplyAnimationToSkeleton() {
 	}
 
 	for (Joint& joint : skeleton.joints) {
-		auto animationItr = animation.nodeAnimations.find(joint.name);
-		if (animationItr == animation.nodeAnimations.end()) {
-			continue;
+		joint.transform = joint.bindTransform;
+		joint.localMatrix = joint.bindLocalMatrix;
+		QuaternionTransform animatedTransform = joint.bindTransform;
+
+		const auto animationItr = animation.nodeAnimations.find(joint.name);
+		if (animationItr != animation.nodeAnimations.end()) {
+			const NodeAnimation& nodeAnimation = animationItr->second;
+			if (!nodeAnimation.translate.keyframes.empty()) {
+				animatedTransform.translate = CalculateValue(nodeAnimation.translate.keyframes, animationTime);
+			}
+			if (!nodeAnimation.rotate.keyframes.empty()) {
+				animatedTransform.rotate = CalculateValue(nodeAnimation.rotate.keyframes, animationTime);
+			}
+			if (!nodeAnimation.scale.keyframes.empty()) {
+				animatedTransform.scale = CalculateValue(nodeAnimation.scale.keyframes, animationTime);
+			}
 		}
 
-		NodeAnimation& nodeAnimation = animationItr->second;
-		if (!nodeAnimation.translate.keyframes.empty()) {
-			joint.transform.translate = CalculateValue(nodeAnimation.translate.keyframes, animationTime);
-		}
-		if (!nodeAnimation.rotate.keyframes.empty()) {
-			joint.transform.rotate = CalculateValue(nodeAnimation.rotate.keyframes, animationTime);
-		}
-		if (!nodeAnimation.scale.keyframes.empty()) {
-			joint.transform.scale = CalculateValue(nodeAnimation.scale.keyframes, animationTime);
+		if (animationBlendWeight_ > 0.0f) {
+			joint.transform.translate = Leap(joint.bindTransform.translate, animatedTransform.translate, animationBlendWeight_);
+			joint.transform.rotate = Slerp(joint.bindTransform.rotate, animatedTransform.rotate, animationBlendWeight_);
+			joint.transform.scale = Leap(joint.bindTransform.scale, animatedTransform.scale, animationBlendWeight_);
 		}
 	}
 }
@@ -464,9 +523,13 @@ void Object3d::Update() {
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 
 	if (model) {
-		if (model->GetIsAnimation() && animation.duration > 0.0f) {
-			animationTime += 1.0f / 60.0f;
-			animationTime = std::fmod(animationTime, animation.duration);
+		if (HasAnimation()) {
+			const float targetBlendWeight = isAnimationPlaying_ ? 1.0f : 0.0f;
+			animationBlendWeight_ = MoveTowards(animationBlendWeight_, targetBlendWeight, animationBlendSpeed_);
+			if (isAnimationPlaying_) {
+				animationTime += 1.0f / 60.0f;
+				animationTime = std::fmod(animationTime, animation.duration);
+			}
 			ApplyAnimationToSkeleton();
 		}
 
@@ -488,11 +551,23 @@ void Object3d::Update() {
 		transformationMatrix->WVP = wvpMatrix;
 		transformationMatrix->world = worldMatrix;
 		transformationMatrix->WorldInverseTranspose = Transpose(Inverse(worldMatrix));
+		if (shadowTransformationMatrix && directionallightData) {
+			const Matrix4x4 shadowWorldMatrix = Multiply(worldMatrix, MakePlanarShadowMatrix(directionallightData->direction, shadowPlaneY_));
+			shadowTransformationMatrix->WVP = Multiply(shadowWorldMatrix, camera->GetViewProjectionMatrix());
+			shadowTransformationMatrix->world = shadowWorldMatrix;
+			shadowTransformationMatrix->WorldInverseTranspose = MakeIdentity4x4();
+		}
 	}
 	else {
 		transformationMatrix->WVP = worldMatrix;
 		transformationMatrix->world = worldMatrix;
 		transformationMatrix->WorldInverseTranspose = Transpose(Inverse(worldMatrix));
+		if (shadowTransformationMatrix && directionallightData) {
+			const Matrix4x4 shadowWorldMatrix = Multiply(worldMatrix, MakePlanarShadowMatrix(directionallightData->direction, shadowPlaneY_));
+			shadowTransformationMatrix->WVP = shadowWorldMatrix;
+			shadowTransformationMatrix->world = shadowWorldMatrix;
+			shadowTransformationMatrix->WorldInverseTranspose = MakeIdentity4x4();
+		}
 	}
 
 
@@ -503,6 +578,45 @@ void Object3d::UpdateAnimation()
 {
 
 
+}
+
+bool Object3d::HasAnimation() const {
+	return model && model->GetIsAnimation() && animation.duration > 0.0f;
+}
+
+void Object3d::SetAnimationPlaying(bool isPlaying) {
+	if (isAnimationPlaying_ == isPlaying) {
+		return;
+	}
+
+	isAnimationPlaying_ = isPlaying;
+	useInitialSkinningPose_ = !isAnimationPlaying_;
+	if (isAnimationPlaying_ && animationBlendWeight_ <= 0.0f) {
+		animationTime = 0.0f;
+	}
+}
+
+void Object3d::RestartAnimation() {
+	animationTime = 0.0f;
+	useInitialSkinningPose_ = false;
+	isAnimationPlaying_ = true;
+	animationBlendWeight_ = 1.0f;
+	ApplyAnimationToSkeleton();
+	UpdateSkeleton();
+	UpdateSkinningPaletteResource();
+}
+
+void Object3d::ResetAnimationPoseToInitial() {
+	animationTime = 0.0f;
+	useInitialSkinningPose_ = true;
+	isAnimationPlaying_ = false;
+	animationBlendWeight_ = 0.0f;
+	if (model) {
+		skeleton = CreateSkeleton(model->GetRootNode());
+		hasSkeleton = !skeleton.joints.empty();
+	}
+	UpdateSkeleton();
+	UpdateSkinningPaletteResource();
 }
 
 /// <summary>
@@ -531,6 +645,13 @@ void Object3d::Draw() {
 
 	if (model) {
 		model->Draw();
+		if (isShadowEnabled_ && shadowWvpResource && shadowMaterialResource) {
+			Object3dCommon::GetInstance()->SetShadowDraw();
+			commandList->SetGraphicsRootConstantBufferView(1, shadowWvpResource->GetGPUVirtualAddress());
+			model->Draw(shadowMaterialResource.Get());
+			Object3dCommon::GetInstance()->SetDraw();
+			commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
+		}
 		DrawDebugSkeleton();
 	}
 	else if (cylinderIndexCount > 0) {
@@ -545,6 +666,16 @@ void Object3d::Draw() {
 		commandList->IASetVertexBuffers(0, 1, &vertexBufferViewCylinder);
 		commandList->IASetIndexBuffer(&indexBufferViewCylinder);
 		commandList->DrawIndexedInstanced(cylinderIndexCount, 1, 0, 0, 0);
+		if (isShadowEnabled_ && shadowWvpResource && shadowMaterialResource && isTextureSetCylinder) {
+			Object3dCommon::GetInstance()->SetShadowDraw();
+			commandList->SetGraphicsRootConstantBufferView(1, shadowWvpResource->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(0, shadowMaterialResource->GetGPUVirtualAddress());
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewCylinder);
+			commandList->IASetIndexBuffer(&indexBufferViewCylinder);
+			commandList->DrawIndexedInstanced(cylinderIndexCount, 1, 0, 0, 0);
+			Object3dCommon::GetInstance()->SetDraw();
+			commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
+		}
 	}
 }
 
@@ -565,7 +696,7 @@ void Object3d::DrawDebugSkeleton() {
 		const Matrix4x4 jointWorldMatrix = Multiply(joint.skeletonSpaceMatrix, objectWorldMatrix);
 		const Vector3 jointPosition = GetTranslateFromMatrix(jointWorldMatrix);
 
-		DrawDebugWireSphere(jointPosition, jointSphereRadius, jointColor);
+		DrawDebugWireSphere(jointPosition, jointSphereRadius, jointColor, true);
 
 		if (!joint.parent) {
 			continue;
@@ -574,7 +705,7 @@ void Object3d::DrawDebugSkeleton() {
 		const Joint& parent = skeleton.joints[*joint.parent];
 		const Matrix4x4 parentWorldMatrix = Multiply(parent.skeletonSpaceMatrix, objectWorldMatrix);
 		const Vector3 parentPosition = GetTranslateFromMatrix(parentWorldMatrix);
-		LineDrawer::GetInstance()->DrawLine(parentPosition, jointPosition, boneColor);
+		LineDrawer::GetInstance()->DrawLine(parentPosition, jointPosition, boneColor, true);
 	}
 }
 
@@ -587,6 +718,7 @@ void Object3d::SetModel(Model* newModel) {
 	hasSkeleton = false;
 	skeleton = {};
 	animationTime = 0.0f;
+	useInitialSkinningPose_ = false;
 	if (model && model->GetIsAnimation()) {
 		animation = model->GetAnimation();
 	}
@@ -616,11 +748,15 @@ void Object3d::SetModel(const std::string& filePath) {
 /// </summary>
 Object3d::~Object3d() {
 	if (wvpResorceModel) wvpResorceModel->Unmap(0, nullptr);
+	if (shadowWvpResource) shadowWvpResource->Unmap(0, nullptr);
+	if (shadowMaterialResource) shadowMaterialResource->Unmap(0, nullptr);
 	if (lightResource) lightResource->Unmap(0, nullptr);
 	if (materialResourceCylinder) materialResourceCylinder->Unmap(0, nullptr);
 	if (skinningPaletteResource) skinningPaletteResource->Unmap(0, nullptr);
 
 	wvpResorceModel.Reset();
+	shadowWvpResource.Reset();
+	shadowMaterialResource.Reset();
 	lightResource.Reset();
 	cameraResource.Reset();
 	pointLightResource.Reset();
@@ -630,6 +766,8 @@ Object3d::~Object3d() {
 	skinningPaletteResource.Reset();
 
 	transformationMatrix = nullptr;
+	shadowTransformationMatrix = nullptr;
+	shadowMaterialData = nullptr;
 	cameraData = nullptr;
 	directionallightData = nullptr;
 	pointLightData = nullptr;

@@ -414,6 +414,8 @@ void ParticleManager::CreatePipelineState() {
 			localDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
 			localDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
 			break;
+		default:
+			break;
 		}
 
 		HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&localDesc, IID_PPV_ARGS(&graphicsPipelineStates[i]));

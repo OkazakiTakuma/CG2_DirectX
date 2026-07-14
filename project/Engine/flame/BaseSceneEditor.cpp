@@ -1,6 +1,72 @@
 #include "BaseScene.h"
 #include "BaseSceneHelpers.h"
 
+#ifdef USE_IMGUI
+#include <cctype>
+
+namespace {
+constexpr float kProjectThumbnailSize = 64.0f;
+
+void DrawProjectAssetDragSource(const std::string& label, const char* payloadType, const std::string& path) {
+	ImGui::Selectable(label.c_str(), false);
+	if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+		ImGui::SetDragDropPayload(payloadType, path.c_str(), path.size() + 1);
+		ImGui::Text("%s", label.c_str());
+		ImGui::EndDragDropSource();
+	}
+}
+
+void DrawProjectTextureDragSource(const std::string& texturePath) {
+	TextureManager::GetInstance()->LoadTexture(texturePath);
+	const D3D12_GPU_DESCRIPTOR_HANDLE textureHandle = TextureManager::GetInstance()->GetSRVHandleGPU(texturePath);
+	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetTextureMetadata(texturePath);
+	const float width = static_cast<float>(metadata.width);
+	const float height = static_cast<float>(metadata.height);
+	const float maxSide = (std::max)(width, height);
+	const ImVec2 imageSize = maxSide > 0.0f
+	    ? ImVec2(kProjectThumbnailSize * width / maxSide, kProjectThumbnailSize * height / maxSide)
+	    : ImVec2(kProjectThumbnailSize, kProjectThumbnailSize);
+	const std::string fileName = std::filesystem::path(texturePath).filename().string();
+	const std::string buttonId = "##SpriteTexture_" + texturePath;
+
+	ImGui::BeginGroup();
+	ImGui::PushID(texturePath.c_str());
+	ImGui::BeginChild("ThumbnailFrame", ImVec2(kProjectThumbnailSize + 12.0f, kProjectThumbnailSize + 12.0f), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+	const ImVec2 cursor = ImGui::GetCursorPos();
+	ImGui::SetCursorPos(ImVec2(
+	    cursor.x + (kProjectThumbnailSize - imageSize.x) * 0.5f,
+	    cursor.y + (kProjectThumbnailSize - imageSize.y) * 0.5f
+	));
+	ImGui::ImageButton(buttonId.c_str(), static_cast<ImTextureID>(textureHandle.ptr), imageSize);
+	if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+		ImGui::SetDragDropPayload("CG2_ASSET_SPRITE", texturePath.c_str(), texturePath.size() + 1);
+		ImGui::Image(static_cast<ImTextureID>(textureHandle.ptr), imageSize);
+		ImGui::Text("%s", texturePath.c_str());
+		ImGui::EndDragDropSource();
+	}
+	if (ImGui::IsItemHovered()) {
+		ImGui::BeginTooltip();
+		ImGui::Image(static_cast<ImTextureID>(textureHandle.ptr), ImVec2(kProjectThumbnailSize * 2.0f, kProjectThumbnailSize * 2.0f));
+		ImGui::Text("%s", texturePath.c_str());
+		ImGui::Text("%.0f x %.0f", width, height);
+		ImGui::EndTooltip();
+	}
+	ImGui::EndChild();
+	ImGui::TextWrapped("%s", fileName.c_str());
+	ImGui::PopID();
+	ImGui::EndGroup();
+}
+
+bool IsSpriteTexturePath(const std::string& path) {
+	std::string extension = std::filesystem::path(path).extension().string();
+	std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char value) {
+		return static_cast<char>(std::tolower(value));
+	});
+	return extension == ".png" || extension == ".jpg" || extension == ".jpeg";
+}
+}
+#endif
+
 GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::string& modelFilePath) {
 	auto object = std::make_unique<GameObject>();
 	object->SetEditorType(EditorCreateTypeName(type));
@@ -31,10 +97,12 @@ GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::stri
 		break;
 	}
 	case EditorCreateType::Sprite: {
-		object->SetName(MakeUniqueObjectName("Sprite"));
+		const std::string spriteBaseName = modelFilePath.empty() ? "Sprite" : std::filesystem::path(modelFilePath).stem().string();
+		object->SetName(MakeUniqueObjectName(spriteBaseName.empty() ? "Sprite" : spriteBaseName));
 		SpriteComponent* sprite = object->AddComponent<SpriteComponent>();
 		const std::vector<std::string> textures = CollectResourceTexturePaths();
-		const std::string textureFilePath = textures.empty() ? "Resources/uvChecker.png" : textures[std::min(selectedTextureIndex_, static_cast<int>(textures.size()) - 1)];
+		const std::string textureFilePath = !modelFilePath.empty() ? modelFilePath : (textures.empty() ? "Resources/uvChecker.png" : textures[std::min(selectedTextureIndex_, static_cast<int>(textures.size()) - 1)]);
+		TextureManager::GetInstance()->LoadTexture(textureFilePath);
 		sprite->Initialize(textureFilePath);
 		EulerTransform transform = object->GetTransform();
 		transform.scale = {100.0f, 100.0f, 1.0f};
@@ -139,6 +207,31 @@ GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::stri
 		camera->SetFarClip(1000.0f);
 		break;
 	}
+	case EditorCreateType::EnemySpawnPoint: {
+		object->SetName(MakeUniqueObjectName("EnemySpawnPoint"));
+		object->AddComponent<EnemySpawnPointComponent>();
+		break;
+	}
+	case EditorCreateType::Enemy: {
+		const std::string enemyTypeName = modelFilePath.empty() ? "Default" : modelFilePath;
+		object->SetName(MakeUniqueObjectName(enemyTypeName));
+		object->SetEditorType("Enemy");
+		EnemyComponent* enemy = object->AddComponent<EnemyComponent>();
+		enemy->SetEnemyTypeName(enemyTypeName);
+		enemy->ApplyStats(LoadEnemyStats(enemyTypeName));
+
+		ModelManager::GetInstance()->LoadModel("sphere.obj");
+		Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
+		object3d->SetModel("sphere.obj");
+		object->GetTransform().scale = {0.75f, 0.75f, 0.75f};
+
+		OBBColliderComponent* collider = object->AddComponent<OBBColliderComponent>();
+		collider->SetHalfSize({0.4f, 0.4f, 0.4f});
+		collider->SetPushBackEnabled(true);
+		break;
+	}
+	default:
+		return nullptr;
 	}
 
 	object->Update();
@@ -198,7 +291,7 @@ void BaseScene::DrawEditorHierarchy() {
 	DrawEditorCameraSelector();
 	ImGui::Separator();
 
-	const char* createLabels[] = {"Empty", "Sphere", "Cylinder Capped", "Cylinder Open", "Sprite", "Model", "Animation Model", "Camera", "Point Light", "Particle Emitter", "Player"};
+	const char* createLabels[] = {"Empty", "Sphere", "Cylinder Capped", "Cylinder Open", "Sprite", "Model", "Animation Model", "Camera", "Point Light", "Particle Emitter", "Player", "Enemy Spawn Point", "Enemy"};
 	int createTypeIndex = static_cast<int>(createType_);
 	if (ImGui::Combo("Type", &createTypeIndex, createLabels, _countof(createLabels))) {
 		createType_ = static_cast<EditorCreateType>(createTypeIndex);
@@ -206,6 +299,7 @@ void BaseScene::DrawEditorHierarchy() {
 
 	std::string selectedModelFilePath;
 	std::string selectedParticlePresetName;
+	std::string selectedEnemyTypeName = "Default";
 	if (createType_ == EditorCreateType::Sprite) {
 		const std::vector<std::string> textures = CollectResourceTexturePaths();
 		if (textures.empty()) {
@@ -284,9 +378,28 @@ void BaseScene::DrawEditorHierarchy() {
 			selectedModelFilePath = loadedModels[selectedPlayerModelIndex_];
 		}
 	}
+	if (createType_ == EditorCreateType::Enemy) {
+		const std::vector<std::string> enemyTypes = LoadEnemyTypeNames();
+		if (enemyTypes.empty()) {
+			ImGui::Text("No enemy types");
+		} else {
+			if (selectedEnemyTypeIndex_ >= static_cast<int>(enemyTypes.size())) {
+				selectedEnemyTypeIndex_ = 0;
+			}
+			std::vector<const char*> enemyTypeLabels = MakeLabelPointers(enemyTypes);
+			ImGui::Combo("Enemy Type", &selectedEnemyTypeIndex_, enemyTypeLabels.data(), static_cast<int>(enemyTypeLabels.size()));
+			selectedEnemyTypeName = enemyTypes[selectedEnemyTypeIndex_];
+		}
+	}
 
 	if (ImGui::Button("Create")) {
-		CreateEditorObject(createType_, createType_ == EditorCreateType::ParticleEmitter ? selectedParticlePresetName : selectedModelFilePath);
+		std::string createArgument = selectedModelFilePath;
+		if (createType_ == EditorCreateType::ParticleEmitter) {
+			createArgument = selectedParticlePresetName;
+		} else if (createType_ == EditorCreateType::Enemy) {
+			createArgument = selectedEnemyTypeName;
+		}
+		CreateEditorObject(createType_, createArgument);
 	}
 	ImGui::SameLine();
 	const bool canDelete = selectedObjectIndex_ >= 0 && selectedObjectIndex_ < static_cast<int>(sceneObjects_.size());
@@ -331,6 +444,77 @@ void BaseScene::DrawEditorHierarchy() {
 	drawChildren("", 0);
 
 	ImGui::End();
+#endif
+}
+
+void BaseScene::DrawEditorProjectAssets() {
+#ifdef USE_IMGUI
+	if (!ImGui::Begin("Project")) {
+		ImGui::End();
+		return;
+	}
+
+	if (ImGui::CollapsingHeader("Loaded Models", ImGuiTreeNodeFlags_DefaultOpen)) {
+		const std::vector<std::string> loadedModels = CollectAllLoadedModelNames();
+		if (loadedModels.empty()) {
+			ImGui::Text("No loaded models");
+		}
+		for (const std::string& modelName : loadedModels) {
+			Model* model = ModelManager::GetInstance()->FindModel(modelName);
+			const bool isAnimation = model && model->GetIsAnimation();
+			const std::string label = std::string(isAnimation ? "[Anim] " : "[Model] ") + modelName;
+			DrawProjectAssetDragSource(label, isAnimation ? "CG2_ASSET_ANIM_MODEL" : "CG2_ASSET_MODEL", modelName);
+		}
+	}
+
+	if (ImGui::CollapsingHeader("Sprites / Textures", ImGuiTreeNodeFlags_DefaultOpen)) {
+		const std::vector<std::string> textures = CollectResourceTexturePaths();
+		bool hasSpriteTexture = false;
+		for (const std::string& texturePath : textures) {
+			if (!IsSpriteTexturePath(texturePath)) {
+				continue;
+			}
+			hasSpriteTexture = true;
+			DrawProjectTextureDragSource(texturePath);
+			const float windowContentRight = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
+			const float nextItemRight = ImGui::GetItemRectMax().x + ImGui::GetStyle().ItemSpacing.x + kProjectThumbnailSize + 12.0f;
+			if (nextItemRight < windowContentRight) {
+				ImGui::SameLine();
+			}
+		}
+		if (!hasSpriteTexture) {
+			ImGui::Text("No sprite textures");
+		}
+	}
+
+	ImGui::End();
+#endif
+}
+
+void BaseScene::HandleGameViewAssetDrop() {
+#ifdef USE_IMGUI
+	ImGuiManager::DroppedAssetPayload payload;
+	while (ImGuiManager::GetInstance()->ConsumeDroppedAsset(payload)) {
+		GameObject* createdObject = nullptr;
+		switch (payload.type) {
+		case ImGuiManager::DroppedAssetPayload::Type::Model:
+			createdObject = CreateEditorObject(EditorCreateType::LoadedModel, payload.path);
+			break;
+		case ImGuiManager::DroppedAssetPayload::Type::AnimatedModel:
+			createdObject = CreateEditorObject(EditorCreateType::AnimatedModel, payload.path);
+			break;
+		case ImGuiManager::DroppedAssetPayload::Type::SpriteTexture:
+			createdObject = CreateEditorObject(EditorCreateType::Sprite, payload.path);
+			break;
+		case ImGuiManager::DroppedAssetPayload::Type::None:
+		default:
+			break;
+		}
+
+		if (createdObject) {
+			createdObject->Update();
+		}
+	}
 #endif
 }
 
@@ -442,6 +626,12 @@ void BaseScene::DrawEditorInspector() {
 	if (selectedObject->GetComponent<Player>()) {
 		componentLabels.push_back("Player");
 	}
+	if (selectedObject->GetComponent<EnemySpawnPointComponent>()) {
+		componentLabels.push_back("EnemySpawnPoint");
+	}
+	if (selectedObject->GetComponent<EnemyComponent>()) {
+		componentLabels.push_back("Enemy");
+	}
 	if (selectedObject->GetComponent<OBBColliderComponent>()) {
 		componentLabels.push_back("OBBCollider");
 	}
@@ -491,6 +681,8 @@ void BaseScene::DrawEditorInspector() {
 	drawComponentEnabledCheckbox("Camera Enabled", selectedObject->GetComponent<CameraComponent>());
 	drawComponentEnabledCheckbox("ParticleEmitter Enabled", selectedObject->GetComponent<ParticleEmitterComponent>());
 	drawComponentEnabledCheckbox("Player Enabled", selectedObject->GetComponent<Player>());
+	drawComponentEnabledCheckbox("EnemySpawnPoint Enabled", selectedObject->GetComponent<EnemySpawnPointComponent>());
+	drawComponentEnabledCheckbox("Enemy Enabled", selectedObject->GetComponent<EnemyComponent>());
 	drawComponentEnabledCheckbox("OBBCollider Enabled", selectedObject->GetComponent<OBBColliderComponent>());
 	drawComponentEnabledCheckbox("SphereCollider Enabled", selectedObject->GetComponent<SphereColliderComponent>());
 	ImGui::Separator();
@@ -500,6 +692,8 @@ void BaseScene::DrawEditorInspector() {
 	drawComponentGravityControls("Camera Gravity", selectedObject->GetComponent<CameraComponent>());
 	drawComponentGravityControls("ParticleEmitter Gravity", selectedObject->GetComponent<ParticleEmitterComponent>());
 	drawComponentGravityControls("Player Gravity", selectedObject->GetComponent<Player>());
+	drawComponentGravityControls("EnemySpawnPoint Gravity", selectedObject->GetComponent<EnemySpawnPointComponent>());
+	drawComponentGravityControls("Enemy Gravity", selectedObject->GetComponent<EnemyComponent>());
 	drawComponentGravityControls("OBBCollider Gravity", selectedObject->GetComponent<OBBColliderComponent>());
 	drawComponentGravityControls("SphereCollider Gravity", selectedObject->GetComponent<SphereColliderComponent>());
 
@@ -519,6 +713,26 @@ void BaseScene::DrawEditorInspector() {
 					}
 				} else {
 					ImGui::Text("Skeleton: None");
+				}
+				if (object3dComponent->HasAnimation()) {
+					bool isAnimationPlaying = object3dComponent->GetAnimationPlaying();
+					if (ImGui::Checkbox("Play Animation", &isAnimationPlaying)) {
+						object3dComponent->SetAnimationPlaying(isAnimationPlaying);
+					}
+					ImGui::SameLine();
+					if (ImGui::Button("Restart Animation")) {
+						object3dComponent->RestartAnimation();
+					}
+					ImGui::SameLine();
+					if (ImGui::Button("Initial Pose")) {
+						object3dComponent->SetAnimationPlaying(false);
+						object3dComponent->ResetAnimationPoseToInitial();
+					}
+					ImGui::Text(
+					    "Animation Time: %.2f / %.2f",
+					    object3dComponent->GetAnimationTime(),
+					    object3dComponent->GetAnimationDuration()
+					);
 				}
 
 				const std::vector<std::string> textures = CollectResourceTexturePaths();
@@ -653,6 +867,146 @@ void BaseScene::DrawEditorInspector() {
 		} else {
 			ImGui::Text("No loaded models");
 		}
+	}
+	if (EnemyComponent* enemy = selectedObject->GetComponent<EnemyComponent>()) {
+		ImGui::Separator();
+		ImGui::Text("EnemyComponent");
+
+		std::vector<std::string> enemyTypes = LoadEnemyTypeNames();
+		int currentEnemyTypeIndex = 0;
+		for (int index = 0; index < static_cast<int>(enemyTypes.size()); ++index) {
+			if (enemyTypes[index] == enemy->GetEnemyTypeName()) {
+				currentEnemyTypeIndex = index;
+				break;
+			}
+		}
+		if (!enemyTypes.empty()) {
+			std::vector<const char*> enemyTypeLabels = MakeLabelPointers(enemyTypes);
+			if (ImGui::Combo("Enemy Type", &currentEnemyTypeIndex, enemyTypeLabels.data(), static_cast<int>(enemyTypeLabels.size()))) {
+				enemy->SetEnemyTypeName(enemyTypes[currentEnemyTypeIndex]);
+				enemy->ApplyStats(LoadEnemyStats(enemyTypes[currentEnemyTypeIndex]));
+			}
+		}
+
+		EnemyStats stats = enemy->GetStats();
+		bool statsChanged = false;
+		statsChanged |= ImGui::DragFloat("Health", &stats.health, 0.1f, 0.0f, 10000.0f);
+		statsChanged |= ImGui::DragFloat("Attack", &stats.attack, 0.1f, 0.0f, 10000.0f);
+		statsChanged |= ImGui::DragFloat("Speed", &stats.speed, 0.001f, 0.0f, 100.0f);
+		statsChanged |= ImGui::Checkbox("Shoots", &stats.shoots);
+		statsChanged |= ImGui::DragFloat("Shoot Interval", &stats.shootingInterval, 0.01f, 0.0f, 1000.0f);
+		statsChanged |= ImGui::DragFloat("Spawns Per Minute", &stats.spawnsPerMinute, 0.1f, 0.0f, 10000.0f);
+		if (statsChanged) {
+			enemy->ApplyStats(stats);
+		}
+		float currentHealth = enemy->GetCurrentHealth();
+		if (ImGui::DragFloat("Current Health", &currentHealth, 0.1f, 0.0f, stats.health)) {
+			enemy->SetCurrentHealth(currentHealth);
+		}
+
+		if (enemyTypeNameBuffer_[0] == '\0') {
+			const std::string currentTypeName = enemy->GetEnemyTypeName();
+			const size_t copyLength = currentTypeName.size() < enemyTypeNameBuffer_.size() - 1 ? currentTypeName.size() : enemyTypeNameBuffer_.size() - 1;
+			std::memcpy(enemyTypeNameBuffer_.data(), currentTypeName.data(), copyLength);
+			enemyTypeNameBuffer_[copyLength] = '\0';
+		}
+		ImGui::InputText("Save Type Name", enemyTypeNameBuffer_.data(), enemyTypeNameBuffer_.size());
+		if (ImGui::Button("Save Enemy Type")) {
+			const std::string saveTypeName = enemyTypeNameBuffer_.data();
+			enemy->SetEnemyTypeName(saveTypeName.empty() ? enemy->GetEnemyTypeName() : saveTypeName);
+			SaveEnemyStats(enemy->GetEnemyTypeName(), enemy->GetStats());
+		}
+	}
+	if (EnemySpawnPointComponent* enemySpawnPoint = selectedObject->GetComponent<EnemySpawnPointComponent>()) {
+		ImGui::Separator();
+		ImGui::Text("EnemySpawnPointComponent");
+
+		std::vector<std::string> targetLabels;
+		targetLabels.push_back("Auto First Player");
+		int currentTargetIndex = 0;
+		for (const auto& object : sceneObjects_) {
+			if (!object->GetComponent<Player>()) {
+				continue;
+			}
+			targetLabels.push_back(object->GetName());
+			if (enemySpawnPoint->GetTargetName() == object->GetName()) {
+				currentTargetIndex = static_cast<int>(targetLabels.size()) - 1;
+			}
+		}
+		std::vector<const char*> targetLabelPtrs = MakeLabelPointers(targetLabels);
+		if (ImGui::Combo("Target Player", &currentTargetIndex, targetLabelPtrs.data(), static_cast<int>(targetLabelPtrs.size()))) {
+			enemySpawnPoint->SetTargetName(currentTargetIndex == 0 ? "" : targetLabels[currentTargetIndex]);
+			enemySpawnPoint->SetTarget(nullptr);
+		}
+
+		std::vector<std::string> cameraLabels;
+		cameraLabels.push_back("Active Camera");
+		int currentCameraIndex = 0;
+		for (const auto& object : sceneObjects_) {
+			if (!object->GetComponent<CameraComponent>()) {
+				continue;
+			}
+			cameraLabels.push_back(object->GetName());
+			if (enemySpawnPoint->GetCameraName() == object->GetName()) {
+				currentCameraIndex = static_cast<int>(cameraLabels.size()) - 1;
+			}
+		}
+		std::vector<const char*> cameraLabelPtrs = MakeLabelPointers(cameraLabels);
+		if (ImGui::Combo("Reference Camera", &currentCameraIndex, cameraLabelPtrs.data(), static_cast<int>(cameraLabelPtrs.size()))) {
+			enemySpawnPoint->SetCameraName(currentCameraIndex == 0 ? "" : cameraLabels[currentCameraIndex]);
+			enemySpawnPoint->SetCamera(nullptr);
+		}
+
+		std::vector<std::string> enemyTypes = LoadEnemyTypeNames();
+		int currentEnemyTypeIndex = 0;
+		for (int index = 0; index < static_cast<int>(enemyTypes.size()); ++index) {
+			if (enemyTypes[index] == enemySpawnPoint->GetEnemyTypeName()) {
+				currentEnemyTypeIndex = index;
+				break;
+			}
+		}
+		if (!enemyTypes.empty()) {
+			std::vector<const char*> enemyTypeLabels = MakeLabelPointers(enemyTypes);
+			if (ImGui::Combo("Spawn Enemy Type", &currentEnemyTypeIndex, enemyTypeLabels.data(), static_cast<int>(enemyTypeLabels.size()))) {
+				enemySpawnPoint->SetEnemyTypeName(enemyTypes[currentEnemyTypeIndex]);
+				enemySpawnPoint->ResetSpawnTimer();
+			}
+		}
+		bool spawnEnabled = enemySpawnPoint->GetSpawnEnabled();
+		if (ImGui::Checkbox("Spawn Enabled", &spawnEnabled)) {
+			enemySpawnPoint->SetSpawnEnabled(spawnEnabled);
+			enemySpawnPoint->ResetSpawnTimer();
+		}
+
+		int spawnCount = enemySpawnPoint->GetSpawnCount();
+		if (ImGui::DragInt("Spawn Count", &spawnCount, 1.0f, 1, 64)) {
+			enemySpawnPoint->SetSpawnCount(spawnCount);
+		}
+		float outerMargin = enemySpawnPoint->GetOuterMargin();
+		if (ImGui::DragFloat("Outside Margin", &outerMargin, 0.1f, 0.0f, 1000.0f)) {
+			enemySpawnPoint->SetOuterMargin(outerMargin);
+		}
+		float minimumRadius = enemySpawnPoint->GetMinimumRadius();
+		if (ImGui::DragFloat("Minimum Radius", &minimumRadius, 0.1f, 0.0f, 1000.0f)) {
+			enemySpawnPoint->SetMinimumRadius(minimumRadius);
+		}
+		float groundY = enemySpawnPoint->GetGroundY();
+		if (ImGui::DragFloat("Ground Y", &groundY, 0.1f, -1000.0f, 1000.0f)) {
+			enemySpawnPoint->SetGroundY(groundY);
+		}
+		float pointHeight = enemySpawnPoint->GetPointHeight();
+		if (ImGui::DragFloat("Point Height", &pointHeight, 0.05f, -1000.0f, 1000.0f)) {
+			enemySpawnPoint->SetPointHeight(pointHeight);
+		}
+		bool drawDebug = enemySpawnPoint->GetDrawDebug();
+		if (ImGui::Checkbox("Draw Spawn Debug", &drawDebug)) {
+			enemySpawnPoint->SetDrawDebug(drawDebug);
+		}
+		float debugPointSize = enemySpawnPoint->GetDebugPointSize();
+		if (ImGui::DragFloat("Debug Point Size", &debugPointSize, 0.05f, 0.01f, 100.0f)) {
+			enemySpawnPoint->SetDebugPointSize(debugPointSize);
+		}
+		ImGui::Text("Spawn Points: %d", static_cast<int>(enemySpawnPoint->GetSpawnPoints().size()));
 	}
 	DrawOBBColliderInspector(selectedObject);
 

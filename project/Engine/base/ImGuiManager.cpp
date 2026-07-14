@@ -2,6 +2,8 @@
 
 #ifdef USE_IMGUI
 #include "../../../imgui/imgui_internal.h"
+#include <array>
+#include <filesystem>
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #endif
@@ -26,6 +28,42 @@ float ClampLayoutValue(float value, float minValue, float maxValue) {
 	}
 	return value;
 }
+
+#ifdef USE_IMGUI
+/// <summary>
+/// ImGui に日本語グリフを含むフォントを設定します。
+/// </summary>
+void LoadJapaneseFont() {
+	ImGuiIO& io = ImGui::GetIO();
+	const std::array<const char*, 5> fontPaths = {
+	    "C:/Windows/Fonts/meiryo.ttc",
+	    "C:/Windows/Fonts/YuGothM.ttc",
+	    "C:/Windows/Fonts/YuGothR.ttc",
+	    "C:/Windows/Fonts/msgothic.ttc",
+	    "C:/Windows/Fonts/meiryob.ttc",
+	};
+
+	ImFontConfig fontConfig{};
+	fontConfig.MergeMode = false;
+	fontConfig.PixelSnapH = true;
+	fontConfig.OversampleH = 2;
+	fontConfig.OversampleV = 2;
+
+	for (const char* fontPath : fontPaths) {
+		if (!std::filesystem::exists(fontPath)) {
+			continue;
+		}
+
+		ImFont* font = io.Fonts->AddFontFromFileTTF(fontPath, 18.0f, &fontConfig, io.Fonts->GetGlyphRangesJapanese());
+		if (font) {
+			io.FontDefault = font;
+			return;
+		}
+	}
+
+	io.Fonts->AddFontDefault();
+}
+#endif
 }
 
 ImGuiManager* ImGuiManager::GetInstance() {
@@ -48,6 +86,7 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	LoadJapaneseFont();
 #ifdef IMGUI_HAS_DOCK
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	io.ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
@@ -120,6 +159,7 @@ void ImGuiManager::Begin() {
 	ImGui_ImplDX12_NewFrame();
 	ImGui::NewFrame();
 	SetupExternalEditorDockSpaces();
+	DrawGameViewWindow();
 	DrawUtilityWindows();
 #endif
 }
@@ -147,8 +187,20 @@ void ImGuiManager::SetupExternalEditorDockSpaces() {
 	    static_cast<float>(clientRect.bottom - clientRect.top)
 	);
 	const ImVec2 layoutSize = clientSize.x > 0.0f && clientSize.y > 0.0f ? clientSize : viewport->Size;
+	const float topHeight = ClampLayoutValue(layoutSize.y * 0.08f, 44.0f, 72.0f);
+	const float leftWidth = ClampLayoutValue(layoutSize.x * 0.18f, 140.0f, layoutSize.x * 0.35f);
+	const float rightWidth = ClampLayoutValue(layoutSize.x * 0.24f, 180.0f, layoutSize.x * 0.40f);
+	const float bottomHeight = ClampLayoutValue(layoutSize.y * 0.24f, 120.0f, layoutSize.y * 0.40f);
+	const float heightAfterTop = layoutSize.y - topHeight;
+	const float widthAfterLeft = layoutSize.x - leftWidth;
+	const float topRatio = layoutSize.y > 0.0f ? topHeight / layoutSize.y : 0.08f;
+	const float leftRatio = layoutSize.x > 0.0f ? leftWidth / layoutSize.x : 0.18f;
+	const float rightRatio = widthAfterLeft > 0.0f ? rightWidth / widthAfterLeft : 0.24f;
+	const float bottomRatio = heightAfterTop > 0.0f ? bottomHeight / heightAfterTop : 0.24f;
 
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
 	ImGui::DockSpaceOverViewport(dockspaceId, viewport, dockspaceFlags);
+	ImGui::PopStyleColor();
 
 	if (isFullscreen != wasFullscreen || layoutSize.x != previousClientSize.x || layoutSize.y != previousClientSize.y) {
 		isLayoutBuilt = false;
@@ -167,22 +219,13 @@ void ImGuiManager::SetupExternalEditorDockSpaces() {
 		ImGuiID leftId = 0;
 		ImGuiID rightId = 0;
 		ImGuiID bottomId = 0;
-		const float topHeight = ClampLayoutValue(layoutSize.y * 0.08f, 44.0f, 72.0f);
-		const float leftWidth = ClampLayoutValue(layoutSize.x * 0.18f, 140.0f, layoutSize.x * 0.35f);
-		const float rightWidth = ClampLayoutValue(layoutSize.x * 0.24f, 180.0f, layoutSize.x * 0.40f);
-		const float bottomHeight = ClampLayoutValue(layoutSize.y * 0.24f, 120.0f, layoutSize.y * 0.40f);
-		const float heightAfterTop = layoutSize.y - topHeight;
-		const float widthAfterLeft = layoutSize.x - leftWidth;
-		const float topRatio = layoutSize.y > 0.0f ? topHeight / layoutSize.y : 0.08f;
-		const float leftRatio = layoutSize.x > 0.0f ? leftWidth / layoutSize.x : 0.18f;
-		const float rightRatio = widthAfterLeft > 0.0f ? rightWidth / widthAfterLeft : 0.24f;
-		const float bottomRatio = heightAfterTop > 0.0f ? bottomHeight / heightAfterTop : 0.24f;
 
 		ImGui::DockBuilderSplitNode(mainId, ImGuiDir_Up, topRatio, &topId, &mainId);
 		ImGui::DockBuilderSplitNode(mainId, ImGuiDir_Left, leftRatio, &leftId, &mainId);
 		ImGui::DockBuilderSplitNode(mainId, ImGuiDir_Right, rightRatio, &rightId, &mainId);
 		ImGui::DockBuilderSplitNode(mainId, ImGuiDir_Down, bottomRatio, &bottomId, &mainId);
 
+		ImGui::DockBuilderDockWindow("GameView", mainId);
 		ImGui::DockBuilderDockWindow("Editor Toolbar", topId);
 		ImGui::DockBuilderDockWindow("Component Manager", leftId);
 		ImGui::DockBuilderDockWindow("Hierarchy", leftId);
@@ -208,13 +251,6 @@ void ImGuiManager::SetupExternalEditorDockSpaces() {
 /// </summary>
 void ImGuiManager::DrawUtilityWindows() {
 #ifdef USE_IMGUI
-	if (ImGui::Begin("Project")) {
-		ImGui::Text("Assets");
-		ImGui::Separator();
-		ImGui::Text("Resources");
-	}
-	ImGui::End();
-
 	if (ImGui::Begin("Console")) {
 		ImGui::Text("Ready %.1f FPS", ImGui::GetIO().Framerate);
 		const float cpuUsage = performanceMonitor_.GetCpuUsagePercent();
@@ -236,6 +272,84 @@ void ImGuiManager::DrawUtilityWindows() {
 		}
 	}
 	ImGui::End();
+#endif
+}
+
+void ImGuiManager::DrawGameViewWindow() {
+#ifdef USE_IMGUI
+	const ImGuiWindowFlags windowFlags =
+	    ImGuiWindowFlags_NoBackground |
+	    ImGuiWindowFlags_NoScrollbar |
+	    ImGuiWindowFlags_NoScrollWithMouse;
+
+	ImGui::SetNextWindowBgAlpha(0.0f);
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+#ifdef IMGUI_HAS_DOCK
+	ImGui::PushStyleColor(ImGuiCol_DockingEmptyBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+#endif
+	if (ImGui::Begin("GameView", nullptr, windowFlags)) {
+		DrawEditorBackgroundMask(ImGui::GetWindowPos(), ImGui::GetWindowSize());
+		if (ImGui::BeginDragDropTarget()) {
+			auto acceptAssetPayload = [this](const char* payloadType, DroppedAssetPayload::Type assetType) {
+				const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadType);
+				if (!payload || !payload->Data || payload->DataSize <= 0) {
+					return;
+				}
+				droppedAssetPayload_.type = assetType;
+				droppedAssetPayload_.path.assign(static_cast<const char*>(payload->Data), static_cast<size_t>(payload->DataSize));
+				if (!droppedAssetPayload_.path.empty() && droppedAssetPayload_.path.back() == '\0') {
+					droppedAssetPayload_.path.pop_back();
+				}
+				hasDroppedAssetPayload_ = true;
+			};
+			acceptAssetPayload("CG2_ASSET_MODEL", DroppedAssetPayload::Type::Model);
+			acceptAssetPayload("CG2_ASSET_ANIM_MODEL", DroppedAssetPayload::Type::AnimatedModel);
+			acceptAssetPayload("CG2_ASSET_SPRITE", DroppedAssetPayload::Type::SpriteTexture);
+			ImGui::EndDragDropTarget();
+		}
+	}
+	ImGui::End();
+#ifdef IMGUI_HAS_DOCK
+	ImGui::PopStyleColor();
+#endif
+	ImGui::PopStyleColor(2);
+#endif
+}
+
+bool ImGuiManager::ConsumeDroppedAsset(DroppedAssetPayload& outPayload) {
+	if (!hasDroppedAssetPayload_) {
+		return false;
+	}
+	outPayload = droppedAssetPayload_;
+	droppedAssetPayload_ = {};
+	hasDroppedAssetPayload_ = false;
+	return true;
+}
+
+void ImGuiManager::DrawEditorBackgroundMask(const ImVec2& gameViewPosition, const ImVec2& gameViewSize) {
+#ifdef USE_IMGUI
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+	const ImVec2 viewportMin = viewport->Pos;
+	const ImVec2 viewportMax = ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y);
+	const ImVec2 gameMin = ImVec2(
+	    ClampLayoutValue(gameViewPosition.x, viewportMin.x, viewportMax.x),
+	    ClampLayoutValue(gameViewPosition.y, viewportMin.y, viewportMax.y)
+	);
+	const ImVec2 gameMax = ImVec2(
+	    ClampLayoutValue(gameViewPosition.x + gameViewSize.x, viewportMin.x, viewportMax.x),
+	    ClampLayoutValue(gameViewPosition.y + gameViewSize.y, viewportMin.y, viewportMax.y)
+	);
+
+	ImVec4 maskColor = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
+	maskColor.w = 1.0f;
+	ImDrawList* drawList = ImGui::GetBackgroundDrawList(viewport);
+	const ImU32 color = ImGui::ColorConvertFloat4ToU32(maskColor);
+
+	drawList->AddRectFilled(viewportMin, ImVec2(viewportMax.x, gameMin.y), color);
+	drawList->AddRectFilled(ImVec2(viewportMin.x, gameMax.y), viewportMax, color);
+	drawList->AddRectFilled(ImVec2(viewportMin.x, gameMin.y), ImVec2(gameMin.x, gameMax.y), color);
+	drawList->AddRectFilled(ImVec2(gameMax.x, gameMin.y), ImVec2(viewportMax.x, gameMax.y), color);
 #endif
 }
 
