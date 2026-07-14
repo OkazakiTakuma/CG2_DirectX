@@ -43,6 +43,7 @@ public:
 
 private:
 	Vector3 spawnPoint_{0.0f, 0.0f, 0.0f};
+	Vector3 currentMoveVelocity_{0.0f, 0.0f, 0.0f};
 	float moveSpeed_ = 0.1f;
 	std::string modelFilePath_;
 	bool isAnimationModel_ = false;

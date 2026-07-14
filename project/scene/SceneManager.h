@@ -49,6 +49,7 @@ public:
 	void SetFallbackCamera(Camera* camera) { fallbackCamera_ = camera; }
 	void SetScenePlaying(bool isPlaying) { isScenePlaying_ = isPlaying; }
 	bool IsScenePlaying() const { return isScenePlaying_; }
+	void RequestFrameStep() { isFrameStepRequested_ = true; }
 
 private:
 	/// <summary>
@@ -64,4 +65,5 @@ private:
 	std::string nextSceneName_ = "None";
 	int selectedSceneIndex_ = 0;
 	bool isScenePlaying_ = true;
+	bool isFrameStepRequested_ = false;
 };

@@ -3,6 +3,7 @@
 #include "PerformanceMonitor.h"
 #include "SrvManager.h"
 #include "WinApp.h"
+#include <string>
 
 #ifdef USE_IMGUI
 #include "../../../imgui/imgui.h"
@@ -12,6 +13,18 @@
 
 class ImGuiManager {
 public:
+	struct DroppedAssetPayload {
+		enum class Type {
+			None,
+			Model,
+			AnimatedModel,
+			SpriteTexture
+		};
+
+		Type type = Type::None;
+		std::string path;
+	};
+
 	/// <summary>
 	/// 共有インスタンスを取得します。
 	/// </summary>
@@ -44,6 +57,7 @@ public:
 	/// 現在の状態をもとに描画処理を行います。
 	/// </summary>
 	void Draw();
+	bool ConsumeDroppedAsset(DroppedAssetPayload& outPayload);
 
 private:
 	ImGuiManager() = default;
@@ -55,6 +69,8 @@ private:
 	/// DrawUtilityWindows の処理を行います。
 	/// </summary>
 	void DrawUtilityWindows();
+	void DrawGameViewWindow();
+	void DrawEditorBackgroundMask(const ImVec2& gameViewPosition, const ImVec2& gameViewSize);
 
 	ImGuiManager(const ImGuiManager&) = delete;
 	ImGuiManager& operator=(const ImGuiManager&) = delete;
@@ -63,4 +79,6 @@ private:
 	DirectXCommon* dxcommon = nullptr;
 	HWND gameWindowHandle_ = nullptr;
 	PerformanceMonitor performanceMonitor_;
+	DroppedAssetPayload droppedAssetPayload_;
+	bool hasDroppedAssetPayload_ = false;
 };

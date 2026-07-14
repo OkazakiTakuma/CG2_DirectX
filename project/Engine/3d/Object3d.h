@@ -53,6 +53,13 @@ public:
 	bool GetDrawSkeleton() const { return isDrawSkeleton_; }
 	bool HasSkeleton() const { return hasSkeleton && !skeleton.joints.empty(); }
 	bool HasModel() const { return model != nullptr; }
+	bool HasAnimation() const;
+	void SetAnimationPlaying(bool isPlaying);
+	bool GetAnimationPlaying() const { return isAnimationPlaying_; }
+	void RestartAnimation();
+	void ResetAnimationPoseToInitial();
+	float GetAnimationTime() const { return animationTime; }
+	float GetAnimationDuration() const { return animation.duration; }
 	/// <summary>
 	/// 破棄時に必要な解放処理を行います。
 	/// </summary>
@@ -217,6 +224,10 @@ private:
 	};
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceCylinder;
 	MaterialData* materialDataCylinder = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> shadowMaterialResource;
+	MaterialData* shadowMaterialData = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> shadowWvpResource;
+	TransformationMatrix* shadowTransformationMatrix = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> skinningPaletteResource;
 	Matrix4x4* skinningPaletteData = nullptr;
 	uint32_t skinningPaletteCapacity_ = 0;
@@ -226,14 +237,25 @@ private:
 	bool isPointLightSet = true;
 	float environmentMultiplier = 1.0f;
 
-	EulerTransform transform;
+	EulerTransform transform = {
+	    {1.0f, 1.0f, 1.0f},
+	    {0.0f, 0.0f, 0.0f},
+	    {0.0f, 0.0f, 0.0f}
+	};
 	Camera* camera = nullptr;
 	std::string envMapTexturePath = "Resources/rostock_laage_airport_4k.dds";
 	float animationTime = 0.0f;
+	float animationBlendWeight_ = 1.0f;
+	float animationBlendSpeed_ = 0.12f;
 	Animation animation;
 	Skeleton skeleton;
 	bool hasSkeleton = false;
 	bool isDrawSkeleton_ = false;
+	bool isAnimationPlaying_ = true;
+	bool useInitialSkinningPose_ = false;
+	bool isShadowEnabled_ = true;
+	float shadowPlaneY_ = 0.01f;
+	float shadowAlpha_ = 0.35f;
 };
 
 /// <summary>

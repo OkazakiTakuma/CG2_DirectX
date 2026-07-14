@@ -54,6 +54,14 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["player"]["model"] = player->GetModelFilePath();
 			objectJson["player"]["isAnimationModel"] = player->GetIsAnimationModel();
 		}
+		if (EnemyComponent* enemy = object->GetComponent<EnemyComponent>()) {
+			objectJson["type"] = "Enemy";
+			objectJson["enemy"]["enabled"] = enemy->IsEnabled();
+			SaveComponentGravity(objectJson["enemy"], enemy);
+			objectJson["enemy"]["typeName"] = enemy->GetEnemyTypeName();
+			objectJson["enemy"]["currentHealth"] = enemy->GetCurrentHealth();
+			objectJson["enemy"]["targetName"] = enemy->GetTargetName();
+		}
 		if (SpriteComponent* spriteComponent = object->GetComponent<SpriteComponent>()) {
 			objectJson["sprite"]["enabled"] = spriteComponent->IsEnabled();
 			SaveComponentGravity(objectJson["sprite"], spriteComponent);
@@ -94,6 +102,7 @@ void BaseScene::SaveEditorObjects() {
 			SaveComponentGravity(objectJson["object3d"], object3dComponent);
 			objectJson["object3d"]["modelTextureFilePath"] = object3dComponent->GetModelTextureFilePath();
 			objectJson["object3d"]["drawSkeleton"] = object3dComponent->GetDrawSkeleton();
+			objectJson["object3d"]["animationPlaying"] = object3dComponent->GetAnimationPlaying();
 			objectJson["object3d"]["isPointLight"] = object3dComponent->GetIsPointLightSet();
 			objectJson["object3d"]["pointLight"]["color"] = Vector4ToJson(object3dComponent->GetPointLightColor());
 			objectJson["object3d"]["pointLight"]["position"] = Vector3ToJson(object3dComponent->GetPointLightPosition());
@@ -127,6 +136,22 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["particleEmitter"]["param"]["randomScaleRange"] = Vector3ToJson(param.randomScaleRange);
 			objectJson["particleEmitter"]["param"]["isBillboard"] = param.isBillboard;
 		}
+		if (EnemySpawnPointComponent* enemySpawnPoint = object->GetComponent<EnemySpawnPointComponent>()) {
+			objectJson["type"] = "EnemySpawnPoint";
+			objectJson["enemySpawnPoint"]["enabled"] = enemySpawnPoint->IsEnabled();
+			SaveComponentGravity(objectJson["enemySpawnPoint"], enemySpawnPoint);
+			objectJson["enemySpawnPoint"]["targetName"] = enemySpawnPoint->GetTargetName();
+			objectJson["enemySpawnPoint"]["cameraName"] = enemySpawnPoint->GetCameraName();
+			objectJson["enemySpawnPoint"]["enemyTypeName"] = enemySpawnPoint->GetEnemyTypeName();
+			objectJson["enemySpawnPoint"]["spawnEnabled"] = enemySpawnPoint->GetSpawnEnabled();
+			objectJson["enemySpawnPoint"]["spawnCount"] = enemySpawnPoint->GetSpawnCount();
+			objectJson["enemySpawnPoint"]["outerMargin"] = enemySpawnPoint->GetOuterMargin();
+			objectJson["enemySpawnPoint"]["minimumRadius"] = enemySpawnPoint->GetMinimumRadius();
+			objectJson["enemySpawnPoint"]["groundY"] = enemySpawnPoint->GetGroundY();
+			objectJson["enemySpawnPoint"]["pointHeight"] = enemySpawnPoint->GetPointHeight();
+			objectJson["enemySpawnPoint"]["drawDebug"] = enemySpawnPoint->GetDrawDebug();
+			objectJson["enemySpawnPoint"]["debugPointSize"] = enemySpawnPoint->GetDebugPointSize();
+		}
 		objectJson["transform"]["scale"] = Vector3ToJson(transform.scale);
 		objectJson["transform"]["rotate"] = Vector3ToJson(transform.rotate);
 		objectJson["transform"]["translate"] = Vector3ToJson(transform.translate);
@@ -141,6 +166,9 @@ void BaseScene::SaveEditorObjects() {
 	};
 
 	for (const auto& object : sceneObjects_) {
+		if (EnemyComponent* enemy = object->GetComponent<EnemyComponent>(); enemy && enemy->GetRuntimeSpawned()) {
+			continue;
+		}
 		if (object->GetParentName().empty() || !FindObjectByName(object->GetParentName())) {
 			root["objects"].push_back(makeObjectJson(object.get()));
 		}
@@ -208,6 +236,10 @@ void BaseScene::LoadEditorObjects() {
 			const nlohmann::json playerJson = objectJson.value("player", nlohmann::json::object());
 			modelFilePath = playerJson.value("model", modelFilePath);
 		}
+		if (typeName == "Enemy") {
+			const nlohmann::json enemyJson = objectJson.value("enemy", nlohmann::json::object());
+			modelFilePath = enemyJson.value("typeName", std::string("Default"));
+		}
 		GameObject* object = CreateEditorObject(EditorCreateTypeFromName(typeName), modelFilePath);
 		if (!object) {
 			continue;
@@ -258,6 +290,17 @@ void BaseScene::LoadEditorObjects() {
 			playerCamera->SetFarClip(1000.0f);
 			activeCameraObjectName_ = object->GetName();
 		}
+		if (EnemyComponent* enemy = object->GetComponent<EnemyComponent>()) {
+			const nlohmann::json enemyJson = objectJson.value("enemy", nlohmann::json::object());
+			enemy->SetEnabled(enemyJson.value("enabled", enemy->IsEnabled()));
+			LoadComponentGravity(enemyJson, enemy);
+			const std::string enemyTypeName = enemyJson.value("typeName", enemy->GetEnemyTypeName());
+			enemy->SetEnemyTypeName(enemyTypeName);
+			enemy->ApplyStats(LoadEnemyStats(enemyTypeName));
+			enemy->SetCurrentHealth(enemyJson.value("currentHealth", enemy->GetCurrentHealth()));
+			enemy->SetTargetName(enemyJson.value("targetName", std::string()));
+			enemy->SetRuntimeSpawned(false);
+		}
 
 		if (SpriteComponent* spriteComponent = object->GetComponent<SpriteComponent>()) {
 			const nlohmann::json spriteJson = objectJson.value("sprite", nlohmann::json::object());
@@ -284,6 +327,7 @@ void BaseScene::LoadEditorObjects() {
 				object3dComponent->SetModelTexture(textureFilePath);
 			}
 			object3dComponent->SetDrawSkeleton(object3dJson.value("drawSkeleton", object3dComponent->GetDrawSkeleton()));
+			object3dComponent->SetAnimationPlaying(object3dJson.value("animationPlaying", object3dComponent->GetAnimationPlaying()));
 			object3dComponent->IsPointLightSet(object3dJson.value("isPointLight", object3dComponent->GetIsPointLightSet()));
 			const nlohmann::json pointLightJson = object3dJson.value("pointLight", nlohmann::json::object());
 			object3dComponent->SetPointLight(
@@ -370,9 +414,31 @@ void BaseScene::LoadEditorObjects() {
 			param.isBillboard = paramJson.value("isBillboard", param.isBillboard);
 			emitter->SetParam(param);
 		}
+		if (objectJson.contains("enemySpawnPoint")) {
+			const nlohmann::json spawnJson = objectJson.value("enemySpawnPoint", nlohmann::json::object());
+			EnemySpawnPointComponent* enemySpawnPoint = object->GetComponent<EnemySpawnPointComponent>();
+			if (!enemySpawnPoint) {
+				enemySpawnPoint = object->AddComponent<EnemySpawnPointComponent>();
+			}
+			enemySpawnPoint->SetEnabled(spawnJson.value("enabled", enemySpawnPoint->IsEnabled()));
+			LoadComponentGravity(spawnJson, enemySpawnPoint);
+			enemySpawnPoint->SetTargetName(spawnJson.value("targetName", std::string()));
+			enemySpawnPoint->SetCameraName(spawnJson.value("cameraName", std::string()));
+			enemySpawnPoint->SetEnemyTypeName(spawnJson.value("enemyTypeName", enemySpawnPoint->GetEnemyTypeName()));
+			enemySpawnPoint->SetSpawnEnabled(spawnJson.value("spawnEnabled", enemySpawnPoint->GetSpawnEnabled()));
+			enemySpawnPoint->SetSpawnCount(spawnJson.value("spawnCount", enemySpawnPoint->GetSpawnCount()));
+			enemySpawnPoint->SetOuterMargin(spawnJson.value("outerMargin", enemySpawnPoint->GetOuterMargin()));
+			enemySpawnPoint->SetMinimumRadius(spawnJson.value("minimumRadius", enemySpawnPoint->GetMinimumRadius()));
+			enemySpawnPoint->SetGroundY(spawnJson.value("groundY", enemySpawnPoint->GetGroundY()));
+			enemySpawnPoint->SetPointHeight(spawnJson.value("pointHeight", enemySpawnPoint->GetPointHeight()));
+			enemySpawnPoint->SetDrawDebug(spawnJson.value("drawDebug", enemySpawnPoint->GetDrawDebug()));
+			enemySpawnPoint->SetDebugPointSize(spawnJson.value("debugPointSize", enemySpawnPoint->GetDebugPointSize()));
+		}
 	}
 
 	ResolveCameraLinks();
+	ResolveEnemySpawnPointLinks();
+	ResolveEnemyLinks();
 	if (!requestedActiveCameraName.empty()) {
 		GameObject* requestedCameraObject = FindObjectByName(requestedActiveCameraName);
 		CameraComponent* requestedCameraComponent =
@@ -438,6 +504,12 @@ BaseScene::EditorCreateType BaseScene::EditorCreateTypeFromName(const std::strin
 	}
 	if (typeName == "Player") {
 		return EditorCreateType::Player;
+	}
+	if (typeName == "EnemySpawnPoint") {
+		return EditorCreateType::EnemySpawnPoint;
+	}
+	if (typeName == "Enemy") {
+		return EditorCreateType::Enemy;
 	}
 	return EditorCreateType::Empty;
 }

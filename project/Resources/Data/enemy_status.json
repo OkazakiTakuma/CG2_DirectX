@@ -1,0 +1,10 @@
+{
+    "Default": {
+        "attack": 1.0,
+        "health": 10.0,
+        "shootingInterval": 1.0,
+        "shoots": true,
+        "spawnsPerMinute": 12.0,
+        "speed": 0.05000000074505806
+    }
+}

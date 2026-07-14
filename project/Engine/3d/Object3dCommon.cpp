@@ -32,12 +32,19 @@ void Object3dCommon::SetDraw() {
 	dxCommon_->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
+void Object3dCommon::SetShadowDraw() {
+	dxCommon_->GetCommandList()->SetPipelineState(shadowPipelineState.Get());
+	dxCommon_->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());
+	dxCommon_->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
 /// <summary>
 /// 確保したリソースを解放し、終了処理を行います。
 /// </summary>
 void Object3dCommon::Finalize() {
 	rootSignature.Reset();
 	graphicsPipelineState.Reset();
+	shadowPipelineState.Reset();
 	dxCommon_ = nullptr;
 	defaultCamera = nullptr;
 }
@@ -160,6 +167,16 @@ void Object3dCommon::CreatePipelineState() {
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	blendDesc.RenderTarget[0].BlendEnable = FALSE;
 
+	D3D12_BLEND_DESC shadowBlendDesc{};
+	shadowBlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	shadowBlendDesc.RenderTarget[0].BlendEnable = TRUE;
+	shadowBlendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	shadowBlendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	shadowBlendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	shadowBlendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+	shadowBlendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+	shadowBlendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
 	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
@@ -192,5 +209,13 @@ void Object3dCommon::CreatePipelineState() {
 	psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
 	hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&graphicsPipelineState));
+	assert(SUCCEEDED(hr));
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = psoDesc;
+	D3D12_DEPTH_STENCIL_DESC shadowDepthStencilDesc = depthStencilDesc;
+	shadowDepthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	shadowPsoDesc.BlendState = shadowBlendDesc;
+	shadowPsoDesc.DepthStencilState = shadowDepthStencilDesc;
+	hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&shadowPsoDesc, IID_PPV_ARGS(&shadowPipelineState));
 	assert(SUCCEEDED(hr));
 }

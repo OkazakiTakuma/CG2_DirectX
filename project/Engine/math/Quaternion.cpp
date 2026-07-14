@@ -167,5 +167,5 @@ Quaternion Slerp(const Quaternion& q1, const Quaternion& q2, float t) {
 	result.x = s0 * q1.x + s1 * q2Copy.x;
 	result.y = s0 * q1.y + s1 * q2Copy.y;
 	result.z = s0 * q1.z + s1 * q2Copy.z;
-	return result;
+	return Normalize(result);
 }

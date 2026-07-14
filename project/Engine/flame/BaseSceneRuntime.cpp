@@ -69,6 +69,125 @@ void BaseScene::ResolveCameraLinks() {
 	}
 }
 
+void BaseScene::ResolveEnemySpawnPointLinks() {
+	GameObject* firstPlayer = nullptr;
+	for (const auto& object : sceneObjects_) {
+		if (object->GetComponent<Player>()) {
+			firstPlayer = object.get();
+			break;
+		}
+	}
+
+	for (const auto& object : sceneObjects_) {
+		EnemySpawnPointComponent* spawnPoint = object->GetComponent<EnemySpawnPointComponent>();
+		if (!spawnPoint || !spawnPoint->IsEnabled()) {
+			continue;
+		}
+
+		GameObject* target = spawnPoint->GetTargetName().empty() ? firstPlayer : FindObjectByName(spawnPoint->GetTargetName());
+		if (target && target != spawnPoint->GetTarget()) {
+			spawnPoint->SetTarget(target);
+			if (spawnPoint->GetTargetName().empty()) {
+				spawnPoint->SetTargetName(target->GetName());
+			}
+		}
+
+		Camera* camera = nullptr;
+		if (!spawnPoint->GetCameraName().empty()) {
+			GameObject* cameraObject = FindObjectByName(spawnPoint->GetCameraName());
+			CameraComponent* cameraComponent = cameraObject ? cameraObject->GetComponent<CameraComponent>() : nullptr;
+			if (cameraComponent && cameraComponent->IsEnabled()) {
+				camera = cameraComponent->GetCamera();
+			}
+		}
+		if (!camera && Object3dCommon::GetInstance()) {
+			camera = Object3dCommon::GetInstance()->GetDefaultCamera();
+		}
+		spawnPoint->SetCamera(camera);
+	}
+}
+
+void BaseScene::ResolveEnemyLinks() {
+	GameObject* firstPlayer = nullptr;
+	for (const auto& object : sceneObjects_) {
+		if (object->GetComponent<Player>()) {
+			firstPlayer = object.get();
+			break;
+		}
+	}
+
+	for (const auto& object : sceneObjects_) {
+		EnemyComponent* enemy = object->GetComponent<EnemyComponent>();
+		if (!enemy || !enemy->IsEnabled()) {
+			continue;
+		}
+
+		GameObject* target = enemy->GetTargetName().empty() ? firstPlayer : FindObjectByName(enemy->GetTargetName());
+		if (target && target != enemy->GetTarget()) {
+			enemy->SetTarget(target);
+			if (enemy->GetTargetName().empty()) {
+				enemy->SetTargetName(target->GetName());
+			}
+		}
+	}
+}
+
+void BaseScene::UpdateEnemySpawning() {
+	struct SpawnRequest {
+		std::string enemyTypeName;
+		Vector3 position;
+		GameObject* target = nullptr;
+	};
+	std::vector<SpawnRequest> spawnRequests;
+	for (const auto& object : sceneObjects_) {
+		EnemySpawnPointComponent* spawnPoint = object->GetComponent<EnemySpawnPointComponent>();
+		if (!spawnPoint || !spawnPoint->IsEnabled()) {
+			continue;
+		}
+
+		const std::string enemyTypeName = spawnPoint->GetEnemyTypeName();
+		const EnemyStats stats = LoadEnemyStats(enemyTypeName);
+		Vector3 spawnPosition{};
+		if (spawnPoint->ConsumeSpawnRequest(stats.spawnsPerMinute, spawnPosition)) {
+			spawnRequests.push_back({enemyTypeName, spawnPosition, spawnPoint->GetTarget()});
+		}
+	}
+
+	for (const SpawnRequest& request : spawnRequests) {
+		CreateRuntimeEnemy(request.enemyTypeName, request.position, request.target);
+	}
+}
+
+GameObject* BaseScene::CreateRuntimeEnemy(const std::string& enemyTypeName, const Vector3& position, GameObject* target) {
+	auto object = std::make_unique<GameObject>();
+	object->SetName(MakeUniqueObjectName(enemyTypeName.empty() ? "Enemy" : enemyTypeName));
+	object->SetEditorType("Enemy");
+	object->GetTransform().translate = position;
+	object->GetTransform().scale = {0.75f, 0.75f, 0.75f};
+
+	EnemyComponent* enemy = object->AddComponent<EnemyComponent>();
+	enemy->SetEnemyTypeName(enemyTypeName.empty() ? "Default" : enemyTypeName);
+	enemy->ApplyStats(LoadEnemyStats(enemy->GetEnemyTypeName()));
+	enemy->SetRuntimeSpawned(true);
+	if (target) {
+		enemy->SetTarget(target);
+		enemy->SetTargetName(target->GetName());
+	}
+
+	ModelManager::GetInstance()->LoadModel("sphere.obj");
+	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
+	object3d->SetModel("sphere.obj");
+
+	OBBColliderComponent* collider = object->AddComponent<OBBColliderComponent>();
+	collider->SetHalfSize({0.4f, 0.4f, 0.4f});
+	collider->SetPushBackEnabled(true);
+
+	object->Update();
+	sceneObjects_.push_back(std::move(object));
+	++nextObjectId_;
+	return sceneObjects_.back().get();
+}
+
 /// <summary>
 /// 有効なコライダー同士の当たり判定と押し戻しを行います。
 /// </summary>

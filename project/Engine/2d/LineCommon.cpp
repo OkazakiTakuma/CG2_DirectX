@@ -30,8 +30,10 @@ void LineCommon::Initialize(DirectXCommon* dxCommon) {
 /// </summary>
 void LineCommon::Finalize() {
 	rootSignature.Reset();
-	for (auto& pso : graphicsPipelineStates) {
-		pso.Reset();
+	for (auto& depthPipelineStates : graphicsPipelineStates) {
+		for (auto& pso : depthPipelineStates) {
+			pso.Reset();
+		}
 	}
 	dxCommon_ = nullptr;
 }
@@ -40,12 +42,12 @@ void LineCommon::Finalize() {
 /// Draw を設定します。
 /// </summary>
 /// <param name="blendMode">描画時に使用するブレンドモードを指定します。</param>
-void LineCommon::SetDraw(uint32_t blendMode) {
+void LineCommon::SetDraw(uint32_t blendMode, bool ignoreDepth) {
 	assert(dxCommon_);
-	assert(blendMode < graphicsPipelineStates.size());
+	assert(blendMode < kCountOfBlendMode);
 
 	auto commandList = dxCommon_->GetCommandList();
-	commandList->SetPipelineState(graphicsPipelineStates[blendMode].Get());
+	commandList->SetPipelineState(graphicsPipelineStates[ignoreDepth ? 1 : 0][blendMode].Get());
 	commandList->SetGraphicsRootSignature(rootSignature.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 }
@@ -116,11 +118,7 @@ void LineCommon::CreatePipelineState() {
 	assert(vertexShaderBlob != nullptr);
 	assert(pixelShaderBlob != nullptr);
 
-	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
-	depthStencilDesc.DepthEnable = true;
-	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-
+	for (int depthMode = 0; depthMode < 2; ++depthMode) {
 	for (int i = 0; i < kBlendCountblend; ++i) {
 		D3D12_BLEND_DESC blendDesc{};
 		blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
@@ -162,7 +160,14 @@ void LineCommon::CreatePipelineState() {
 			blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
 			blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
 			break;
+		default:
+			break;
 		}
+
+		D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
+		depthStencilDesc.DepthEnable = depthMode == 0;
+		depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+		depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
 		psoDesc.pRootSignature = rootSignature.Get();
@@ -181,8 +186,9 @@ void LineCommon::CreatePipelineState() {
 
 		HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(
 			&psoDesc,
-			IID_PPV_ARGS(&graphicsPipelineStates[i])
+			IID_PPV_ARGS(&graphicsPipelineStates[depthMode][i])
 		);
 		assert(SUCCEEDED(hr));
+	}
 	}
 }

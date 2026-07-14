@@ -200,6 +200,8 @@ void SpriteCommon::CreatePipelineState() {
 			blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
 			blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
 			break;
+		default:
+			break;
 		}
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};

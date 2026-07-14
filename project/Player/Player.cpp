@@ -1,8 +1,22 @@
 #include "Player.h"
 #include "GameObject.h"
 #include "Input.h"
+#include "Object3dComponent.h"
 #include <cmath>
 #include <dinput.h>
+
+namespace {
+Vector3 MoveTowards(const Vector3& current, const Vector3& target, float maxDelta) {
+	const Vector3 difference = target - current;
+	const float distance = Length(difference);
+	if (distance <= maxDelta || distance <= 0.00001f) {
+		return target;
+	}
+
+	const Vector3 direction = {difference.x / distance, difference.y / distance, difference.z / distance};
+	return current + maxDelta * direction;
+}
+}
 
 /// <summary>
 /// 毎フレーム WASD 入力を見て、XZ 平面上でプレイヤーを移動します。
@@ -36,14 +50,35 @@ void Player::Update() {
 	Vector3 move{keyboardMove.x + leftStick.x, 0.0f, keyboardMove.z + leftStick.z};
 
 	const float moveLength = Length(move);
-	if (moveLength <= 0.00001f) {
+	Vector3 targetVelocity{0.0f, 0.0f, 0.0f};
+	if (moveLength > 0.00001f) {
+		const Vector3 moveDirection = {move.x / moveLength, 0.0f, move.z / moveLength};
+		const float moveAmount = moveLength > 1.0f ? 1.0f : moveLength;
+		targetVelocity = (moveSpeed_ * moveAmount) * moveDirection;
+	}
+
+	const bool hasMoveInput = Length(targetVelocity) > 0.00001f;
+	const float smoothingDelta = hasMoveInput ? moveSpeed_ * 0.18f : moveSpeed_ * 0.14f;
+	currentMoveVelocity_ = MoveTowards(currentMoveVelocity_, targetVelocity, smoothingDelta);
+
+	const float currentSpeed = Length(currentMoveVelocity_);
+	if (Object3dComponent* object3d = owner->GetComponent<Object3dComponent>()) {
+		if (object3d->HasAnimation()) {
+			object3d->SetAnimationPlaying(hasMoveInput || currentSpeed > 0.0005f);
+		}
+	}
+
+	if (currentSpeed <= 0.00001f) {
 		return;
 	}
 
-	const Vector3 moveDirection = {move.x / moveLength, 0.0f, move.z / moveLength};
-	const float moveAmount = moveLength > 1.0f ? 1.0f : moveLength;
-	owner->GetTransform().rotate.y = std::atan2(moveDirection.x, moveDirection.z);
-	owner->GetTransform().translate = owner->GetTransform().translate + (moveSpeed_ * moveAmount) * moveDirection;
+	const Vector3 currentMoveDirection = {
+	    currentMoveVelocity_.x / currentSpeed,
+	    0.0f,
+	    currentMoveVelocity_.z / currentSpeed
+	};
+	owner->GetTransform().rotate.y = std::atan2(currentMoveDirection.x, currentMoveDirection.z);
+	owner->GetTransform().translate = owner->GetTransform().translate + currentMoveVelocity_;
 }
 
 /// <summary>
@@ -56,4 +91,5 @@ void Player::ResetToSpawnPoint() {
 	}
 
 	owner->GetTransform().translate = spawnPoint_;
+	currentMoveVelocity_ = {0.0f, 0.0f, 0.0f};
 }

@@ -32,12 +32,15 @@ void BaseScene::Finalize() {
 /// </summary>
 void BaseScene::UpdateSceneObjects() {
 	ResolveCameraLinks();
+	ResolveEnemySpawnPointLinks();
+	ResolveEnemyLinks();
 	if (editorSkyBox_) {
 		editorSkyBox_->Update();
 	}
 	for (const auto& object : sceneObjects_) {
 		object->Update();
 	}
+	UpdateEnemySpawning();
 	UpdateEditorObjectPicking();
 	UpdateEditorCameraControl();
 	UpdateColliderCollisions();
@@ -49,6 +52,8 @@ void BaseScene::UpdateSceneObjects() {
 /// </summary>
 void BaseScene::UpdateEditorTools() {
 	ResolveCameraLinks();
+	ResolveEnemySpawnPointLinks();
+	ResolveEnemyLinks();
 	if (editorSkyBox_) {
 		editorSkyBox_->Update();
 	}
@@ -81,8 +86,10 @@ void BaseScene::DrawSceneObjects3D() {
 void BaseScene::DrawEditorImGui() {
 #ifdef USE_IMGUI
 	DrawEditorHierarchy();
+	DrawEditorProjectAssets();
 	DrawEditorInspector();
 	DrawEditorGizmo();
+	HandleGameViewAssetDrop();
 #endif
 }
 

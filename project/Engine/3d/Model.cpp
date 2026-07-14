@@ -13,6 +13,11 @@
 using namespace Logger;
 
 namespace {
+constexpr unsigned int kAssimpModelImportFlags =
+    aiProcess_FlipWindingOrder |
+    aiProcess_FlipUVs |
+    aiProcess_LimitBoneWeights;
+
 /// <summary>
 /// AffineMatrix を生成して返します。
 /// </summary>
@@ -25,6 +30,10 @@ Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const
 	Matrix4x4 rotateMatrix = MakeRotateMatrix(rotate);
 	Matrix4x4 translateMatrix = MakeTranslateMatrix(translate);
 	return Multiply(Multiply(scaleMatrix, rotateMatrix), translateMatrix);
+}
+
+Quaternion ConvertAssimpQuaternion(const aiQuaternion& quaternion) {
+	return Normalize({-quaternion.x, quaternion.y, quaternion.z, quaternion.w});
 }
 
 /// <summary>
@@ -171,6 +180,7 @@ void RebuildJointWeightsFromVertexInfluences(ModelData& modelData) {
 		}
 	}
 }
+
 }
 
 /// <summary>
@@ -230,10 +240,11 @@ void Model::Finalize() {
 /// <summary>
 /// 現在の状態をもとに描画処理を行います。
 /// </summary>
-void Model::Draw() {
+void Model::Draw(ID3D12Resource* overrideMaterialResource) {
 	modelCommon_->GetDxCommon()->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferView);
 	modelCommon_->GetDxCommon()->GetCommandList()->IASetIndexBuffer(&indexBufferView);
-	modelCommon_->GetDxCommon()->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+	ID3D12Resource* activeMaterialResource = overrideMaterialResource ? overrideMaterialResource : materialResource.Get();
+	modelCommon_->GetDxCommon()->GetCommandList()->SetGraphicsRootConstantBufferView(0, activeMaterialResource->GetGPUVirtualAddress());
 	modelCommon_->GetDxCommon()->GetCommandList()->SetGraphicsRootDescriptorTable(3, TextureManager::GetInstance()->GetSRVHandleGPU(modelData.material.textureFilePath));
 
 	modelCommon_->GetDxCommon()->GetCommandList()->DrawIndexedInstanced(UINT(modelData.indices.size()), 1, 0, 0, 0);
@@ -265,7 +276,7 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 	std::string filePath = directoryPath + "/" + filename;
 	importer.SetPropertyInteger(AI_CONFIG_PP_LBW_MAX_WEIGHTS, 4);
 
-	const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_LimitBoneWeights);
+	const aiScene* scene = importer.ReadFile(filePath.c_str(), kAssimpModelImportFlags);
 	assert(scene != nullptr && scene->HasMeshes());
 
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; meshIndex++) {
@@ -360,11 +371,12 @@ Animation Model::LoadAnimation(const std::string& directoryPath, const std::stri
 	Assimp::Importer importer;
 	std::string filePath = directoryPath + "/" + filename;
 
-	const aiScene* scene = importer.ReadFile(filePath.c_str(), 0);
-	assert(scene->mNumAnimations != 0);
+	importer.SetPropertyInteger(AI_CONFIG_PP_LBW_MAX_WEIGHTS, 4);
+	const aiScene* scene = importer.ReadFile(filePath.c_str(), kAssimpModelImportFlags);
+	assert(scene != nullptr && scene->mNumAnimations != 0);
 
 	aiAnimation* animationAssimp = scene->mAnimations[0];
-	double ticksPerSecond = animationAssimp->mTicksPerSecond != 0.0 ? animationAssimp->mTicksPerSecond : 25.0;
+	const double ticksPerSecond = animationAssimp->mTicksPerSecond != 0.0 ? animationAssimp->mTicksPerSecond : 1.0;
 	animation.duration = static_cast<float>(animationAssimp->mDuration / ticksPerSecond);
 
 	for (uint32_t channeIndex = 0; channeIndex < animationAssimp->mNumChannels; channeIndex++) {
@@ -386,7 +398,7 @@ Animation Model::LoadAnimation(const std::string& directoryPath, const std::stri
 			KeyframeQuaternion keyframe;
 			keyframe.time = static_cast<float>(keyAssimp.mTime / ticksPerSecond);
 
-			keyframe.value = { keyAssimp.mValue.x, -keyAssimp.mValue.y, -keyAssimp.mValue.z, keyAssimp.mValue.w };
+			keyframe.value = ConvertAssimpQuaternion(keyAssimp.mValue);
 			nodeAnimation.rotate.keyframes.push_back(keyframe);
 		}
 
@@ -416,7 +428,7 @@ Node Model::ReadNode(aiNode* aiNode) {
 	aiNode->mTransformation.Decompose(scale, rotate, translate);
 
 	result.transform.scale = {scale.x, scale.y, scale.z};
-	result.transform.rotate = {rotate.x, -rotate.y, -rotate.z, rotate.w};
+	result.transform.rotate = ConvertAssimpQuaternion(rotate);
 	result.transform.translate = {-translate.x, translate.y, translate.z};
 	result.localMatrix = MakeAffineMatrix(result.transform.scale, result.transform.rotate, result.transform.translate);
 
@@ -539,7 +551,10 @@ void Model::BuildSkinningPalette(const Skeleton& skeleton, std::vector<Matrix4x4
 			continue;
 		}
 
-		palette[jointWeightData.paletteIndex] = Multiply(jointWeightData.inverseBindPoseMatrix, skeleton.joints[jointIndex].skeletonSpaceMatrix);
+		palette[jointWeightData.paletteIndex] = Multiply(
+		    jointWeightData.inverseBindPoseMatrix,
+		    skeleton.joints[jointIndex].skeletonSpaceMatrix
+		);
 	}
 }
 
@@ -578,7 +593,10 @@ void Model::ApplySkinning(const Skeleton& skeleton) {
 			continue;
 		}
 
-		const Matrix4x4 skinningMatrix = Multiply(jointWeightData.inverseBindPoseMatrix, skeleton.joints[jointIndex].skeletonSpaceMatrix);
+		const Matrix4x4 skinningMatrix = Multiply(
+		    jointWeightData.inverseBindPoseMatrix,
+		    skeleton.joints[jointIndex].skeletonSpaceMatrix
+		);
 		for (const VertexWeghtData& vertexWeight : jointWeightData.vertexWeights) {
 			if (vertexWeight.vertexIndex >= originalVertices_.size()) {
 				continue;

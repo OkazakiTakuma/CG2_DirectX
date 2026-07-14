@@ -30,7 +30,7 @@ public:
 	/// <summary>
 	/// 現在の状態をもとに描画処理を行います。
 	/// </summary>
-	void Draw();
+	void Draw(ID3D12Resource* overrideMaterialResource = nullptr);
 	/// <summary>
 	/// 破棄時に必要な解放処理を行います。
 	/// </summary>
