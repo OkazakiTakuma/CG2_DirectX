@@ -10,6 +10,8 @@ struct EnemyStats {
 	float speed = 0.05f;
 	float shootingInterval = 1.0f;
 	float spawnsPerMinute = 12.0f;
+	int experience = 1;
+	std::string experienceModelFilePath = "sphere.obj";
 	bool shoots = false;
 };
 

@@ -197,6 +197,9 @@
     <ClInclude Include="Engine\2d\SpriteComponent.h">
       <Filter>Engine\2d</Filter>
     </ClInclude>
+    <ClInclude Include="Engine\2d\TextComponent.h">
+      <Filter>Engine\2d</Filter>
+    </ClInclude>
     <ClInclude Include="Engine\2d\TextureManager.h">
       <Filter>Engine\2d</Filter>
     </ClInclude>
@@ -306,6 +309,15 @@
       <Filter>Engine\flame</Filter>
     </ClInclude>
     <ClInclude Include="Engine\flame\EnemySpawnPointComponent.h">
+      <Filter>Engine\flame</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\flame\ExperienceComponent.h">
+      <Filter>Engine\flame</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\flame\PlayerAttackComponent.h">
+      <Filter>Engine\flame</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\flame\PlayerProjectileComponent.h">
       <Filter>Engine\flame</Filter>
     </ClInclude>
     <ClInclude Include="Engine\flame\Component.h">

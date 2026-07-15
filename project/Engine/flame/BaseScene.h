@@ -4,6 +4,7 @@
 #include "CameraComponent.h"
 #include "EnemyComponent.h"
 #include "EnemySpawnPointComponent.h"
+#include "ExperienceComponent.h"
 #include "GameObject.h"
 #include "ImGuiManager.h"
 #include "Input.h"
@@ -23,9 +24,12 @@
 #include "Object3dComponent.h"
 #include "OBBColliderComponent.h"
 #include "ParticleEmitterComponent.h"
+#include "PlayerAttackComponent.h"
+#include "PlayerProjectileComponent.h"
 #include "../../Player/Player.h"
 #include "SphereColliderComponent.h"
 #include "SpriteComponent.h"
+#include "TextComponent.h"
 #include "InstancingModel.h"
 #include <array>
 #include <memory>
@@ -41,6 +45,7 @@ public:
 		Object3dCylinder,
 		Object3dCylinderOpen,
 		Sprite,
+		Text,
 		LoadedModel,
 		AnimatedModel,
 		Camera,
@@ -132,6 +137,10 @@ private:
 /// 選択中オブジェクトのインスペクタを描画します。
 /// </summary>
 	void DrawEditorInspector();
+	void DrawPlayerInspector();
+	void DrawPlayerAttackInspector();
+	void ReloadPlayerAttackInspectorCache();
+	PlayerAttackStats* FindCachedPlayerAttackStats(const std::string& attackName);
 /// <summary>
 /// 選択中オブジェクトを操作するギズモを描画します。
 /// </summary>
@@ -175,6 +184,9 @@ private:
 	void ResolveEnemySpawnPointLinks();
 	void ResolveEnemyLinks();
 	void UpdateEnemySpawning();
+	void UpdatePlayerAttacks();
+	void UpdatePlayerProjectileHits();
+	void CleanupExpiredPlayerProjectiles();
 /// <summary>
 /// 指定したオブジェクトのカメラをアクティブカメラに設定します。
 /// </summary>
@@ -192,6 +204,9 @@ private:
 /// </summary>
 	std::string MakeUniqueObjectName(const std::string& baseName) const;
 	GameObject* CreateRuntimeEnemy(const std::string& enemyTypeName, const Vector3& position, GameObject* target);
+	GameObject* CreateRuntimeExperience(const EnemyStats& enemyStats, const Vector3& position, GameObject* target);
+	GameObject* CreateRuntimePlayerProjectile(const PlayerAttackShotRequest& request);
+	GameObject* FindNearestEnemy(const Vector3& position) const;
 /// <summary>
 /// 現在のシーンに対応する配置JSONファイルパスを返します。
 /// </summary>
@@ -215,10 +230,19 @@ private:
 	int selectedParticlePresetIndex_ = 0;
 	int selectedEnemyTypeIndex_ = 0;
 	int selectedPlayerModelIndex_ = 0;
+	int selectedPlayerTypeIndex_ = 0;
+	int selectedPlayerAttackTypeIndex_ = 0;
+	int selectedPlayerAttackLevelIndex_ = 0;
 	int selectedSkyBoxTextureIndex_ = 0;
 	int selectedInspectorComponentIndex_ = 0;
 	std::array<char, 64> particlePresetNameBuffer_ = {};
 	std::array<char, 64> enemyTypeNameBuffer_ = {};
+	std::array<char, 64> playerTypeNameBuffer_ = {};
+	std::array<char, 64> playerAttackNameBuffer_ = {};
+	std::array<char, 512> textEditBuffer_ = {};
+	std::vector<std::string> cachedPlayerAttackNames_;
+	std::vector<PlayerAttackStats> cachedPlayerAttackStats_;
+	bool isPlayerAttackCacheLoaded_ = false;
 	bool isGizmoEnabled_ = true;
 	bool isEditorSkyBoxEnabled_ = false;
 	int gizmoOperationIndex_ = 0;

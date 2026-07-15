@@ -49,10 +49,18 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["type"] = "Player";
 			objectJson["player"]["enabled"] = player->IsEnabled();
 			SaveComponentGravity(objectJson["player"], player);
+			objectJson["player"]["typeName"] = player->GetPlayerTypeName();
 			objectJson["player"]["spawnPoint"] = Vector3ToJson(player->GetSpawnPoint());
+			objectJson["player"]["currentHealth"] = player->GetCurrentHealth();
+			objectJson["player"]["level"] = player->GetStats().level;
+			objectJson["player"]["experience"] = player->GetStats().experience;
 			objectJson["player"]["moveSpeed"] = player->GetMoveSpeed();
 			objectJson["player"]["model"] = player->GetModelFilePath();
 			objectJson["player"]["isAnimationModel"] = player->GetIsAnimationModel();
+			if (PlayerAttackComponent* attack = object->GetComponent<PlayerAttackComponent>()) {
+				objectJson["playerAttack"]["enabled"] = attack->IsEnabled();
+				SaveComponentGravity(objectJson["playerAttack"], attack);
+			}
 		}
 		if (EnemyComponent* enemy = object->GetComponent<EnemyComponent>()) {
 			objectJson["type"] = "Enemy";
@@ -68,6 +76,16 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["sprite"]["textureFilePath"] = spriteComponent->GetTextureFilePath();
 			objectJson["sprite"]["color"] = Vector4ToJson(spriteComponent->GetColor());
 			objectJson["sprite"]["size"] = nlohmann::json::array({spriteComponent->GetSize().x, spriteComponent->GetSize().y});
+		}
+		if (TextComponent* textComponent = object->GetComponent<TextComponent>()) {
+			objectJson["type"] = "Text";
+			objectJson["text"]["enabled"] = textComponent->IsEnabled();
+			SaveComponentGravity(objectJson["text"], textComponent);
+			objectJson["text"]["value"] = textComponent->GetText();
+			objectJson["text"]["fontName"] = textComponent->GetFontName();
+			objectJson["text"]["fontSize"] = textComponent->GetFontSize();
+			objectJson["text"]["anchor"] = static_cast<int>(textComponent->GetAnchor());
+			objectJson["text"]["color"] = Vector4ToJson(textComponent->GetColor());
 		}
 		if (CameraComponent* cameraComponent = object->GetComponent<CameraComponent>()) {
 			objectJson["camera"]["enabled"] = cameraComponent->IsEnabled();
@@ -169,6 +187,9 @@ void BaseScene::SaveEditorObjects() {
 		if (EnemyComponent* enemy = object->GetComponent<EnemyComponent>(); enemy && enemy->GetRuntimeSpawned()) {
 			continue;
 		}
+		if (object->GetComponent<ExperienceComponent>()) {
+			continue;
+		}
 		if (object->GetParentName().empty() || !FindObjectByName(object->GetParentName())) {
 			root["objects"].push_back(makeObjectJson(object.get()));
 		}
@@ -234,7 +255,7 @@ void BaseScene::LoadEditorObjects() {
 		std::string modelFilePath = objectJson.value("model", "");
 		if (typeName == "Player") {
 			const nlohmann::json playerJson = objectJson.value("player", nlohmann::json::object());
-			modelFilePath = playerJson.value("model", modelFilePath);
+			modelFilePath = playerJson.value("typeName", playerJson.value("model", modelFilePath));
 		}
 		if (typeName == "Enemy") {
 			const nlohmann::json enemyJson = objectJson.value("enemy", nlohmann::json::object());
@@ -264,9 +285,20 @@ void BaseScene::LoadEditorObjects() {
 			const nlohmann::json playerJson = objectJson.value("player", nlohmann::json::object());
 			player->SetEnabled(playerJson.value("enabled", player->IsEnabled()));
 			LoadComponentGravity(playerJson, player);
+			const std::string playerTypeName = playerJson.value("typeName", player->GetPlayerTypeName());
+			player->SetPlayerTypeName(playerTypeName);
+			PlayerStats playerStats = LoadPlayerStats(playerTypeName);
+			player->ApplyStats(playerStats, ApplyPlayerStatusItems(playerStats));
+			PlayerAttackComponent* attack = object->GetComponent<PlayerAttackComponent>();
+			if (!attack) {
+				attack = object->AddComponent<PlayerAttackComponent>();
+			}
+			ApplyPlayerAttackSlots(attack, playerStats);
+			const nlohmann::json attackJson = objectJson.value("playerAttack", nlohmann::json::object());
+			attack->SetEnabled(attackJson.value("enabled", attack->IsEnabled()));
+			LoadComponentGravity(attackJson, attack);
 			const Vector3 spawnPoint = JsonToVector3(playerJson.value("spawnPoint", nlohmann::json::array()), transform.translate);
 			player->SetSpawnPoint(spawnPoint);
-			player->SetMoveSpeed(playerJson.value("moveSpeed", player->GetMoveSpeed()));
 			const std::string playerModelFilePath = playerJson.value("model", player->GetModelFilePath());
 			Model* playerModel = ModelManager::GetInstance()->FindModel(playerModelFilePath);
 			const bool isAnimationModel = playerJson.value("isAnimationModel", playerModel && playerModel->GetIsAnimation());
@@ -278,6 +310,9 @@ void BaseScene::LoadEditorObjects() {
 				object3dComponent->SetDrawSkeleton(isAnimationModel);
 			}
 			player->ResetToSpawnPoint();
+			player->SetCurrentHealth(playerJson.value("currentHealth", player->GetMaxHealth()));
+			player->SetLevel(playerJson.value("level", player->GetStats().level));
+			player->SetExperience(playerJson.value("experience", player->GetStats().experience));
 			CameraComponent* playerCamera = object->GetComponent<CameraComponent>();
 			if (!playerCamera) {
 				playerCamera = object->AddComponent<CameraComponent>();
@@ -317,6 +352,16 @@ void BaseScene::LoadEditorObjects() {
 			if (sizeJson.is_array() && sizeJson.size() >= 2) {
 				spriteComponent->SetSize({sizeJson.at(0).get<float>(), sizeJson.at(1).get<float>()});
 			}
+		}
+		if (TextComponent* textComponent = object->GetComponent<TextComponent>()) {
+			const nlohmann::json textJson = objectJson.value("text", nlohmann::json::object());
+			textComponent->SetEnabled(textJson.value("enabled", textComponent->IsEnabled()));
+			LoadComponentGravity(textJson, textComponent);
+			textComponent->SetText(textJson.value("value", textComponent->GetText()));
+			textComponent->SetFontName(textJson.value("fontName", textComponent->GetFontName()));
+			textComponent->SetFontSize(textJson.value("fontSize", textComponent->GetFontSize()));
+			textComponent->SetAnchor(static_cast<TextComponent::Anchor>(textJson.value("anchor", static_cast<int>(textComponent->GetAnchor()))));
+			textComponent->SetColor(JsonToVector4(textJson.value("color", nlohmann::json::array()), textComponent->GetColor()));
 		}
 		if (Object3dComponent* object3dComponent = object->GetComponent<Object3dComponent>()) {
 			const nlohmann::json object3dJson = objectJson.value("object3d", nlohmann::json::object());
@@ -486,6 +531,9 @@ BaseScene::EditorCreateType BaseScene::EditorCreateTypeFromName(const std::strin
 	}
 	if (typeName == "Sprite") {
 		return EditorCreateType::Sprite;
+	}
+	if (typeName == "Text") {
+		return EditorCreateType::Text;
 	}
 	if (typeName == "LoadedModel" || typeName.starts_with("LoadedModel:")) {
 		return EditorCreateType::LoadedModel;
