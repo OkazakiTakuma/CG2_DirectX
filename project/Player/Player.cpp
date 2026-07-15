@@ -51,14 +51,15 @@ void Player::Update() {
 
 	const float moveLength = Length(move);
 	Vector3 targetVelocity{0.0f, 0.0f, 0.0f};
+	const float effectiveMoveSpeed = GetEffectiveMoveSpeed();
 	if (moveLength > 0.00001f) {
 		const Vector3 moveDirection = {move.x / moveLength, 0.0f, move.z / moveLength};
 		const float moveAmount = moveLength > 1.0f ? 1.0f : moveLength;
-		targetVelocity = (moveSpeed_ * moveAmount) * moveDirection;
+		targetVelocity = (effectiveMoveSpeed * moveAmount) * moveDirection;
 	}
 
 	const bool hasMoveInput = Length(targetVelocity) > 0.00001f;
-	const float smoothingDelta = hasMoveInput ? moveSpeed_ * 0.18f : moveSpeed_ * 0.14f;
+	const float smoothingDelta = hasMoveInput ? effectiveMoveSpeed * 0.18f : effectiveMoveSpeed * 0.14f;
 	currentMoveVelocity_ = MoveTowards(currentMoveVelocity_, targetVelocity, smoothingDelta);
 
 	const float currentSpeed = Length(currentMoveVelocity_);
@@ -79,6 +80,41 @@ void Player::Update() {
 	};
 	owner->GetTransform().rotate.y = std::atan2(currentMoveDirection.x, currentMoveDirection.z);
 	owner->GetTransform().translate = owner->GetTransform().translate + currentMoveVelocity_;
+}
+
+void Player::ApplyStats(const PlayerStats& stats) {
+	ApplyStats(stats, stats);
+}
+
+void Player::ApplyStats(const PlayerStats& baseStats, const PlayerStats& effectiveStats) {
+	stats_ = baseStats;
+	effectiveStats_ = effectiveStats;
+	effectiveStats_.level = stats_.level;
+	effectiveStats_.experience = stats_.experience;
+	moveSpeed_ = effectiveStats_.baseSpeed;
+	SetModelFilePath(stats_.modelFilePath, stats_.isAnimationModel);
+	const float maxHealth = GetMaxHealth();
+	if (currentHealth_ <= 0.0f || currentHealth_ > maxHealth) {
+		currentHealth_ = maxHealth;
+	}
+}
+
+int Player::TakeDamage(float rawDamage) {
+	const float damageRate = 1.0f - (effectiveStats_.defense * 0.01f);
+	const float clampedRate = damageRate < 0.0f ? 0.0f : damageRate;
+	const int damage = static_cast<int>(std::ceil(rawDamage * clampedRate));
+	SetCurrentHealth(currentHealth_ - static_cast<float>(damage));
+	return damage;
+}
+
+void Player::AddExperience(int experience) {
+	if (experience <= 0) {
+		return;
+	}
+	const float correctionRate = effectiveStats_.experienceCorrection / 100.0f;
+	const int correctedExperience = static_cast<int>(std::ceil(static_cast<float>(experience) * correctionRate));
+	stats_.experience += correctedExperience;
+	effectiveStats_.experience = stats_.experience;
 }
 
 /// <summary>

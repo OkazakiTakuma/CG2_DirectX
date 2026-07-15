@@ -110,6 +110,15 @@ GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::stri
 		sprite->SetSize({100.0f, 100.0f});
 		break;
 	}
+	case EditorCreateType::Text: {
+		object->SetName(MakeUniqueObjectName("Text"));
+		TextComponent* text = object->AddComponent<TextComponent>();
+		text->SetText("Text");
+		text->SetFontName("Default");
+		text->SetFontSize(32.0f);
+		object->GetTransform().translate = {100.0f, 100.0f, 0.0f};
+		break;
+	}
 	case EditorCreateType::LoadedModel: {
 		if (modelFilePath.empty() || !ModelManager::GetInstance()->FindModel(modelFilePath)) {
 			return nullptr;
@@ -178,15 +187,26 @@ GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::stri
 		break;
 	}
 	case EditorCreateType::Player: {
-		object->SetName(MakeUniqueObjectName("Player"));
+		const std::string playerTypeName = modelFilePath.empty() ? "Default" : modelFilePath;
+		PlayerStats playerStats = LoadPlayerStats(playerTypeName);
+		object->SetName(MakeUniqueObjectName(playerTypeName.empty() ? "Player" : playerTypeName));
 		Player* player = object->AddComponent<Player>();
+		player->SetPlayerTypeName(playerTypeName);
+		player->ApplyStats(playerStats, ApplyPlayerStatusItems(playerStats));
 		player->SetSpawnPoint(object->GetTransform().translate);
+		PlayerAttackComponent* attack = object->AddComponent<PlayerAttackComponent>();
+		ApplyPlayerAttackSlots(attack, playerStats);
 
 		Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
-		std::string playerModelFilePath = modelFilePath;
+		std::string playerModelFilePath = playerStats.modelFilePath;
+		if (!playerModelFilePath.empty() && !ModelManager::GetInstance()->FindModel(playerModelFilePath)) {
+			ModelManager::GetInstance()->LoadModel(playerModelFilePath);
+		}
 		if (playerModelFilePath.empty() || !ModelManager::GetInstance()->FindModel(playerModelFilePath)) {
 			ModelManager::GetInstance()->LoadModel("sphere.obj");
 			playerModelFilePath = "sphere.obj";
+			playerStats.modelFilePath = playerModelFilePath;
+			player->ApplyStats(playerStats, ApplyPlayerStatusItems(playerStats));
 		}
 		object3d->SetModel(playerModelFilePath);
 		Model* playerModel = ModelManager::GetInstance()->FindModel(playerModelFilePath);
@@ -291,7 +311,7 @@ void BaseScene::DrawEditorHierarchy() {
 	DrawEditorCameraSelector();
 	ImGui::Separator();
 
-	const char* createLabels[] = {"Empty", "Sphere", "Cylinder Capped", "Cylinder Open", "Sprite", "Model", "Animation Model", "Camera", "Point Light", "Particle Emitter", "Player", "Enemy Spawn Point", "Enemy"};
+	const char* createLabels[] = {"Empty", "Sphere", "Cylinder Capped", "Cylinder Open", "Sprite", "Text", "Model", "Animation Model", "Camera", "Point Light", "Particle Emitter", "Player", "Enemy Spawn Point", "Enemy"};
 	int createTypeIndex = static_cast<int>(createType_);
 	if (ImGui::Combo("Type", &createTypeIndex, createLabels, _countof(createLabels))) {
 		createType_ = static_cast<EditorCreateType>(createTypeIndex);
@@ -300,6 +320,7 @@ void BaseScene::DrawEditorHierarchy() {
 	std::string selectedModelFilePath;
 	std::string selectedParticlePresetName;
 	std::string selectedEnemyTypeName = "Default";
+	std::string selectedPlayerTypeName = "Default";
 	if (createType_ == EditorCreateType::Sprite) {
 		const std::vector<std::string> textures = CollectResourceTexturePaths();
 		if (textures.empty()) {
@@ -359,23 +380,22 @@ void BaseScene::DrawEditorHierarchy() {
 		}
 	}
 	if (createType_ == EditorCreateType::Player) {
-		const std::vector<std::string> loadedModels = CollectAllLoadedModelNames();
-		if (loadedModels.empty()) {
-			ImGui::Text("No loaded models");
+		const std::vector<std::string> playerTypes = LoadPlayerTypeNames();
+		if (playerTypes.empty()) {
+			ImGui::Text("No player types");
 		} else {
-			if (selectedPlayerModelIndex_ >= static_cast<int>(loadedModels.size())) {
-				selectedPlayerModelIndex_ = 0;
+			if (selectedPlayerTypeIndex_ >= static_cast<int>(playerTypes.size())) {
+				selectedPlayerTypeIndex_ = 0;
 			}
-
-			std::vector<std::string> modelLabels;
-			modelLabels.reserve(loadedModels.size());
-			for (const std::string& modelName : loadedModels) {
-				Model* model = ModelManager::GetInstance()->FindModel(modelName);
-				modelLabels.push_back(model && model->GetIsAnimation() ? "[Anim] " + modelName : "[Model] " + modelName);
-			}
-			std::vector<const char*> loadedModelLabels = MakeLabelPointers(modelLabels);
-			ImGui::Combo("Player Model", &selectedPlayerModelIndex_, loadedModelLabels.data(), static_cast<int>(loadedModelLabels.size()));
-			selectedModelFilePath = loadedModels[selectedPlayerModelIndex_];
+			std::vector<const char*> playerTypeLabels = MakeLabelPointers(playerTypes);
+			ImGui::Combo("Create Player Type", &selectedPlayerTypeIndex_, playerTypeLabels.data(), static_cast<int>(playerTypeLabels.size()));
+			selectedPlayerTypeName = playerTypes[selectedPlayerTypeIndex_];
+			const PlayerStats previewStats = LoadPlayerStats(selectedPlayerTypeName);
+			ImGui::Text("Model: %s", previewStats.modelFilePath.empty() ? "None" : previewStats.modelFilePath.c_str());
+			ImGui::Text("Health: %.1f  Attack: %.1f  Speed: %.3f",
+			    previewStats.baseHealth * (previewStats.health / 100.0f),
+			    previewStats.attack,
+			    previewStats.baseSpeed * (previewStats.speed / 100.0f));
 		}
 	}
 	if (createType_ == EditorCreateType::Enemy) {
@@ -392,10 +412,13 @@ void BaseScene::DrawEditorHierarchy() {
 		}
 	}
 
-	if (ImGui::Button("Create")) {
+	const char* createButtonLabel = createType_ == EditorCreateType::Player ? "Create Player" : "Create";
+	if (ImGui::Button(createButtonLabel)) {
 		std::string createArgument = selectedModelFilePath;
 		if (createType_ == EditorCreateType::ParticleEmitter) {
 			createArgument = selectedParticlePresetName;
+		} else if (createType_ == EditorCreateType::Player) {
+			createArgument = selectedPlayerTypeName;
 		} else if (createType_ == EditorCreateType::Enemy) {
 			createArgument = selectedEnemyTypeName;
 		}
@@ -617,6 +640,9 @@ void BaseScene::DrawEditorInspector() {
 	if (selectedObject->GetComponent<SpriteComponent>()) {
 		componentLabels.push_back("Sprite");
 	}
+	if (selectedObject->GetComponent<TextComponent>()) {
+		componentLabels.push_back("Text");
+	}
 	if (selectedObject->GetComponent<CameraComponent>()) {
 		componentLabels.push_back("Camera");
 	}
@@ -625,6 +651,9 @@ void BaseScene::DrawEditorInspector() {
 	}
 	if (selectedObject->GetComponent<Player>()) {
 		componentLabels.push_back("Player");
+	}
+	if (selectedObject->GetComponent<PlayerAttackComponent>()) {
+		componentLabels.push_back("PlayerAttack");
 	}
 	if (selectedObject->GetComponent<EnemySpawnPointComponent>()) {
 		componentLabels.push_back("EnemySpawnPoint");
@@ -678,9 +707,11 @@ void BaseScene::DrawEditorInspector() {
 	ImGui::Text("Component Enabled");
 	drawComponentEnabledCheckbox("Object3d Enabled", selectedObject->GetComponent<Object3dComponent>());
 	drawComponentEnabledCheckbox("Sprite Enabled", selectedObject->GetComponent<SpriteComponent>());
+	drawComponentEnabledCheckbox("Text Enabled", selectedObject->GetComponent<TextComponent>());
 	drawComponentEnabledCheckbox("Camera Enabled", selectedObject->GetComponent<CameraComponent>());
 	drawComponentEnabledCheckbox("ParticleEmitter Enabled", selectedObject->GetComponent<ParticleEmitterComponent>());
 	drawComponentEnabledCheckbox("Player Enabled", selectedObject->GetComponent<Player>());
+	drawComponentEnabledCheckbox("PlayerAttack Enabled", selectedObject->GetComponent<PlayerAttackComponent>());
 	drawComponentEnabledCheckbox("EnemySpawnPoint Enabled", selectedObject->GetComponent<EnemySpawnPointComponent>());
 	drawComponentEnabledCheckbox("Enemy Enabled", selectedObject->GetComponent<EnemyComponent>());
 	drawComponentEnabledCheckbox("OBBCollider Enabled", selectedObject->GetComponent<OBBColliderComponent>());
@@ -689,9 +720,11 @@ void BaseScene::DrawEditorInspector() {
 	ImGui::Text("Component Gravity");
 	drawComponentGravityControls("Object3d Gravity", selectedObject->GetComponent<Object3dComponent>());
 	drawComponentGravityControls("Sprite Gravity", selectedObject->GetComponent<SpriteComponent>());
+	drawComponentGravityControls("Text Gravity", selectedObject->GetComponent<TextComponent>());
 	drawComponentGravityControls("Camera Gravity", selectedObject->GetComponent<CameraComponent>());
 	drawComponentGravityControls("ParticleEmitter Gravity", selectedObject->GetComponent<ParticleEmitterComponent>());
 	drawComponentGravityControls("Player Gravity", selectedObject->GetComponent<Player>());
+	drawComponentGravityControls("PlayerAttack Gravity", selectedObject->GetComponent<PlayerAttackComponent>());
 	drawComponentGravityControls("EnemySpawnPoint Gravity", selectedObject->GetComponent<EnemySpawnPointComponent>());
 	drawComponentGravityControls("Enemy Gravity", selectedObject->GetComponent<EnemyComponent>());
 	drawComponentGravityControls("OBBCollider Gravity", selectedObject->GetComponent<OBBColliderComponent>());
@@ -807,66 +840,70 @@ void BaseScene::DrawEditorInspector() {
 			spriteComponent->SetSize(size);
 		}
 	}
+	if (TextComponent* textComponent = selectedObject->GetComponent<TextComponent>()) {
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("TextComponent", ImGuiTreeNodeFlags_DefaultOpen)) {
+			const std::string currentText = textComponent->GetText();
+			const size_t copyLength = (std::min)(currentText.size(), textEditBuffer_.size() - 1);
+			std::memcpy(textEditBuffer_.data(), currentText.data(), copyLength);
+			textEditBuffer_[copyLength] = '\0';
+			ImGui::SetNextItemWidth(-1.0f);
+			if (ImGui::InputTextMultiline("Text", textEditBuffer_.data(), textEditBuffer_.size(), ImVec2(0.0f, 80.0f))) {
+				textComponent->SetText(textEditBuffer_.data());
+			}
+
+			std::vector<std::string> fontNames = ImGuiManager::GetInstance()->GetAvailableFontNames();
+			if (fontNames.empty()) {
+				fontNames.push_back("Default");
+			}
+			int fontIndex = 0;
+			for (int index = 0; index < static_cast<int>(fontNames.size()); ++index) {
+				if (fontNames[index] == textComponent->GetFontName()) {
+					fontIndex = index;
+					break;
+				}
+			}
+			std::vector<const char*> fontLabels = MakeLabelPointers(fontNames);
+			ImGui::SetNextItemWidth(-1.0f);
+			if (ImGui::Combo("Font", &fontIndex, fontLabels.data(), static_cast<int>(fontLabels.size()))) {
+				textComponent->SetFontName(fontNames[fontIndex]);
+			}
+
+			float fontSize = textComponent->GetFontSize();
+			ImGui::SetNextItemWidth(-1.0f);
+			if (ImGui::DragFloat("Font Size", &fontSize, 1.0f, 1.0f, 256.0f)) {
+				textComponent->SetFontSize(fontSize);
+			}
+
+			const char* anchorLabels[] = {
+			    "Top Left",
+			    "Top Center",
+			    "Top Right",
+			    "Center Left",
+			    "Center",
+			    "Center Right",
+			    "Bottom Left",
+			    "Bottom Center",
+			    "Bottom Right"
+			};
+			int anchorIndex = static_cast<int>(textComponent->GetAnchor());
+			ImGui::SetNextItemWidth(-1.0f);
+			if (ImGui::Combo("Anchor", &anchorIndex, anchorLabels, _countof(anchorLabels))) {
+				textComponent->SetAnchor(static_cast<TextComponent::Anchor>(anchorIndex));
+			}
+
+			Vector4 color = textComponent->GetColor();
+			ImGui::SetNextItemWidth(-1.0f);
+			if (ImGui::ColorEdit4("Color", &color.x)) {
+				textComponent->SetColor(color);
+			}
+		}
+	}
 	if (selectedObject->GetComponent<CameraComponent>() && selectedComponentLabel == "Camera") {
 		DrawCameraInspector(selectedObject);
 	}
 	if (selectedObject->GetComponent<ParticleEmitterComponent>()) {
 		DrawParticleEmitterInspector(selectedObject);
-	}
-	if (Player* player = selectedObject->GetComponent<Player>()) {
-		ImGui::Separator();
-		ImGui::Text("PlayerComponent");
-
-		Vector3 spawnPoint = player->GetSpawnPoint();
-		if (ImGui::DragFloat3("Spawn Point", &spawnPoint.x, 0.1f)) {
-			player->SetSpawnPoint(spawnPoint);
-		}
-		float moveSpeed = player->GetMoveSpeed();
-		if (ImGui::DragFloat("Move Speed", &moveSpeed, 0.01f, 0.0f, 100.0f)) {
-			player->SetMoveSpeed(moveSpeed);
-		}
-		if (ImGui::Button("Set Spawn To Current")) {
-			player->SetSpawnPoint(selectedObject->GetTransform().translate);
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Reset To Spawn")) {
-			player->ResetToSpawnPoint();
-		}
-		if (ImGui::Button("Save Spawn Point")) {
-			SaveEditorObjects();
-		}
-
-		const std::vector<std::string> loadedModels = CollectAllLoadedModelNames();
-		if (!loadedModels.empty()) {
-			int modelIndex = 0;
-			for (int index = 0; index < static_cast<int>(loadedModels.size()); index++) {
-				if (loadedModels[index] == player->GetModelFilePath()) {
-					modelIndex = index;
-					break;
-				}
-			}
-
-			std::vector<std::string> modelLabels;
-			modelLabels.reserve(loadedModels.size());
-			for (const std::string& modelName : loadedModels) {
-				Model* model = ModelManager::GetInstance()->FindModel(modelName);
-				modelLabels.push_back(model && model->GetIsAnimation() ? "[Anim] " + modelName : "[Model] " + modelName);
-			}
-			std::vector<const char*> loadedModelLabels = MakeLabelPointers(modelLabels);
-			if (ImGui::Combo("Player Model", &modelIndex, loadedModelLabels.data(), static_cast<int>(loadedModelLabels.size()))) {
-				const std::string& modelFilePath = loadedModels[modelIndex];
-				Model* model = ModelManager::GetInstance()->FindModel(modelFilePath);
-				const bool isAnimationModel = model && model->GetIsAnimation();
-				player->SetModelFilePath(modelFilePath, isAnimationModel);
-				if (Object3dComponent* object3dComponent = selectedObject->GetComponent<Object3dComponent>()) {
-					object3dComponent->SetModel(modelFilePath);
-					object3dComponent->SetDrawSkeleton(isAnimationModel);
-				}
-			}
-			ImGui::Text("Current Player Model: %s", player->GetModelFilePath().empty() ? "None" : player->GetModelFilePath().c_str());
-		} else {
-			ImGui::Text("No loaded models");
-		}
 	}
 	if (EnemyComponent* enemy = selectedObject->GetComponent<EnemyComponent>()) {
 		ImGui::Separator();
@@ -896,6 +933,28 @@ void BaseScene::DrawEditorInspector() {
 		statsChanged |= ImGui::Checkbox("Shoots", &stats.shoots);
 		statsChanged |= ImGui::DragFloat("Shoot Interval", &stats.shootingInterval, 0.01f, 0.0f, 1000.0f);
 		statsChanged |= ImGui::DragFloat("Spawns Per Minute", &stats.spawnsPerMinute, 0.1f, 0.0f, 10000.0f);
+		statsChanged |= ImGui::DragInt("Drop Experience", &stats.experience, 1.0f, 0, 100000);
+		const std::vector<std::string> experienceModels = CollectAllLoadedModelNames();
+		if (!experienceModels.empty()) {
+			int experienceModelIndex = 0;
+			for (int index = 0; index < static_cast<int>(experienceModels.size()); ++index) {
+				if (experienceModels[index] == stats.experienceModelFilePath) {
+					experienceModelIndex = index;
+					break;
+				}
+			}
+			std::vector<std::string> experienceModelLabels;
+			experienceModelLabels.reserve(experienceModels.size());
+			for (const std::string& modelName : experienceModels) {
+				Model* model = ModelManager::GetInstance()->FindModel(modelName);
+				experienceModelLabels.push_back(model && model->GetIsAnimation() ? "[Anim] " + modelName : "[Model] " + modelName);
+			}
+			std::vector<const char*> experienceModelLabelPointers = MakeLabelPointers(experienceModelLabels);
+			if (ImGui::Combo("Experience Model", &experienceModelIndex, experienceModelLabelPointers.data(), static_cast<int>(experienceModelLabelPointers.size()))) {
+				stats.experienceModelFilePath = experienceModels[experienceModelIndex];
+				statsChanged = true;
+			}
+		}
 		if (statsChanged) {
 			enemy->ApplyStats(stats);
 		}
@@ -1017,6 +1076,482 @@ void BaseScene::DrawEditorInspector() {
 /// <summary>
 /// パーティクルエミッターコンポーネントの編集UIを描画します。
 /// </summary>
+void BaseScene::DrawPlayerInspector() {
+#ifdef USE_IMGUI
+	if (!ImGui::Begin("Player Inspector")) {
+		ImGui::End();
+		return;
+	}
+	if (selectedObjectIndex_ < 0 || selectedObjectIndex_ >= static_cast<int>(sceneObjects_.size())) {
+		ImGui::Text("No selected player");
+		ImGui::End();
+		return;
+	}
+
+	GameObject* selectedObject = sceneObjects_[selectedObjectIndex_].get();
+	Player* player = selectedObject->GetComponent<Player>();
+	if (!player) {
+		ImGui::Text("Selected object has no Player component");
+		ImGui::End();
+		return;
+	}
+
+	ImGui::Text("%s", selectedObject->GetName().c_str());
+	std::vector<std::string> playerTypes = LoadPlayerTypeNames();
+	int currentPlayerTypeIndex = 0;
+	for (int index = 0; index < static_cast<int>(playerTypes.size()); ++index) {
+		if (playerTypes[index] == player->GetPlayerTypeName()) {
+			currentPlayerTypeIndex = index;
+			break;
+		}
+	}
+	if (!playerTypes.empty()) {
+		std::vector<const char*> playerTypeLabels = MakeLabelPointers(playerTypes);
+		if (ImGui::Combo("Player Type", &currentPlayerTypeIndex, playerTypeLabels.data(), static_cast<int>(playerTypeLabels.size()))) {
+			const std::string& selectedTypeName = playerTypes[currentPlayerTypeIndex];
+			player->SetPlayerTypeName(selectedTypeName);
+			std::fill(playerTypeNameBuffer_.begin(), playerTypeNameBuffer_.end(), '\0');
+			const size_t copyLength = (std::min)(selectedTypeName.size(), playerTypeNameBuffer_.size() - 1);
+			std::memcpy(playerTypeNameBuffer_.data(), selectedTypeName.data(), copyLength);
+			PlayerStats stats = LoadPlayerStats(selectedTypeName);
+			player->ApplyStats(stats, ApplyPlayerStatusItems(stats));
+			if (PlayerAttackComponent* attack = selectedObject->GetComponent<PlayerAttackComponent>()) {
+				ApplyPlayerAttackSlots(attack, stats);
+			}
+			if (Object3dComponent* object3dComponent = selectedObject->GetComponent<Object3dComponent>()) {
+				if (!stats.modelFilePath.empty() && ModelManager::GetInstance()->FindModel(stats.modelFilePath)) {
+					object3dComponent->SetModel(stats.modelFilePath);
+					object3dComponent->SetDrawSkeleton(stats.isAnimationModel);
+				}
+			}
+		}
+	}
+
+	Vector3 spawnPoint = player->GetSpawnPoint();
+	if (ImGui::DragFloat3("Spawn Point", &spawnPoint.x, 0.1f)) {
+		player->SetSpawnPoint(spawnPoint);
+	}
+	if (ImGui::Button("Set Spawn To Current")) {
+		player->SetSpawnPoint(selectedObject->GetTransform().translate);
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Reset To Spawn")) {
+		player->ResetToSpawnPoint();
+	}
+	if (ImGui::Button("Save Spawn Point")) {
+		SaveEditorObjects();
+	}
+
+	PlayerStats stats = player->GetBaseStats();
+	bool statsChanged = false;
+	bool statusSlotsChanged = false;
+	if (playerTypeNameBuffer_[0] == '\0') {
+		const std::string& currentTypeName = player->GetPlayerTypeName();
+		const size_t copyLength = (std::min)(currentTypeName.size(), playerTypeNameBuffer_.size() - 1);
+		std::memcpy(playerTypeNameBuffer_.data(), currentTypeName.data(), copyLength);
+		playerTypeNameBuffer_[copyLength] = '\0';
+	}
+	ImGui::InputText("Status Name", playerTypeNameBuffer_.data(), playerTypeNameBuffer_.size());
+	statsChanged |= ImGui::DragFloat("Base Health", &stats.baseHealth, 1.0f, 0.0f, 100000.0f);
+	statsChanged |= ImGui::DragFloat("Health %", &stats.health, 1.0f, 0.0f, 100000.0f);
+	statsChanged |= ImGui::DragFloat("Attack", &stats.attack, 1.0f, 0.0f, 100000.0f);
+	statsChanged |= ImGui::DragFloat("Defense", &stats.defense, 1.0f, 0.0f, 10000.0f);
+	statsChanged |= ImGui::DragFloat("Base Speed", &stats.baseSpeed, 0.001f, 0.0f, 100.0f);
+	statsChanged |= ImGui::DragFloat("Speed %", &stats.speed, 1.0f, 0.0f, 100000.0f);
+	statsChanged |= ImGui::DragFloat("Attack Speed", &stats.attackSpeed, 1.0f, 0.0f, 100000.0f);
+	statsChanged |= ImGui::DragFloat("Attack Size", &stats.attackSize, 1.0f, 0.0f, 100000.0f);
+	statsChanged |= ImGui::DragInt("Level", &stats.level, 1.0f, 1, 100000);
+	statsChanged |= ImGui::DragInt("Experience", &stats.experience, 1.0f, 0, 100000000);
+	statsChanged |= ImGui::DragFloat("Experience Correction %", &stats.experienceCorrection, 1.0f, 0.0f, 100000.0f);
+	ImGui::Text("Max Health: %.1f", stats.baseHealth * (stats.health / 100.0f));
+	ImGui::Text("Effective Speed: %.3f", stats.baseSpeed * (stats.speed / 100.0f));
+	float currentHealth = player->GetCurrentHealth();
+	if (ImGui::DragFloat("Current Health", &currentHealth, 1.0f, 0.0f, player->GetMaxHealth())) {
+		player->SetCurrentHealth(currentHealth);
+	}
+	if (!isPlayerAttackCacheLoaded_) {
+		ReloadPlayerAttackInspectorCache();
+	}
+	std::vector<std::string> attackLevels = GetPlayerAttackLevels();
+	const std::vector<std::string>& attackNames = cachedPlayerAttackNames_;
+	if (!attackNames.empty()) {
+		std::vector<std::string> attackSlotLabels;
+		attackSlotLabels.reserve(attackNames.size() + 1);
+		attackSlotLabels.push_back("None");
+		attackSlotLabels.insert(attackSlotLabels.end(), attackNames.begin(), attackNames.end());
+		std::vector<const char*> attackLabels = MakeLabelPointers(attackSlotLabels);
+		std::vector<const char*> attackLevelLabels = MakeLabelPointers(attackLevels);
+		if (ImGui::CollapsingHeader("Attack Slots", ImGuiTreeNodeFlags_DefaultOpen)) {
+			for (int slotIndex = 0; slotIndex < static_cast<int>(stats.attackSlots.size()); ++slotIndex) {
+				ImGui::PushID(slotIndex);
+				PlayerAttackSlot& slot = stats.attackSlots[slotIndex];
+				ImGui::Separator();
+				ImGui::Text("Slot %d", slotIndex + 1);
+				if (ImGui::Checkbox("Enabled", &slot.enabled)) {
+					statsChanged = true;
+				}
+				int attackIndex = 0;
+				for (int index = 0; index < static_cast<int>(attackNames.size()); ++index) {
+					if (attackNames[index] == slot.attackName) {
+						attackIndex = index + 1;
+						break;
+					}
+				}
+				if (ImGui::Combo("Attack", &attackIndex, attackLabels.data(), static_cast<int>(attackLabels.size()))) {
+					slot.attackName = attackIndex <= 0 ? "" : attackNames[attackIndex - 1];
+					if (slot.attackName.empty()) {
+						slot.enabled = false;
+					}
+					statsChanged = true;
+				}
+				int attackLevelIndex = 0;
+				for (int index = 0; index < static_cast<int>(attackLevels.size()); ++index) {
+					if (attackLevels[index] == slot.attackLevel) {
+						attackLevelIndex = index;
+						break;
+					}
+				}
+				if (ImGui::Combo("Level", &attackLevelIndex, attackLevelLabels.data(), static_cast<int>(attackLevelLabels.size()))) {
+					slot.attackLevel = attackLevels[attackLevelIndex];
+					statsChanged = true;
+				}
+				ImGui::PopID();
+			}
+		}
+	}
+
+	if (ImGui::CollapsingHeader("Status Slots", ImGuiTreeNodeFlags_DefaultOpen)) {
+		std::vector<std::string> statusItemNames = LoadPlayerStatusItemNames();
+		std::vector<std::string> statusSlotLabels;
+		statusSlotLabels.reserve(statusItemNames.size() + 1);
+		statusSlotLabels.push_back("None");
+		statusSlotLabels.insert(statusSlotLabels.end(), statusItemNames.begin(), statusItemNames.end());
+		std::vector<const char*> statusLabels = MakeLabelPointers(statusSlotLabels);
+		std::vector<std::string> statusLevels = GetPlayerStatusItemLevels();
+		std::vector<const char*> statusLevelLabels = MakeLabelPointers(statusLevels);
+		for (int slotIndex = 0; slotIndex < static_cast<int>(stats.statusSlots.size()); ++slotIndex) {
+			ImGui::PushID(1000 + slotIndex);
+			PlayerStatusSlot& slot = stats.statusSlots[slotIndex];
+			ImGui::Separator();
+			ImGui::Text("Status Slot %d", slotIndex + 1);
+			if (ImGui::Checkbox("Enabled", &slot.enabled)) {
+				if (slot.statusName.empty()) {
+					slot.enabled = false;
+				}
+				statsChanged = true;
+				statusSlotsChanged = true;
+			}
+
+			int statusIndex = 0;
+			for (int index = 0; index < static_cast<int>(statusItemNames.size()); ++index) {
+				if (statusItemNames[index] == slot.statusName) {
+					statusIndex = index + 1;
+					break;
+				}
+			}
+			if (ImGui::Combo("Status Item", &statusIndex, statusLabels.data(), static_cast<int>(statusLabels.size()))) {
+				slot.statusName = statusIndex <= 0 ? "" : statusItemNames[statusIndex - 1];
+				if (slot.statusName.empty()) {
+					slot.enabled = false;
+				} else {
+					slot.enabled = true;
+				}
+				statsChanged = true;
+				statusSlotsChanged = true;
+			}
+			int statusLevelIndex = 0;
+			for (int index = 0; index < static_cast<int>(statusLevels.size()); ++index) {
+				if (statusLevels[index] == slot.level) {
+					statusLevelIndex = index;
+					break;
+				}
+			}
+			if (ImGui::Combo("Level", &statusLevelIndex, statusLevelLabels.data(), static_cast<int>(statusLevelLabels.size()))) {
+				slot.level = statusLevels[statusLevelIndex];
+				if (!slot.statusName.empty()) {
+					slot.enabled = true;
+				}
+				statsChanged = true;
+				statusSlotsChanged = true;
+			}
+			ImGui::PopID();
+		}
+	}
+	const PlayerStats appliedStatusStats = ApplyPlayerStatusItems(stats);
+	if (ImGui::CollapsingHeader("Applied Status", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Text("Base Health: %.1f", appliedStatusStats.baseHealth);
+		ImGui::Text("Health %%: %.1f", appliedStatusStats.health);
+		ImGui::Text("Max Health: %.1f", appliedStatusStats.baseHealth * (appliedStatusStats.health / 100.0f));
+		ImGui::Text("Attack: %.1f", appliedStatusStats.attack);
+		ImGui::Text("Defense: %.1f", appliedStatusStats.defense);
+		ImGui::Text("Base Speed: %.3f", appliedStatusStats.baseSpeed);
+		ImGui::Text("Speed %%: %.1f", appliedStatusStats.speed);
+		ImGui::Text("Effective Speed: %.3f", appliedStatusStats.baseSpeed * (appliedStatusStats.speed / 100.0f));
+		ImGui::Text("Attack Speed: %.1f", appliedStatusStats.attackSpeed);
+		ImGui::Text("Attack Size: %.1f", appliedStatusStats.attackSize);
+		ImGui::Text("Experience Correction %%: %.1f", appliedStatusStats.experienceCorrection);
+	}
+
+	if (ImGui::CollapsingHeader("Status Item Settings")) {
+		static int selectedStatusItemIndex = 0;
+		static std::array<char, 128> statusItemNameBuffer{};
+		static PlayerStatusItemStats editingStatusItemStats{};
+		static std::string editingStatusItemName;
+		static bool isEditingStatusItemLoaded = false;
+		std::vector<std::string> statusItemNames = LoadPlayerStatusItemNames();
+		if (selectedStatusItemIndex >= static_cast<int>(statusItemNames.size())) {
+			selectedStatusItemIndex = 0;
+		}
+		std::vector<const char*> statusItemLabels = MakeLabelPointers(statusItemNames);
+		if (!statusItemLabels.empty() && ImGui::Combo("Item", &selectedStatusItemIndex, statusItemLabels.data(), static_cast<int>(statusItemLabels.size()))) {
+			std::fill(statusItemNameBuffer.begin(), statusItemNameBuffer.end(), '\0');
+			isEditingStatusItemLoaded = false;
+		}
+
+		const std::string selectedItemName = statusItemNames.empty() ? "AttackUp" : statusItemNames[selectedStatusItemIndex];
+		if (!isEditingStatusItemLoaded || editingStatusItemName != selectedItemName) {
+			editingStatusItemStats = LoadPlayerStatusItemStats(selectedItemName);
+			editingStatusItemName = selectedItemName;
+			isEditingStatusItemLoaded = true;
+		}
+		if (statusItemNameBuffer[0] == '\0') {
+			const size_t copyLength = (std::min)(editingStatusItemStats.name.size(), statusItemNameBuffer.size() - 1);
+			std::memcpy(statusItemNameBuffer.data(), editingStatusItemStats.name.data(), copyLength);
+			statusItemNameBuffer[copyLength] = '\0';
+		}
+		ImGui::InputText("Item Name", statusItemNameBuffer.data(), statusItemNameBuffer.size());
+
+		const char* typeLabels[] = {"Attack", "HP", "AttackSpeed", "Speed", "Defense", "AttackSize", "Experience"};
+		int typeIndex = static_cast<int>(editingStatusItemStats.type);
+		if (ImGui::Combo("Type", &typeIndex, typeLabels, _countof(typeLabels))) {
+			editingStatusItemStats.type = static_cast<PlayerStatusItemType>(typeIndex);
+		}
+		for (int levelIndex = 0; levelIndex < static_cast<int>(editingStatusItemStats.levelAmounts.size()); ++levelIndex) {
+			ImGui::PushID(2000 + levelIndex);
+			ImGui::DragFloat(("Lv" + std::to_string(levelIndex + 1) + " Amount").c_str(), &editingStatusItemStats.levelAmounts[levelIndex], 1.0f, 0.0f, 100000.0f);
+			ImGui::PopID();
+		}
+		if (ImGui::Button("Save Status Item")) {
+			const std::string saveItemName = statusItemNameBuffer.data();
+			editingStatusItemStats.name = saveItemName.empty() ? selectedItemName : saveItemName;
+			SavePlayerStatusItemStats(editingStatusItemStats.name, editingStatusItemStats);
+			player->ApplyStats(stats, ApplyPlayerStatusItems(stats));
+			std::fill(statusItemNameBuffer.begin(), statusItemNameBuffer.end(), '\0');
+			isEditingStatusItemLoaded = false;
+		}
+	}
+
+	const std::vector<std::string> loadedModels = CollectAllLoadedModelNames();
+	if (!loadedModels.empty()) {
+		int modelIndex = 0;
+		for (int index = 0; index < static_cast<int>(loadedModels.size()); index++) {
+			if (loadedModels[index] == stats.modelFilePath) {
+				modelIndex = index;
+				break;
+			}
+		}
+
+		std::vector<std::string> modelLabels;
+		modelLabels.reserve(loadedModels.size());
+		for (const std::string& modelName : loadedModels) {
+			Model* model = ModelManager::GetInstance()->FindModel(modelName);
+			modelLabels.push_back(model && model->GetIsAnimation() ? "[Anim] " + modelName : "[Model] " + modelName);
+		}
+		std::vector<const char*> loadedModelLabels = MakeLabelPointers(modelLabels);
+		if (ImGui::Combo("Player Model", &modelIndex, loadedModelLabels.data(), static_cast<int>(loadedModelLabels.size()))) {
+			const std::string& modelFilePath = loadedModels[modelIndex];
+			Model* model = ModelManager::GetInstance()->FindModel(modelFilePath);
+			const bool isAnimationModel = model && model->GetIsAnimation();
+			stats.modelFilePath = modelFilePath;
+			stats.isAnimationModel = isAnimationModel;
+			statsChanged = true;
+			if (Object3dComponent* object3dComponent = selectedObject->GetComponent<Object3dComponent>()) {
+				object3dComponent->SetModel(modelFilePath);
+				object3dComponent->SetDrawSkeleton(isAnimationModel);
+			}
+		}
+		ImGui::Text("Current Player Model: %s", stats.modelFilePath.empty() ? "None" : stats.modelFilePath.c_str());
+	} else {
+		ImGui::Text("No loaded models");
+	}
+
+	if (statsChanged) {
+		stats.initialAttackName = stats.attackSlots[0].attackName;
+		stats.initialAttackLevel = stats.attackSlots[0].attackLevel;
+		// ステータススロットはJSONへ即時保存せず、現在シーン上のプレイヤーにだけ反映する。
+		player->ApplyStats(stats, ApplyPlayerStatusItems(stats));
+		// ステータススロットはJSONへ即時保存せず、現在シーン上のプレイヤーにだけ反映する。
+		player->ApplyStats(stats, ApplyPlayerStatusItems(stats));
+		if (PlayerAttackComponent* attack = selectedObject->GetComponent<PlayerAttackComponent>()) {
+			ApplyPlayerAttackSlots(attack, stats);
+		}
+	}
+	if (statusSlotsChanged) {
+		ImGui::Text("Status slots applied to current player only.");
+	}
+	if (ImGui::Button("Save Player Type")) {
+		const std::string saveTypeName = playerTypeNameBuffer_.data();
+		player->SetPlayerTypeName(saveTypeName.empty() ? player->GetPlayerTypeName() : saveTypeName);
+		PlayerStats saveStats = player->GetBaseStats();
+		saveStats.name = player->GetPlayerTypeName();
+		player->ApplyStats(saveStats, ApplyPlayerStatusItems(saveStats));
+		SavePlayerStats(player->GetPlayerTypeName(), saveStats);
+	}
+
+	ImGui::End();
+#endif
+}
+
+void BaseScene::ReloadPlayerAttackInspectorCache() {
+	cachedPlayerAttackNames_ = LoadPlayerAttackNames();
+	if (cachedPlayerAttackNames_.empty()) {
+		cachedPlayerAttackNames_.push_back("Straight");
+	}
+	cachedPlayerAttackStats_.clear();
+	cachedPlayerAttackStats_.reserve(cachedPlayerAttackNames_.size());
+	for (const std::string& attackName : cachedPlayerAttackNames_) {
+		cachedPlayerAttackStats_.push_back(LoadPlayerAttackStats(attackName));
+	}
+	if (selectedPlayerAttackTypeIndex_ >= static_cast<int>(cachedPlayerAttackNames_.size())) {
+		selectedPlayerAttackTypeIndex_ = 0;
+	}
+	std::fill(playerAttackNameBuffer_.begin(), playerAttackNameBuffer_.end(), '\0');
+	isPlayerAttackCacheLoaded_ = true;
+}
+
+PlayerAttackStats* BaseScene::FindCachedPlayerAttackStats(const std::string& attackName) {
+	if (!isPlayerAttackCacheLoaded_) {
+		ReloadPlayerAttackInspectorCache();
+	}
+	const std::string targetName = attackName.empty() ? "Straight" : attackName;
+	for (PlayerAttackStats& stats : cachedPlayerAttackStats_) {
+		if (stats.name == targetName) {
+			return &stats;
+		}
+	}
+	return nullptr;
+}
+
+void BaseScene::DrawPlayerAttackInspector() {
+#ifdef USE_IMGUI
+	if (!ImGui::Begin("Player Attack Inspector")) {
+		ImGui::End();
+		return;
+	}
+
+	if (!isPlayerAttackCacheLoaded_) {
+		ReloadPlayerAttackInspectorCache();
+	}
+	if (ImGui::Button("Load")) {
+		ReloadPlayerAttackInspectorCache();
+	}
+	ImGui::SameLine();
+	ImGui::Text("Source: %s", kPlayerAttackStatusFilePath);
+
+	if (selectedPlayerAttackTypeIndex_ >= static_cast<int>(cachedPlayerAttackNames_.size())) {
+		selectedPlayerAttackTypeIndex_ = 0;
+	}
+
+	std::vector<const char*> attackLabels = MakeLabelPointers(cachedPlayerAttackNames_);
+	if (ImGui::Combo("Attack Type", &selectedPlayerAttackTypeIndex_, attackLabels.data(), static_cast<int>(attackLabels.size()))) {
+		std::fill(playerAttackNameBuffer_.begin(), playerAttackNameBuffer_.end(), '\0');
+	}
+	PlayerAttackStats* attackStats = selectedPlayerAttackTypeIndex_ < static_cast<int>(cachedPlayerAttackStats_.size()) ? &cachedPlayerAttackStats_[selectedPlayerAttackTypeIndex_] : nullptr;
+	if (!attackStats) {
+		ImGui::Text("No attack status");
+		ImGui::End();
+		return;
+	}
+
+	if (playerAttackNameBuffer_[0] == '\0') {
+		const size_t copyLength = (std::min)(attackStats->name.size(), playerAttackNameBuffer_.size() - 1);
+		std::memcpy(playerAttackNameBuffer_.data(), attackStats->name.data(), copyLength);
+		playerAttackNameBuffer_[copyLength] = '\0';
+	}
+	ImGui::InputText("Attack Name", playerAttackNameBuffer_.data(), playerAttackNameBuffer_.size());
+
+	std::vector<std::string> levelNames = GetPlayerAttackLevels();
+	if (selectedPlayerAttackLevelIndex_ >= static_cast<int>(levelNames.size())) {
+		selectedPlayerAttackLevelIndex_ = 0;
+	}
+	std::vector<const char*> levelLabels = MakeLabelPointers(levelNames);
+	ImGui::Combo("Level", &selectedPlayerAttackLevelIndex_, levelLabels.data(), static_cast<int>(levelLabels.size()));
+
+	PlayerAttackLevelStats* selectedLevel = nullptr;
+	for (PlayerAttackLevelStats& levelStats : attackStats->levels) {
+		if (levelStats.level == levelNames[selectedPlayerAttackLevelIndex_]) {
+			selectedLevel = &levelStats;
+			break;
+		}
+	}
+	if (!selectedLevel) {
+		attackStats->levels.push_back(MakeDefaultPlayerAttackLevelStats(levelNames[selectedPlayerAttackLevelIndex_]));
+		selectedLevel = &attackStats->levels.back();
+	}
+
+	bool changed = false;
+	changed |= ImGui::DragFloat("Attack", &selectedLevel->attack, 1.0f, 0.0f, 100000.0f);
+	changed |= ImGui::DragFloat("Speed", &selectedLevel->speed, 0.01f, 0.0f, 100.0f);
+	changed |= ImGui::DragFloat("Size %", &selectedLevel->size, 1.0f, 0.0f, 100000.0f);
+	changed |= ImGui::DragInt("Shot Count", &selectedLevel->shotCount, 1.0f, 1, 32);
+	while (static_cast<int>(selectedLevel->angles.size()) < selectedLevel->shotCount) {
+		selectedLevel->angles.push_back(0.0f);
+	}
+	while (static_cast<int>(selectedLevel->angles.size()) > selectedLevel->shotCount) {
+		selectedLevel->angles.pop_back();
+	}
+	for (int index = 0; index < selectedLevel->shotCount; ++index) {
+		std::string label = "Shot Angle " + std::to_string(index + 1);
+		changed |= ImGui::DragFloat(label.c_str(), &selectedLevel->angles[index], 1.0f, -180.0f, 180.0f);
+	}
+
+	const std::vector<std::string> loadedModels = CollectAllLoadedModelNames();
+	if (!loadedModels.empty()) {
+		int modelIndex = 0;
+		for (int index = 0; index < static_cast<int>(loadedModels.size()); ++index) {
+			if (loadedModels[index] == selectedLevel->modelFilePath) {
+				modelIndex = index;
+				break;
+			}
+		}
+		std::vector<const char*> modelLabels = MakeLabelPointers(loadedModels);
+		if (ImGui::Combo("Attack Model", &modelIndex, modelLabels.data(), static_cast<int>(modelLabels.size()))) {
+			selectedLevel->modelFilePath = loadedModels[modelIndex];
+			changed = true;
+		}
+	} else {
+		ImGui::Text("No loaded models");
+	}
+	changed |= ImGui::Checkbox("Homing", &selectedLevel->homing);
+	changed |= ImGui::SliderFloat("Homing Accuracy", &selectedLevel->homingAccuracy, 0.0f, 1.0f);
+	changed |= ImGui::DragFloat("Attack Interval", &selectedLevel->attackInterval, 0.01f, 0.01f, 100.0f);
+	changed |= ImGui::DragFloat("Life Time", &selectedLevel->lifeTime, 0.01f, 0.01f, 100.0f);
+	changed |= ImGui::DragInt("Pierce Count", &selectedLevel->pierceCount, 1.0f, 0, 1000);
+	changed |= ImGui::Checkbox("Infinite Pierce", &selectedLevel->infinitePierce);
+
+	const std::string currentAttackName = cachedPlayerAttackNames_[selectedPlayerAttackTypeIndex_];
+	if (changed) {
+		attackStats->name = currentAttackName;
+		for (const auto& object : sceneObjects_) {
+			PlayerAttackComponent* attack = object->GetComponent<PlayerAttackComponent>();
+			if (attack && attack->GetAttackName() == currentAttackName) {
+				attack->ApplyAttackStats(*attackStats, attack->GetLevel());
+			}
+		}
+	}
+	if (ImGui::Button("Save Attack Type")) {
+		const std::string saveName = playerAttackNameBuffer_.data();
+		const std::string finalName = saveName.empty() ? currentAttackName : saveName;
+		attackStats->name = finalName;
+		SavePlayerAttackStats(finalName, *attackStats);
+		cachedPlayerAttackNames_[selectedPlayerAttackTypeIndex_] = finalName;
+		std::fill(playerAttackNameBuffer_.begin(), playerAttackNameBuffer_.end(), '\0');
+	}
+
+	ImGui::End();
+#endif
+}
+
 void BaseScene::DrawParticleEmitterInspector(GameObject* selectedObject) {
 #ifdef USE_IMGUI
 	if (!selectedObject) {

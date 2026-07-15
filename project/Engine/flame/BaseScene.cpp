@@ -40,7 +40,10 @@ void BaseScene::UpdateSceneObjects() {
 	for (const auto& object : sceneObjects_) {
 		object->Update();
 	}
+	UpdatePlayerAttacks();
+	UpdatePlayerProjectileHits();
 	UpdateEnemySpawning();
+	CleanupExpiredPlayerProjectiles();
 	UpdateEditorObjectPicking();
 	UpdateEditorCameraControl();
 	UpdateColliderCollisions();
@@ -88,6 +91,8 @@ void BaseScene::DrawEditorImGui() {
 	DrawEditorHierarchy();
 	DrawEditorProjectAssets();
 	DrawEditorInspector();
+	DrawPlayerInspector();
+	DrawPlayerAttackInspector();
 	DrawEditorGizmo();
 	HandleGameViewAssetDrop();
 #endif

@@ -4,11 +4,21 @@
 #include "SrvManager.h"
 #include "WinApp.h"
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 #ifdef USE_IMGUI
 #include "../../../imgui/imgui.h"
 #include "../../../imgui/imgui_impl_dx12.h"
 #include "../../../imgui/imgui_impl_win32.h"
+#else
+struct ImFont;
+struct ImVec2 {
+	float x = 0.0f;
+	float y = 0.0f;
+	ImVec2() = default;
+	ImVec2(float xValue, float yValue) : x(xValue), y(yValue) {}
+};
 #endif
 
 class ImGuiManager {
@@ -58,6 +68,10 @@ public:
 	/// </summary>
 	void Draw();
 	bool ConsumeDroppedAsset(DroppedAssetPayload& outPayload);
+	std::vector<std::string> GetAvailableFontNames() const;
+	ImFont* GetFont(const std::string& fontName) const;
+	ImVec2 GetGameViewContentPosition() const { return gameViewContentPosition_; }
+	ImVec2 GetGameViewContentSize() const { return gameViewContentSize_; }
 
 private:
 	ImGuiManager() = default;
@@ -71,6 +85,7 @@ private:
 	void DrawUtilityWindows();
 	void DrawGameViewWindow();
 	void DrawEditorBackgroundMask(const ImVec2& gameViewPosition, const ImVec2& gameViewSize);
+	void LoadGameFonts();
 
 	ImGuiManager(const ImGuiManager&) = delete;
 	ImGuiManager& operator=(const ImGuiManager&) = delete;
@@ -81,4 +96,8 @@ private:
 	PerformanceMonitor performanceMonitor_;
 	DroppedAssetPayload droppedAssetPayload_;
 	bool hasDroppedAssetPayload_ = false;
+	std::vector<std::string> fontNames_;
+	std::unordered_map<std::string, ImFont*> fonts_;
+	ImVec2 gameViewContentPosition_ = {};
+	ImVec2 gameViewContentSize_ = {};
 };

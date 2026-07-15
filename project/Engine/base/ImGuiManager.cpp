@@ -33,7 +33,7 @@ float ClampLayoutValue(float value, float minValue, float maxValue) {
 /// <summary>
 /// ImGui に日本語グリフを含むフォントを設定します。
 /// </summary>
-void LoadJapaneseFont() {
+ImFont* LoadJapaneseFont() {
 	ImGuiIO& io = ImGui::GetIO();
 	const std::array<const char*, 5> fontPaths = {
 	    "C:/Windows/Fonts/meiryo.ttc",
@@ -57,11 +57,13 @@ void LoadJapaneseFont() {
 		ImFont* font = io.Fonts->AddFontFromFileTTF(fontPath, 18.0f, &fontConfig, io.Fonts->GetGlyphRangesJapanese());
 		if (font) {
 			io.FontDefault = font;
-			return;
+			return font;
 		}
 	}
 
-	io.Fonts->AddFontDefault();
+	ImFont* defaultFont = io.Fonts->AddFontDefault();
+	io.FontDefault = defaultFont;
+	return defaultFont;
 }
 #endif
 }
@@ -87,6 +89,7 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	LoadJapaneseFont();
+	LoadGameFonts();
 #ifdef IMGUI_HAS_DOCK
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	io.ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
@@ -132,6 +135,60 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 
 	ImGui_ImplDX12_Init(&initInfo);
 	performanceMonitor_.Initialize();
+#endif
+}
+
+void ImGuiManager::LoadGameFonts() {
+#ifdef USE_IMGUI
+	fontNames_.clear();
+	fonts_.clear();
+
+	ImGuiIO& io = ImGui::GetIO();
+	auto registerFont = [this](const std::string& name, ImFont* font) {
+		if (!font || fonts_.contains(name)) {
+			return;
+		}
+		fonts_[name] = font;
+		fontNames_.push_back(name);
+	};
+
+	registerFont("Default", io.FontDefault ? io.FontDefault : io.Fonts->AddFontDefault());
+
+	ImFontConfig fontConfig{};
+	fontConfig.MergeMode = false;
+	fontConfig.PixelSnapH = true;
+	fontConfig.OversampleH = 2;
+	fontConfig.OversampleV = 2;
+
+	const std::array<std::pair<const char*, const char*>, 5> windowsFonts = {
+	    std::pair<const char*, const char*>{"Meiryo", "C:/Windows/Fonts/meiryo.ttc"},
+	    std::pair<const char*, const char*>{"Yu Gothic", "C:/Windows/Fonts/YuGothM.ttc"},
+	    std::pair<const char*, const char*>{"Yu Gothic Regular", "C:/Windows/Fonts/YuGothR.ttc"},
+	    std::pair<const char*, const char*>{"MS Gothic", "C:/Windows/Fonts/msgothic.ttc"},
+	    std::pair<const char*, const char*>{"Meiryo Bold", "C:/Windows/Fonts/meiryob.ttc"},
+	};
+	for (const auto& [name, path] : windowsFonts) {
+		if (!std::filesystem::exists(path)) {
+			continue;
+		}
+		registerFont(name, io.Fonts->AddFontFromFileTTF(path, 32.0f, &fontConfig, io.Fonts->GetGlyphRangesJapanese()));
+	}
+
+	const std::filesystem::path fontDirectory = "Resources/Fonts";
+	if (std::filesystem::exists(fontDirectory)) {
+		for (const auto& entry : std::filesystem::recursive_directory_iterator(fontDirectory)) {
+			if (!entry.is_regular_file()) {
+				continue;
+			}
+			const std::string extension = entry.path().extension().string();
+			if (extension != ".ttf" && extension != ".otf" && extension != ".ttc") {
+				continue;
+			}
+			const std::string name = entry.path().stem().string();
+			const std::string path = entry.path().generic_string();
+			registerFont(name, io.Fonts->AddFontFromFileTTF(path.c_str(), 32.0f, &fontConfig, io.Fonts->GetGlyphRangesJapanese()));
+		}
+	}
 #endif
 }
 
@@ -231,6 +288,8 @@ void ImGuiManager::SetupExternalEditorDockSpaces() {
 		ImGui::DockBuilderDockWindow("Hierarchy", leftId);
 		ImGui::DockBuilderDockWindow("Scene Objects", leftId);
 		ImGui::DockBuilderDockWindow("Component Inspector", rightId);
+		ImGui::DockBuilderDockWindow("Player Inspector", rightId);
+		ImGui::DockBuilderDockWindow("Player Attack Inspector", rightId);
 		ImGui::DockBuilderDockWindow("Inspector", rightId);
 		ImGui::DockBuilderDockWindow("Object Inspector", rightId);
 		ImGui::DockBuilderDockWindow("Scene Manager", rightId);
@@ -289,6 +348,8 @@ void ImGuiManager::DrawGameViewWindow() {
 	ImGui::PushStyleColor(ImGuiCol_DockingEmptyBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
 #endif
 	if (ImGui::Begin("GameView", nullptr, windowFlags)) {
+		gameViewContentPosition_ = ImGui::GetCursorScreenPos();
+		gameViewContentSize_ = ImGui::GetContentRegionAvail();
 		DrawEditorBackgroundMask(ImGui::GetWindowPos(), ImGui::GetWindowSize());
 		if (ImGui::BeginDragDropTarget()) {
 			auto acceptAssetPayload = [this](const char* payloadType, DroppedAssetPayload::Type assetType) {
@@ -325,6 +386,27 @@ bool ImGuiManager::ConsumeDroppedAsset(DroppedAssetPayload& outPayload) {
 	droppedAssetPayload_ = {};
 	hasDroppedAssetPayload_ = false;
 	return true;
+}
+
+std::vector<std::string> ImGuiManager::GetAvailableFontNames() const {
+	return fontNames_;
+}
+
+ImFont* ImGuiManager::GetFont(const std::string& fontName) const {
+#ifdef USE_IMGUI
+	auto it = fonts_.find(fontName);
+	if (it != fonts_.end() && it->second) {
+		return it->second;
+	}
+	auto defaultIt = fonts_.find("Default");
+	if (defaultIt != fonts_.end() && defaultIt->second) {
+		return defaultIt->second;
+	}
+	return ImGui::GetFont();
+#else
+	(void)fontName;
+	return nullptr;
+#endif
 }
 
 void ImGuiManager::DrawEditorBackgroundMask(const ImVec2& gameViewPosition, const ImVec2& gameViewSize) {

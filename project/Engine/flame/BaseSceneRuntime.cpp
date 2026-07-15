@@ -1,6 +1,63 @@
 ﻿#include "BaseScene.h"
 #include "BaseSceneHelpers.h"
 
+namespace {
+bool ShouldPassThroughEnemyPlayerPair(GameObject* objectA, GameObject* objectB) {
+	if (!objectA || !objectB || objectA == objectB) {
+		return true;
+	}
+
+	const bool isEnemyA = objectA->GetComponent<EnemyComponent>() != nullptr;
+	const bool isEnemyB = objectB->GetComponent<EnemyComponent>() != nullptr;
+	const bool isPlayerA = objectA->GetComponent<Player>() != nullptr;
+	const bool isPlayerB = objectB->GetComponent<Player>() != nullptr;
+	return (isEnemyA && isEnemyB) || (isEnemyA && isPlayerB) || (isPlayerA && isEnemyB);
+}
+
+bool IsPointOutsideView(const Vector3& worldPosition, float margin) {
+	Camera* camera = Object3dCommon::GetInstance() ? Object3dCommon::GetInstance()->GetDefaultCamera() : nullptr;
+	if (!camera) {
+		return false;
+	}
+
+	const Matrix4x4& viewProjection = camera->GetViewProjectionMatrix();
+	const float clipX =
+	    worldPosition.x * viewProjection.m[0][0] +
+	    worldPosition.y * viewProjection.m[1][0] +
+	    worldPosition.z * viewProjection.m[2][0] +
+	    viewProjection.m[3][0];
+	const float clipY =
+	    worldPosition.x * viewProjection.m[0][1] +
+	    worldPosition.y * viewProjection.m[1][1] +
+	    worldPosition.z * viewProjection.m[2][1] +
+	    viewProjection.m[3][1];
+	const float clipZ =
+	    worldPosition.x * viewProjection.m[0][2] +
+	    worldPosition.y * viewProjection.m[1][2] +
+	    worldPosition.z * viewProjection.m[2][2] +
+	    viewProjection.m[3][2];
+	const float clipW =
+	    worldPosition.x * viewProjection.m[0][3] +
+	    worldPosition.y * viewProjection.m[1][3] +
+	    worldPosition.z * viewProjection.m[2][3] +
+	    viewProjection.m[3][3];
+	if (clipW <= 0.0001f) {
+		return true;
+	}
+
+	const float ndcX = clipX / clipW;
+	const float ndcY = clipY / clipW;
+	const float ndcZ = clipZ / clipW;
+	const float safeMargin = margin < 0.0f ? 0.0f : margin;
+	return ndcX < -1.0f - safeMargin ||
+	    ndcX > 1.0f + safeMargin ||
+	    ndcY < -1.0f - safeMargin ||
+	    ndcY > 1.0f + safeMargin ||
+	    ndcZ < -safeMargin ||
+	    ndcZ > 1.0f + safeMargin;
+}
+}
+
 void BaseScene::ApplyCamera(Camera* camera) {
 	if (!camera) {
 		return;
@@ -158,6 +215,23 @@ void BaseScene::UpdateEnemySpawning() {
 	}
 }
 
+void BaseScene::UpdatePlayerAttacks() {
+	std::vector<PlayerAttackShotRequest> shotRequests;
+	for (const auto& object : sceneObjects_) {
+		PlayerAttackComponent* attack = object->GetComponent<PlayerAttackComponent>();
+		if (!attack || !attack->IsEnabled()) {
+			continue;
+		}
+
+		std::vector<PlayerAttackShotRequest> requests = attack->ConsumeShotRequests();
+		shotRequests.insert(shotRequests.end(), requests.begin(), requests.end());
+	}
+
+	for (PlayerAttackShotRequest& request : shotRequests) {
+		CreateRuntimePlayerProjectile(request);
+	}
+}
+
 GameObject* BaseScene::CreateRuntimeEnemy(const std::string& enemyTypeName, const Vector3& position, GameObject* target) {
 	auto object = std::make_unique<GameObject>();
 	object->SetName(MakeUniqueObjectName(enemyTypeName.empty() ? "Enemy" : enemyTypeName));
@@ -188,6 +262,170 @@ GameObject* BaseScene::CreateRuntimeEnemy(const std::string& enemyTypeName, cons
 	return sceneObjects_.back().get();
 }
 
+GameObject* BaseScene::CreateRuntimeExperience(const EnemyStats& enemyStats, const Vector3& position, GameObject* target) {
+	if (enemyStats.experience <= 0) {
+		return nullptr;
+	}
+	if (!target) {
+		for (const auto& object : sceneObjects_) {
+			if (object->GetComponent<Player>()) {
+				target = object.get();
+				break;
+			}
+		}
+	}
+
+	auto object = std::make_unique<GameObject>();
+	object->SetName(MakeUniqueObjectName("Experience"));
+	object->SetEditorType("Experience");
+	object->GetTransform().translate = position;
+	object->GetTransform().scale = {0.35f, 0.35f, 0.35f};
+
+	ExperienceComponent* experience = object->AddComponent<ExperienceComponent>();
+	experience->SetExperience(enemyStats.experience);
+	experience->SetModelFilePath(enemyStats.experienceModelFilePath);
+	experience->SetTarget(target);
+
+	const std::string modelFilePath = enemyStats.experienceModelFilePath.empty() ? "sphere.obj" : enemyStats.experienceModelFilePath;
+	if (!ModelManager::GetInstance()->FindModel(modelFilePath)) {
+		ModelManager::GetInstance()->LoadModel(modelFilePath);
+	}
+	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
+	if (ModelManager::GetInstance()->FindModel(modelFilePath)) {
+		object3d->SetModel(modelFilePath);
+	} else {
+		ModelManager::GetInstance()->LoadModel("sphere.obj");
+		object3d->SetModel("sphere.obj");
+	}
+
+	object->Update();
+	sceneObjects_.push_back(std::move(object));
+	++nextObjectId_;
+	return sceneObjects_.back().get();
+}
+
+GameObject* BaseScene::FindNearestEnemy(const Vector3& position) const {
+	GameObject* nearest = nullptr;
+	float nearestDistance = 0.0f;
+	for (const auto& object : sceneObjects_) {
+		EnemyComponent* enemy = object->GetComponent<EnemyComponent>();
+		if (!enemy || !enemy->IsEnabled() || enemy->GetCurrentHealth() <= 0.0f) {
+			continue;
+		}
+
+		const float distance = Length(object->GetTransform().translate - position);
+		if (!nearest || distance < nearestDistance) {
+			nearest = object.get();
+			nearestDistance = distance;
+		}
+	}
+	return nearest;
+}
+
+GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotRequest& request) {
+	auto object = std::make_unique<GameObject>();
+	object->SetName(MakeUniqueObjectName(request.attackName.empty() ? "PlayerAttack" : request.attackName));
+	object->SetEditorType("PlayerProjectile");
+	object->GetTransform().translate = request.position;
+	object->GetTransform().scale = {request.size, request.size, request.size};
+
+	PlayerProjectileComponent* projectile = object->AddComponent<PlayerProjectileComponent>();
+	projectile->SetAttackName(request.attackName);
+	projectile->SetLevel(request.level);
+	projectile->SetDirection(request.direction);
+	projectile->SetSpeed(request.speed);
+	projectile->SetAttack(request.attack);
+	projectile->SetSize(request.size);
+	projectile->SetLifeTime(request.lifeTime);
+	projectile->SetPierceCount(request.pierceCount);
+	projectile->SetInfinitePierce(request.infinitePierce);
+	projectile->SetHomingEnabled(request.homing);
+	projectile->SetHomingAccuracy(request.homingAccuracy);
+	if (request.homing) {
+		projectile->SetHomingTarget(FindNearestEnemy(request.position));
+	}
+
+	const std::string modelFilePath = request.modelFilePath.empty() ? "sphere.obj" : request.modelFilePath;
+	if (!ModelManager::GetInstance()->FindModel(modelFilePath)) {
+		ModelManager::GetInstance()->LoadModel(modelFilePath);
+	}
+	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
+	if (ModelManager::GetInstance()->FindModel(modelFilePath)) {
+		object3d->SetModel(modelFilePath);
+	} else {
+		ModelManager::GetInstance()->LoadModel("sphere.obj");
+		object3d->SetModel("sphere.obj");
+	}
+
+	object->Update();
+	sceneObjects_.push_back(std::move(object));
+	++nextObjectId_;
+	return sceneObjects_.back().get();
+}
+
+void BaseScene::UpdatePlayerProjectileHits() {
+	struct ExperienceDropRequest {
+		EnemyStats stats;
+		Vector3 position;
+		GameObject* target = nullptr;
+	};
+	std::vector<ExperienceDropRequest> experienceDropRequests;
+	for (const auto& projectileObject : sceneObjects_) {
+		PlayerProjectileComponent* projectile = projectileObject->GetComponent<PlayerProjectileComponent>();
+		if (!projectile || !projectile->IsEnabled() || projectile->IsExpired()) {
+			continue;
+		}
+
+		for (const auto& enemyObject : sceneObjects_) {
+			EnemyComponent* enemy = enemyObject->GetComponent<EnemyComponent>();
+			if (!enemy || !enemy->IsEnabled() || enemy->GetCurrentHealth() <= 0.0f) {
+				continue;
+			}
+			if (projectile->HasHitObject(enemyObject.get())) {
+				continue;
+			}
+
+			const float distance = Length(enemyObject->GetTransform().translate - projectileObject->GetTransform().translate);
+			if (distance <= projectile->GetSize() + 0.5f) {
+				enemy->SetCurrentHealth(enemy->GetCurrentHealth() - projectile->GetAttack());
+				if (enemy->GetCurrentHealth() <= 0.0f) {
+					experienceDropRequests.push_back({enemy->GetStats(), enemyObject->GetTransform().translate, enemy->GetTarget()});
+				}
+				projectile->RegisterHitObject(enemyObject.get());
+				break;
+			}
+		}
+	}
+
+	for (const ExperienceDropRequest& request : experienceDropRequests) {
+		CreateRuntimeExperience(request.stats, request.position, request.target);
+	}
+}
+
+void BaseScene::CleanupExpiredPlayerProjectiles() {
+	sceneObjects_.erase(
+	    std::remove_if(sceneObjects_.begin(), sceneObjects_.end(), [](const std::unique_ptr<GameObject>& object) {
+		    PlayerProjectileComponent* projectile = object->GetComponent<PlayerProjectileComponent>();
+		    if (projectile) {
+			    const float viewMargin = 0.05f + projectile->GetSize() * 0.02f;
+			    if (projectile->IsExpired() || IsPointOutsideView(object->GetTransform().translate, viewMargin)) {
+				    return true;
+			    }
+		    }
+		    EnemyComponent* enemy = object->GetComponent<EnemyComponent>();
+		    if (enemy && enemy->GetCurrentHealth() <= 0.0f) {
+			    return true;
+		    }
+		    ExperienceComponent* experience = object->GetComponent<ExperienceComponent>();
+		    return experience && experience->IsCollected();
+	    }),
+	    sceneObjects_.end()
+	);
+	if (selectedObjectIndex_ >= static_cast<int>(sceneObjects_.size())) {
+		selectedObjectIndex_ = static_cast<int>(sceneObjects_.size()) - 1;
+	}
+}
+
 /// <summary>
 /// 有効なコライダー同士の当たり判定と押し戻しを行います。
 /// </summary>
@@ -216,6 +454,11 @@ void BaseScene::UpdateColliderCollisions() {
 
 	for (size_t i = 0; i < colliders.size(); ++i) {
 		for (size_t j = i + 1; j < colliders.size(); ++j) {
+			GameObject* ownerA = colliders[i]->GetOwner();
+			GameObject* ownerB = colliders[j]->GetOwner();
+			if (ShouldPassThroughEnemyPlayerPair(ownerA, ownerB)) {
+				continue;
+			}
 			const OBBColliderShape colliderA = colliders[i]->GetWorldOBB();
 			const OBBColliderShape colliderB = colliders[j]->GetWorldOBB();
 			if (IsCollisionOBBToOBB(colliderA, colliderB)) {
@@ -225,9 +468,9 @@ void BaseScene::UpdateColliderCollisions() {
 				float penetration = 0.0f;
 				if (CalculateOBBOBBPushBack(colliderA, colliderB, direction, penetration)) {
 					ApplyColliderPushBack(
-					    colliders[i]->GetOwner(),
+					    ownerA,
 					    colliders[i]->GetPushBackEnabled(),
-					    colliders[j]->GetOwner(),
+					    ownerB,
 					    colliders[j]->GetPushBackEnabled(),
 					    direction,
 					    penetration
@@ -239,6 +482,11 @@ void BaseScene::UpdateColliderCollisions() {
 
 	for (size_t i = 0; i < sphereColliders.size(); ++i) {
 		for (size_t j = i + 1; j < sphereColliders.size(); ++j) {
+			GameObject* ownerA = sphereColliders[i]->GetOwner();
+			GameObject* ownerB = sphereColliders[j]->GetOwner();
+			if (ShouldPassThroughEnemyPlayerPair(ownerA, ownerB)) {
+				continue;
+			}
 			const SphereColliderShape sphereA = sphereColliders[i]->GetWorldSphere();
 			const SphereColliderShape sphereB = sphereColliders[j]->GetWorldSphere();
 			if (IsCollisionSphereToSphere(sphereA, sphereB)) {
@@ -248,9 +496,9 @@ void BaseScene::UpdateColliderCollisions() {
 				float penetration = 0.0f;
 				if (CalculateSphereSpherePushBack(sphereA, sphereB, direction, penetration)) {
 					ApplyColliderPushBack(
-					    sphereColliders[i]->GetOwner(),
+					    ownerA,
 					    sphereColliders[i]->GetPushBackEnabled(),
-					    sphereColliders[j]->GetOwner(),
+					    ownerB,
 					    sphereColliders[j]->GetPushBackEnabled(),
 					    direction,
 					    penetration
@@ -262,7 +510,9 @@ void BaseScene::UpdateColliderCollisions() {
 
 	for (OBBColliderComponent* collider : colliders) {
 		for (SphereColliderComponent* sphereCollider : sphereColliders) {
-			if (collider->GetOwner() == sphereCollider->GetOwner()) {
+			GameObject* obbOwner = collider->GetOwner();
+			GameObject* sphereOwner = sphereCollider->GetOwner();
+			if (obbOwner == sphereOwner || ShouldPassThroughEnemyPlayerPair(obbOwner, sphereOwner)) {
 				continue;
 			}
 
@@ -275,9 +525,9 @@ void BaseScene::UpdateColliderCollisions() {
 				float penetration = 0.0f;
 				if (CalculateOBBSpherePushBack(obb, sphere, direction, penetration)) {
 					ApplyColliderPushBack(
-					    collider->GetOwner(),
+					    obbOwner,
 					    collider->GetPushBackEnabled(),
-					    sphereCollider->GetOwner(),
+					    sphereOwner,
 					    sphereCollider->GetPushBackEnabled(),
 					    direction,
 					    penetration
