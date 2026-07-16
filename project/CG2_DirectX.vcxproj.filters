@@ -263,6 +263,9 @@
     <ClInclude Include="Engine\base\DirectXCommon.h">
       <Filter>Engine\base</Filter>
     </ClInclude>
+    <ClInclude Include="Engine\base\GameTime.h">
+      <Filter>Engine\base</Filter>
+    </ClInclude>
     <ClInclude Include="Engine\base\ImGuiManager.h">
       <Filter>Engine\base</Filter>
     </ClInclude>

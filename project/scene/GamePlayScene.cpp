@@ -3,6 +3,7 @@
 #include <cstring>
 #include <ModelManager.h>
 #include"InstancingModelCommon.h"
+#include "GameTime.h"
 
 namespace {
 #ifdef USE_IMGUI
@@ -196,6 +197,10 @@ void GamePlayScene::LoadSceneModels() {
 /// 毎フレームの状態更新を行います。
 /// </summary>
 void GamePlayScene::Update() {
+	if (IsLevelUpSelectionActive()) {
+		ImGuiUpdate();
+		return;
+	}
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 		sceneManager->ChengeScene("TITLE");
 	}
@@ -203,7 +208,7 @@ void GamePlayScene::Update() {
 		skyBox->Update();
 	}
 
-	float deltaTime = 1.0f / 60.0f;
+	const float deltaTime = GameTime::GetDeltaTime();
 
 	for (auto& emitter : emitters_) {
 		emitter->Update(deltaTime);

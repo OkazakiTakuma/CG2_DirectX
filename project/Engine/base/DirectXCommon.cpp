@@ -175,10 +175,24 @@ void DirectXCommon::ResizeBackBuffers(int32_t width, int32_t height) {
 /// <param name="profile">profile に使用する値を指定します。</param>
 /// <returns>処理結果を返します。</returns>
 Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(const std::wstring& filepath, const wchar_t* profile) {
+	std::string errorMessage;
+	auto shaderBlob = TryCompileShader(filepath, profile, errorMessage);
+	if (!shaderBlob) {
+		Log(errorMessage);
+		assert(false);
+	}
+	return shaderBlob;
+}
+
+Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::TryCompileShader(const std::wstring& filepath, const wchar_t* profile, std::string& errorMessage) {
+	errorMessage.clear();
 	Log(ConvertString(std::format(L"Bigin CompileShader, path:{},profile:{}\n", filepath, profile)));
 	Microsoft::WRL::ComPtr<IDxcBlobEncoding> shaderSource = nullptr;
 	HRESULT hr = dxcUtils->LoadFile(filepath.c_str(), nullptr, &shaderSource);
-	assert(SUCCEEDED(hr));
+	if (FAILED(hr) || !shaderSource) {
+		errorMessage = "Could not load shader: " + ConvertString(filepath) + "\n";
+		return nullptr;
+	}
 	DxcBuffer shaderSourceBuffer;
 	shaderSourceBuffer.Ptr = shaderSource->GetBufferPointer();
 	shaderSourceBuffer.Size = shaderSource->GetBufferSize();
@@ -205,17 +219,28 @@ Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(const std::wstring
 	    includeHandler.Get(),
 	    IID_PPV_ARGS(&shaderResult)
 	);
-	assert(SUCCEEDED(hr));
+	if (FAILED(hr) || !shaderResult) {
+		errorMessage = "DXC failed to compile: " + ConvertString(filepath) + "\n";
+		return nullptr;
+	}
 	Microsoft::WRL::ComPtr<IDxcBlobUtf8> shaderError = nullptr;
 	Microsoft::WRL::ComPtr<IDxcBlobWide> dummyName = nullptr;
 	shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), &dummyName);
 	if (shaderError != nullptr && shaderError->GetStringLength() != 0) {
-		Log(shaderError->GetStringPointer());
-		assert(false);
+		errorMessage.assign(shaderError->GetStringPointer(), shaderError->GetStringLength());
+		Log(errorMessage);
+	}
+	HRESULT compileStatus = E_FAIL;
+	shaderResult->GetStatus(&compileStatus);
+	if (FAILED(compileStatus)) {
+		return nullptr;
 	}
 	Microsoft::WRL::ComPtr<IDxcBlob> shaderBlob = nullptr;
 	hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
-	assert(SUCCEEDED(hr));
+	if (FAILED(hr) || !shaderBlob) {
+		errorMessage = "DXC did not return shader bytecode: " + ConvertString(filepath) + "\n";
+		return nullptr;
+	}
 	Log(ConvertString(std::format(L"Complete CompileShader, path:{},profile:{}\n", filepath, profile)));
 	return shaderBlob;
 }

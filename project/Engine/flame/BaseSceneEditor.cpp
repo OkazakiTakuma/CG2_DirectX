@@ -3,6 +3,7 @@
 
 #ifdef USE_IMGUI
 #include <cctype>
+#include <limits>
 
 namespace {
 constexpr float kProjectThumbnailSize = 64.0f;
@@ -905,77 +906,6 @@ void BaseScene::DrawEditorInspector() {
 	if (selectedObject->GetComponent<ParticleEmitterComponent>()) {
 		DrawParticleEmitterInspector(selectedObject);
 	}
-	if (EnemyComponent* enemy = selectedObject->GetComponent<EnemyComponent>()) {
-		ImGui::Separator();
-		ImGui::Text("EnemyComponent");
-
-		std::vector<std::string> enemyTypes = LoadEnemyTypeNames();
-		int currentEnemyTypeIndex = 0;
-		for (int index = 0; index < static_cast<int>(enemyTypes.size()); ++index) {
-			if (enemyTypes[index] == enemy->GetEnemyTypeName()) {
-				currentEnemyTypeIndex = index;
-				break;
-			}
-		}
-		if (!enemyTypes.empty()) {
-			std::vector<const char*> enemyTypeLabels = MakeLabelPointers(enemyTypes);
-			if (ImGui::Combo("Enemy Type", &currentEnemyTypeIndex, enemyTypeLabels.data(), static_cast<int>(enemyTypeLabels.size()))) {
-				enemy->SetEnemyTypeName(enemyTypes[currentEnemyTypeIndex]);
-				enemy->ApplyStats(LoadEnemyStats(enemyTypes[currentEnemyTypeIndex]));
-			}
-		}
-
-		EnemyStats stats = enemy->GetStats();
-		bool statsChanged = false;
-		statsChanged |= ImGui::DragFloat("Health", &stats.health, 0.1f, 0.0f, 10000.0f);
-		statsChanged |= ImGui::DragFloat("Attack", &stats.attack, 0.1f, 0.0f, 10000.0f);
-		statsChanged |= ImGui::DragFloat("Speed", &stats.speed, 0.001f, 0.0f, 100.0f);
-		statsChanged |= ImGui::Checkbox("Shoots", &stats.shoots);
-		statsChanged |= ImGui::DragFloat("Shoot Interval", &stats.shootingInterval, 0.01f, 0.0f, 1000.0f);
-		statsChanged |= ImGui::DragFloat("Spawns Per Minute", &stats.spawnsPerMinute, 0.1f, 0.0f, 10000.0f);
-		statsChanged |= ImGui::DragInt("Drop Experience", &stats.experience, 1.0f, 0, 100000);
-		const std::vector<std::string> experienceModels = CollectAllLoadedModelNames();
-		if (!experienceModels.empty()) {
-			int experienceModelIndex = 0;
-			for (int index = 0; index < static_cast<int>(experienceModels.size()); ++index) {
-				if (experienceModels[index] == stats.experienceModelFilePath) {
-					experienceModelIndex = index;
-					break;
-				}
-			}
-			std::vector<std::string> experienceModelLabels;
-			experienceModelLabels.reserve(experienceModels.size());
-			for (const std::string& modelName : experienceModels) {
-				Model* model = ModelManager::GetInstance()->FindModel(modelName);
-				experienceModelLabels.push_back(model && model->GetIsAnimation() ? "[Anim] " + modelName : "[Model] " + modelName);
-			}
-			std::vector<const char*> experienceModelLabelPointers = MakeLabelPointers(experienceModelLabels);
-			if (ImGui::Combo("Experience Model", &experienceModelIndex, experienceModelLabelPointers.data(), static_cast<int>(experienceModelLabelPointers.size()))) {
-				stats.experienceModelFilePath = experienceModels[experienceModelIndex];
-				statsChanged = true;
-			}
-		}
-		if (statsChanged) {
-			enemy->ApplyStats(stats);
-		}
-		float currentHealth = enemy->GetCurrentHealth();
-		if (ImGui::DragFloat("Current Health", &currentHealth, 0.1f, 0.0f, stats.health)) {
-			enemy->SetCurrentHealth(currentHealth);
-		}
-
-		if (enemyTypeNameBuffer_[0] == '\0') {
-			const std::string currentTypeName = enemy->GetEnemyTypeName();
-			const size_t copyLength = currentTypeName.size() < enemyTypeNameBuffer_.size() - 1 ? currentTypeName.size() : enemyTypeNameBuffer_.size() - 1;
-			std::memcpy(enemyTypeNameBuffer_.data(), currentTypeName.data(), copyLength);
-			enemyTypeNameBuffer_[copyLength] = '\0';
-		}
-		ImGui::InputText("Save Type Name", enemyTypeNameBuffer_.data(), enemyTypeNameBuffer_.size());
-		if (ImGui::Button("Save Enemy Type")) {
-			const std::string saveTypeName = enemyTypeNameBuffer_.data();
-			enemy->SetEnemyTypeName(saveTypeName.empty() ? enemy->GetEnemyTypeName() : saveTypeName);
-			SaveEnemyStats(enemy->GetEnemyTypeName(), enemy->GetStats());
-		}
-	}
 	if (EnemySpawnPointComponent* enemySpawnPoint = selectedObject->GetComponent<EnemySpawnPointComponent>()) {
 		ImGui::Separator();
 		ImGui::Text("EnemySpawnPointComponent");
@@ -1076,6 +1006,136 @@ void BaseScene::DrawEditorInspector() {
 /// <summary>
 /// パーティクルエミッターコンポーネントの編集UIを描画します。
 /// </summary>
+void BaseScene::DrawEnemyInspector() {
+#ifdef USE_IMGUI
+	if (!ImGui::Begin("Enemy Inspector")) {
+		ImGui::End();
+		return;
+	}
+	if (selectedObjectIndex_ < 0 || selectedObjectIndex_ >= static_cast<int>(sceneObjects_.size())) {
+		ImGui::Text("No selected enemy");
+		ImGui::End();
+		return;
+	}
+
+	GameObject* selectedObject = sceneObjects_[selectedObjectIndex_].get();
+	EnemyComponent* enemy = selectedObject->GetComponent<EnemyComponent>();
+	if (!enemy) {
+		ImGui::Text("Selected object has no Enemy component");
+		ImGui::End();
+		return;
+	}
+
+	auto updateTypeNameBuffer = [this](const std::string& typeName) {
+		std::fill(enemyTypeNameBuffer_.begin(), enemyTypeNameBuffer_.end(), '\0');
+		const size_t copyLength = (std::min)(typeName.size(), enemyTypeNameBuffer_.size() - 1);
+		std::memcpy(enemyTypeNameBuffer_.data(), typeName.data(), copyLength);
+	};
+	if (enemyInspectorObjectName_ != selectedObject->GetName()) {
+		enemyInspectorObjectName_ = selectedObject->GetName();
+		updateTypeNameBuffer(enemy->GetEnemyTypeName());
+	}
+
+	ImGui::Text("%s", selectedObject->GetName().c_str());
+	bool isEnabled = enemy->IsEnabled();
+	if (ImGui::Checkbox("Enabled", &isEnabled)) {
+		enemy->SetEnabled(isEnabled);
+	}
+	const float maxHealth = enemy->GetStats().health;
+	const float healthRate = maxHealth > 0.0f ? enemy->GetCurrentHealth() / maxHealth : 0.0f;
+	ImGui::Text("Current Health: %.1f / %.1f", enemy->GetCurrentHealth(), maxHealth);
+	ImGui::ProgressBar(healthRate, ImVec2(-1.0f, 0.0f));
+	ImGui::Separator();
+
+	std::vector<std::string> targetLabels = {"Auto First Player"};
+	int currentTargetIndex = 0;
+	for (const auto& object : sceneObjects_) {
+		if (!object->GetComponent<Player>()) {
+			continue;
+		}
+		targetLabels.push_back(object->GetName());
+		if (enemy->GetTargetName() == object->GetName()) {
+			currentTargetIndex = static_cast<int>(targetLabels.size()) - 1;
+		}
+	}
+	std::vector<const char*> targetLabelPointers = MakeLabelPointers(targetLabels);
+	if (ImGui::Combo("Target Player", &currentTargetIndex, targetLabelPointers.data(), static_cast<int>(targetLabelPointers.size()))) {
+		enemy->SetTargetName(currentTargetIndex == 0 ? "" : targetLabels[currentTargetIndex]);
+		enemy->SetTarget(nullptr);
+	}
+
+	std::vector<std::string> enemyTypes = LoadEnemyTypeNames();
+	int currentEnemyTypeIndex = 0;
+	for (int index = 0; index < static_cast<int>(enemyTypes.size()); ++index) {
+		if (enemyTypes[index] == enemy->GetEnemyTypeName()) {
+			currentEnemyTypeIndex = index;
+			break;
+		}
+	}
+	if (!enemyTypes.empty()) {
+		std::vector<const char*> enemyTypeLabels = MakeLabelPointers(enemyTypes);
+		if (ImGui::Combo("Enemy Type", &currentEnemyTypeIndex, enemyTypeLabels.data(), static_cast<int>(enemyTypeLabels.size()))) {
+			const std::string& selectedTypeName = enemyTypes[currentEnemyTypeIndex];
+			enemy->SetEnemyTypeName(selectedTypeName);
+			enemy->ApplyStats(LoadEnemyStats(selectedTypeName));
+			updateTypeNameBuffer(selectedTypeName);
+		}
+	}
+
+	EnemyStats stats = enemy->GetStats();
+	bool statsChanged = false;
+	statsChanged |= ImGui::DragFloat("Health", &stats.health, 0.1f, 0.0f, 10000.0f);
+	statsChanged |= ImGui::DragFloat("Attack", &stats.attack, 0.1f, 0.0f, 10000.0f);
+	statsChanged |= ImGui::DragFloat("Speed", &stats.speed, 0.001f, 0.0f, 100.0f);
+	statsChanged |= ImGui::Checkbox("Shoots", &stats.shoots);
+	statsChanged |= ImGui::DragFloat("Shoot Interval", &stats.shootingInterval, 0.01f, 0.0f, 1000.0f);
+	statsChanged |= ImGui::DragFloat("Spawns Per Minute", &stats.spawnsPerMinute, 0.1f, 0.0f, 10000.0f);
+	statsChanged |= ImGui::DragInt("Drop Experience", &stats.experience, 1.0f, 0, 100000);
+
+	const std::vector<std::string> experienceModels = CollectAllLoadedModelNames();
+	if (!experienceModels.empty()) {
+		int experienceModelIndex = 0;
+		for (int index = 0; index < static_cast<int>(experienceModels.size()); ++index) {
+			if (experienceModels[index] == stats.experienceModelFilePath) {
+				experienceModelIndex = index;
+				break;
+			}
+		}
+		std::vector<std::string> experienceModelLabels;
+		experienceModelLabels.reserve(experienceModels.size());
+		for (const std::string& modelName : experienceModels) {
+			Model* model = ModelManager::GetInstance()->FindModel(modelName);
+			experienceModelLabels.push_back(model && model->GetIsAnimation() ? "[Anim] " + modelName : "[Model] " + modelName);
+		}
+		std::vector<const char*> experienceModelLabelPointers = MakeLabelPointers(experienceModelLabels);
+		if (ImGui::Combo("Experience Model", &experienceModelIndex, experienceModelLabelPointers.data(), static_cast<int>(experienceModelLabelPointers.size()))) {
+			stats.experienceModelFilePath = experienceModels[experienceModelIndex];
+			statsChanged = true;
+		}
+	}
+	if (statsChanged) {
+		enemy->ApplyStats(stats);
+	}
+
+	float currentHealth = enemy->GetCurrentHealth();
+	if (ImGui::DragFloat("Edit Current Health", &currentHealth, 0.1f, 0.0f, stats.health)) {
+		enemy->SetCurrentHealth(currentHealth);
+	}
+
+	ImGui::Separator();
+	ImGui::InputText("Status Name", enemyTypeNameBuffer_.data(), enemyTypeNameBuffer_.size());
+	if (ImGui::Button("Save Enemy Type")) {
+		const std::string saveTypeName = enemyTypeNameBuffer_.data();
+		if (!saveTypeName.empty()) {
+			enemy->SetEnemyTypeName(saveTypeName);
+		}
+		SaveEnemyStats(enemy->GetEnemyTypeName(), enemy->GetStats());
+	}
+
+	ImGui::End();
+#endif
+}
+
 void BaseScene::DrawPlayerInspector() {
 #ifdef USE_IMGUI
 	if (!ImGui::Begin("Player Inspector")) {
@@ -1097,6 +1157,13 @@ void BaseScene::DrawPlayerInspector() {
 	}
 
 	ImGui::Text("%s", selectedObject->GetName().c_str());
+	const float currentHealth = player->GetCurrentHealth();
+	const float maxHealth = player->GetMaxHealth();
+	const float healthRate = maxHealth > 0.0f ? currentHealth / maxHealth : 0.0f;
+	ImGui::Text("Current Health: %.1f / %.1f", currentHealth, maxHealth);
+	ImGui::ProgressBar(healthRate, ImVec2(-1.0f, 0.0f));
+	ImGui::Separator();
+
 	std::vector<std::string> playerTypes = LoadPlayerTypeNames();
 	int currentPlayerTypeIndex = 0;
 	for (int index = 0; index < static_cast<int>(playerTypes.size()); ++index) {
@@ -1160,14 +1227,21 @@ void BaseScene::DrawPlayerInspector() {
 	statsChanged |= ImGui::DragFloat("Speed %", &stats.speed, 1.0f, 0.0f, 100000.0f);
 	statsChanged |= ImGui::DragFloat("Attack Speed", &stats.attackSpeed, 1.0f, 0.0f, 100000.0f);
 	statsChanged |= ImGui::DragFloat("Attack Size", &stats.attackSize, 1.0f, 0.0f, 100000.0f);
+	statsChanged |= ImGui::DragFloat("Damage Invincibility (sec)", &stats.damageInvincibilityDuration, 0.05f, 0.0f, 60.0f);
 	statsChanged |= ImGui::DragInt("Level", &stats.level, 1.0f, 1, 100000);
 	statsChanged |= ImGui::DragInt("Experience", &stats.experience, 1.0f, 0, 100000000);
+	const int nextLevelExperience = Player::GetRequiredExperienceForNextLevel(stats.level);
+	if (nextLevelExperience == (std::numeric_limits<int>::max)()) {
+		ImGui::Text("Next Level EXP: Max");
+	} else {
+		ImGui::Text("Next Level EXP: %d / %d", stats.experience, nextLevelExperience);
+	}
 	statsChanged |= ImGui::DragFloat("Experience Correction %", &stats.experienceCorrection, 1.0f, 0.0f, 100000.0f);
 	ImGui::Text("Max Health: %.1f", stats.baseHealth * (stats.health / 100.0f));
 	ImGui::Text("Effective Speed: %.3f", stats.baseSpeed * (stats.speed / 100.0f));
-	float currentHealth = player->GetCurrentHealth();
-	if (ImGui::DragFloat("Current Health", &currentHealth, 1.0f, 0.0f, player->GetMaxHealth())) {
-		player->SetCurrentHealth(currentHealth);
+	float editedCurrentHealth = player->GetCurrentHealth();
+	if (ImGui::DragFloat("Edit Current Health", &editedCurrentHealth, 1.0f, 0.0f, player->GetMaxHealth())) {
+		player->SetCurrentHealth(editedCurrentHealth);
 	}
 	if (!isPlayerAttackCacheLoaded_) {
 		ReloadPlayerAttackInspectorCache();
@@ -1289,6 +1363,7 @@ void BaseScene::DrawPlayerInspector() {
 		ImGui::Text("Effective Speed: %.3f", appliedStatusStats.baseSpeed * (appliedStatusStats.speed / 100.0f));
 		ImGui::Text("Attack Speed: %.1f", appliedStatusStats.attackSpeed);
 		ImGui::Text("Attack Size: %.1f", appliedStatusStats.attackSize);
+		ImGui::Text("Damage Invincibility: %.2f sec", appliedStatusStats.damageInvincibilityDuration);
 		ImGui::Text("Experience Correction %%: %.1f", appliedStatusStats.experienceCorrection);
 	}
 
@@ -1490,6 +1565,45 @@ void BaseScene::DrawPlayerAttackInspector() {
 	}
 
 	bool changed = false;
+	if (ImGui::CollapsingHeader("Super Condition", ImGuiTreeNodeFlags_DefaultOpen)) {
+		std::vector<std::string> statusItemNames = LoadPlayerStatusItemNames();
+		std::vector<std::string> statusItemLabels;
+		statusItemLabels.reserve(statusItemNames.size() + 1);
+		statusItemLabels.push_back("None");
+		statusItemLabels.insert(statusItemLabels.end(), statusItemNames.begin(), statusItemNames.end());
+		int statusItemIndex = 0;
+		for (int index = 0; index < static_cast<int>(statusItemNames.size()); ++index) {
+			if (statusItemNames[index] == attackStats->superConditionStatusName) {
+				statusItemIndex = index + 1;
+				break;
+			}
+		}
+		std::vector<const char*> statusItemLabelPointers = MakeLabelPointers(statusItemLabels);
+		if (ImGui::Combo("Required Status Item", &statusItemIndex, statusItemLabelPointers.data(), static_cast<int>(statusItemLabelPointers.size()))) {
+			attackStats->superConditionStatusName = statusItemIndex == 0 ? "" : statusItemNames[statusItemIndex - 1];
+			changed = true;
+		}
+
+		std::vector<std::string> statusLevels = GetPlayerStatusItemLevels();
+		int statusLevelIndex = 0;
+		for (int index = 0; index < static_cast<int>(statusLevels.size()); ++index) {
+			if (statusLevels[index] == attackStats->superConditionStatusLevel) {
+				statusLevelIndex = index;
+				break;
+			}
+		}
+		std::vector<const char*> statusLevelLabels = MakeLabelPointers(statusLevels);
+		if (ImGui::Combo("Required Status Level", &statusLevelIndex, statusLevelLabels.data(), static_cast<int>(statusLevelLabels.size()))) {
+			attackStats->superConditionStatusLevel = statusLevels[statusLevelIndex];
+			changed = true;
+		}
+		if (attackStats->superConditionStatusName.empty()) {
+			ImGui::TextDisabled("Super promotion is disabled.");
+		} else {
+			ImGui::TextWrapped("Uses the super level when the player equips %s at level %s or higher.", attackStats->superConditionStatusName.c_str(), attackStats->superConditionStatusLevel.c_str());
+		}
+	}
+	ImGui::Separator();
 	changed |= ImGui::DragFloat("Attack", &selectedLevel->attack, 1.0f, 0.0f, 100000.0f);
 	changed |= ImGui::DragFloat("Speed", &selectedLevel->speed, 0.01f, 0.0f, 100.0f);
 	changed |= ImGui::DragFloat("Size %", &selectedLevel->size, 1.0f, 0.0f, 100000.0f);
@@ -1534,8 +1648,8 @@ void BaseScene::DrawPlayerAttackInspector() {
 		attackStats->name = currentAttackName;
 		for (const auto& object : sceneObjects_) {
 			PlayerAttackComponent* attack = object->GetComponent<PlayerAttackComponent>();
-			if (attack && attack->GetAttackName() == currentAttackName) {
-				attack->ApplyAttackStats(*attackStats, attack->GetLevel());
+			if (attack) {
+				attack->UpdateAttackStatsByName(currentAttackName, *attackStats);
 			}
 		}
 	}

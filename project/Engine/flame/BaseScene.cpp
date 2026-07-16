@@ -23,8 +23,16 @@ void BaseScene::Draw3D() {}
 void BaseScene::Finalize() {
 	sceneObjects_.clear();
 	editorSkyBox_.reset();
+	playerHealthBarBackground_.reset();
+	playerHealthBarFill_.reset();
+	isPlayerHealthHudVisible_ = false;
+	isLevelUpSelectionActive_ = false;
+	levelUpPlayer_ = nullptr;
+	levelUpChoices_.clear();
+	GameTime::SetPaused(false);
 	selectedObjectIndex_ = -1;
 	activeCameraObjectName_.clear();
+	enemyInspectorObjectName_.clear();
 }
 
 /// <summary>
@@ -44,6 +52,7 @@ void BaseScene::UpdateSceneObjects() {
 	UpdatePlayerProjectileHits();
 	UpdateEnemySpawning();
 	CleanupExpiredPlayerProjectiles();
+	UpdatePlayerHealthHud();
 	UpdateEditorObjectPicking();
 	UpdateEditorCameraControl();
 	UpdateColliderCollisions();
@@ -60,6 +69,7 @@ void BaseScene::UpdateEditorTools() {
 	if (editorSkyBox_) {
 		editorSkyBox_->Update();
 	}
+	UpdatePlayerHealthHud();
 	UpdateEditorObjectPicking();
 	UpdateEditorCameraControl();
 	ApplyActiveCamera();
@@ -71,6 +81,10 @@ void BaseScene::UpdateEditorTools() {
 void BaseScene::DrawSceneObjects2D() {
 	for (const auto& object : sceneObjects_) {
 		object->Draw2D();
+	}
+	if (isPlayerHealthHudVisible_ && playerHealthBarBackground_ && playerHealthBarFill_) {
+		playerHealthBarBackground_->Draw();
+		playerHealthBarFill_->Draw();
 	}
 }
 
@@ -88,13 +102,16 @@ void BaseScene::DrawSceneObjects3D() {
 /// </summary>
 void BaseScene::DrawEditorImGui() {
 #ifdef USE_IMGUI
+	UpdateLevelUpSelection();
 	DrawEditorHierarchy();
 	DrawEditorProjectAssets();
 	DrawEditorInspector();
 	DrawPlayerInspector();
+	DrawEnemyInspector();
 	DrawPlayerAttackInspector();
 	DrawEditorGizmo();
 	HandleGameViewAssetDrop();
+	DrawLevelUpSelectionImGui();
 #endif
 }
 

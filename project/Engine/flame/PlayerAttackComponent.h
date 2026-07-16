@@ -3,6 +3,7 @@
 #include "GameObject.h"
 #include "../../Player/Player.h"
 #include "Vector.h"
+#include "../base/GameTime.h"
 #include <algorithm>
 #include <cmath>
 #include <string>
@@ -26,6 +27,8 @@ struct PlayerAttackLevelStats {
 
 struct PlayerAttackStats {
 	std::string name = "Straight";
+	std::string superConditionStatusName;
+	std::string superConditionStatusLevel = "1";
 	std::vector<PlayerAttackLevelStats> levels;
 };
 
@@ -53,7 +56,6 @@ public:
 			return;
 		}
 
-		constexpr float kDeltaTime = 1.0f / 60.0f;
 		Player* player = owner->GetComponent<Player>();
 		if (!player) {
 			return;
@@ -65,13 +67,14 @@ public:
 				continue;
 			}
 			if (slot.attackTimer > 0.0f) {
-				slot.attackTimer -= kDeltaTime;
+				slot.attackTimer -= GameTime::GetDeltaTime();
 			}
 			if (slot.attackTimer > 0.0f) {
 				continue;
 			}
-			const PlayerAttackLevelStats levelStats = FindCurrentLevelStats(slot);
-			CreateAttackByName(owner, *player, slot, levelStats);
+			const std::string currentLevel = slot.level;
+			const PlayerAttackLevelStats levelStats = FindCurrentLevelStats(slot, currentLevel);
+			CreateAttackByName(owner, *player, slot, levelStats, currentLevel);
 			slot.attackTimer = levelStats.attackInterval / playerAttackSpeedRate;
 		}
 	}
@@ -91,6 +94,13 @@ public:
 		slot.level = NormalizeLevel(level);
 		slot.enabled = enabled;
 		slots_.push_back(slot);
+	}
+	void UpdateAttackStatsByName(const std::string& attackName, const PlayerAttackStats& stats) {
+		for (AttackSlotRuntime& slot : slots_) {
+			if (slot.stats.name == attackName) {
+				slot.stats = stats;
+			}
+		}
 	}
 
 	const PlayerAttackStats& GetAttackStats() const { return slots_.empty() ? emptyStats_ : slots_.front().stats; }
@@ -123,9 +133,9 @@ private:
 		return "1";
 	}
 
-	PlayerAttackLevelStats FindCurrentLevelStats(const AttackSlotRuntime& slot) const {
+	PlayerAttackLevelStats FindCurrentLevelStats(const AttackSlotRuntime& slot, const std::string& level) const {
 		for (const PlayerAttackLevelStats& levelStats : slot.stats.levels) {
-			if (levelStats.level == slot.level) {
+			if (levelStats.level == level) {
 				return levelStats;
 			}
 		}
@@ -143,7 +153,7 @@ private:
 		return NormalizeReturnVector(rotated);
 	}
 
-	void QueueShot(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, float angleDegrees) {
+	void QueueShot(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel, float angleDegrees) {
 		const float playerAttackRate = player.GetStats().attack / 100.0f;
 		const float playerAttackSizeRate = player.GetStats().attackSize / 100.0f;
 		Vector3 forward = {
@@ -155,7 +165,7 @@ private:
 
 		PlayerAttackShotRequest request;
 		request.attackName = slot.stats.name;
-		request.level = slot.level;
+		request.level = currentLevel;
 		request.position = owner->GetTransform().translate + 1.2f * forward;
 		request.position.y += 0.5f;
 		request.direction = RotateYaw(forward, angleDegrees);
@@ -171,33 +181,33 @@ private:
 		shotRequests_.push_back(request);
 	}
 
-	void CreateStraightAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats) {
-		QueueShot(owner, player, slot, levelStats, 0.0f);
+	void CreateStraightAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
+		QueueShot(owner, player, slot, levelStats, currentLevel, 0.0f);
 	}
 
-	void CreateSpreadAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats) {
+	void CreateSpreadAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
 		const int shotCount = (std::max)(1, levelStats.shotCount);
 		for (int index = 0; index < shotCount; ++index) {
 			const float angle = index < static_cast<int>(levelStats.angles.size()) ? levelStats.angles[index] : 0.0f;
-			QueueShot(owner, player, slot, levelStats, angle);
+			QueueShot(owner, player, slot, levelStats, currentLevel, angle);
 		}
 	}
 
-	void CreateHomingAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, PlayerAttackLevelStats levelStats) {
+	void CreateHomingAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, PlayerAttackLevelStats levelStats, const std::string& currentLevel) {
 		levelStats.homing = true;
-		CreateSpreadAttack(owner, player, slot, levelStats);
+		CreateSpreadAttack(owner, player, slot, levelStats, currentLevel);
 	}
 
-	void CreateAttackByName(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats) {
+	void CreateAttackByName(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
 		if (levelStats.homing) {
-			CreateHomingAttack(owner, player, slot, levelStats);
+			CreateHomingAttack(owner, player, slot, levelStats, currentLevel);
 			return;
 		}
 		if (levelStats.shotCount > 1) {
-			CreateSpreadAttack(owner, player, slot, levelStats);
+			CreateSpreadAttack(owner, player, slot, levelStats, currentLevel);
 			return;
 		}
-		CreateStraightAttack(owner, player, slot, levelStats);
+		CreateStraightAttack(owner, player, slot, levelStats, currentLevel);
 	}
 
 	PlayerAttackStats emptyStats_;

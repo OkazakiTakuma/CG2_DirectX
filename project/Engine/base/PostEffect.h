@@ -40,6 +40,7 @@ public:
 	/// 確保したリソースを解放し、終了処理を行います。
 	/// </summary>
 	void Finalize();
+	void ReloadPipelineState() { CreatePipelineState(); }
 
 	/// <summary>
 	/// ImGui によるデバッグ用 UI の表示と編集処理を行います。

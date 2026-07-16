@@ -8,6 +8,7 @@
                 "attack": 100.0,
                 "attackInterval": 0.5,
                 "homing": false,
+                "homingAccuracy": 1.0,
                 "infinitePierce": false,
                 "level": "1",
                 "lifeTime": 3.0,
@@ -24,6 +25,7 @@
                 "attack": 200.0,
                 "attackInterval": 0.44999998807907104,
                 "homing": false,
+                "homingAccuracy": 1.0,
                 "infinitePierce": false,
                 "level": "2",
                 "lifeTime": 3.0,
@@ -42,6 +44,7 @@
                 "attack": 300.0,
                 "attackInterval": 0.4000000059604645,
                 "homing": false,
+                "homingAccuracy": 1.0,
                 "infinitePierce": false,
                 "level": "3",
                 "lifeTime": 3.0,
@@ -60,6 +63,7 @@
                 "attack": 400.0,
                 "attackInterval": 0.3499999940395355,
                 "homing": false,
+                "homingAccuracy": 1.0,
                 "infinitePierce": false,
                 "level": "4",
                 "lifeTime": 3.0,
@@ -80,6 +84,7 @@
                 "attack": 500.0,
                 "attackInterval": 0.30000001192092896,
                 "homing": false,
+                "homingAccuracy": 1.0,
                 "infinitePierce": false,
                 "level": "5",
                 "lifeTime": 3.0,
@@ -91,25 +96,31 @@
             },
             "super": {
                 "angles": [
-                    -30.0,
-                    -15.0,
                     0.0,
-                    15.0,
-                    30.0
+                    60.0,
+                    120.0,
+                    180.0,
+                    -60.0,
+                    -120.0
                 ],
-                "attack": 700.0,
+                "attack": 150.0,
                 "attackInterval": 0.25,
                 "homing": true,
+                "homingAccuracy": 1.0,
                 "infinitePierce": true,
                 "level": "super",
                 "lifeTime": 5.0,
                 "model": "sphere.obj",
                 "pierceCount": 0,
-                "shotCount": 5,
-                "size": 180.0,
+                "shotCount": 6,
+                "size": 90.0,
                 "speed": 0.44999998807907104
             }
         },
-        "name": "Straight"
+        "name": "Straight",
+        "superCondition": {
+            "level": "1",
+            "status": "SizeUp"
+        }
     }
 }

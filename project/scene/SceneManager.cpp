@@ -6,6 +6,7 @@
 #include "Input.h"
 #include "SpriteCommon.h"
 #include "SkyBoxCommon.h"
+#include "GameTime.h"
 
 #include <assert.h>
 
@@ -53,7 +54,7 @@ void SceneManager::Update() {
 	}
 
 	if (scene_) {
-		const bool shouldAdvanceSceneTime = isScenePlaying_ || isFrameStepRequested_;
+		const bool shouldAdvanceSceneTime = (isScenePlaying_ || isFrameStepRequested_) && !GameTime::IsPaused();
 		if (shouldAdvanceSceneTime) {
 			scene_->Update();
 			scene_->UpdateSceneObjects();
@@ -156,6 +157,21 @@ void SceneManager::DrawEditorImGui() {
 
 	ImGui::End();
 #endif
+}
+
+bool SceneManager::ReloadCurrentSceneJson() {
+	if (!scene_ || nextScene_) {
+		return false;
+	}
+	scene_->LoadEditorObjects();
+	return true;
+}
+
+std::string SceneManager::GetCurrentSceneJsonPath() const {
+	if (!scene_ || currentSceneName_ == "None") {
+		return {};
+	}
+	return "Resources/Data/Scenes/" + currentSceneName_ + "_objects.json";
 }
 
 /// <summary>

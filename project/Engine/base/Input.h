@@ -65,6 +65,9 @@ public:
 	LONG GetClientHeight() const { return clientHeight; }
 	bool IsGamepadConnected() const { return isGamepadConnected_; }
 	Vector3 GetGamepadLeftStick() const { return gamepadLeftStick_; }
+	bool TriggerGamepadButton(WORD buttonMask) const;
+	bool TriggerGamepadLeft() const;
+	bool TriggerGamepadRight() const;
 
 private:
 	Input() = default;
@@ -90,6 +93,9 @@ private:
 	LONG clientHeight = 1;
 	bool isGamepadConnected_ = false;
 	Vector3 gamepadLeftStick_{0.0f, 0.0f, 0.0f};
+	Vector3 previousGamepadLeftStick_{0.0f, 0.0f, 0.0f};
+	WORD gamepadButtons_ = 0;
+	WORD previousGamepadButtons_ = 0;
 
 	WinApp* winApp = nullptr;
 };

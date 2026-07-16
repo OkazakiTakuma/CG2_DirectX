@@ -30,6 +30,7 @@ public:
 	/// 確保したリソースを解放し、終了処理を行います。
 	/// </summary>
 	void Finalize();
+	void ReloadPipelineState() { CreatePipelineState(); }
 
 	// Sets the pipeline state used for sprite rendering.
 	/// <summary>

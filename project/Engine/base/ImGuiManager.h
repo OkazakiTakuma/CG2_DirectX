@@ -6,6 +6,9 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <filesystem>
+#include <functional>
+#include <future>
 
 #ifdef USE_IMGUI
 #include "../../../imgui/imgui.h"
@@ -72,6 +75,7 @@ public:
 	ImFont* GetFont(const std::string& fontName) const;
 	ImVec2 GetGameViewContentPosition() const { return gameViewContentPosition_; }
 	ImVec2 GetGameViewContentSize() const { return gameViewContentSize_; }
+	bool UpdateHotReload(const std::string& sceneJsonPath, const std::function<bool()>& reloadScene);
 
 private:
 	ImGuiManager() = default;
@@ -86,6 +90,12 @@ private:
 	void DrawGameViewWindow();
 	void DrawEditorBackgroundMask(const ImVec2& gameViewPosition, const ImVec2& gameViewSize);
 	void LoadGameFonts();
+	bool ReloadShaders();
+	bool ReloadTextures();
+	void StartCppBuild();
+	bool PollCppBuild();
+	bool LaunchRebuiltExecutable();
+	bool DetectFileChanges(const std::filesystem::path& root, const std::vector<std::string>& extensions, std::unordered_map<std::string, std::filesystem::file_time_type>& timestamps, bool recursive = true);
 
 	ImGuiManager(const ImGuiManager&) = delete;
 	ImGuiManager& operator=(const ImGuiManager&) = delete;
@@ -100,4 +110,18 @@ private:
 	std::unordered_map<std::string, ImFont*> fonts_;
 	ImVec2 gameViewContentPosition_ = {};
 	ImVec2 gameViewContentSize_ = {};
+	bool autoReloadShaders_ = true;
+	bool autoReloadScene_ = true;
+	bool autoReloadTextures_ = true;
+	bool autoReloadCpp_ = false;
+	bool cppBuildRunning_ = false;
+	bool restartRequested_ = false;
+	std::future<int> cppBuildFuture_;
+	std::filesystem::path rebuiltExecutablePath_;
+	std::string hotReloadStatus_ = "Ready";
+	std::string hotReloadError_;
+	std::unordered_map<std::string, std::filesystem::file_time_type> shaderTimestamps_;
+	std::unordered_map<std::string, std::filesystem::file_time_type> sceneTimestamps_;
+	std::unordered_map<std::string, std::filesystem::file_time_type> textureTimestamps_;
+	std::unordered_map<std::string, std::filesystem::file_time_type> cppTimestamps_;
 };

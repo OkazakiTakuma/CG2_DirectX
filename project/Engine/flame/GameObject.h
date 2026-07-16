@@ -1,6 +1,7 @@
 #pragma once
 #include "Component.h"
 #include "../base/struct.h"
+#include "../base/GameTime.h"
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -76,10 +77,9 @@ public:
 	/// 毎フレームの状態更新を行います。
 	/// </summary>
 	void Update() {
-		constexpr float kDeltaTime = 1.0f / 60.0f;
 		for (const auto& component : components_) {
 			if (component->IsEnabled()) {
-				component->ApplyGravity(transform_, kDeltaTime);
+				component->ApplyGravity(transform_, GameTime::GetDeltaTime());
 				component->Update();
 			}
 		}

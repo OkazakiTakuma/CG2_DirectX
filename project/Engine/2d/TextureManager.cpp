@@ -116,6 +116,75 @@ void TextureManager::LoadTexture(const std::string& filepath) {
 	dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
 }
 
+bool TextureManager::ReloadTexture(const std::string& filepath) {
+	auto textureIt = textureDatas.find(filepath);
+	if (textureIt == textureDatas.end() || !dxCommon_) {
+		return false;
+	}
+
+	HRESULT hr;
+	DirectX::ScratchImage image{};
+	if (filepath.ends_with(".dds")) {
+		hr = DirectX::LoadFromDDSFile(ConvertString(filepath).c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image);
+	} else {
+		hr = DirectX::LoadFromWICFile(ConvertString(filepath).c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
+	}
+	if (FAILED(hr)) {
+		return false;
+	}
+
+	DirectX::ScratchImage mipImages{};
+	if (DirectX::IsCompressed(image.GetMetadata().format)) {
+		mipImages = std::move(image);
+	} else {
+		hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
+		if (FAILED(hr)) {
+			return false;
+		}
+	}
+
+	TextureData replacement = textureIt->second;
+	replacement.metadata = mipImages.GetMetadata();
+	replacement.resource = dxCommon_->CreateTextureResource(replacement.metadata);
+	dxCommon_->UploadTextureData(replacement.resource, mipImages);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Format = replacement.metadata.format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	if (replacement.metadata.IsCubemap()) {
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+		srvDesc.TextureCube.MostDetailedMip = 0;
+		srvDesc.TextureCube.MipLevels = UINT_MAX;
+		srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+	} else {
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = static_cast<UINT>(replacement.metadata.mipLevels);
+	}
+	dxCommon_->GetDevice()->CreateShaderResourceView(replacement.resource.Get(), &srvDesc, replacement.srvHandleCPU);
+
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Transition.pResource = replacement.resource.Get();
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
+
+	textureIt->second = std::move(replacement);
+	return true;
+}
+
+size_t TextureManager::ReloadAllTextures() {
+	size_t reloadedCount = 0;
+	const std::vector<std::string> filePaths = GetLoadedTextureNames();
+	for (const std::string& filePath : filePaths) {
+		if (ReloadTexture(filePath)) {
+			++reloadedCount;
+		}
+	}
+	return reloadedCount;
+}
+
 /// <summary>
 /// 読み込み済みテクスチャのファイルパス一覧を取得します。
 /// </summary>

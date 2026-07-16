@@ -1,17 +1,48 @@
 ﻿#include "BaseScene.h"
 #include "BaseSceneHelpers.h"
+#include <random>
+#include <Xinput.h>
 
 namespace {
-bool ShouldPassThroughEnemyPlayerPair(GameObject* objectA, GameObject* objectB) {
+bool ShouldSkipColliderPair(GameObject* objectA, GameObject* objectB) {
 	if (!objectA || !objectB || objectA == objectB) {
 		return true;
 	}
 
 	const bool isEnemyA = objectA->GetComponent<EnemyComponent>() != nullptr;
 	const bool isEnemyB = objectB->GetComponent<EnemyComponent>() != nullptr;
-	const bool isPlayerA = objectA->GetComponent<Player>() != nullptr;
-	const bool isPlayerB = objectB->GetComponent<Player>() != nullptr;
-	return (isEnemyA && isEnemyB) || (isEnemyA && isPlayerB) || (isPlayerA && isEnemyB);
+	return isEnemyA && isEnemyB;
+}
+
+struct EnemyPlayerContact {
+	EnemyComponent* enemy = nullptr;
+	Player* player = nullptr;
+};
+
+bool RegisterEnemyPlayerContact(GameObject* objectA, GameObject* objectB, std::vector<EnemyPlayerContact>& contacts) {
+	if (!objectA || !objectB) {
+		return false;
+	}
+
+	EnemyComponent* enemy = objectA->GetComponent<EnemyComponent>();
+	Player* player = objectB->GetComponent<Player>();
+	if (!enemy || !player) {
+		enemy = objectB->GetComponent<EnemyComponent>();
+		player = objectA->GetComponent<Player>();
+	}
+	if (!enemy || !player) {
+		return false;
+	}
+
+	if (enemy->IsEnabled() && player->IsEnabled() && enemy->GetCurrentHealth() > 0.0f) {
+		const auto duplicate = std::find_if(contacts.begin(), contacts.end(), [enemy, player](const EnemyPlayerContact& contact) {
+			return contact.enemy == enemy && contact.player == player;
+		});
+		if (duplicate == contacts.end()) {
+			contacts.push_back({enemy, player});
+		}
+	}
+	return true;
 }
 
 bool IsPointOutsideView(const Vector3& worldPosition, float margin) {
@@ -426,10 +457,62 @@ void BaseScene::CleanupExpiredPlayerProjectiles() {
 	}
 }
 
+void BaseScene::UpdatePlayerHealthHud() {
+	Player* player = nullptr;
+	for (const auto& object : sceneObjects_) {
+		Player* candidate = object->GetComponent<Player>();
+		if (candidate && candidate->IsEnabled()) {
+			player = candidate;
+			break;
+		}
+	}
+
+	isPlayerHealthHudVisible_ = player != nullptr;
+	if (!player) {
+		return;
+	}
+
+	if (!playerHealthBarBackground_) {
+		playerHealthBarBackground_ = std::make_unique<Sprite>();
+		playerHealthBarBackground_->Initialize("Resources/human/white.png");
+		playerHealthBarBackground_->SetColor({0.08f, 0.08f, 0.08f, 1.0f});
+	}
+	if (!playerHealthBarFill_) {
+		playerHealthBarFill_ = std::make_unique<Sprite>();
+		playerHealthBarFill_->Initialize("Resources/human/white.png");
+	}
+
+	const float screenWidth = static_cast<float>(Input::GetInstance()->GetClientWidth());
+	constexpr float kRightMargin = 24.0f;
+	constexpr float kTopMargin = 24.0f;
+	constexpr float kBarWidth = 260.0f;
+	constexpr float kBarHeight = 28.0f;
+	constexpr float kBorderSize = 4.0f;
+	const float left = (std::max)(kRightMargin, screenWidth - kRightMargin - kBarWidth);
+
+	EulerTransform backgroundTransform = playerHealthBarBackground_->GetTransform();
+	backgroundTransform.translate = {left, kTopMargin, 0.0f};
+	playerHealthBarBackground_->SetTransform(backgroundTransform);
+	playerHealthBarBackground_->SetSize({kBarWidth, kBarHeight});
+
+	const float maxHealth = player->GetMaxHealth();
+	float healthRate = maxHealth > 0.0f ? player->GetCurrentHealth() / maxHealth : 0.0f;
+	healthRate = (std::max)(0.0f, (std::min)(1.0f, healthRate));
+	EulerTransform fillTransform = playerHealthBarFill_->GetTransform();
+	fillTransform.translate = {left + kBorderSize, kTopMargin + kBorderSize, 0.0f};
+	playerHealthBarFill_->SetTransform(fillTransform);
+	playerHealthBarFill_->SetSize({(kBarWidth - kBorderSize * 2.0f) * healthRate, kBarHeight - kBorderSize * 2.0f});
+	playerHealthBarFill_->SetColor({1.0f - healthRate, healthRate, 0.08f, 1.0f});
+
+	playerHealthBarBackground_->Update();
+	playerHealthBarFill_->Update();
+}
+
 /// <summary>
 /// 有効なコライダー同士の当たり判定と押し戻しを行います。
 /// </summary>
 void BaseScene::UpdateColliderCollisions() {
+	std::vector<EnemyPlayerContact> enemyPlayerContacts;
 	std::vector<OBBColliderComponent*> colliders;
 	colliders.reserve(sceneObjects_.size());
 	std::vector<SphereColliderComponent*> sphereColliders;
@@ -456,7 +539,7 @@ void BaseScene::UpdateColliderCollisions() {
 		for (size_t j = i + 1; j < colliders.size(); ++j) {
 			GameObject* ownerA = colliders[i]->GetOwner();
 			GameObject* ownerB = colliders[j]->GetOwner();
-			if (ShouldPassThroughEnemyPlayerPair(ownerA, ownerB)) {
+			if (ShouldSkipColliderPair(ownerA, ownerB)) {
 				continue;
 			}
 			const OBBColliderShape colliderA = colliders[i]->GetWorldOBB();
@@ -464,6 +547,9 @@ void BaseScene::UpdateColliderCollisions() {
 			if (IsCollisionOBBToOBB(colliderA, colliderB)) {
 				colliders[i]->SetColliding(true);
 				colliders[j]->SetColliding(true);
+				if (RegisterEnemyPlayerContact(ownerA, ownerB, enemyPlayerContacts)) {
+					continue;
+				}
 				Vector3 direction{};
 				float penetration = 0.0f;
 				if (CalculateOBBOBBPushBack(colliderA, colliderB, direction, penetration)) {
@@ -484,7 +570,7 @@ void BaseScene::UpdateColliderCollisions() {
 		for (size_t j = i + 1; j < sphereColliders.size(); ++j) {
 			GameObject* ownerA = sphereColliders[i]->GetOwner();
 			GameObject* ownerB = sphereColliders[j]->GetOwner();
-			if (ShouldPassThroughEnemyPlayerPair(ownerA, ownerB)) {
+			if (ShouldSkipColliderPair(ownerA, ownerB)) {
 				continue;
 			}
 			const SphereColliderShape sphereA = sphereColliders[i]->GetWorldSphere();
@@ -492,6 +578,9 @@ void BaseScene::UpdateColliderCollisions() {
 			if (IsCollisionSphereToSphere(sphereA, sphereB)) {
 				sphereColliders[i]->SetColliding(true);
 				sphereColliders[j]->SetColliding(true);
+				if (RegisterEnemyPlayerContact(ownerA, ownerB, enemyPlayerContacts)) {
+					continue;
+				}
 				Vector3 direction{};
 				float penetration = 0.0f;
 				if (CalculateSphereSpherePushBack(sphereA, sphereB, direction, penetration)) {
@@ -512,7 +601,7 @@ void BaseScene::UpdateColliderCollisions() {
 		for (SphereColliderComponent* sphereCollider : sphereColliders) {
 			GameObject* obbOwner = collider->GetOwner();
 			GameObject* sphereOwner = sphereCollider->GetOwner();
-			if (obbOwner == sphereOwner || ShouldPassThroughEnemyPlayerPair(obbOwner, sphereOwner)) {
+			if (ShouldSkipColliderPair(obbOwner, sphereOwner)) {
 				continue;
 			}
 
@@ -521,6 +610,9 @@ void BaseScene::UpdateColliderCollisions() {
 			if (IsCollisionOBBToSphere(obb, sphere)) {
 				collider->SetColliding(true);
 				sphereCollider->SetColliding(true);
+				if (RegisterEnemyPlayerContact(obbOwner, sphereOwner, enemyPlayerContacts)) {
+					continue;
+				}
 				Vector3 direction{};
 				float penetration = 0.0f;
 				if (CalculateOBBSpherePushBack(obb, sphere, direction, penetration)) {
@@ -535,6 +627,21 @@ void BaseScene::UpdateColliderCollisions() {
 				}
 			}
 		}
+	}
+
+	std::vector<std::pair<Player*, float>> playerDamageTotals;
+	for (const EnemyPlayerContact& contact : enemyPlayerContacts) {
+		auto total = std::find_if(playerDamageTotals.begin(), playerDamageTotals.end(), [&contact](const std::pair<Player*, float>& entry) {
+			return entry.first == contact.player;
+		});
+		if (total == playerDamageTotals.end()) {
+			playerDamageTotals.push_back({contact.player, contact.enemy->GetStats().attack});
+		} else {
+			total->second += contact.enemy->GetStats().attack;
+		}
+	}
+	for (const auto& [player, totalDamage] : playerDamageTotals) {
+		player->TakeDamage(totalDamage);
 	}
 }
 
@@ -686,6 +793,199 @@ void BaseScene::UpdateEditorCameraControl() {
 /// <summary>
 /// 指定したオブジェクトのカメラをアクティブカメラに設定します。
 /// </summary>
+void BaseScene::UpdateLevelUpSelection() {
+#ifdef USE_IMGUI
+	Input* input = Input::GetInstance();
+	if (isLevelUpSelectionActive_) {
+		if (levelUpChoices_.empty()) {
+			isLevelUpSelectionActive_ = false;
+			levelUpPlayer_ = nullptr;
+			GameTime::SetPaused(false);
+			return;
+		}
+		if (input->TriggerKey(DIK_A) || input->TriggerGamepadLeft()) {
+			selectedLevelUpChoiceIndex_ = (selectedLevelUpChoiceIndex_ + static_cast<int>(levelUpChoices_.size()) - 1) % static_cast<int>(levelUpChoices_.size());
+		}
+		if (input->TriggerKey(DIK_D) || input->TriggerGamepadRight()) {
+			selectedLevelUpChoiceIndex_ = (selectedLevelUpChoiceIndex_ + 1) % static_cast<int>(levelUpChoices_.size());
+		}
+		if (input->TriggerKey(DIK_SPACE) || input->TriggerGamepadButton(XINPUT_GAMEPAD_A)) {
+			ApplyLevelUpChoice(selectedLevelUpChoiceIndex_);
+		}
+		return;
+	}
+
+	for (const auto& object : sceneObjects_) {
+		Player* player = object->GetComponent<Player>();
+		if (!player || !player->ConsumePendingLevelUp()) {
+			continue;
+		}
+		levelUpPlayer_ = player;
+		if (BuildLevelUpChoices(player)) {
+			isLevelUpSelectionActive_ = true;
+			GameTime::SetPaused(true);
+		} else {
+			levelUpPlayer_ = nullptr;
+		}
+		break;
+	}
+#endif
+}
+
+bool BaseScene::BuildLevelUpChoices(Player* player) {
+	levelUpChoices_.clear();
+	selectedLevelUpChoiceIndex_ = 0;
+	if (!player) {
+		return false;
+	}
+	const PlayerStats& stats = player->GetBaseStats();
+	std::vector<LevelUpChoice> candidates;
+	std::vector<std::string> equippedAttacks;
+	std::vector<std::string> equippedStatuses;
+	int emptyAttackSlot = -1;
+	int emptyStatusSlot = -1;
+
+	for (int index = 0; index < static_cast<int>(stats.attackSlots.size()); ++index) {
+		const PlayerAttackSlot& slot = stats.attackSlots[index];
+		if (slot.attackName.empty()) {
+			if (emptyAttackSlot < 0) emptyAttackSlot = index;
+			continue;
+		}
+		equippedAttacks.push_back(slot.attackName);
+		const int level = std::atoi(slot.attackLevel.c_str());
+		if (slot.attackLevel != "super" && level >= 1 && level < 5) {
+			candidates.push_back({LevelUpChoiceType::AttackLevelUp, slot.attackName, slot.attackName, "Attack level " + slot.attackLevel + " -> " + std::to_string(level + 1), index});
+		}
+		if (slot.attackLevel == "5") {
+			const PlayerAttackStats attackStats = LoadPlayerAttackStats(slot.attackName);
+			bool conditionMet = !attackStats.superConditionStatusName.empty();
+			const int requiredLevel = (std::max)(1, std::atoi(attackStats.superConditionStatusLevel.c_str()));
+			if (conditionMet) {
+				conditionMet = false;
+				for (const PlayerStatusSlot& statusSlot : stats.statusSlots) {
+					if (statusSlot.enabled && statusSlot.statusName == attackStats.superConditionStatusName && std::atoi(statusSlot.level.c_str()) >= requiredLevel) {
+						conditionMet = true;
+						break;
+					}
+				}
+			}
+			if (conditionMet) {
+				candidates.push_back({LevelUpChoiceType::AttackSuper, slot.attackName, slot.attackName + " SUPER", "Promote attack level 5 -> super", index});
+			}
+		}
+	}
+
+	for (int index = 0; index < static_cast<int>(stats.statusSlots.size()); ++index) {
+		const PlayerStatusSlot& slot = stats.statusSlots[index];
+		if (slot.statusName.empty()) {
+			if (emptyStatusSlot < 0) emptyStatusSlot = index;
+			continue;
+		}
+		equippedStatuses.push_back(slot.statusName);
+		const int level = std::atoi(slot.level.c_str());
+		if (level >= 1 && level < 5) {
+			candidates.push_back({LevelUpChoiceType::StatusLevelUp, slot.statusName, slot.statusName, "Status level " + slot.level + " -> " + std::to_string(level + 1), index});
+		}
+	}
+
+	if (emptyAttackSlot >= 0) {
+		for (const std::string& attackName : LoadPlayerAttackNames()) {
+			if (std::find(equippedAttacks.begin(), equippedAttacks.end(), attackName) == equippedAttacks.end()) {
+				candidates.push_back({LevelUpChoiceType::NewAttack, attackName, attackName, "Add a new attack at level 1", emptyAttackSlot});
+			}
+		}
+	}
+	if (emptyStatusSlot >= 0) {
+		for (const std::string& statusName : LoadPlayerStatusItemNames()) {
+			if (std::find(equippedStatuses.begin(), equippedStatuses.end(), statusName) == equippedStatuses.end()) {
+				candidates.push_back({LevelUpChoiceType::NewStatus, statusName, statusName, "Add a new status at level 1", emptyStatusSlot});
+			}
+		}
+	}
+
+	if (candidates.empty()) {
+		return false;
+	}
+	static std::mt19937 randomEngine(std::random_device{}());
+	std::shuffle(candidates.begin(), candidates.end(), randomEngine);
+	for (int index = 0; index < 3; ++index) {
+		levelUpChoices_.push_back(candidates[index % candidates.size()]);
+	}
+	return true;
+}
+
+void BaseScene::ApplyLevelUpChoice(int choiceIndex) {
+	if (!levelUpPlayer_ || choiceIndex < 0 || choiceIndex >= static_cast<int>(levelUpChoices_.size())) return;
+	const LevelUpChoice choice = levelUpChoices_[choiceIndex];
+	PlayerStats stats = levelUpPlayer_->GetBaseStats();
+	switch (choice.type) {
+	case LevelUpChoiceType::AttackLevelUp:
+		stats.attackSlots[choice.slotIndex].enabled = true;
+		stats.attackSlots[choice.slotIndex].attackLevel = std::to_string((std::min)(5, std::atoi(stats.attackSlots[choice.slotIndex].attackLevel.c_str()) + 1));
+		break;
+	case LevelUpChoiceType::AttackSuper:
+		stats.attackSlots[choice.slotIndex].enabled = true;
+		stats.attackSlots[choice.slotIndex].attackLevel = "super";
+		break;
+	case LevelUpChoiceType::NewAttack:
+		stats.attackSlots[choice.slotIndex] = {true, choice.name, "1"};
+		break;
+	case LevelUpChoiceType::StatusLevelUp:
+		stats.statusSlots[choice.slotIndex].enabled = true;
+		stats.statusSlots[choice.slotIndex].level = std::to_string((std::min)(5, std::atoi(stats.statusSlots[choice.slotIndex].level.c_str()) + 1));
+		break;
+	case LevelUpChoiceType::NewStatus:
+		stats.statusSlots[choice.slotIndex] = {true, choice.name, "1"};
+		break;
+	}
+	levelUpPlayer_->ApplyStats(stats, ApplyPlayerStatusItems(stats));
+	if (GameObject* owner = levelUpPlayer_->GetOwner()) {
+		ApplyPlayerAttackSlots(owner->GetComponent<PlayerAttackComponent>(), stats);
+	}
+	levelUpChoices_.clear();
+	if (levelUpPlayer_->ConsumePendingLevelUp() && BuildLevelUpChoices(levelUpPlayer_)) return;
+	isLevelUpSelectionActive_ = false;
+	levelUpPlayer_ = nullptr;
+	GameTime::SetPaused(false);
+}
+
+void BaseScene::DrawLevelUpSelectionImGui() {
+#ifdef USE_IMGUI
+	if (!isLevelUpSelectionActive_ || levelUpChoices_.empty()) return;
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+	ImGui::GetBackgroundDrawList(viewport)->AddRectFilled(viewport->Pos, ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y), IM_COL32(0, 0, 0, 150));
+	const ImVec2 windowSize((std::min)(900.0f, viewport->WorkSize.x - 40.0f), 300.0f);
+	ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f, viewport->WorkPos.y + viewport->WorkSize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+	ImGui::SetNextWindowSize(windowSize, ImGuiCond_Always);
+	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
+	int clickedChoice = -1;
+	if (ImGui::Begin("LEVEL UP", nullptr, flags)) {
+		const float titleWidth = ImGui::CalcTextSize("LEVEL UP!").x;
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x - titleWidth) * 0.5f);
+		ImGui::Text("LEVEL UP!");
+		ImGui::TextDisabled("A / D or Pad: Select    Space or Pad A: Confirm");
+		if (ImGui::BeginTable("LevelUpChoices", 3, ImGuiTableFlags_SizingStretchSame)) {
+			for (int index = 0; index < static_cast<int>(levelUpChoices_.size()); ++index) {
+				ImGui::TableNextColumn();
+				ImGui::PushID(index);
+				const bool selected = index == selectedLevelUpChoiceIndex_;
+				if (selected) {
+					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.55f, 0.08f, 1.0f));
+					ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.7f, 0.15f, 1.0f));
+				}
+				const std::string label = levelUpChoices_[index].title + "\n\n" + levelUpChoices_[index].description;
+				if (ImGui::Button(label.c_str(), ImVec2(-1.0f, 155.0f))) clickedChoice = index;
+				if (selected) ImGui::PopStyleColor(2);
+				ImGui::PopID();
+			}
+			ImGui::EndTable();
+		}
+	}
+	ImGui::End();
+	if (clickedChoice >= 0) ApplyLevelUpChoice(clickedChoice);
+#endif
+}
+
 void BaseScene::SetActiveCameraObject(GameObject* object) {
 	CameraComponent* cameraComponent = object ? object->GetComponent<CameraComponent>() : nullptr;
 	if (!cameraComponent || !cameraComponent->IsEnabled()) {

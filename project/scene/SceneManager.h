@@ -50,6 +50,8 @@ public:
 	void SetScenePlaying(bool isPlaying) { isScenePlaying_ = isPlaying; }
 	bool IsScenePlaying() const { return isScenePlaying_; }
 	void RequestFrameStep() { isFrameStepRequested_ = true; }
+	bool ReloadCurrentSceneJson();
+	std::string GetCurrentSceneJsonPath() const;
 
 private:
 	/// <summary>

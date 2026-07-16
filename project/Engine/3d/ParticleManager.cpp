@@ -1,5 +1,6 @@
 #include "ParticleManager.h"
 #include "Camera.h"
+#include "../base/GameTime.h"
 #include <algorithm>
 #include <cassert>
 #include <numbers>
@@ -505,14 +506,16 @@ void ParticleManager::Update() {
 			}
 
 			auto& p = group.particles[i];
+			const float deltaTime = GameTime::GetDeltaTime();
+			const float frameScale = GameTime::GetFrameScale60();
 
-			p.transform.translate.x += p.velocity.x;
-			p.transform.translate.y += p.velocity.y;
-			p.transform.translate.z += p.velocity.z;
+			p.transform.translate.x += p.velocity.x * frameScale;
+			p.transform.translate.y += p.velocity.y * frameScale;
+			p.transform.translate.z += p.velocity.z * frameScale;
 
-			p.velocity.x += p.acceleration.x;
-			p.velocity.y += p.acceleration.y;
-			p.velocity.z += p.acceleration.z;
+			p.velocity.x += p.acceleration.x * frameScale;
+			p.velocity.y += p.acceleration.y * frameScale;
+			p.velocity.z += p.acceleration.z * frameScale;
 
 			float t = p.currentTime / p.lifeTime;
 			if (t < 0.0f) {
@@ -531,7 +534,7 @@ void ParticleManager::Update() {
 			p.color.z = p.startColor.z + (p.endColor.z - p.startColor.z) * t;
 			p.color.w = p.startColor.w + (p.endColor.w - p.startColor.w) * t;
 
-			p.currentTime += 1.0f / 60.0f;
+			p.currentTime += deltaTime;
 
 			++i;
 		}

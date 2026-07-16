@@ -216,7 +216,11 @@ void BaseScene::LoadEditorObjects() {
 	}
 
 	nlohmann::json root;
-	ifs >> root;
+	try {
+		ifs >> root;
+	} catch (const nlohmann::json::exception&) {
+		return;
+	}
 
 	sceneObjects_.clear();
 	editorSkyBox_.reset();

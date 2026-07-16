@@ -3,6 +3,7 @@
 #include "../flame/GameObject.h"
 #include "ParticleEmitter.h"
 #include "ParticleManager.h"
+#include "../base/GameTime.h"
 #include <memory>
 #include <string>
 
@@ -19,7 +20,7 @@ public:
 	/// 毎フレームの状態更新を行います。
 	/// </summary>
 	void Update() override {
-		Update(1.0f / 60.0f);
+		Update(GameTime::GetDeltaTime());
 	}
 
 	/// <summary>

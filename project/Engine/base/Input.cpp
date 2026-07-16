@@ -90,11 +90,14 @@ void Input::Initialize(WinApp* winApp) {
 void Input::Update() {
 	memcpy(preKey, key, sizeof(key));
 	preMouseState = mouseState;
+	previousGamepadLeftStick_ = gamepadLeftStick_;
+	previousGamepadButtons_ = gamepadButtons_;
 	mouseWheelDelta = 0;
 	mouseMoveX = 0;
 	mouseMoveY = 0;
 	isGamepadConnected_ = false;
 	gamepadLeftStick_ = {0.0f, 0.0f, 0.0f};
+	gamepadButtons_ = 0;
 
 	HRESULT hr = keyboard->Acquire();
 
@@ -126,6 +129,7 @@ void Input::Update() {
 		isGamepadConnected_ = true;
 		const XINPUT_GAMEPAD& gamepad = gamepadState.Gamepad;
 		gamepadLeftStick_ = NormalizeGamepadLeftStick(gamepad.sThumbLX, gamepad.sThumbLY);
+		gamepadButtons_ = gamepad.wButtons;
 	}
 
 	if (winApp && winApp->GetHwnd()) {
@@ -154,6 +158,18 @@ bool Input::PushKey(BYTE keyNumber) { return key[keyNumber] & 0x80; }
 bool Input::TriggerKey(BYTE keyNumber) { return (key[keyNumber] & 0x80) && !(preKey[keyNumber] & 0x80); }
 
 bool Input::ReleaseKey(BYTE keyNumber) { return !(key[keyNumber] & 0x80) && (preKey[keyNumber] & 0x80); }
+
+bool Input::TriggerGamepadButton(WORD buttonMask) const {
+	return (gamepadButtons_ & buttonMask) != 0 && (previousGamepadButtons_ & buttonMask) == 0;
+}
+
+bool Input::TriggerGamepadLeft() const {
+	return TriggerGamepadButton(XINPUT_GAMEPAD_DPAD_LEFT) || (gamepadLeftStick_.x < -0.5f && previousGamepadLeftStick_.x >= -0.5f);
+}
+
+bool Input::TriggerGamepadRight() const {
+	return TriggerGamepadButton(XINPUT_GAMEPAD_DPAD_RIGHT) || (gamepadLeftStick_.x > 0.5f && previousGamepadLeftStick_.x <= 0.5f);
+}
 
 /// <summary>
 /// PushMouseButton の処理を行います。
