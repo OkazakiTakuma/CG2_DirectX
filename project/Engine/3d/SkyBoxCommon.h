@@ -24,6 +24,7 @@ public:
 	/// 確保したリソースを解放し、終了処理を行います。
 	/// </summary>
 	void Finalize();
+	void ReloadPipelineState() { CreatePipelineState(); }
 
 	DirectXCommon* GetDxCommon() const { return dxCommon_; }
 	~SkyBoxCommon() = default;

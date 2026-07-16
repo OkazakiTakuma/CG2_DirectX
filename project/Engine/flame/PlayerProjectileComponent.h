@@ -2,6 +2,7 @@
 #include "Component.h"
 #include "GameObject.h"
 #include "Vector.h"
+#include "../base/GameTime.h"
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -15,20 +16,21 @@ public:
 			return;
 		}
 
-		constexpr float kDeltaTime = 1.0f / 60.0f;
+		const float deltaTime = GameTime::GetDeltaTime();
+		const float frameScale = GameTime::GetFrameScale60();
 		if (homingEnabled_ && homingTarget_) {
 			Vector3 toTarget = homingTarget_->GetTransform().translate - owner->GetTransform().translate;
 			toTarget.y = 0.0f;
 			if (Length(toTarget) > 0.0001f) {
 				const Vector3 targetDirection = NormalizeReturnVector(toTarget);
-				const float accuracy = (std::clamp)(homingAccuracy_, 0.0f, 1.0f);
+				const float accuracy = 1.0f - std::pow(1.0f - (std::clamp)(homingAccuracy_, 0.0f, 1.0f), frameScale);
 				direction_ = NormalizeReturnVector(Leap(direction_, targetDirection, accuracy));
 			}
 		}
 
-		owner->GetTransform().translate = owner->GetTransform().translate + speed_ * direction_;
+		owner->GetTransform().translate = owner->GetTransform().translate + (speed_ * frameScale) * direction_;
 		owner->GetTransform().rotate.y = std::atan2(direction_.x, direction_.z);
-		lifeTime_ -= kDeltaTime;
+		lifeTime_ -= deltaTime;
 	}
 
 	void SetAttackName(const std::string& attackName) { attackName_ = attackName; }

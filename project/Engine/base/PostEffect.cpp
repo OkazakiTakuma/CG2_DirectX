@@ -3,6 +3,7 @@
 #include "SrvManager.h"
 #include "WinApp.h"
 #include "imGuiManager.h"
+#include "GameTime.h"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -555,7 +556,7 @@ void PostEffect::Draw() {
 	ResizeIfNeeded();
 	auto commandList = dxCommon_->GetCommandList();
 	SrvManager::GetInstance()->PreDraw();
-	time_ += 1.0f / 60.0f;
+	time_ += GameTime::GetDeltaTime();
 	ApplySettingsToBuffer();
 
 	commandList->SetGraphicsRootSignature(rootSignature_.Get());

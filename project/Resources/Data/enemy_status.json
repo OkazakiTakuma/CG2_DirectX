@@ -1,7 +1,7 @@
 {
     "Default": {
-        "attack": 1.0,
-        "experience": 1,
+        "attack": 6.0,
+        "experience": 8,
         "experienceModel": "sphere.obj",
         "health": 10.0,
         "shootingInterval": 1.0,

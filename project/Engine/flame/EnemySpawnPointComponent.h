@@ -1,4 +1,5 @@
 #pragma once
+#include "../base/GameTime.h"
 #include "Camera.h"
 #include "Component.h"
 #include "GameObject.h"
@@ -85,8 +86,7 @@ public:
 			return false;
 		}
 
-		constexpr float kDeltaTime = 1.0f / 60.0f;
-		spawnTimerSeconds_ += kDeltaTime;
+		spawnTimerSeconds_ += GameTime::GetDeltaTime();
 		const float spawnInterval = 60.0f / spawnsPerMinute;
 		if (spawnTimerSeconds_ < spawnInterval) {
 			return false;

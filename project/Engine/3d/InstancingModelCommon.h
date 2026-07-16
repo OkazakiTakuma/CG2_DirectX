@@ -20,6 +20,7 @@ public:
     /// 確保したリソースを解放し、終了処理を行います。
     /// </summary>
     void Finalize();
+    void ReloadPipelineState() { CreatePipelineState(); }
     /// <summary>
     /// Draw を設定します。
     /// </summary>

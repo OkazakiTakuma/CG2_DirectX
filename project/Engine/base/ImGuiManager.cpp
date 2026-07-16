@@ -1,8 +1,19 @@
 #include "ImGuiManager.h"
+#include <algorithm>
 
 #ifdef USE_IMGUI
 #include "../../../imgui/imgui_internal.h"
+#include "LineCommon.h"
+#include "Object3dCommon.h"
+#include "ParticleManager.h"
+#include "PostEffect.h"
+#include "SkyBoxCommon.h"
+#include "SpriteCommon.h"
+#include "InstancingModelCommon.h"
+#include "TextureManager.h"
 #include <array>
+#include <chrono>
+#include <cstdlib>
 #include <filesystem>
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -289,6 +300,7 @@ void ImGuiManager::SetupExternalEditorDockSpaces() {
 		ImGui::DockBuilderDockWindow("Scene Objects", leftId);
 		ImGui::DockBuilderDockWindow("Component Inspector", rightId);
 		ImGui::DockBuilderDockWindow("Player Inspector", rightId);
+		ImGui::DockBuilderDockWindow("Enemy Inspector", rightId);
 		ImGui::DockBuilderDockWindow("Player Attack Inspector", rightId);
 		ImGui::DockBuilderDockWindow("Inspector", rightId);
 		ImGui::DockBuilderDockWindow("Object Inspector", rightId);
@@ -298,6 +310,7 @@ void ImGuiManager::SetupExternalEditorDockSpaces() {
 		ImGui::DockBuilderDockWindow("Particle Editor", bottomId);
 		ImGui::DockBuilderDockWindow("Project", bottomId);
 		ImGui::DockBuilderDockWindow("Console", bottomId);
+		ImGui::DockBuilderDockWindow("Hot Reload", bottomId);
 
 		ImGui::DockBuilderFinish(dockspaceId);
 		isLayoutBuilt = true;
@@ -432,6 +445,262 @@ void ImGuiManager::DrawEditorBackgroundMask(const ImVec2& gameViewPosition, cons
 	drawList->AddRectFilled(ImVec2(viewportMin.x, gameMax.y), viewportMax, color);
 	drawList->AddRectFilled(ImVec2(viewportMin.x, gameMin.y), ImVec2(gameMin.x, gameMax.y), color);
 	drawList->AddRectFilled(ImVec2(gameMax.x, gameMin.y), ImVec2(viewportMax.x, gameMax.y), color);
+#endif
+}
+
+bool ImGuiManager::DetectFileChanges(
+	const std::filesystem::path& root,
+	const std::vector<std::string>& extensions,
+	std::unordered_map<std::string, std::filesystem::file_time_type>& timestamps,
+	bool recursive) {
+	std::error_code error;
+	if (!std::filesystem::exists(root, error)) {
+		return false;
+	}
+
+	bool changed = false;
+	auto inspectPath = [&](const std::filesystem::path& path) {
+		if (!extensions.empty()) {
+			const std::string extension = path.extension().string();
+			if (std::find(extensions.begin(), extensions.end(), extension) == extensions.end()) {
+				return;
+			}
+		}
+		const auto writeTime = std::filesystem::last_write_time(path, error);
+		if (error) {
+			error.clear();
+			return;
+		}
+		const std::string key = path.lexically_normal().generic_string();
+		auto [it, inserted] = timestamps.emplace(key, writeTime);
+		if (!inserted && it->second != writeTime) {
+			it->second = writeTime;
+			changed = true;
+		}
+	};
+
+	if (std::filesystem::is_regular_file(root, error)) {
+		inspectPath(root);
+		return changed;
+	}
+	if (recursive) {
+		for (std::filesystem::recursive_directory_iterator it(root, std::filesystem::directory_options::skip_permission_denied, error), end; it != end; it.increment(error)) {
+			if (error) {
+				error.clear();
+				continue;
+			}
+			if (it->is_regular_file(error)) {
+				inspectPath(it->path());
+			}
+		}
+	} else {
+		for (const auto& entry : std::filesystem::directory_iterator(root, error)) {
+			if (entry.is_regular_file(error)) {
+				inspectPath(entry.path());
+			}
+		}
+	}
+	return changed;
+}
+
+bool ImGuiManager::ReloadShaders() {
+#ifdef USE_IMGUI
+	if (!dxcommon) {
+		return false;
+	}
+
+	hotReloadError_.clear();
+	const std::filesystem::path shaderDirectory = "Resources/Shader";
+	std::error_code error;
+	for (const auto& entry : std::filesystem::recursive_directory_iterator(shaderDirectory, error)) {
+		if (error || !entry.is_regular_file() || entry.path().extension() != ".hlsl") {
+			continue;
+		}
+		const std::wstring fileName = entry.path().filename().wstring();
+		const wchar_t* profile = fileName.find(L".VS.") != std::wstring::npos ? L"vs_6_0" : L"ps_6_0";
+		std::string compileError;
+		if (!dxcommon->TryCompileShader(entry.path().wstring(), profile, compileError)) {
+			hotReloadError_ = compileError.empty() ? "Shader compilation failed." : compileError;
+			hotReloadStatus_ = "Shader reload failed";
+			return false;
+		}
+	}
+
+	dxcommon->FlushGPU();
+	SpriteCommon::GetInstance()->ReloadPipelineState();
+	LineCommon::GetInstance()->ReloadPipelineState();
+	Object3dCommon::GetInstance()->ReloadPipelineState();
+	SkyBoxCommon::GetInstance()->ReloadPipelineState();
+	ParticleManager::GetInstance()->ReloadPipelineState();
+	InstancingModelCommon::GetInstance()->ReloadPipelineState();
+	PostEffect::GetInstance()->ReloadPipelineState();
+	hotReloadStatus_ = "Shaders reloaded";
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool ImGuiManager::ReloadTextures() {
+#ifdef USE_IMGUI
+	if (!dxcommon) {
+		return false;
+	}
+	dxcommon->FlushGPU();
+	const size_t count = TextureManager::GetInstance()->ReloadAllTextures();
+	hotReloadStatus_ = "Textures reloaded: " + std::to_string(count);
+	hotReloadError_.clear();
+	return true;
+#else
+	return false;
+#endif
+}
+
+void ImGuiManager::StartCppBuild() {
+#ifdef USE_IMGUI
+	if (cppBuildRunning_) {
+		return;
+	}
+	const std::filesystem::path solutionPath = std::filesystem::absolute("CG2_DirectX.sln");
+	const std::filesystem::path outputDirectory = std::filesystem::absolute(std::filesystem::path("../generated/HotReload") / std::to_string(GetCurrentProcessId()));
+	std::error_code error;
+	std::filesystem::create_directories(outputDirectory, error);
+	rebuiltExecutablePath_ = outputDirectory / "CG2_DirectX.exe";
+	hotReloadStatus_ = "Building C++ (Development)...";
+	hotReloadError_.clear();
+	cppBuildRunning_ = true;
+	cppBuildFuture_ = std::async(std::launch::async, [solutionPath, outputDirectory]() {
+		const std::wstring script =
+			L"$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'; "
+			L"if (!(Test-Path $vswhere)) { exit 2 }; "
+			L"$msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find 'MSBuild/**/Bin/MSBuild.exe' | Select-Object -First 1; "
+			L"if (!$msbuild) { exit 3 }; "
+			L"& $msbuild '" + solutionPath.wstring() + L"' /m /t:Build /p:Configuration=Development /p:Platform=x64 /p:OutDir='" + outputDirectory.wstring() + L"\\'; "
+			L"exit $LASTEXITCODE";
+		const std::wstring command = L"powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"" + script + L"\"";
+		return _wsystem(command.c_str());
+	});
+#endif
+}
+
+bool ImGuiManager::LaunchRebuiltExecutable() {
+#ifdef USE_IMGUI
+	if (!std::filesystem::exists(rebuiltExecutablePath_)) {
+		return false;
+	}
+	std::wstring commandLine = L"\"" + rebuiltExecutablePath_.wstring() + L"\"";
+	std::vector<wchar_t> mutableCommandLine(commandLine.begin(), commandLine.end());
+	mutableCommandLine.push_back(L'\0');
+	const std::wstring workingDirectory = std::filesystem::current_path().wstring();
+	STARTUPINFOW startupInfo{};
+	startupInfo.cb = sizeof(startupInfo);
+	PROCESS_INFORMATION processInfo{};
+	const BOOL launched = CreateProcessW(
+		rebuiltExecutablePath_.c_str(), mutableCommandLine.data(), nullptr, nullptr, FALSE, 0, nullptr,
+		workingDirectory.c_str(), &startupInfo, &processInfo);
+	if (!launched) {
+		return false;
+	}
+	CloseHandle(processInfo.hThread);
+	CloseHandle(processInfo.hProcess);
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool ImGuiManager::PollCppBuild() {
+#ifdef USE_IMGUI
+	if (!cppBuildRunning_ || !cppBuildFuture_.valid() || cppBuildFuture_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+		return false;
+	}
+	cppBuildRunning_ = false;
+	const int result = cppBuildFuture_.get();
+	if (result != 0) {
+		hotReloadStatus_ = "C++ build failed";
+		hotReloadError_ = "MSBuild exit code: " + std::to_string(result);
+		return false;
+	}
+	if (!LaunchRebuiltExecutable()) {
+		hotReloadStatus_ = "Build succeeded, restart failed";
+		hotReloadError_ = "Could not launch: " + rebuiltExecutablePath_.generic_string();
+		return false;
+	}
+	hotReloadStatus_ = "Restarting rebuilt application...";
+	restartRequested_ = true;
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool ImGuiManager::UpdateHotReload(const std::string& sceneJsonPath, const std::function<bool()>& reloadScene) {
+#ifdef USE_IMGUI
+	PollCppBuild();
+
+	const bool shaderChanged = DetectFileChanges("Resources/Shader", {".hlsl", ".hlsli"}, shaderTimestamps_);
+	const bool sceneChanged = !sceneJsonPath.empty() && DetectFileChanges(sceneJsonPath, {".json"}, sceneTimestamps_);
+	const bool textureChanged = DetectFileChanges("Resources", {".png", ".jpg", ".jpeg", ".bmp", ".tga", ".dds"}, textureTimestamps_);
+	bool cppChanged = false;
+	cppChanged |= DetectFileChanges("Engine", {".h", ".hpp", ".cpp"}, cppTimestamps_);
+	cppChanged |= DetectFileChanges("Player", {".h", ".hpp", ".cpp"}, cppTimestamps_);
+	cppChanged |= DetectFileChanges("scene", {".h", ".hpp", ".cpp"}, cppTimestamps_);
+	cppChanged |= DetectFileChanges("main.cpp", {".cpp"}, cppTimestamps_);
+
+	if (autoReloadShaders_ && shaderChanged) {
+		ReloadShaders();
+	}
+	if (autoReloadScene_ && sceneChanged && reloadScene) {
+		hotReloadStatus_ = reloadScene() ? "Scene JSON reloaded" : "Scene JSON reload skipped";
+	}
+	if (autoReloadTextures_ && textureChanged) {
+		ReloadTextures();
+	}
+	if (autoReloadCpp_ && cppChanged && !cppBuildRunning_) {
+		StartCppBuild();
+	}
+
+	if (ImGui::Begin("Hot Reload")) {
+		ImGui::Checkbox("Auto HLSL", &autoReloadShaders_);
+		ImGui::SameLine();
+		if (ImGui::Button("Reload HLSL")) {
+			ReloadShaders();
+		}
+		ImGui::Checkbox("Auto Scene JSON", &autoReloadScene_);
+		ImGui::SameLine();
+		if (ImGui::Button("Reload Scene") && reloadScene) {
+			hotReloadStatus_ = reloadScene() ? "Scene JSON reloaded" : "Scene JSON reload skipped";
+		}
+		ImGui::Checkbox("Auto Textures", &autoReloadTextures_);
+		ImGui::SameLine();
+		if (ImGui::Button("Reload Textures")) {
+			ReloadTextures();
+		}
+		ImGui::Checkbox("Auto C++ build + restart", &autoReloadCpp_);
+		ImGui::SameLine();
+		if (cppBuildRunning_) {
+			ImGui::BeginDisabled();
+		}
+		if (ImGui::Button(cppBuildRunning_ ? "Building..." : "Build C++ & Restart")) {
+			StartCppBuild();
+		}
+		if (cppBuildRunning_) {
+			ImGui::EndDisabled();
+		}
+		ImGui::Separator();
+		ImGui::TextWrapped("Status: %s", hotReloadStatus_.c_str());
+		if (!hotReloadError_.empty()) {
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
+			ImGui::TextWrapped("%s", hotReloadError_.c_str());
+			ImGui::PopStyleColor();
+		}
+	}
+	ImGui::End();
+	return restartRequested_;
+#else
+	(void)sceneJsonPath;
+	(void)reloadScene;
+	return false;
 #endif
 }
 

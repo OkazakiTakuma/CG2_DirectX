@@ -2,6 +2,7 @@
 #include "../2d/TextureManager.h"
 #include "../2d/LineDrawer.h"
 #include "../base/SrvManager.h"
+#include "../base/GameTime.h"
 #include "Model.h"
 #include "ModelManager.h"
 #include "Object3dCommon.h"
@@ -525,9 +526,9 @@ void Object3d::Update() {
 	if (model) {
 		if (HasAnimation()) {
 			const float targetBlendWeight = isAnimationPlaying_ ? 1.0f : 0.0f;
-			animationBlendWeight_ = MoveTowards(animationBlendWeight_, targetBlendWeight, animationBlendSpeed_);
+			animationBlendWeight_ = MoveTowards(animationBlendWeight_, targetBlendWeight, animationBlendSpeed_ * GameTime::GetFrameScale60());
 			if (isAnimationPlaying_) {
-				animationTime += 1.0f / 60.0f;
+				animationTime += GameTime::GetDeltaTime();
 				animationTime = std::fmod(animationTime, animation.duration);
 			}
 			ApplyAnimationToSkeleton();

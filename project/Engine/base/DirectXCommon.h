@@ -62,6 +62,8 @@ public:
 	/// <param name="profile">profile に使用する値を指定します。</param>
 	/// <returns>処理結果を返します。</returns>
 	Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(const std::wstring& filepath, const wchar_t* profile);
+	Microsoft::WRL::ComPtr<IDxcBlob> TryCompileShader(const std::wstring& filepath, const wchar_t* profile, std::string& errorMessage);
+	void FlushGPU() { WaitForGPU(); }
 	/// <summary>
 	/// BufferResource を作成し、利用できる状態にします。
 	/// </summary>

@@ -36,6 +36,8 @@ public:
 	/// </summary>
 	/// <param name="filepath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 	void LoadTexture(const std::string& filepath);
+	bool ReloadTexture(const std::string& filepath);
+	size_t ReloadAllTextures();
 	static uint32_t kSRVIndexTop;
 	/// <summary>
 	/// TextureIndexByFilePath を取得します。

@@ -42,6 +42,12 @@ void Game::Update() {
 	if (FlameWork::IsEndRequest()) {
 		return;
 	}
+	if (ImGuiManager::GetInstance()->UpdateHotReload(
+		sceneManager ? sceneManager->GetCurrentSceneJsonPath() : std::string(),
+		[this]() { return sceneManager && sceneManager->ReloadCurrentSceneJson(); })) {
+		endRequest = true;
+		return;
+	}
 	Input::GetInstance()->Update();
 
 	if (Input::GetInstance()->TriggerKey(DIK_F11)) {

@@ -815,6 +815,8 @@ PlayerAttackLevelStats JsonToPlayerAttackLevelStats(const nlohmann::json& json, 
 nlohmann::json PlayerAttackStatsToJson(const PlayerAttackStats& stats) {
 	nlohmann::json json;
 	json["name"] = stats.name;
+	json["superCondition"]["status"] = stats.superConditionStatusName;
+	json["superCondition"]["level"] = stats.superConditionStatusLevel;
 	for (const PlayerAttackLevelStats& levelStats : stats.levels) {
 		json["levels"][levelStats.level] = PlayerAttackLevelStatsToJson(levelStats);
 	}
@@ -827,6 +829,13 @@ PlayerAttackStats JsonToPlayerAttackStats(const nlohmann::json& json, const Play
 		return stats;
 	}
 	stats.name = json.value("name", stats.name);
+	const nlohmann::json superConditionJson = json.value("superCondition", nlohmann::json::object());
+	stats.superConditionStatusName = superConditionJson.value("status", stats.superConditionStatusName);
+	stats.superConditionStatusLevel = superConditionJson.value("level", stats.superConditionStatusLevel);
+	const std::vector<std::string> statusLevels = GetPlayerStatusItemLevels();
+	if (std::find(statusLevels.begin(), statusLevels.end(), stats.superConditionStatusLevel) == statusLevels.end()) {
+		stats.superConditionStatusLevel = "1";
+	}
 	stats.levels.clear();
 	const nlohmann::json levelsJson = json.value("levels", nlohmann::json::object());
 	for (const std::string& level : GetPlayerAttackLevels()) {
@@ -925,6 +934,7 @@ nlohmann::json PlayerStatsToJson(const PlayerStats& stats) {
 	json["speed"] = stats.speed;
 	json["attackSpeed"] = stats.attackSpeed;
 	json["attackSize"] = stats.attackSize;
+	json["damageInvincibilityDuration"] = stats.damageInvincibilityDuration;
 	json["level"] = stats.level;
 	json["experience"] = stats.experience;
 	json["experienceCorrection"] = stats.experienceCorrection;
@@ -966,6 +976,7 @@ PlayerStats JsonToPlayerStats(const nlohmann::json& json, const PlayerStats& fal
 	stats.speed = json.value("speed", stats.speed);
 	stats.attackSpeed = json.value("attackSpeed", stats.attackSpeed);
 	stats.attackSize = json.value("attackSize", stats.attackSize);
+	stats.damageInvincibilityDuration = json.value("damageInvincibilityDuration", stats.damageInvincibilityDuration);
 	stats.level = json.value("level", stats.level);
 	stats.experience = json.value("experience", stats.experience);
 	stats.experienceCorrection = json.value("experienceCorrection", stats.experienceCorrection);
@@ -1026,6 +1037,7 @@ PlayerStats JsonToPlayerStats(const nlohmann::json& json, const PlayerStats& fal
 	stats.speed = (std::max)(0.0f, stats.speed);
 	stats.attackSpeed = (std::max)(0.0f, stats.attackSpeed);
 	stats.attackSize = (std::max)(0.0f, stats.attackSize);
+	stats.damageInvincibilityDuration = (std::max)(0.0f, stats.damageInvincibilityDuration);
 	stats.level = (std::max)(1, stats.level);
 	stats.experience = (std::max)(0, stats.experience);
 	stats.experienceCorrection = (std::max)(0.0f, stats.experienceCorrection);

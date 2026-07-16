@@ -1,6 +1,7 @@
 #pragma once
 #include "Component.h"
 #include "GameObject.h"
+#include "../base/GameTime.h"
 #include <cmath>
 #include <string>
 
@@ -34,13 +35,12 @@ public:
 		const float distance = Length(direction);
 		if (distance > 0.0001f) {
 			const Vector3 normalized = Normalize(direction);
-			transform.translate = transform.translate + stats_.speed * normalized;
+			transform.translate = transform.translate + (stats_.speed * GameTime::GetFrameScale60()) * normalized;
 			transform.rotate.y = std::atan2(normalized.x, normalized.z);
 		}
 
 		if (stats_.shoots && stats_.shootingInterval > 0.0f) {
-			constexpr float kDeltaTime = 1.0f / 60.0f;
-			shootTimer_ += kDeltaTime;
+			shootTimer_ += GameTime::GetDeltaTime();
 			if (shootTimer_ >= stats_.shootingInterval) {
 				shootTimer_ = 0.0f;
 			}

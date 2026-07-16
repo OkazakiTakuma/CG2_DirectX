@@ -23,6 +23,7 @@
 #include <SrvManager.h>
 #include <WinApp.h>
 #include"PostEffect.h"
+#include "GameTime.h"
 using namespace Logger;
 using namespace StringUtility;
 using namespace Microsoft::WRL;
@@ -93,6 +94,7 @@ void FlameWork::Initialize() {
 	ModelManager::GetInstance()->Inithialize(dxCommon.get());
 	ParticleManager::GetInstance()->Initialize(dxCommon.get());
 	InstancingModelCommon::GetInstance()->Initialize(dxCommon.get());
+	GameTime::Initialize();
 
 }
 
@@ -100,6 +102,7 @@ void FlameWork::Initialize() {
 /// 毎フレームの状態更新を行います。
 /// </summary>
 void FlameWork::Update() {
+	GameTime::Update();
 	if (winApp->ProcessMessage()) {
 		endRequest = true;
 	}

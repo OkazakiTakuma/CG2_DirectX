@@ -27,6 +27,7 @@ struct PlayerStats {
 	float speed = 100.0f;
 	float attackSpeed = 100.0f;
 	float attackSize = 100.0f;
+	float damageInvincibilityDuration = 1.0f;
 	int level = 1;
 	int experience = 0;
 	float experienceCorrection = 100.0f;
@@ -57,6 +58,15 @@ public:
 	const PlayerStats& GetStats() const { return effectiveStats_; }
 	const PlayerStats& GetBaseStats() const { return stats_; }
 	void AddExperience(int experience);
+	bool ConsumePendingLevelUp() {
+		if (pendingLevelUpCount_ <= 0) {
+			return false;
+		}
+		--pendingLevelUpCount_;
+		return true;
+	}
+	int GetPendingLevelUpCount() const { return pendingLevelUpCount_; }
+	static int GetRequiredExperienceForNextLevel(int level);
 	void SetExperience(int experience) {
 		const int clampedExperience = experience < 0 ? 0 : experience;
 		stats_.experience = clampedExperience;
@@ -102,13 +112,16 @@ public:
 	bool GetIsAnimationModel() const { return isAnimationModel_; }
 
 private:
+	void UpdateLevelFromExperience();
 	Vector3 spawnPoint_{0.0f, 0.0f, 0.0f};
 	Vector3 currentMoveVelocity_{0.0f, 0.0f, 0.0f};
 	float moveSpeed_ = 0.1f;
 	float currentHealth_ = 100.0f;
+	float damageInvincibilityTimer_ = 0.0f;
 	PlayerStats stats_;
 	PlayerStats effectiveStats_;
 	std::string playerTypeName_ = "Default";
 	std::string modelFilePath_;
 	bool isAnimationModel_ = false;
+	int pendingLevelUpCount_ = 0;
 };

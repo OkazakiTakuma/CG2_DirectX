@@ -1,147 +1,7 @@
 {
     "activeCamera": "Player_5",
-    "nextObjectId": 12,
+    "nextObjectId": 238,
     "objects": [
-        {
-            "children": [],
-            "model": "simpleSkin.gltf",
-            "name": "simpleSkin_1",
-            "obbCollider": {
-                "centerOffset": [
-                    0.0,
-                    0.0,
-                    0.0
-                ],
-                "drawDebug": true,
-                "enabled": true,
-                "gravity": {
-                    "enabled": false,
-                    "strength": 9.800000190734863
-                },
-                "halfSize": [
-                    0.5,
-                    1.0,
-                    0.15000000596046448
-                ],
-                "pushBack": false
-            },
-            "object3d": {
-                "animationPlaying": true,
-                "drawSkeleton": false,
-                "enabled": true,
-                "gravity": {
-                    "enabled": false,
-                    "strength": 9.800000190734863
-                },
-                "isPointLight": true,
-                "modelTextureFilePath": "Resources/simpleSkin/uvChecker.png",
-                "pointLight": {
-                    "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                    ],
-                    "decay": 1.0,
-                    "intensity": 1.0,
-                    "position": [
-                        0.928219735622406,
-                        0.0,
-                        0.0
-                    ],
-                    "radius": 10.0
-                }
-            },
-            "parent": "",
-            "transform": {
-                "rotate": [
-                    0.0,
-                    -0.0,
-                    0.0
-                ],
-                "scale": [
-                    1.0,
-                    1.0,
-                    1.0
-                ],
-                "translate": [
-                    0.928219735622406,
-                    0.0,
-                    0.0
-                ]
-            },
-            "type": "LoadedModel"
-        },
-        {
-            "children": [],
-            "model": "sneakWalk.gltf",
-            "name": "sneakWalk_2",
-            "obbCollider": {
-                "centerOffset": [
-                    0.0,
-                    0.0,
-                    0.0
-                ],
-                "drawDebug": true,
-                "enabled": true,
-                "gravity": {
-                    "enabled": false,
-                    "strength": 9.800000190734863
-                },
-                "halfSize": [
-                    0.5,
-                    0.5,
-                    0.5
-                ],
-                "pushBack": false
-            },
-            "object3d": {
-                "animationPlaying": true,
-                "drawSkeleton": false,
-                "enabled": true,
-                "gravity": {
-                    "enabled": false,
-                    "strength": 9.800000190734863
-                },
-                "isPointLight": true,
-                "modelTextureFilePath": "Resources/human/white.png",
-                "pointLight": {
-                    "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                    ],
-                    "decay": 1.0,
-                    "intensity": 1.0,
-                    "position": [
-                        -0.0890066921710968,
-                        0.0,
-                        0.0
-                    ],
-                    "radius": 10.0
-                }
-            },
-            "parent": "",
-            "transform": {
-                "rotate": [
-                    0.0,
-                    -0.0,
-                    0.0
-                ],
-                "scale": [
-                    1.0,
-                    1.0,
-                    1.0
-                ],
-                "translate": [
-                    -0.0890066921710968,
-                    0.0,
-                    0.0
-                ]
-            },
-            "type": "LoadedModel"
-        },
         {
             "camera": {
                 "enabled": true,
@@ -211,33 +71,44 @@
                     "decay": 1.0,
                     "intensity": 1.0,
                     "position": [
-                        -1.2647502422332764,
-                        -0.5479531288146973,
-                        0.37650230526924133
+                        0.11398869752883911,
+                        -0.5601629614830017,
+                        0.968877911567688
                     ],
                     "radius": 10.0
                 }
             },
             "parent": "",
             "player": {
+                "currentHealth": 41.0,
                 "enabled": true,
+                "experience": 13,
                 "gravity": {
                     "enabled": false,
                     "strength": 9.800000190734863
                 },
                 "isAnimationModel": true,
+                "level": 1,
                 "model": "walk.gltf",
                 "moveSpeed": 0.10000000149011612,
                 "spawnPoint": [
                     0.0,
                     0.0,
                     0.0
-                ]
+                ],
+                "typeName": "walk.gltf"
+            },
+            "playerAttack": {
+                "enabled": true,
+                "gravity": {
+                    "enabled": false,
+                    "strength": 9.800000190734863
+                }
             },
             "transform": {
                 "rotate": [
                     0.0,
-                    3.1415927410125732,
+                    0.0,
                     0.0
                 ],
                 "scale": [
@@ -246,9 +117,9 @@
                     1.0
                 ],
                 "translate": [
-                    -1.2647502422332764,
+                    0.11398869752883911,
                     -0.5452309250831604,
-                    0.37650230526924133
+                    0.968877911567688
                 ]
             },
             "type": "Player"
@@ -357,9 +228,9 @@
                     1.0
                 ],
                 "translate": [
-                    -1.2647502422332764,
+                    0.11398869752883911,
                     0.20000000298023224,
-                    0.37650230526924133
+                    0.968877911567688
                 ]
             },
             "type": "EnemySpawnPoint"
@@ -403,6 +274,29 @@
                 ]
             },
             "type": "Text"
+        },
+        {
+            "children": [],
+            "name": "Straight_220",
+            "parent": "",
+            "transform": {
+                "rotate": [
+                    0.0,
+                    -1.4003080129623413,
+                    0.0
+                ],
+                "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "translate": [
+                    -5.888057231903076,
+                    -0.0452309250831604,
+                    0.9516894817352295
+                ]
+            },
+            "type": "PlayerProjectile"
         }
     ],
     "scene": "GAMEPLAY",

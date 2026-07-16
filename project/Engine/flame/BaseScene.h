@@ -108,6 +108,7 @@ public:
 	void DrawEditorImGui();
 	void SetSceneName(const std::string& sceneName) { sceneName_ = sceneName; }
 	void SetFallbackCamera(Camera* camera) { fallbackCamera_ = camera; }
+	bool IsLevelUpSelectionActive() const { return isLevelUpSelectionActive_; }
 /// <summary>
 /// エディタで配置したオブジェクト情報をJSONへ保存します。
 /// </summary>
@@ -118,6 +119,20 @@ public:
 	void LoadEditorObjects();
 
 private:
+	enum class LevelUpChoiceType {
+		AttackLevelUp,
+		AttackSuper,
+		NewAttack,
+		StatusLevelUp,
+		NewStatus
+	};
+	struct LevelUpChoice {
+		LevelUpChoiceType type = LevelUpChoiceType::AttackLevelUp;
+		std::string name;
+		std::string title;
+		std::string description;
+		int slotIndex = -1;
+	};
 /// <summary>
 /// 指定された種類のエディタオブジェクトを生成します。
 /// </summary>
@@ -138,6 +153,7 @@ private:
 /// </summary>
 	void DrawEditorInspector();
 	void DrawPlayerInspector();
+	void DrawEnemyInspector();
 	void DrawPlayerAttackInspector();
 	void ReloadPlayerAttackInspectorCache();
 	PlayerAttackStats* FindCachedPlayerAttackStats(const std::string& attackName);
@@ -187,6 +203,11 @@ private:
 	void UpdatePlayerAttacks();
 	void UpdatePlayerProjectileHits();
 	void CleanupExpiredPlayerProjectiles();
+	void UpdatePlayerHealthHud();
+	void UpdateLevelUpSelection();
+	bool BuildLevelUpChoices(Player* player);
+	void ApplyLevelUpChoice(int choiceIndex);
+	void DrawLevelUpSelectionImGui();
 /// <summary>
 /// 指定したオブジェクトのカメラをアクティブカメラに設定します。
 /// </summary>
@@ -237,6 +258,7 @@ private:
 	int selectedInspectorComponentIndex_ = 0;
 	std::array<char, 64> particlePresetNameBuffer_ = {};
 	std::array<char, 64> enemyTypeNameBuffer_ = {};
+	std::string enemyInspectorObjectName_;
 	std::array<char, 64> playerTypeNameBuffer_ = {};
 	std::array<char, 64> playerAttackNameBuffer_ = {};
 	std::array<char, 512> textEditBuffer_ = {};
@@ -249,5 +271,12 @@ private:
 	std::string activeCameraObjectName_;
 	std::string skyBoxTextureFilePath_;
 	std::unique_ptr<SkyBox> editorSkyBox_;
+	std::unique_ptr<Sprite> playerHealthBarBackground_;
+	std::unique_ptr<Sprite> playerHealthBarFill_;
+	bool isPlayerHealthHudVisible_ = false;
+	bool isLevelUpSelectionActive_ = false;
+	Player* levelUpPlayer_ = nullptr;
+	int selectedLevelUpChoiceIndex_ = 0;
+	std::vector<LevelUpChoice> levelUpChoices_;
 	Camera* fallbackCamera_ = nullptr;
 };

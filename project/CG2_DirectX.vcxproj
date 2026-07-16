@@ -309,6 +309,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\base\struct.h" />
     <ClInclude Include="Engine\base\D3DResouceLeakCheker.h" />
     <ClInclude Include="Engine\base\DirectXCommon.h" />
+	<ClInclude Include="Engine\base\GameTime.h" />
     <ClInclude Include="Engine\math\Matrix.h" />
     <ClInclude Include="Engine\math\Screen.h" />
     <ClInclude Include="Engine\math\Vector.h" />
