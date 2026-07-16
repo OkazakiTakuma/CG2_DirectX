@@ -110,6 +110,8 @@ public:
 	/// </summary>
 	/// <param name="multiplier">multiplier に使用する値を指定します。</param>
 	void SetEnvironmentMultiplier(float multiplier);
+	void SetColor(const Vector4& color) { if (materialOverrideData_) materialOverrideData_->color = color; }
+	Vector4 GetColor() const { return materialOverrideData_ ? materialOverrideData_->color : Vector4{1.0f, 1.0f, 1.0f, 1.0f}; }
 	void IsPointLightSet(bool isSet) { isPointLightSet = isSet; }
 
 	const Vector4 GetLightColor() const { return directionallightData ? directionallightData->color : Vector4(0.0f, 0.0f, 0.0f, 1.0f); }
@@ -224,6 +226,8 @@ private:
 	};
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceCylinder;
 	MaterialData* materialDataCylinder = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> materialOverrideResource_;
+	MaterialData* materialOverrideData_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> shadowMaterialResource;
 	MaterialData* shadowMaterialData = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> shadowWvpResource;

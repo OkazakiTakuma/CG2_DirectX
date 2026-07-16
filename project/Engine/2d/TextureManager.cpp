@@ -3,6 +3,7 @@
 #include "ParticleManager.h"
 #include "StringUtility.h"
 #include <algorithm>
+#include <cstring>
 
 TextureManager* TextureManager::instance = nullptr;
 using namespace StringUtility;
@@ -116,6 +117,42 @@ void TextureManager::LoadTexture(const std::string& filepath) {
 	dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
 }
 
+void TextureManager::CreateTextureFromRGBA(const std::string& key, uint32_t width, uint32_t height, const std::vector<uint8_t>& pixels) {
+	if (textureDatas.contains(key) || !dxCommon_ || width == 0 || height == 0 || pixels.size() < static_cast<size_t>(width) * height * 4) {
+		return;
+	}
+	DirectX::ScratchImage image;
+	HRESULT hr = image.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, width, height, 1, 1);
+	assert(SUCCEEDED(hr));
+	const DirectX::Image* destination = image.GetImage(0, 0, 0);
+	for (uint32_t row = 0; row < height; ++row) {
+		std::memcpy(destination->pixels + destination->rowPitch * row, pixels.data() + static_cast<size_t>(width) * row * 4, static_cast<size_t>(width) * 4);
+	}
+
+	TextureData& textureData = textureDatas[key];
+	textureData.metadata = image.GetMetadata();
+	textureData.resource = dxCommon_->CreateTextureResource(textureData.metadata);
+	SrvManager* srvManager = SrvManager::GetInstance();
+	textureData.srvIndex = srvManager->Allocate();
+	textureData.srvHandleCPU = srvManager->GetCPUDescriptorHandle(textureData.srvIndex);
+	textureData.srvHandleGPU = srvManager->GetGPUDescriptorHandle(textureData.srvIndex);
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Format = textureData.metadata.format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	dxCommon_->GetDevice()->CreateShaderResourceView(textureData.resource.Get(), &srvDesc, textureData.srvHandleCPU);
+	dxCommon_->UploadTextureData(textureData.resource, image);
+
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Transition.pResource = textureData.resource.Get();
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
+}
+
 bool TextureManager::ReloadTexture(const std::string& filepath) {
 	auto textureIt = textureDatas.find(filepath);
 	if (textureIt == textureDatas.end() || !dxCommon_) {
@@ -193,6 +230,9 @@ std::vector<std::string> TextureManager::GetLoadedTextureNames() const {
 	std::vector<std::string> names;
 	names.reserve(textureDatas.size());
 	for (const auto& [filePath, textureData] : textureDatas) {
+		if (filePath.starts_with("__runtime_")) {
+			continue;
+		}
 		names.push_back(filePath);
 	}
 	std::sort(names.begin(), names.end());

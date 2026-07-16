@@ -32,6 +32,12 @@ struct PlayerAttackStats {
 	std::vector<PlayerAttackLevelStats> levels;
 };
 
+enum class PlayerProjectileMotionType {
+	Linear,
+	Orbit,
+	SkyLaser
+};
+
 struct PlayerAttackShotRequest {
 	std::string attackName;
 	std::string level;
@@ -46,6 +52,11 @@ struct PlayerAttackShotRequest {
 	std::string modelFilePath = "sphere.obj";
 	bool homing = false;
 	float homingAccuracy = 1.0f;
+	PlayerProjectileMotionType motionType = PlayerProjectileMotionType::Linear;
+	GameObject* motionAnchor = nullptr;
+	float orbitAngleRadians = 0.0f;
+	float orbitRadius = 2.2f;
+	float orbitAngularSpeed = 2.2f;
 };
 
 class PlayerAttackComponent : public Component {
@@ -198,7 +209,41 @@ private:
 		CreateSpreadAttack(owner, player, slot, levelStats, currentLevel);
 	}
 
+	void CreateOrbitAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
+		const int shotCount = (std::max)(1, levelStats.shotCount);
+		constexpr float kTwoPi = 6.28318530717958647692f;
+		for (int index = 0; index < shotCount; ++index) {
+			QueueShot(owner, player, slot, levelStats, currentLevel, 0.0f);
+			PlayerAttackShotRequest& request = shotRequests_.back();
+			request.motionType = PlayerProjectileMotionType::Orbit;
+			request.motionAnchor = owner;
+			request.orbitAngleRadians = kTwoPi * static_cast<float>(index) / static_cast<float>(shotCount);
+			request.orbitRadius = 2.2f;
+			request.orbitAngularSpeed = (std::max)(0.1f, levelStats.speed);
+			request.speed = 0.0f;
+		}
+	}
+
+	void CreateSkyLaserAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
+		const int targetCount = (std::max)(1, levelStats.shotCount);
+		for (int index = 0; index < targetCount; ++index) {
+			QueueShot(owner, player, slot, levelStats, currentLevel, 0.0f);
+			PlayerAttackShotRequest& request = shotRequests_.back();
+			request.motionType = PlayerProjectileMotionType::SkyLaser;
+			request.direction = {0.0f, -1.0f, 0.0f};
+			request.speed = 0.0f;
+		}
+	}
+
 	void CreateAttackByName(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
+		if (slot.stats.name == "Orbit") {
+			CreateOrbitAttack(owner, player, slot, levelStats, currentLevel);
+			return;
+		}
+		if (slot.stats.name == "SkyLaser") {
+			CreateSkyLaserAttack(owner, player, slot, levelStats, currentLevel);
+			return;
+		}
 		if (levelStats.homing) {
 			CreateHomingAttack(owner, player, slot, levelStats, currentLevel);
 			return;

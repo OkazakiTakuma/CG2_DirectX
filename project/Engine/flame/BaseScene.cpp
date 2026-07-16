@@ -29,6 +29,13 @@ void BaseScene::Finalize() {
 	isLevelUpSelectionActive_ = false;
 	levelUpPlayer_ = nullptr;
 	levelUpChoices_.clear();
+	levelUpOverlaySprite_.reset();
+	levelUpPanelSprite_.reset();
+	for (auto& sprite : levelUpChoiceBorderSprites_) sprite.reset();
+	for (auto& sprite : levelUpChoiceSprites_) sprite.reset();
+	levelUpTitleTextObject_.reset();
+	levelUpInstructionTextObject_.reset();
+	for (auto& object : levelUpChoiceTextObjects_) object.reset();
 	GameTime::SetPaused(false);
 	selectedObjectIndex_ = -1;
 	activeCameraObjectName_.clear();
@@ -86,6 +93,7 @@ void BaseScene::DrawSceneObjects2D() {
 		playerHealthBarBackground_->Draw();
 		playerHealthBarFill_->Draw();
 	}
+	DrawLevelUpSelection2D();
 }
 
 /// <summary>
@@ -101,8 +109,8 @@ void BaseScene::DrawSceneObjects3D() {
 /// エディタ用ImGuiウィンドウを描画します。
 /// </summary>
 void BaseScene::DrawEditorImGui() {
-#ifdef USE_IMGUI
 	UpdateLevelUpSelection();
+#ifdef USE_IMGUI
 	DrawEditorHierarchy();
 	DrawEditorProjectAssets();
 	DrawEditorInspector();
@@ -111,7 +119,6 @@ void BaseScene::DrawEditorImGui() {
 	DrawPlayerAttackInspector();
 	DrawEditorGizmo();
 	HandleGameViewAssetDrop();
-	DrawLevelUpSelectionImGui();
 #endif
 }
 

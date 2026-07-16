@@ -48,8 +48,10 @@ public:
 	}
 
 	void ApplyStats(const EnemyStats& stats) {
+		const bool isFirstStatsApplication = !hasAppliedStats_;
 		stats_ = stats;
-		if (currentHealth_ <= 0.0f || currentHealth_ > stats_.health) {
+		hasAppliedStats_ = true;
+		if (isFirstStatsApplication || currentHealth_ <= 0.0f || currentHealth_ > stats_.health) {
 			currentHealth_ = stats_.health;
 		}
 	}
@@ -74,4 +76,5 @@ private:
 	float currentHealth_ = 10.0f;
 	float shootTimer_ = 0.0f;
 	bool runtimeSpawned_ = false;
+	bool hasAppliedStats_ = false;
 };

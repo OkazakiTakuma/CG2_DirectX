@@ -51,7 +51,7 @@ void BaseScene::SaveEditorObjects() {
 			SaveComponentGravity(objectJson["player"], player);
 			objectJson["player"]["typeName"] = player->GetPlayerTypeName();
 			objectJson["player"]["spawnPoint"] = Vector3ToJson(player->GetSpawnPoint());
-			objectJson["player"]["currentHealth"] = player->GetCurrentHealth();
+			objectJson["player"]["currentHealth"] = player->GetMaxHealth();
 			objectJson["player"]["level"] = player->GetStats().level;
 			objectJson["player"]["experience"] = player->GetStats().experience;
 			objectJson["player"]["moveSpeed"] = player->GetMoveSpeed();
@@ -169,6 +169,16 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["enemySpawnPoint"]["pointHeight"] = enemySpawnPoint->GetPointHeight();
 			objectJson["enemySpawnPoint"]["drawDebug"] = enemySpawnPoint->GetDrawDebug();
 			objectJson["enemySpawnPoint"]["debugPointSize"] = enemySpawnPoint->GetDebugPointSize();
+			objectJson["enemySpawnPoint"]["schedules"] = nlohmann::json::array();
+			for (const EnemySpawnPointComponent::SpawnSchedule& schedule : enemySpawnPoint->GetSpawnSchedules()) {
+				objectJson["enemySpawnPoint"]["schedules"].push_back({
+					{"startTime", schedule.startTimeSeconds},
+					{"endTime", schedule.endTimeSeconds},
+					{"enemyTypeName", schedule.enemyTypeName},
+					{"intervalFrames", schedule.spawnIntervalFrames},
+					{"spawnAmount", schedule.spawnAmount}
+				});
+			}
 		}
 		objectJson["transform"]["scale"] = Vector3ToJson(transform.scale);
 		objectJson["transform"]["rotate"] = Vector3ToJson(transform.rotate);
@@ -314,7 +324,7 @@ void BaseScene::LoadEditorObjects() {
 				object3dComponent->SetDrawSkeleton(isAnimationModel);
 			}
 			player->ResetToSpawnPoint();
-			player->SetCurrentHealth(playerJson.value("currentHealth", player->GetMaxHealth()));
+			player->SetCurrentHealth(player->GetMaxHealth());
 			player->SetLevel(playerJson.value("level", player->GetStats().level));
 			player->SetExperience(playerJson.value("experience", player->GetStats().experience));
 			CameraComponent* playerCamera = object->GetComponent<CameraComponent>();
@@ -482,6 +492,23 @@ void BaseScene::LoadEditorObjects() {
 			enemySpawnPoint->SetPointHeight(spawnJson.value("pointHeight", enemySpawnPoint->GetPointHeight()));
 			enemySpawnPoint->SetDrawDebug(spawnJson.value("drawDebug", enemySpawnPoint->GetDrawDebug()));
 			enemySpawnPoint->SetDebugPointSize(spawnJson.value("debugPointSize", enemySpawnPoint->GetDebugPointSize()));
+			std::vector<EnemySpawnPointComponent::SpawnSchedule> schedules;
+			const nlohmann::json schedulesJson = spawnJson.value("schedules", nlohmann::json::array());
+			if (schedulesJson.is_array()) {
+				for (const nlohmann::json& scheduleJson : schedulesJson) {
+					if (!scheduleJson.is_object()) {
+						continue;
+					}
+					EnemySpawnPointComponent::SpawnSchedule schedule;
+					schedule.startTimeSeconds = scheduleJson.value("startTime", schedule.startTimeSeconds);
+					schedule.endTimeSeconds = scheduleJson.value("endTime", schedule.endTimeSeconds);
+					schedule.enemyTypeName = scheduleJson.value("enemyTypeName", schedule.enemyTypeName);
+					schedule.spawnIntervalFrames = scheduleJson.value("intervalFrames", schedule.spawnIntervalFrames);
+					schedule.spawnAmount = scheduleJson.value("spawnAmount", schedule.spawnAmount);
+					schedules.push_back(schedule);
+				}
+			}
+			enemySpawnPoint->SetSpawnSchedules(schedules);
 		}
 	}
 

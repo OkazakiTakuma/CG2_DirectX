@@ -122,6 +122,8 @@ public:
 		object3d_->SetPointLight(color, position, intensity, radius, decay);
 	}
 	void SetEnvironmentMultiplier(float multiplier) { object3d_->SetEnvironmentMultiplier(multiplier); }
+	void SetColor(const Vector4& color) { if (object3d_) object3d_->SetColor(color); }
+	Vector4 GetColor() const { return object3d_ ? object3d_->GetColor() : Vector4{1.0f, 1.0f, 1.0f, 1.0f}; }
 	void IsPointLightSet(bool isSet) { object3d_->IsPointLightSet(isSet); }
 	void SetEnvironmentMap(const std::string& textureFilePath) { object3d_->SetEnvironmentMap(textureFilePath); }
 	void SetDrawSkeleton(bool isDraw) { object3d_->SetDrawSkeleton(isDraw); }
