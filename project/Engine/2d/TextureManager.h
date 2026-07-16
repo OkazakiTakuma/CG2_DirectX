@@ -36,6 +36,7 @@ public:
 	/// </summary>
 	/// <param name="filepath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 	void LoadTexture(const std::string& filepath);
+	void CreateTextureFromRGBA(const std::string& key, uint32_t width, uint32_t height, const std::vector<uint8_t>& pixels);
 	bool ReloadTexture(const std::string& filepath);
 	size_t ReloadAllTextures();
 	static uint32_t kSRVIndexTop;

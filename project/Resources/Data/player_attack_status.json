@@ -1,12 +1,36 @@
 {
+    "Orbit": {
+        "levels": {
+            "1": {"angles": [0.0], "attack": 18.0, "attackInterval": 4.0, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "1", "lifeTime": 4.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 3, "size": 55.0, "speed": 2.2},
+            "2": {"angles": [0.0], "attack": 23.0, "attackInterval": 4.0, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "2", "lifeTime": 4.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 3, "size": 60.0, "speed": 2.3},
+            "3": {"angles": [0.0], "attack": 25.0, "attackInterval": 4.5, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "3", "lifeTime": 4.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 4, "size": 65.0, "speed": 2.4},
+            "4": {"angles": [0.0], "attack": 32.0, "attackInterval": 4.5, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "4", "lifeTime": 4.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 4, "size": 70.0, "speed": 2.5},
+            "5": {"angles": [0.0], "attack": 36.0, "attackInterval": 5.0, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "5", "lifeTime": 5.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 5, "size": 75.0, "speed": 2.6},
+            "super": {"angles": [0.0], "attack": 45.0, "attackInterval": 5.5, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "super", "lifeTime": 5.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 6, "size": 85.0, "speed": 3.0}
+        },
+        "name": "Orbit",
+        "superCondition": {"level": "1", "status": "SizeUp"}
+    },
+    "SkyLaser": {
+        "levels": {
+            "1": {"angles": [0.0], "attack": 55.0, "attackInterval": 2.8, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "1", "lifeTime": 0.45, "model": "sphere.obj", "pierceCount": 0, "shotCount": 1, "size": 85.0, "speed": 0.0},
+            "2": {"angles": [0.0], "attack": 70.0, "attackInterval": 2.6, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "2", "lifeTime": 0.45, "model": "sphere.obj", "pierceCount": 0, "shotCount": 1, "size": 90.0, "speed": 0.0},
+            "3": {"angles": [0.0], "attack": 85.0, "attackInterval": 2.4, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "3", "lifeTime": 0.50, "model": "sphere.obj", "pierceCount": 0, "shotCount": 2, "size": 95.0, "speed": 0.0},
+            "4": {"angles": [0.0], "attack": 105.0, "attackInterval": 2.2, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "4", "lifeTime": 0.50, "model": "sphere.obj", "pierceCount": 0, "shotCount": 2, "size": 100.0, "speed": 0.0},
+            "5": {"angles": [0.0], "attack": 125.0, "attackInterval": 2.0, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "5", "lifeTime": 0.55, "model": "sphere.obj", "pierceCount": 0, "shotCount": 3, "size": 110.0, "speed": 0.0},
+            "super": {"angles": [0.0], "attack": 165.0, "attackInterval": 1.6, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "super", "lifeTime": 0.65, "model": "sphere.obj", "pierceCount": 0, "shotCount": 5, "size": 125.0, "speed": 0.0}
+        },
+        "name": "SkyLaser",
+        "superCondition": {"level": "1", "status": "AttackUp"}
+    },
     "Straight": {
         "levels": {
             "1": {
                 "angles": [
                     0.0
                 ],
-                "attack": 100.0,
-                "attackInterval": 0.5,
+                "attack": 28.0,
+                "attackInterval": 0.550000011920929,
                 "homing": false,
                 "homingAccuracy": 1.0,
                 "infinitePierce": false,
@@ -15,15 +39,15 @@
                 "model": "sphere.obj",
                 "pierceCount": 0,
                 "shotCount": 1,
-                "size": 100.0,
-                "speed": 0.3199999928474426
+                "size": 80.0,
+                "speed": 0.3400000035762787
             },
             "2": {
                 "angles": [
                     0.0
                 ],
-                "attack": 200.0,
-                "attackInterval": 0.44999998807907104,
+                "attack": 36.0,
+                "attackInterval": 0.5199999809265137,
                 "homing": false,
                 "homingAccuracy": 1.0,
                 "infinitePierce": false,
@@ -32,8 +56,8 @@
                 "model": "sphere.obj",
                 "pierceCount": 0,
                 "shotCount": 1,
-                "size": 120.0,
-                "speed": 0.3400000035762787
+                "size": 90.0,
+                "speed": 0.3499999940395355
             },
             "3": {
                 "angles": [
@@ -41,8 +65,8 @@
                     0.0,
                     12.0
                 ],
-                "attack": 300.0,
-                "attackInterval": 0.4000000059604645,
+                "attack": 32.0,
+                "attackInterval": 0.5,
                 "homing": false,
                 "homingAccuracy": 1.0,
                 "infinitePierce": false,
@@ -51,7 +75,7 @@
                 "model": "sphere.obj",
                 "pierceCount": 1,
                 "shotCount": 3,
-                "size": 130.0,
+                "size": 95.0,
                 "speed": 0.36000001430511475
             },
             "4": {
@@ -60,8 +84,8 @@
                     0.0,
                     18.0
                 ],
-                "attack": 400.0,
-                "attackInterval": 0.3499999940395355,
+                "attack": 42.0,
+                "attackInterval": 0.44999998807907104,
                 "homing": false,
                 "homingAccuracy": 1.0,
                 "infinitePierce": false,
@@ -70,7 +94,7 @@
                 "model": "sphere.obj",
                 "pierceCount": 2,
                 "shotCount": 3,
-                "size": 140.0,
+                "size": 105.0,
                 "speed": 0.3799999952316284
             },
             "5": {
@@ -81,8 +105,8 @@
                     12.0,
                     24.0
                 ],
-                "attack": 500.0,
-                "attackInterval": 0.30000001192092896,
+                "attack": 48.0,
+                "attackInterval": 0.41999998688697815,
                 "homing": false,
                 "homingAccuracy": 1.0,
                 "infinitePierce": false,
@@ -91,7 +115,7 @@
                 "model": "sphere.obj",
                 "pierceCount": 3,
                 "shotCount": 5,
-                "size": 150.0,
+                "size": 115.0,
                 "speed": 0.4000000059604645
             },
             "super": {
@@ -103,8 +127,8 @@
                     -60.0,
                     -120.0
                 ],
-                "attack": 150.0,
-                "attackInterval": 0.25,
+                "attack": 55.0,
+                "attackInterval": 0.3499999940395355,
                 "homing": true,
                 "homingAccuracy": 1.0,
                 "infinitePierce": true,
@@ -113,7 +137,7 @@
                 "model": "sphere.obj",
                 "pierceCount": 0,
                 "shotCount": 6,
-                "size": 90.0,
+                "size": 100.0,
                 "speed": 0.44999998807907104
             }
         },

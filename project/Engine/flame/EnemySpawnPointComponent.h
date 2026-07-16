@@ -13,8 +13,24 @@
 
 class EnemySpawnPointComponent : public Component {
 public:
+	struct SpawnSchedule {
+		float startTimeSeconds = 0.0f;
+		float endTimeSeconds = 60.0f;
+		std::string enemyTypeName = "Default";
+		int spawnIntervalFrames = 60;
+		int spawnAmount = 1;
+		int frameCounter = 0;
+	};
+	struct ScheduledSpawnRequest {
+		std::string enemyTypeName;
+		Vector3 position{};
+	};
+
 	void Update() override {
 		RecalculateSpawnPoints();
+		if (spawnEnabled_) {
+			elapsedTimeSeconds_ += GameTime::GetDeltaTime();
+		}
 	}
 
 	void Draw3D() override {
@@ -78,7 +94,55 @@ public:
 	bool GetSpawnEnabled() const { return spawnEnabled_; }
 	void ResetSpawnTimer() {
 		spawnTimerSeconds_ = 0.0f;
+		elapsedTimeSeconds_ = 0.0f;
 		nextSpawnIndex_ = 0;
+		for (SpawnSchedule& schedule : spawnSchedules_) {
+			schedule.frameCounter = 0;
+		}
+	}
+	float GetElapsedTimeSeconds() const { return elapsedTimeSeconds_; }
+	std::vector<SpawnSchedule>& GetSpawnSchedules() { return spawnSchedules_; }
+	const std::vector<SpawnSchedule>& GetSpawnSchedules() const { return spawnSchedules_; }
+	void SetSpawnSchedules(const std::vector<SpawnSchedule>& schedules) {
+		spawnSchedules_ = schedules;
+		for (SpawnSchedule& schedule : spawnSchedules_) {
+			schedule.startTimeSeconds = (std::max)(0.0f, schedule.startTimeSeconds);
+			schedule.endTimeSeconds = (std::max)(schedule.startTimeSeconds, schedule.endTimeSeconds);
+			schedule.enemyTypeName = schedule.enemyTypeName.empty() ? "Default" : schedule.enemyTypeName;
+			schedule.spawnIntervalFrames = std::clamp(schedule.spawnIntervalFrames, 1, 360000);
+			schedule.spawnAmount = std::clamp(schedule.spawnAmount, 1, 64);
+			schedule.frameCounter = 0;
+		}
+		ResetSpawnTimer();
+	}
+
+	std::vector<ScheduledSpawnRequest> ConsumeScheduledSpawnRequests() {
+		std::vector<ScheduledSpawnRequest> requests;
+		if (!spawnEnabled_ || spawnPoints_.empty()) {
+			return requests;
+		}
+		for (SpawnSchedule& schedule : spawnSchedules_) {
+			const bool isActive = elapsedTimeSeconds_ >= schedule.startTimeSeconds && elapsedTimeSeconds_ <= schedule.endTimeSeconds;
+			if (!isActive) {
+				schedule.frameCounter = 0;
+				continue;
+			}
+			schedule.spawnIntervalFrames = std::clamp(schedule.spawnIntervalFrames, 1, 360000);
+			schedule.spawnAmount = std::clamp(schedule.spawnAmount, 1, 64);
+			++schedule.frameCounter;
+			if (schedule.frameCounter < schedule.spawnIntervalFrames) {
+				continue;
+			}
+			schedule.frameCounter -= schedule.spawnIntervalFrames;
+			for (int count = 0; count < schedule.spawnAmount; ++count) {
+				requests.push_back({
+					schedule.enemyTypeName.empty() ? "Default" : schedule.enemyTypeName,
+					spawnPoints_[nextSpawnIndex_ % spawnPoints_.size()]
+				});
+				++nextSpawnIndex_;
+			}
+		}
+		return requests;
 	}
 
 	bool ConsumeSpawnRequest(float spawnsPerMinute, Vector3& outPosition) {
@@ -182,6 +246,8 @@ private:
 	size_t nextSpawnIndex_ = 0;
 	int spawnCount_ = 8;
 	float spawnTimerSeconds_ = 0.0f;
+	float elapsedTimeSeconds_ = 0.0f;
+	std::vector<SpawnSchedule> spawnSchedules_;
 	float outerMargin_ = 5.0f;
 	float minimumRadius_ = 8.0f;
 	float groundY_ = 0.0f;

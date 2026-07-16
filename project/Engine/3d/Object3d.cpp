@@ -154,6 +154,12 @@ void Object3d::Initialize() {
 	shadowMaterialData->enableLighting = -1;
 	shadowMaterialData->uvTransform = MakeIdentity4x4();
 	shadowMaterialData->shininess = 1.0f;
+	materialOverrideResource_ = common->GetDxCommon()->CreateBufferResource(sizeof(MaterialData));
+	materialOverrideResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialOverrideData_));
+	materialOverrideData_->color = {1.0f, 1.0f, 1.0f, 1.0f};
+	materialOverrideData_->enableLighting = 1;
+	materialOverrideData_->uvTransform = MakeIdentity4x4();
+	materialOverrideData_->shininess = 20.0f;
 
 	transform = {
 		{1.0f, 1.0f, 1.0f},
@@ -645,7 +651,7 @@ void Object3d::Draw() {
 	commandList->SetGraphicsRootDescriptorTable(6, envMapHandle);
 
 	if (model) {
-		model->Draw();
+		model->Draw(materialOverrideResource_.Get());
 		if (isShadowEnabled_ && shadowWvpResource && shadowMaterialResource) {
 			Object3dCommon::GetInstance()->SetShadowDraw();
 			commandList->SetGraphicsRootConstantBufferView(1, shadowWvpResource->GetGPUVirtualAddress());
@@ -751,6 +757,7 @@ Object3d::~Object3d() {
 	if (wvpResorceModel) wvpResorceModel->Unmap(0, nullptr);
 	if (shadowWvpResource) shadowWvpResource->Unmap(0, nullptr);
 	if (shadowMaterialResource) shadowMaterialResource->Unmap(0, nullptr);
+	if (materialOverrideResource_) materialOverrideResource_->Unmap(0, nullptr);
 	if (lightResource) lightResource->Unmap(0, nullptr);
 	if (materialResourceCylinder) materialResourceCylinder->Unmap(0, nullptr);
 	if (skinningPaletteResource) skinningPaletteResource->Unmap(0, nullptr);
@@ -758,6 +765,7 @@ Object3d::~Object3d() {
 	wvpResorceModel.Reset();
 	shadowWvpResource.Reset();
 	shadowMaterialResource.Reset();
+	materialOverrideResource_.Reset();
 	lightResource.Reset();
 	cameraResource.Reset();
 	pointLightResource.Reset();
@@ -769,6 +777,7 @@ Object3d::~Object3d() {
 	transformationMatrix = nullptr;
 	shadowTransformationMatrix = nullptr;
 	shadowMaterialData = nullptr;
+	materialOverrideData_ = nullptr;
 	cameraData = nullptr;
 	directionallightData = nullptr;
 	pointLightData = nullptr;

@@ -1,12 +1,12 @@
 {
     "Default": {
-        "attack": 6.0,
-        "experience": 8,
+        "attack": 8.0,
+        "experience": 4,
         "experienceModel": "sphere.obj",
-        "health": 10.0,
-        "shootingInterval": 1.0,
-        "shoots": true,
+        "health": 100.0,
+        "shootingInterval": 2.0,
+        "shoots": false,
         "spawnsPerMinute": 12.0,
-        "speed": 0.05000000074505806
+        "speed": 0.03999999910593033
     }
 }

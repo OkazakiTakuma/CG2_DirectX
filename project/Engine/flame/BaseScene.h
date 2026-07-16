@@ -207,7 +207,8 @@ private:
 	void UpdateLevelUpSelection();
 	bool BuildLevelUpChoices(Player* player);
 	void ApplyLevelUpChoice(int choiceIndex);
-	void DrawLevelUpSelectionImGui();
+	void EnsureLevelUpSelectionSprites();
+	void DrawLevelUpSelection2D();
 /// <summary>
 /// 指定したオブジェクトのカメラをアクティブカメラに設定します。
 /// </summary>
@@ -278,5 +279,12 @@ private:
 	Player* levelUpPlayer_ = nullptr;
 	int selectedLevelUpChoiceIndex_ = 0;
 	std::vector<LevelUpChoice> levelUpChoices_;
+	std::unique_ptr<Sprite> levelUpOverlaySprite_;
+	std::unique_ptr<Sprite> levelUpPanelSprite_;
+	std::array<std::unique_ptr<Sprite>, 3> levelUpChoiceBorderSprites_;
+	std::array<std::unique_ptr<Sprite>, 3> levelUpChoiceSprites_;
+	std::unique_ptr<GameObject> levelUpTitleTextObject_;
+	std::unique_ptr<GameObject> levelUpInstructionTextObject_;
+	std::array<std::unique_ptr<GameObject>, 3> levelUpChoiceTextObjects_;
 	Camera* fallbackCamera_ = nullptr;
 };

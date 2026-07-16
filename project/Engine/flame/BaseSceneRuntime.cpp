@@ -233,11 +233,18 @@ void BaseScene::UpdateEnemySpawning() {
 			continue;
 		}
 
-		const std::string enemyTypeName = spawnPoint->GetEnemyTypeName();
-		const EnemyStats stats = LoadEnemyStats(enemyTypeName);
-		Vector3 spawnPosition{};
-		if (spawnPoint->ConsumeSpawnRequest(stats.spawnsPerMinute, spawnPosition)) {
-			spawnRequests.push_back({enemyTypeName, spawnPosition, spawnPoint->GetTarget()});
+		if (!spawnPoint->GetSpawnSchedules().empty()) {
+			const std::vector<EnemySpawnPointComponent::ScheduledSpawnRequest> scheduledRequests = spawnPoint->ConsumeScheduledSpawnRequests();
+			for (const EnemySpawnPointComponent::ScheduledSpawnRequest& request : scheduledRequests) {
+				spawnRequests.push_back({request.enemyTypeName, request.position, spawnPoint->GetTarget()});
+			}
+		} else {
+			const std::string enemyTypeName = spawnPoint->GetEnemyTypeName();
+			const EnemyStats stats = LoadEnemyStats(enemyTypeName);
+			Vector3 spawnPosition{};
+			if (spawnPoint->ConsumeSpawnRequest(stats.spawnsPerMinute, spawnPosition)) {
+				spawnRequests.push_back({enemyTypeName, spawnPosition, spawnPoint->GetTarget()});
+			}
 		}
 	}
 
@@ -258,7 +265,25 @@ void BaseScene::UpdatePlayerAttacks() {
 		shotRequests.insert(shotRequests.end(), requests.begin(), requests.end());
 	}
 
+	std::vector<GameObject*> laserTargets;
+	for (const auto& object : sceneObjects_) {
+		EnemyComponent* enemy = object->GetComponent<EnemyComponent>();
+		if (enemy && enemy->IsEnabled() && enemy->GetCurrentHealth() > 0.0f) {
+			laserTargets.push_back(object.get());
+		}
+	}
+	static std::mt19937 laserRandomEngine(std::random_device{}());
+	std::shuffle(laserTargets.begin(), laserTargets.end(), laserRandomEngine);
+	size_t nextLaserTargetIndex = 0;
+
 	for (PlayerAttackShotRequest& request : shotRequests) {
+		if (request.motionType == PlayerProjectileMotionType::SkyLaser) {
+			if (nextLaserTargetIndex >= laserTargets.size()) {
+				continue;
+			}
+			const Vector3 targetPosition = laserTargets[nextLaserTargetIndex++]->GetTransform().translate;
+			request.position = {targetPosition.x, targetPosition.y + 3.0f, targetPosition.z};
+		}
 		CreateRuntimePlayerProjectile(request);
 	}
 }
@@ -306,33 +331,71 @@ GameObject* BaseScene::CreateRuntimeExperience(const EnemyStats& enemyStats, con
 		}
 	}
 
-	auto object = std::make_unique<GameObject>();
-	object->SetName(MakeUniqueObjectName("Experience"));
-	object->SetEditorType("Experience");
-	object->GetTransform().translate = position;
-	object->GetTransform().scale = {0.35f, 0.35f, 0.35f};
-
-	ExperienceComponent* experience = object->AddComponent<ExperienceComponent>();
-	experience->SetExperience(enemyStats.experience);
-	experience->SetModelFilePath(enemyStats.experienceModelFilePath);
-	experience->SetTarget(target);
-
 	const std::string modelFilePath = enemyStats.experienceModelFilePath.empty() ? "sphere.obj" : enemyStats.experienceModelFilePath;
 	if (!ModelManager::GetInstance()->FindModel(modelFilePath)) {
 		ModelManager::GetInstance()->LoadModel(modelFilePath);
 	}
-	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
-	if (ModelManager::GetInstance()->FindModel(modelFilePath)) {
-		object3d->SetModel(modelFilePath);
-	} else {
+	if (!ModelManager::GetInstance()->FindModel(modelFilePath)) {
 		ModelManager::GetInstance()->LoadModel("sphere.obj");
-		object3d->SetModel("sphere.obj");
 	}
+	const std::string resolvedModelFilePath = ModelManager::GetInstance()->FindModel(modelFilePath) ? modelFilePath : "sphere.obj";
+	const std::array<int, 4> denominations = {100, 50, 10, 1};
+	auto getExperienceColor = [](int denomination) {
+		switch (denomination) {
+		case 100: return Vector4{1.0f, 0.65f, 0.08f, 1.0f};
+		case 50: return Vector4{0.72f, 0.25f, 1.0f, 1.0f};
+		case 10: return Vector4{0.20f, 1.0f, 0.35f, 1.0f};
+		default: return Vector4{0.15f, 0.75f, 1.0f, 1.0f};
+		}
+	};
+	auto getExperienceScale = [](int denomination) {
+		switch (denomination) {
+		case 100: return 0.55f;
+		case 50: return 0.48f;
+		case 10: return 0.41f;
+		default: return 0.35f;
+		}
+	};
 
-	object->Update();
-	sceneObjects_.push_back(std::move(object));
-	++nextObjectId_;
-	return sceneObjects_.back().get();
+	GameObject* firstExperienceObject = nullptr;
+	int remainingExperience = enemyStats.experience;
+	int particleIndex = 0;
+	for (const int denomination : denominations) {
+		const int particleCount = remainingExperience / denomination;
+		remainingExperience %= denomination;
+		for (int index = 0; index < particleCount; ++index, ++particleIndex) {
+			auto object = std::make_unique<GameObject>();
+			object->SetName(MakeUniqueObjectName("Experience" + std::to_string(denomination)));
+			object->SetEditorType("Experience");
+			const float angle = static_cast<float>(particleIndex) * 2.39996323f;
+			const float radius = particleIndex == 0 ? 0.0f : 0.18f + 0.07f * std::sqrt(static_cast<float>(particleIndex));
+			object->GetTransform().translate = {
+				position.x + std::cos(angle) * radius,
+				position.y + 0.08f * static_cast<float>(particleIndex % 3),
+				position.z + std::sin(angle) * radius
+			};
+			const float scale = getExperienceScale(denomination);
+			object->GetTransform().scale = {scale, scale, scale};
+
+			ExperienceComponent* experience = object->AddComponent<ExperienceComponent>();
+			experience->SetExperience(denomination);
+			experience->SetModelFilePath(resolvedModelFilePath);
+			experience->SetTarget(target);
+
+			Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
+			object3d->SetModel(resolvedModelFilePath);
+			object3d->SetColor(getExperienceColor(denomination));
+
+			object->Update();
+			GameObject* createdObject = object.get();
+			sceneObjects_.push_back(std::move(object));
+			if (!firstExperienceObject) {
+				firstExperienceObject = createdObject;
+			}
+			++nextObjectId_;
+		}
+	}
+	return firstExperienceObject;
 }
 
 GameObject* BaseScene::FindNearestEnemy(const Vector3& position) const {
@@ -372,6 +435,14 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 	projectile->SetInfinitePierce(request.infinitePierce);
 	projectile->SetHomingEnabled(request.homing);
 	projectile->SetHomingAccuracy(request.homingAccuracy);
+	projectile->SetMotionType(request.motionType);
+	projectile->SetMotionAnchor(request.motionAnchor);
+	projectile->SetOrbitAngleRadians(request.orbitAngleRadians);
+	projectile->SetOrbitRadius(request.orbitRadius);
+	projectile->SetOrbitAngularSpeed(request.orbitAngularSpeed);
+	if (request.motionType == PlayerProjectileMotionType::Orbit) {
+		projectile->SetRepeatHitInterval(0.75f);
+	}
 	if (request.homing) {
 		projectile->SetHomingTarget(FindNearestEnemy(request.position));
 	}
@@ -380,12 +451,20 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 	if (!ModelManager::GetInstance()->FindModel(modelFilePath)) {
 		ModelManager::GetInstance()->LoadModel(modelFilePath);
 	}
+	if (request.motionType == PlayerProjectileMotionType::SkyLaser) {
+		object->GetTransform().scale = {request.size * 0.30f, request.size * 5.0f, request.size * 0.30f};
+	}
 	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
 	if (ModelManager::GetInstance()->FindModel(modelFilePath)) {
 		object3d->SetModel(modelFilePath);
 	} else {
 		ModelManager::GetInstance()->LoadModel("sphere.obj");
 		object3d->SetModel("sphere.obj");
+	}
+	if (request.motionType == PlayerProjectileMotionType::Orbit) {
+		object3d->SetColor({0.35f, 0.75f, 1.0f, 1.0f});
+	} else if (request.motionType == PlayerProjectileMotionType::SkyLaser) {
+		object3d->SetColor({0.65f, 0.90f, 1.0f, 1.0f});
 	}
 
 	object->Update();
@@ -416,8 +495,15 @@ void BaseScene::UpdatePlayerProjectileHits() {
 				continue;
 			}
 
-			const float distance = Length(enemyObject->GetTransform().translate - projectileObject->GetTransform().translate);
-			if (distance <= projectile->GetSize() + 0.5f) {
+			float distance = Length(enemyObject->GetTransform().translate - projectileObject->GetTransform().translate);
+			float hitRadius = projectile->GetSize() + 0.5f;
+			if (projectile->GetMotionType() == PlayerProjectileMotionType::SkyLaser) {
+				Vector3 horizontalDifference = enemyObject->GetTransform().translate - projectileObject->GetTransform().translate;
+				horizontalDifference.y = 0.0f;
+				distance = Length(horizontalDifference);
+				hitRadius = projectile->GetSize() * 0.35f + 0.5f;
+			}
+			if (distance <= hitRadius) {
 				enemy->SetCurrentHealth(enemy->GetCurrentHealth() - projectile->GetAttack());
 				if (enemy->GetCurrentHealth() <= 0.0f) {
 					experienceDropRequests.push_back({enemy->GetStats(), enemyObject->GetTransform().translate, enemy->GetTarget()});
@@ -439,7 +525,8 @@ void BaseScene::CleanupExpiredPlayerProjectiles() {
 		    PlayerProjectileComponent* projectile = object->GetComponent<PlayerProjectileComponent>();
 		    if (projectile) {
 			    const float viewMargin = 0.05f + projectile->GetSize() * 0.02f;
-			    if (projectile->IsExpired() || IsPointOutsideView(object->GetTransform().translate, viewMargin)) {
+			    if (projectile->IsExpired() ||
+				    (projectile->GetMotionType() == PlayerProjectileMotionType::Linear && IsPointOutsideView(object->GetTransform().translate, viewMargin))) {
 				    return true;
 			    }
 		    }
@@ -794,7 +881,6 @@ void BaseScene::UpdateEditorCameraControl() {
 /// 指定したオブジェクトのカメラをアクティブカメラに設定します。
 /// </summary>
 void BaseScene::UpdateLevelUpSelection() {
-#ifdef USE_IMGUI
 	Input* input = Input::GetInstance();
 	if (isLevelUpSelectionActive_) {
 		if (levelUpChoices_.empty()) {
@@ -829,7 +915,6 @@ void BaseScene::UpdateLevelUpSelection() {
 		}
 		break;
 	}
-#endif
 }
 
 bool BaseScene::BuildLevelUpChoices(Player* player) {
@@ -949,41 +1034,102 @@ void BaseScene::ApplyLevelUpChoice(int choiceIndex) {
 	GameTime::SetPaused(false);
 }
 
-void BaseScene::DrawLevelUpSelectionImGui() {
-#ifdef USE_IMGUI
-	if (!isLevelUpSelectionActive_ || levelUpChoices_.empty()) return;
-	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::GetBackgroundDrawList(viewport)->AddRectFilled(viewport->Pos, ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y), IM_COL32(0, 0, 0, 150));
-	const ImVec2 windowSize((std::min)(900.0f, viewport->WorkSize.x - 40.0f), 300.0f);
-	ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f, viewport->WorkPos.y + viewport->WorkSize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-	ImGui::SetNextWindowSize(windowSize, ImGuiCond_Always);
-	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
-	int clickedChoice = -1;
-	if (ImGui::Begin("LEVEL UP", nullptr, flags)) {
-		const float titleWidth = ImGui::CalcTextSize("LEVEL UP!").x;
-		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x - titleWidth) * 0.5f);
-		ImGui::Text("LEVEL UP!");
-		ImGui::TextDisabled("A / D or Pad: Select    Space or Pad A: Confirm");
-		if (ImGui::BeginTable("LevelUpChoices", 3, ImGuiTableFlags_SizingStretchSame)) {
-			for (int index = 0; index < static_cast<int>(levelUpChoices_.size()); ++index) {
-				ImGui::TableNextColumn();
-				ImGui::PushID(index);
-				const bool selected = index == selectedLevelUpChoiceIndex_;
-				if (selected) {
-					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.55f, 0.08f, 1.0f));
-					ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.7f, 0.15f, 1.0f));
-				}
-				const std::string label = levelUpChoices_[index].title + "\n\n" + levelUpChoices_[index].description;
-				if (ImGui::Button(label.c_str(), ImVec2(-1.0f, 155.0f))) clickedChoice = index;
-				if (selected) ImGui::PopStyleColor(2);
-				ImGui::PopID();
-			}
-			ImGui::EndTable();
-		}
+void BaseScene::EnsureLevelUpSelectionSprites() {
+	if (levelUpOverlaySprite_) return;
+	const std::string whiteTexture = "Resources/human/white.png";
+	auto createSprite = [&whiteTexture]() {
+		auto sprite = std::make_unique<Sprite>();
+		sprite->Initialize(whiteTexture);
+		return sprite;
+	};
+	levelUpOverlaySprite_ = createSprite();
+	levelUpPanelSprite_ = createSprite();
+	for (int index = 0; index < 3; ++index) {
+		levelUpChoiceBorderSprites_[index] = createSprite();
+		levelUpChoiceSprites_[index] = createSprite();
 	}
-	ImGui::End();
-	if (clickedChoice >= 0) ApplyLevelUpChoice(clickedChoice);
-#endif
+
+	auto createTextObject = [](const std::string& text, float fontSize) {
+		auto object = std::make_unique<GameObject>();
+		TextComponent* textComponent = object->AddComponent<TextComponent>();
+		textComponent->SetText(text);
+		textComponent->SetFontSize(fontSize);
+		textComponent->SetAnchor(TextComponent::Anchor::Center);
+		return object;
+	};
+	levelUpTitleTextObject_ = createTextObject("LEVEL UP!", 46.0f);
+	levelUpInstructionTextObject_ = createTextObject("A / D or Pad: Select    Space or Pad A: Confirm", 21.0f);
+	for (auto& object : levelUpChoiceTextObjects_) {
+		object = createTextObject("", 23.0f);
+	}
+}
+
+void BaseScene::DrawLevelUpSelection2D() {
+	if (!isLevelUpSelectionActive_ || levelUpChoices_.empty()) return;
+	EnsureLevelUpSelectionSprites();
+	DirectXCommon* dxCommon = SpriteCommon::GetInstance()->GetDxCommon();
+	if (!dxCommon) return;
+	const float screenWidth = static_cast<float>(dxCommon->GetRenderWidth());
+	const float screenHeight = static_cast<float>(dxCommon->GetRenderHeight());
+	const float panelWidth = (std::min)(screenWidth - 48.0f, 1120.0f);
+	const float panelHeight = (std::min)(screenHeight - 48.0f, 440.0f);
+	const float panelX = (screenWidth - panelWidth) * 0.5f;
+	const float panelY = (screenHeight - panelHeight) * 0.5f;
+	const float gap = 24.0f;
+	const float cardWidth = (panelWidth - 64.0f - gap * 2.0f) / 3.0f;
+	const float cardHeight = panelHeight - 145.0f;
+	const float cardY = panelY + 92.0f;
+
+	auto drawSprite = [](Sprite* sprite, float x, float y, float width, float height, const Vector4& color) {
+		EulerTransform transform = sprite->GetTransform();
+		transform.translate = {x, y, 0.0f};
+		sprite->SetTransform(transform);
+		sprite->SetSize({width, height});
+		sprite->SetColor(color);
+		sprite->Update();
+		sprite->Draw();
+	};
+	auto choiceColor = [](LevelUpChoiceType type) {
+		switch (type) {
+		case LevelUpChoiceType::AttackSuper: return Vector4{0.72f, 0.42f, 0.05f, 0.98f};
+		case LevelUpChoiceType::NewAttack: return Vector4{0.55f, 0.18f, 0.08f, 0.98f};
+		case LevelUpChoiceType::StatusLevelUp: return Vector4{0.08f, 0.35f, 0.20f, 0.98f};
+		case LevelUpChoiceType::NewStatus: return Vector4{0.06f, 0.32f, 0.38f, 0.98f};
+		case LevelUpChoiceType::AttackLevelUp:
+		default: return Vector4{0.08f, 0.22f, 0.48f, 0.98f};
+		}
+	};
+
+	SpriteCommon::GetInstance()->SetDraw(kBlendModeNormal);
+	drawSprite(levelUpOverlaySprite_.get(), 0.0f, 0.0f, screenWidth, screenHeight, {0.0f, 0.0f, 0.0f, 0.68f});
+	drawSprite(levelUpPanelSprite_.get(), panelX, panelY, panelWidth, panelHeight, {0.035f, 0.045f, 0.075f, 0.98f});
+	for (int index = 0; index < static_cast<int>(levelUpChoices_.size()) && index < 3; ++index) {
+		const float cardX = panelX + 32.0f + static_cast<float>(index) * (cardWidth + gap);
+		const bool selected = index == selectedLevelUpChoiceIndex_;
+		drawSprite(levelUpChoiceBorderSprites_[index].get(), cardX - 5.0f, cardY - 5.0f, cardWidth + 10.0f, cardHeight + 10.0f,
+			selected ? Vector4{1.0f, 0.78f, 0.12f, 1.0f} : Vector4{0.20f, 0.23f, 0.30f, 1.0f});
+		Vector4 color = choiceColor(levelUpChoices_[index].type);
+		if (selected) {
+			color.x = (std::min)(1.0f, color.x + 0.14f);
+			color.y = (std::min)(1.0f, color.y + 0.14f);
+			color.z = (std::min)(1.0f, color.z + 0.14f);
+		}
+		drawSprite(levelUpChoiceSprites_[index].get(), cardX, cardY, cardWidth, cardHeight, color);
+
+		GameObject* textObject = levelUpChoiceTextObjects_[index].get();
+		textObject->GetTransform().translate = {cardX + cardWidth * 0.5f, cardY + cardHeight * 0.5f, 0.0f};
+		TextComponent* text = textObject->GetComponent<TextComponent>();
+		text->SetText(levelUpChoices_[index].title + "\n\n" + levelUpChoices_[index].description);
+		text->SetColor(selected ? Vector4{1.0f, 0.92f, 0.55f, 1.0f} : Vector4{1.0f, 1.0f, 1.0f, 1.0f});
+	}
+
+	levelUpTitleTextObject_->GetTransform().translate = {screenWidth * 0.5f, panelY + 35.0f, 0.0f};
+	levelUpInstructionTextObject_->GetTransform().translate = {screenWidth * 0.5f, panelY + panelHeight - 24.0f, 0.0f};
+	levelUpTitleTextObject_->Draw2D();
+	levelUpInstructionTextObject_->Draw2D();
+	for (int index = 0; index < static_cast<int>(levelUpChoices_.size()) && index < 3; ++index) {
+		levelUpChoiceTextObjects_[index]->Draw2D();
+	}
 }
 
 void BaseScene::SetActiveCameraObject(GameObject* object) {

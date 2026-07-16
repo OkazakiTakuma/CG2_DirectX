@@ -971,6 +971,82 @@ void BaseScene::DrawEditorInspector() {
 		if (ImGui::DragInt("Spawn Count", &spawnCount, 1.0f, 1, 64)) {
 			enemySpawnPoint->SetSpawnCount(spawnCount);
 		}
+
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("Spawn Schedules", ImGuiTreeNodeFlags_DefaultOpen)) {
+			ImGui::Text("Elapsed Time: %.2f sec", enemySpawnPoint->GetElapsedTimeSeconds());
+			if (ImGui::Button("Reset Schedule Time")) {
+				enemySpawnPoint->ResetSpawnTimer();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Add Schedule")) {
+				EnemySpawnPointComponent::SpawnSchedule schedule;
+				schedule.enemyTypeName = !enemyTypes.empty() ? enemyTypes.front() : enemySpawnPoint->GetEnemyTypeName();
+				enemySpawnPoint->GetSpawnSchedules().push_back(schedule);
+				enemySpawnPoint->ResetSpawnTimer();
+			}
+
+			auto& schedules = enemySpawnPoint->GetSpawnSchedules();
+			int removeScheduleIndex = -1;
+			bool scheduleChanged = false;
+			for (int scheduleIndex = 0; scheduleIndex < static_cast<int>(schedules.size()); ++scheduleIndex) {
+				auto& schedule = schedules[scheduleIndex];
+				ImGui::PushID(scheduleIndex);
+				ImGui::Separator();
+				ImGui::Text("Schedule %d", scheduleIndex + 1);
+
+				if (!enemyTypes.empty()) {
+					int scheduleEnemyTypeIndex = 0;
+					for (int enemyTypeIndex = 0; enemyTypeIndex < static_cast<int>(enemyTypes.size()); ++enemyTypeIndex) {
+						if (enemyTypes[enemyTypeIndex] == schedule.enemyTypeName) {
+							scheduleEnemyTypeIndex = enemyTypeIndex;
+							break;
+						}
+					}
+					std::vector<const char*> scheduleEnemyTypeLabels = MakeLabelPointers(enemyTypes);
+					if (ImGui::Combo("Enemy Type", &scheduleEnemyTypeIndex, scheduleEnemyTypeLabels.data(), static_cast<int>(scheduleEnemyTypeLabels.size()))) {
+						schedule.enemyTypeName = enemyTypes[scheduleEnemyTypeIndex];
+						scheduleChanged = true;
+					}
+				}
+
+				if (ImGui::DragFloat("Start Time (sec)", &schedule.startTimeSeconds, 0.1f, 0.0f, 36000.0f)) {
+					schedule.startTimeSeconds = (std::max)(0.0f, schedule.startTimeSeconds);
+					schedule.endTimeSeconds = (std::max)(schedule.startTimeSeconds, schedule.endTimeSeconds);
+					scheduleChanged = true;
+				}
+				if (ImGui::DragFloat("End Time (sec)", &schedule.endTimeSeconds, 0.1f, schedule.startTimeSeconds, 36000.0f)) {
+					schedule.endTimeSeconds = (std::max)(schedule.startTimeSeconds, schedule.endTimeSeconds);
+					scheduleChanged = true;
+				}
+				if (ImGui::DragInt("Interval (frames)", &schedule.spawnIntervalFrames, 1.0f, 1, 360000)) {
+					schedule.spawnIntervalFrames = (std::max)(1, schedule.spawnIntervalFrames);
+					scheduleChanged = true;
+				}
+				if (ImGui::DragInt("Amount Per Spawn", &schedule.spawnAmount, 1.0f, 1, 64)) {
+					schedule.spawnAmount = std::clamp(schedule.spawnAmount, 1, 64);
+					scheduleChanged = true;
+				}
+				if (ImGui::Button("Remove Schedule")) {
+					removeScheduleIndex = scheduleIndex;
+				}
+				ImGui::PopID();
+			}
+
+			if (removeScheduleIndex >= 0) {
+				schedules.erase(schedules.begin() + removeScheduleIndex);
+				enemySpawnPoint->ResetSpawnTimer();
+			} else if (scheduleChanged) {
+				enemySpawnPoint->ResetSpawnTimer();
+			}
+
+			if (schedules.empty()) {
+				ImGui::TextDisabled("No schedules: legacy enemy Spawns Per Minute is used.");
+			} else {
+				ImGui::TextDisabled("Schedule mode overrides legacy Spawn Enemy Type / Spawns Per Minute.");
+			}
+		}
+
 		float outerMargin = enemySpawnPoint->GetOuterMargin();
 		if (ImGui::DragFloat("Outside Margin", &outerMargin, 0.1f, 0.0f, 1000.0f)) {
 			enemySpawnPoint->SetOuterMargin(outerMargin);
