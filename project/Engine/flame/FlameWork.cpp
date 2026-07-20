@@ -7,16 +7,17 @@
 #include <wrl/client.h>
 #include <excpt.h>
 #include <memory>
-#include <ParticleManager.h>
+#include <particle/ParticleManager.h>
 #include <SpriteCommon.h>
 #include <TextureManager.h>
-#include <Camera.h>
-#include <ModelManager.h>
-#include <Object3dCommon.h>
-#include <D3DResouceLeakCheker.h>
+#include <camera/Camera.h>
+#include <model/ModelManager.h>
+#include <object/Object3dCommon.h>
+#include <D3DResourceLeakChecker.h>
 #include"LineCommon.h"
 #include"LineDrawer.h"
-#include"InstancingModelCommon.h"
+#include "particle/TrailRenderer.h"
+#include "instancing/InstancingModelCommon.h"
 #include <DirectXCommon.h>
 #include <ImGuiManager.h>
 #include <Input.h>
@@ -76,7 +77,7 @@ void FlameWork::Initialize() {
 #endif // _DEBUG
 
 	OutputDebugStringA("Hello, World!\n");
-	Checker = std::make_unique<D3DResourceLeakCheker>();
+	resourceLeakChecker_ = std::make_unique<D3DResourceLeakChecker>();
 
 	Input::GetInstance()->Initialize(winApp.get());
 	dxCommon = std::make_unique<DirectXCommon>();
@@ -90,8 +91,9 @@ void FlameWork::Initialize() {
 	SkyBoxCommon::GetInstance()->Initialize(dxCommon.get());
 	LineCommon::GetInstance()->Initialize(dxCommon.get());
 	LineDrawer::GetInstance()->Initialize();
+	TrailRenderer::GetInstance()->Initialize(dxCommon.get());
 	Object3dCommon::GetInstance()->Initialize(dxCommon.get());
-	ModelManager::GetInstance()->Inithialize(dxCommon.get());
+	ModelManager::GetInstance()->Initialize(dxCommon.get());
 	ParticleManager::GetInstance()->Initialize(dxCommon.get());
 	InstancingModelCommon::GetInstance()->Initialize(dxCommon.get());
 	GameTime::Initialize();
@@ -156,6 +158,7 @@ void FlameWork::Finalize() {
 	ModelManager::GetInstance()->Finalize();
 	InstancingModelCommon::GetInstance()->Finalize();
 	Object3dCommon::GetInstance()->Finalize();
+	TrailRenderer::GetInstance()->Finalize();
 	LineDrawer::GetInstance()->Finalize();
 	LineCommon::GetInstance()->Finalize();
 	SkyBoxCommon::GetInstance()->Finalize();
@@ -174,7 +177,7 @@ void FlameWork::Finalize() {
 		winApp->Finalize();
 		winApp.reset();
 	}
-	Checker.reset();
+	resourceLeakChecker_.reset();
 }
 
 /// <summary>

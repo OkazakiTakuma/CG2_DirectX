@@ -1,8 +1,8 @@
 #include "GamePlayScene.h"
 #include "SceneManager.h"
 #include <cstring>
-#include <ModelManager.h>
-#include"InstancingModelCommon.h"
+#include <model/ModelManager.h>
+#include "instancing/InstancingModelCommon.h"
 #include "GameTime.h"
 
 namespace {
@@ -202,7 +202,7 @@ void GamePlayScene::Update() {
 		return;
 	}
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
-		sceneManager->ChengeScene("TITLE");
+		sceneManager->ChangeScene("TITLE");
 	}
 	if (skyBox) {
 		skyBox->Update();
@@ -400,7 +400,7 @@ void GamePlayScene::ImGuiUpdate() {
 			ImGui::Separator();
 
 			auto& targetEmitter = emitters_[currentParticleIndex_];
-			ParticleEmitParam param = targetEmitter->GetPalam();
+			ParticleEmitParam param = targetEmitter->GetParam();
 			ImGui::Text("Editing: %s", targetEmitter->GetGroupName().c_str());
 			ImGui::DragFloat("Life Time", &param.lifeTime, 0.01f, 0.1f, 20.0f);
 			ImGui::DragFloat3("Start Scale", &param.scale.x, 0.01f);
@@ -541,7 +541,7 @@ void GamePlayScene::ImGuiUpdate() {
 	if (!emitters_.empty() && currentParticleIndex_ < emitters_.size()) {
 		auto& targetEmitter = emitters_[currentParticleIndex_];
 
-		ParticleEmitParam param = targetEmitter->GetPalam();
+		ParticleEmitParam param = targetEmitter->GetParam();
 
 		ImGui::Text("Editing: %s", targetEmitter->GetGroupName().c_str());
 

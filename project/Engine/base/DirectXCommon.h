@@ -22,6 +22,10 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxcompiler.lib")
 
+/// <summary>
+/// Direct3D 12デバイス、スワップチェーン、コマンド実行、描画先リソースのライフサイクルを管理します。
+/// エンジン内の描画機能へ共通のDirectX基盤を提供します。
+/// </summary>
 class DirectXCommon {
 public:
 	struct TransformationMatrix {
@@ -93,15 +97,6 @@ public:
 	/// <param name="texture">texture に使用する値を指定します。</param>
 	/// <param name="mipImages">mipImages に使用する値を指定します。</param>
 	void UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Resource> texture, const DirectX::ScratchImage& mipImages);
-
-	/// <summary>
-	/// DepthStenecilTextureResource を作成し、利用できる状態にします。
-	/// </summary>
-	/// <param name="device">device に使用する値を指定します。</param>
-	/// <param name="width">幅を指定します。</param>
-	/// <param name="height">高さを指定します。</param>
-	/// <returns>処理結果を返します。</returns>
-	Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStenecilTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, int32_t width, int32_t height);
 
 	/// <summary>
 	/// CPUDescriptorHandle を取得します。
@@ -225,7 +220,6 @@ private:
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResorceModel;
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResorce;
-	Microsoft::WRL::ComPtr<ID3D12Resource> depthStenecilResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;

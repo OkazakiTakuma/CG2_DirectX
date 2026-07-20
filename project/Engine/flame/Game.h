@@ -1,6 +1,6 @@
 #pragma once
 #include "AbstractSceneFactory.h"
-#include "Camera.h"
+#include "camera/Camera.h"
 #include "FlameWork.h"
 #include "SceneManager.h"
 #include <memory>

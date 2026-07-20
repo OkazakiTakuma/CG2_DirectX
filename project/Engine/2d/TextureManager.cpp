@@ -1,11 +1,10 @@
 // TextureManager.cpp
 #include "TextureManager.h"
-#include "ParticleManager.h"
+#include "particle/ParticleManager.h"
 #include "StringUtility.h"
 #include <algorithm>
 #include <cstring>
 
-TextureManager* TextureManager::instance = nullptr;
 using namespace StringUtility;
 
 uint32_t TextureManager::kSRVIndexTop = 1;
@@ -25,10 +24,8 @@ void TextureManager::Initialize(DirectXCommon* dxcommon) {
 /// </summary>
 /// <returns>処理結果を返します。</returns>
 TextureManager* TextureManager::GetInstance() {
-	if (instance == nullptr) {
-		instance = new TextureManager;
-	}
-	return instance;
+	static TextureManager instance;
+	return &instance;
 }
 
 /// <summary>
@@ -39,8 +36,6 @@ void TextureManager::Finalize() {
 		pair.second.resource.Reset();
 	}
 	textureDatas.clear();
-	delete instance;
-	instance = nullptr;
 }
 
 void TextureManager::Release() {}
@@ -102,7 +97,6 @@ void TextureManager::LoadTexture(const std::string& filepath) {
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MipLevels = UINT(mipImages.GetMetadata().mipLevels);
 	}
-	//srvManager->CreateSRVforTexture2D(textureData.srvIndex, textureData.resource.Get(), textureData.metadata.format, static_cast<UINT>(textureData.metadata.mipLevels));
 	dxCommon_->GetDevice()->CreateShaderResourceView(textureData.resource.Get(), &srvDesc, textureData.srvHandleCPU);
 
 	dxCommon_->UploadTextureData(textureData.resource, mipImages);

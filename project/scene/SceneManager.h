@@ -7,6 +7,10 @@
 class BaseScene;
 class Camera;
 
+/// <summary>
+/// 現在のシーンと遷移先シーンを所有し、ライフサイクルと描画呼び出しを管理します。
+/// シーン生成そのものはAbstractSceneFactoryへ委譲します。
+/// </summary>
 class SceneManager {
 public:
 	SceneManager() = default;
@@ -19,10 +23,10 @@ public:
 	SceneManager& operator=(const SceneManager&) = delete;
 
 	/// <summary>
-	/// ChengeScene の処理を行います。
+	/// 次のシーンへの切り替えを予約します。
 	/// </summary>
 	/// <param name="sceneName">対象となるシーン名を指定します。</param>
-	void ChengeScene(const std::string& sceneName);
+	void ChangeScene(const std::string& sceneName);
 
 	/// <summary>
 	/// 毎フレームの状態更新を行います。

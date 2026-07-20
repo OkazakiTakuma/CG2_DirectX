@@ -1,5 +1,14 @@
 ﻿#include "BaseScene.h"
-#include "BaseSceneHelpers.h"
+#include "repositories/EnemyStatusRepository.h"
+#include "MathConstants.h"
+#include "model/ModelManager.h"
+#include "repositories/PlayerStatusRepository.h"
+#include "helpers/SceneJsonUtility.h"
+
+using SceneJsonUtility::JsonToVector3;
+using SceneJsonUtility::JsonToVector4;
+using SceneJsonUtility::Vector3ToJson;
+using SceneJsonUtility::Vector4ToJson;
 
 namespace {
 void SaveComponentGravity(nlohmann::json& componentJson, Component* component) {
@@ -121,6 +130,7 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["object3d"]["modelTextureFilePath"] = object3dComponent->GetModelTextureFilePath();
 			objectJson["object3d"]["drawSkeleton"] = object3dComponent->GetDrawSkeleton();
 			objectJson["object3d"]["animationPlaying"] = object3dComponent->GetAnimationPlaying();
+			objectJson["object3d"]["animationName"] = object3dComponent->GetAnimationName();
 			objectJson["object3d"]["isPointLight"] = object3dComponent->GetIsPointLightSet();
 			objectJson["object3d"]["pointLight"]["color"] = Vector4ToJson(object3dComponent->GetPointLightColor());
 			objectJson["object3d"]["pointLight"]["position"] = Vector3ToJson(object3dComponent->GetPointLightPosition());
@@ -129,7 +139,7 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["object3d"]["pointLight"]["decay"] = object3dComponent->GetPointLightDecay();
 		}
 		if (ParticleEmitterComponent* emitter = object->GetComponent<ParticleEmitterComponent>()) {
-			const ParticleEmitParam param = emitter->GetPalam();
+			const ParticleEmitParam param = emitter->GetParam();
 			objectJson["particleEmitter"]["enabled"] = emitter->IsEnabled();
 			SaveComponentGravity(objectJson["particleEmitter"], emitter);
 			objectJson["particleEmitter"]["groupName"] = emitter->GetGroupName();
@@ -334,7 +344,7 @@ void BaseScene::LoadEditorObjects() {
 			playerCamera->SetLocalOffset({0.0f, 15.0f, 0.0f});
 			playerCamera->SetFollowOffset({0.0f, 15.0f, 0.0f});
 			playerCamera->SetOverrideRotationEnabled(true);
-			playerCamera->SetOverrideRotation({kPi * 0.5f, 0.0f, 0.0f});
+			playerCamera->SetOverrideRotation({MathConstants::kPi * 0.5f, 0.0f, 0.0f});
 			playerCamera->SetFovY(0.75f);
 			playerCamera->SetFarClip(1000.0f);
 			activeCameraObjectName_ = object->GetName();
@@ -386,6 +396,10 @@ void BaseScene::LoadEditorObjects() {
 				object3dComponent->SetModelTexture(textureFilePath);
 			}
 			object3dComponent->SetDrawSkeleton(object3dJson.value("drawSkeleton", object3dComponent->GetDrawSkeleton()));
+			const std::string animationName = object3dJson.value("animationName", object3dComponent->GetAnimationName());
+			if (!animationName.empty()) {
+				object3dComponent->SetAnimation(animationName, false);
+			}
 			object3dComponent->SetAnimationPlaying(object3dJson.value("animationPlaying", object3dComponent->GetAnimationPlaying()));
 			object3dComponent->IsPointLightSet(object3dJson.value("isPointLight", object3dComponent->GetIsPointLightSet()));
 			const nlohmann::json pointLightJson = object3dJson.value("pointLight", nlohmann::json::object());
@@ -455,7 +469,7 @@ void BaseScene::LoadEditorObjects() {
 			emitter->SetMeshType(meshType);
 
 			const nlohmann::json paramJson = emitterJson.value("param", nlohmann::json::object());
-			ParticleEmitParam param = emitter->GetPalam();
+			ParticleEmitParam param = emitter->GetParam();
 			param.count = paramJson.value("count", param.count);
 			param.lifeTime = paramJson.value("lifeTime", param.lifeTime);
 			param.scale = JsonToVector3(paramJson.value("scale", nlohmann::json::array()), param.scale);

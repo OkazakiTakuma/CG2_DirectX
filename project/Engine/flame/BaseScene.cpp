@@ -1,5 +1,4 @@
 ﻿#include "BaseScene.h"
-#include "BaseSceneHelpers.h"
 
 BaseScene::~BaseScene() {}
 

@@ -1,21 +1,21 @@
 #pragma once
 #include "Audio.h"
-#include "Camera.h"
-#include "D3DResouceLeakCheker.h"
+#include "camera/Camera.h"
+#include "D3DResourceLeakChecker.h"
 #include "DirectXCommon.h"
 #include "FlameWork.h"
 #include "ImGuiManager.h"
 #include "Input.h"
 #include "Matrix.h"
-#include "ModelManager.h"
-#include "Object3d.h"
-#include "Object3dCommon.h"
-#include "ParticleEmitter.h"
-#include "ParticleManager.h"
+#include "model/ModelManager.h"
+#include "object/Object3d.h"
+#include "object/Object3dCommon.h"
+#include "particle/ParticleEmitter.h"
+#include "particle/ParticleManager.h"
 #include "Resource.h"
 #include "Sprite.h"
 #include "SpriteCommon.h"
-#include"SkyBoxCommon.h"
+#include "sky/SkyBoxCommon.h"
 #include "SrvManager.h"
 #include "TextureManager.h"
 #include "Vector.h"
@@ -35,6 +35,10 @@
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "dxcompiler.lib")
 
+/// <summary>
+/// エンジン各サブシステムを生成・初期化し、メインループと終了順序を管理します。
+/// アプリケーション固有の初期化と終了処理は派生クラスへ委譲します。
+/// </summary>
 class FlameWork {
 public:
 	virtual ~FlameWork() = default;
@@ -73,7 +77,7 @@ public:
 private:
 	bool endRequest = false;
 	std::unique_ptr<WinApp> winApp = nullptr;
-	std::unique_ptr<D3DResourceLeakCheker> Checker = nullptr;
+	std::unique_ptr<D3DResourceLeakChecker> resourceLeakChecker_ = nullptr;
 	std::unique_ptr<DirectXCommon> dxCommon = nullptr;
 	std::unique_ptr<ImGuiManager> imguiManager = nullptr;
 	std::unique_ptr<AbstractSceneFactory> sceneFactory = nullptr;

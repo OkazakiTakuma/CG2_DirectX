@@ -1,7 +1,15 @@
 ﻿#include "BaseScene.h"
-#include "BaseSceneHelpers.h"
+#include "helpers/BaseSceneCollisionHelpers.h"
+#include "helpers/BaseSceneEditorGeometry.h"
+#include "repositories/EnemyStatusRepository.h"
+#include "MathConstants.h"
+#include "model/ModelManager.h"
+#include "repositories/PlayerStatusRepository.h"
 #include <random>
 #include <Xinput.h>
+#ifdef USE_IMGUI
+#include "../../../imgui/ImGuizmo.h"
+#endif
 
 namespace {
 bool ShouldSkipColliderPair(GameObject* objectA, GameObject* objectB) {
@@ -72,7 +80,7 @@ bool IsPointOutsideView(const Vector3& worldPosition, float margin) {
 	    worldPosition.y * viewProjection.m[1][3] +
 	    worldPosition.z * viewProjection.m[2][3] +
 	    viewProjection.m[3][3];
-	if (clipW <= 0.0001f) {
+	if (clipW <= MathConstants::kDirectionEpsilon) {
 		return true;
 	}
 
@@ -86,6 +94,41 @@ bool IsPointOutsideView(const Vector3& worldPosition, float margin) {
 	    ndcY > 1.0f + safeMargin ||
 	    ndcZ < -safeMargin ||
 	    ndcZ > 1.0f + safeMargin;
+}
+
+bool ProjectToNdc(Camera* camera, const Vector3& worldPosition, Vector3& outNdc) {
+	if (!camera) {
+		return false;
+	}
+	const Matrix4x4& viewProjection = camera->GetViewProjectionMatrix();
+	const float clipX = worldPosition.x * viewProjection.m[0][0] + worldPosition.y * viewProjection.m[1][0] + worldPosition.z * viewProjection.m[2][0] + viewProjection.m[3][0];
+	const float clipY = worldPosition.x * viewProjection.m[0][1] + worldPosition.y * viewProjection.m[1][1] + worldPosition.z * viewProjection.m[2][1] + viewProjection.m[3][1];
+	const float clipZ = worldPosition.x * viewProjection.m[0][2] + worldPosition.y * viewProjection.m[1][2] + worldPosition.z * viewProjection.m[2][2] + viewProjection.m[3][2];
+	const float clipW = worldPosition.x * viewProjection.m[0][3] + worldPosition.y * viewProjection.m[1][3] + worldPosition.z * viewProjection.m[2][3] + viewProjection.m[3][3];
+	if (clipW <= MathConstants::kDirectionEpsilon) {
+		return false;
+	}
+	outNdc = {clipX / clipW, clipY / clipW, clipZ / clipW};
+	return true;
+}
+
+bool IntersectScreenRayToHeight(Camera* camera, const Vector2& ndc, float height, Vector3& outPoint) {
+	if (!camera) {
+		return false;
+	}
+	const Matrix4x4 inverseViewProjection = Inverse(camera->GetViewProjectionMatrix());
+	const Vector3 nearPoint = Transformation({ndc.x, ndc.y, 0.0f}, inverseViewProjection);
+	const Vector3 farPoint = Transformation({ndc.x, ndc.y, 1.0f}, inverseViewProjection);
+	const Vector3 ray = farPoint - nearPoint;
+	if (std::fabs(ray.y) <= MathConstants::kNormalizationEpsilon) {
+		return false;
+	}
+	const float t = (height - nearPoint.y) / ray.y;
+	if (t < 0.0f) {
+		return false;
+	}
+	outPoint = nearPoint + t * ray;
+	return true;
 }
 }
 
@@ -268,7 +311,8 @@ void BaseScene::UpdatePlayerAttacks() {
 	std::vector<GameObject*> laserTargets;
 	for (const auto& object : sceneObjects_) {
 		EnemyComponent* enemy = object->GetComponent<EnemyComponent>();
-		if (enemy && enemy->IsEnabled() && enemy->GetCurrentHealth() > 0.0f) {
+		if (enemy && enemy->IsEnabled() && enemy->GetCurrentHealth() > 0.0f &&
+		    !IsPointOutsideView(object->GetTransform().translate, 0.0f)) {
 			laserTargets.push_back(object.get());
 		}
 	}
@@ -439,12 +483,24 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 	projectile->SetMotionAnchor(request.motionAnchor);
 	projectile->SetOrbitAngleRadians(request.orbitAngleRadians);
 	projectile->SetOrbitRadius(request.orbitRadius);
+	projectile->SetOrbitHeight(request.orbitHeight);
 	projectile->SetOrbitAngularSpeed(request.orbitAngularSpeed);
+	projectile->SetTravelDistance(request.travelDistance);
+	projectile->SetTravelOrigin(request.position);
 	if (request.motionType == PlayerProjectileMotionType::Orbit) {
 		projectile->SetRepeatHitInterval(0.75f);
 	}
 	if (request.homing) {
 		projectile->SetHomingTarget(FindNearestEnemy(request.position));
+	}
+	if (request.motionType == PlayerProjectileMotionType::Boomerang) {
+		if (GameObject* target = FindNearestEnemy(request.position)) {
+			Vector3 toTarget = target->GetTransform().translate - request.position;
+			toTarget.y = 0.0f;
+			if (Length(toTarget) > MathConstants::kDirectionEpsilon) {
+				projectile->SetDirection(toTarget);
+			}
+		}
 	}
 
 	const std::string modelFilePath = request.modelFilePath.empty() ? "sphere.obj" : request.modelFilePath;
@@ -465,6 +521,27 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 		object3d->SetColor({0.35f, 0.75f, 1.0f, 1.0f});
 	} else if (request.motionType == PlayerProjectileMotionType::SkyLaser) {
 		object3d->SetColor({0.65f, 0.90f, 1.0f, 1.0f});
+	} else if (request.motionType == PlayerProjectileMotionType::Boomerang) {
+		object3d->SetColor({1.0f, 0.65f, 0.20f, 1.0f});
+	} else if (request.motionType == PlayerProjectileMotionType::Ricochet) {
+		object3d->SetColor({0.45f, 1.0f, 0.30f, 1.0f});
+	}
+	if (request.motionType != PlayerProjectileMotionType::SkyLaser) {
+		TrailRendererComponent* trail = object->AddComponent<TrailRendererComponent>();
+		trail->SetWidth((std::max)(0.12f, request.size * 0.8f));
+		trail->SetLifeTime(request.motionType == PlayerProjectileMotionType::Orbit ? 0.45f : 0.32f);
+		trail->SetMinSegmentLength((std::max)(0.025f, request.size * 0.08f));
+		if (request.motionType == PlayerProjectileMotionType::Boomerang) {
+			trail->SetHeadColor({1.0f, 0.72f, 0.20f, 0.95f});
+			trail->SetTailColor({1.0f, 0.12f, 0.02f, 0.0f});
+		} else if (request.motionType == PlayerProjectileMotionType::Orbit) {
+			trail->SetPositionReference(request.motionAnchor);
+			trail->SetHeadColor({0.45f, 0.90f, 1.0f, 0.9f});
+			trail->SetTailColor({0.10f, 0.30f, 1.0f, 0.0f});
+		} else if (request.motionType == PlayerProjectileMotionType::Ricochet) {
+			trail->SetHeadColor({0.65f, 1.0f, 0.30f, 0.95f});
+			trail->SetTailColor({0.05f, 0.80f, 0.15f, 0.0f});
+		}
 	}
 
 	object->Update();
@@ -480,6 +557,89 @@ void BaseScene::UpdatePlayerProjectileHits() {
 		GameObject* target = nullptr;
 	};
 	std::vector<ExperienceDropRequest> experienceDropRequests;
+	Camera* camera = Object3dCommon::GetInstance() ? Object3dCommon::GetInstance()->GetDefaultCamera() : nullptr;
+	for (const auto& projectileObject : sceneObjects_) {
+		PlayerProjectileComponent* projectile = projectileObject->GetComponent<PlayerProjectileComponent>();
+		if (!projectile || projectile->IsExpired() ||
+		    projectile->GetMotionType() != PlayerProjectileMotionType::Ricochet) {
+			continue;
+		}
+
+		Vector3& position = projectileObject->GetTransform().translate;
+		Vector3 currentNdc{};
+		Vector3 aheadNdc{};
+		if (camera && ProjectToNdc(camera, position, currentNdc) &&
+		    ProjectToNdc(camera, position + projectile->GetDirection(), aheadNdc)) {
+			const float edgeInset = (std::clamp)(0.025f + projectile->GetSize() * 0.02f, 0.025f, 0.20f);
+			const float boundary = 1.0f - edgeInset;
+			const bool hitHorizontalEdge = currentNdc.x < -boundary || currentNdc.x > boundary;
+			const bool hitVerticalEdge = currentNdc.y < -boundary || currentNdc.y > boundary;
+			if (hitHorizontalEdge || hitVerticalEdge) {
+				Vector2 screenDirection{aheadNdc.x - currentNdc.x, aheadNdc.y - currentNdc.y};
+				if (hitHorizontalEdge) {
+					screenDirection.x = -screenDirection.x;
+				}
+				if (hitVerticalEdge) {
+					screenDirection.y = -screenDirection.y;
+				}
+				const Vector2 clampedNdc{
+				    (std::clamp)(currentNdc.x, -boundary, boundary),
+				    (std::clamp)(currentNdc.y, -boundary, boundary)
+				};
+				const Vector2 reflectedNdc{clampedNdc.x + screenDirection.x, clampedNdc.y + screenDirection.y};
+				Vector3 boundaryPoint{};
+				Vector3 reflectedPoint{};
+				if (IntersectScreenRayToHeight(camera, clampedNdc, position.y, boundaryPoint) &&
+				    IntersectScreenRayToHeight(camera, reflectedNdc, position.y, reflectedPoint)) {
+					position = boundaryPoint;
+					projectile->SetDirection(reflectedPoint - boundaryPoint);
+				}
+			}
+		}
+
+		SphereColliderShape projectileSphere{position, projectile->GetSize()};
+		for (const auto& obstacleObject : sceneObjects_) {
+			if (obstacleObject.get() == projectileObject.get() ||
+			    obstacleObject->GetComponent<Player>() ||
+			    obstacleObject->GetComponent<EnemyComponent>() ||
+			    obstacleObject->GetComponent<PlayerProjectileComponent>()) {
+				continue;
+			}
+
+			Vector3 surfaceNormal{};
+			float penetration = 0.0f;
+			bool collided = false;
+			if (OBBColliderComponent* obstacle = obstacleObject->GetComponent<OBBColliderComponent>();
+			    obstacle && obstacle->IsEnabled() && obstacle->GetPushBackEnabled()) {
+				collided = BaseSceneCollisionHelpers::CalculateOBBSpherePushBack(obstacle->GetWorldOBB(), projectileSphere, surfaceNormal, penetration);
+			}
+			if (!collided) {
+				if (SphereColliderComponent* obstacle = obstacleObject->GetComponent<SphereColliderComponent>();
+				    obstacle && obstacle->IsEnabled() && obstacle->GetPushBackEnabled()) {
+					Vector3 projectileToObstacle{};
+					collided = BaseSceneCollisionHelpers::CalculateSphereSpherePushBack(projectileSphere, obstacle->GetWorldSphere(), projectileToObstacle, penetration);
+					surfaceNormal = -1.0f * projectileToObstacle;
+				}
+			}
+			if (!collided) {
+				continue;
+			}
+
+			surfaceNormal.y = 0.0f;
+			if (Length(surfaceNormal) <= MathConstants::kDirectionEpsilon) {
+				continue;
+			}
+			surfaceNormal = NormalizeReturnVector(surfaceNormal);
+			const float incomingAmount = Dot(projectile->GetDirection(), surfaceNormal);
+			if (incomingAmount >= 0.0f) {
+				continue;
+			}
+			position = position + (penetration + 0.01f) * surfaceNormal;
+			projectile->SetDirection(projectile->GetDirection() - (2.0f * incomingAmount) * surfaceNormal);
+			projectileObject->GetTransform().rotate.y = std::atan2(projectile->GetDirection().x, projectile->GetDirection().z);
+			break;
+		}
+	}
 	for (const auto& projectileObject : sceneObjects_) {
 		PlayerProjectileComponent* projectile = projectileObject->GetComponent<PlayerProjectileComponent>();
 		if (!projectile || !projectile->IsEnabled() || projectile->IsExpired()) {
@@ -639,8 +799,8 @@ void BaseScene::UpdateColliderCollisions() {
 				}
 				Vector3 direction{};
 				float penetration = 0.0f;
-				if (CalculateOBBOBBPushBack(colliderA, colliderB, direction, penetration)) {
-					ApplyColliderPushBack(
+				if (BaseSceneCollisionHelpers::CalculateOBBOBBPushBack(colliderA, colliderB, direction, penetration)) {
+					BaseSceneCollisionHelpers::ApplyColliderPushBack(
 					    ownerA,
 					    colliders[i]->GetPushBackEnabled(),
 					    ownerB,
@@ -670,8 +830,8 @@ void BaseScene::UpdateColliderCollisions() {
 				}
 				Vector3 direction{};
 				float penetration = 0.0f;
-				if (CalculateSphereSpherePushBack(sphereA, sphereB, direction, penetration)) {
-					ApplyColliderPushBack(
+				if (BaseSceneCollisionHelpers::CalculateSphereSpherePushBack(sphereA, sphereB, direction, penetration)) {
+					BaseSceneCollisionHelpers::ApplyColliderPushBack(
 					    ownerA,
 					    sphereColliders[i]->GetPushBackEnabled(),
 					    ownerB,
@@ -702,8 +862,8 @@ void BaseScene::UpdateColliderCollisions() {
 				}
 				Vector3 direction{};
 				float penetration = 0.0f;
-				if (CalculateOBBSpherePushBack(obb, sphere, direction, penetration)) {
-					ApplyColliderPushBack(
+				if (BaseSceneCollisionHelpers::CalculateOBBSpherePushBack(obb, sphere, direction, penetration)) {
+					BaseSceneCollisionHelpers::ApplyColliderPushBack(
 					    obbOwner,
 					    collider->GetPushBackEnabled(),
 					    sphereOwner,
@@ -762,15 +922,15 @@ void BaseScene::UpdateEditorObjectPicking() {
 	const float ndcX = (mouseX / width) * 2.0f - 1.0f;
 	const float ndcY = 1.0f - (mouseY / height) * 2.0f;
 	const Matrix4x4 inverseViewProjection = Inverse(camera->GetViewProjectionMatrix());
-	const Vector3 nearPoint = TransformCoord({ndcX, ndcY, 0.0f}, inverseViewProjection);
-	const Vector3 farPoint = TransformCoord({ndcX, ndcY, 1.0f}, inverseViewProjection);
+	const Vector3 nearPoint = BaseSceneEditorGeometry::TransformCoord({ndcX, ndcY, 0.0f}, inverseViewProjection);
+	const Vector3 farPoint = BaseSceneEditorGeometry::TransformCoord({ndcX, ndcY, 1.0f}, inverseViewProjection);
 	const Vector3 rayDirection = Normalize(farPoint - nearPoint);
 
 	int hitIndex = -1;
 	float nearestDistance = 100000.0f;
 	for (int index = 0; index < static_cast<int>(sceneObjects_.size()); ++index) {
 		float distance = 0.0f;
-		if (IntersectRayToOBB(nearPoint, rayDirection, MakePickOBB(sceneObjects_[index].get()), distance) && distance < nearestDistance) {
+		if (BaseSceneEditorGeometry::IntersectRayToOBB(nearPoint, rayDirection, BaseSceneEditorGeometry::MakePickOBB(sceneObjects_[index].get()), distance) && distance < nearestDistance) {
 			nearestDistance = distance;
 			hitIndex = index;
 		}
@@ -825,7 +985,7 @@ void BaseScene::UpdateEditorCameraControl() {
 		cameraTransform = &activeCameraObject->GetTransform();
 		cameraPosition = cameraTransform->translate;
 		cameraRotate = cameraTransform->rotate;
-	} else if (TryGetCameraTransform(fallbackCamera_, cameraPosition, cameraRotate)) {
+	} else if (BaseSceneEditorGeometry::TryGetCameraTransform(fallbackCamera_, cameraPosition, cameraRotate)) {
 		fallbackCamera = fallbackCamera_;
 	} else {
 		return;
@@ -837,13 +997,13 @@ void BaseScene::UpdateEditorCameraControl() {
 		if (selectedObject) {
 			const Vector3 target = selectedObject->GetTransform().translate;
 			Vector3 offset = cameraPosition - target;
-			if (Length(offset) > 0.0001f) {
+			if (Length(offset) > MathConstants::kDirectionEpsilon) {
 				const Vector3 worldUp{0.0f, 1.0f, 0.0f};
-				offset = RotateAroundAxis(offset, worldUp, yawDelta);
+				offset = BaseSceneEditorGeometry::RotateAroundAxis(offset, worldUp, yawDelta);
 
 				Vector3 right = Cross(worldUp, Normalize(offset));
-				if (Length(right) > 0.0001f) {
-					offset = RotateAroundAxis(offset, right, pitchDelta);
+				if (Length(right) > MathConstants::kDirectionEpsilon) {
+					offset = BaseSceneEditorGeometry::RotateAroundAxis(offset, right, pitchDelta);
 				}
 				cameraPosition = target + offset;
 			}

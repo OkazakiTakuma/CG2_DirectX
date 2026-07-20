@@ -1,5 +1,6 @@
 #pragma once
 #include "Component.h"
+#include "MathConstants.h"
 #include "GameObject.h"
 #include "../base/GameTime.h"
 #include <cmath>
@@ -33,7 +34,7 @@ public:
 		Vector3 direction = targetPosition - transform.translate;
 		direction.y = 0.0f;
 		const float distance = Length(direction);
-		if (distance > 0.0001f) {
+		if (distance > MathConstants::kDirectionEpsilon) {
 			const Vector3 normalized = Normalize(direction);
 			transform.translate = transform.translate + (stats_.speed * GameTime::GetFrameScale60()) * normalized;
 			transform.rotate.y = std::atan2(normalized.x, normalized.z);

@@ -10,6 +10,10 @@
 #include <d3d12.h>
 #include <unordered_map>
 
+/// <summary>
+/// テクスチャの読み込み、GPUリソース、SRVとファイルパスの対応を一元管理します。
+/// 同じテクスチャの重複読み込みを防ぎ、描画機能へ参照情報を提供します。
+/// </summary>
 class TextureManager {
 public:
 	/// <summary>
@@ -30,7 +34,6 @@ public:
 	/// Release の処理を行います。
 	/// </summary>
 	void Release();
-	void Rerease() { Release(); }
 	/// <summary>
 	/// Texture を読み込み、内部データへ反映します。
 	/// </summary>
@@ -90,10 +93,9 @@ public:
 	std::vector<std::string> GetLoadedTextureNames() const;
 
 private:
-	static TextureManager* instance;
 	TextureManager() = default;
 	~TextureManager() = default;
-	TextureManager(TextureManager&) = delete;
+	TextureManager(const TextureManager&) = delete;
 	TextureManager& operator=(const TextureManager&) = delete;
 	struct TextureData {
 		DirectX::TexMetadata metadata;

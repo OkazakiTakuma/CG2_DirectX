@@ -1,8 +1,9 @@
 #include "Player.h"
+#include "MathConstants.h"
 #include "GameObject.h"
 #include "Input.h"
 #include "GameTime.h"
-#include "Object3dComponent.h"
+#include "object/Object3dComponent.h"
 #include <cmath>
 #include <limits>
 #include <dinput.h>
@@ -11,7 +12,7 @@ namespace {
 Vector3 MoveTowards(const Vector3& current, const Vector3& target, float maxDelta) {
 	const Vector3 difference = target - current;
 	const float distance = Length(difference);
-	if (distance <= maxDelta || distance <= 0.00001f) {
+	if (distance <= maxDelta || distance <= MathConstants::kNormalizationEpsilon) {
 		return target;
 	}
 
@@ -53,7 +54,7 @@ void Player::Update() {
 		keyboardMove.x += 1.0f;
 	}
 	const float keyboardLength = Length(keyboardMove);
-	if (keyboardLength > 0.00001f) {
+	if (keyboardLength > MathConstants::kNormalizationEpsilon) {
 		keyboardMove = {keyboardMove.x / keyboardLength, 0.0f, keyboardMove.z / keyboardLength};
 	}
 
@@ -63,13 +64,13 @@ void Player::Update() {
 	const float moveLength = Length(move);
 	Vector3 targetVelocity{0.0f, 0.0f, 0.0f};
 	const float effectiveMoveSpeed = GetEffectiveMoveSpeed();
-	if (moveLength > 0.00001f) {
+	if (moveLength > MathConstants::kNormalizationEpsilon) {
 		const Vector3 moveDirection = {move.x / moveLength, 0.0f, move.z / moveLength};
 		const float moveAmount = moveLength > 1.0f ? 1.0f : moveLength;
 		targetVelocity = (effectiveMoveSpeed * moveAmount) * moveDirection;
 	}
 
-	const bool hasMoveInput = Length(targetVelocity) > 0.00001f;
+	const bool hasMoveInput = Length(targetVelocity) > MathConstants::kNormalizationEpsilon;
 	const float smoothingDelta = (hasMoveInput ? effectiveMoveSpeed * 0.18f : effectiveMoveSpeed * 0.14f) * frameScale;
 	currentMoveVelocity_ = MoveTowards(currentMoveVelocity_, targetVelocity, smoothingDelta);
 
@@ -80,7 +81,7 @@ void Player::Update() {
 		}
 	}
 
-	if (currentSpeed <= 0.00001f) {
+	if (currentSpeed <= MathConstants::kNormalizationEpsilon) {
 		return;
 	}
 

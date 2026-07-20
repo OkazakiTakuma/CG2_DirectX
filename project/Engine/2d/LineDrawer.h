@@ -1,7 +1,7 @@
 #pragma once
 #include "Vector.h"
 #include "Matrix.h"
-#include "Camera.h"
+#include "camera/Camera.h"
 #include <wrl.h>
 #include <d3d12.h>
 #include <cstdint>

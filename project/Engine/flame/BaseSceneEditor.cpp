@@ -1,7 +1,12 @@
 #include "BaseScene.h"
-#include "BaseSceneHelpers.h"
+#include "helpers/BaseSceneEditorGeometry.h"
+#include "helpers/BaseSceneResourceCatalog.h"
+#include "repositories/EnemyStatusRepository.h"
+#include "repositories/ParticlePresetRepository.h"
+#include "repositories/PlayerStatusRepository.h"
 
 #ifdef USE_IMGUI
+#include "../../../imgui/ImGuizmo.h"
 #include <cctype>
 #include <limits>
 
@@ -70,7 +75,7 @@ bool IsSpriteTexturePath(const std::string& path) {
 
 GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::string& modelFilePath) {
 	auto object = std::make_unique<GameObject>();
-	object->SetEditorType(EditorCreateTypeName(type));
+	object->SetEditorType(BaseSceneEditorGeometry::EditorCreateTypeName(type));
 
 	switch (type) {
 	case EditorCreateType::Empty:
@@ -165,7 +170,7 @@ GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::stri
 		const std::string groupName = object->GetName();
 		std::string textureFilePath = "Resources/circle.png";
 		ParticleMeshType meshType = kMeshTypeQuad;
-		GetParticlePresetResourceInfo(modelFilePath, textureFilePath, meshType);
+		ParticlePresetRepository::GetResourceInfo(modelFilePath, textureFilePath, meshType);
 		if (!ParticleManager::GetInstance()->GetGroup(groupName)) {
 			ParticleManager::GetInstance()->CreateParticleGroup(groupName, textureFilePath, meshType);
 		}
@@ -173,10 +178,10 @@ GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::stri
 		emitter->SetTexture(textureFilePath);
 		emitter->SetMeshType(meshType);
 		if (!modelFilePath.empty()) {
-			ApplyParticlePreset(modelFilePath, emitter);
+			ParticlePresetRepository::Apply(modelFilePath, emitter);
 		} else {
 			emitter->SetFrequency(0.0f);
-			ParticleEmitParam param = emitter->GetPalam();
+			ParticleEmitParam param = emitter->GetParam();
 			param.count = 10;
 			param.lifeTime = 1.0f;
 			param.scale = {1.0f, 1.0f, 1.0f};
@@ -223,7 +228,7 @@ GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::stri
 		CameraComponent* camera = object->AddComponent<CameraComponent>();
 		camera->SetLocalOffset({0.0f, 15.0f, 0.0f});
 		camera->SetOverrideRotationEnabled(true);
-		camera->SetOverrideRotation({kPi * 0.5f, 0.0f, 0.0f});
+		camera->SetOverrideRotation({MathConstants::kPi * 0.5f, 0.0f, 0.0f});
 		camera->SetFovY(0.75f);
 		camera->SetFarClip(1000.0f);
 		break;
@@ -363,7 +368,7 @@ void BaseScene::DrawEditorHierarchy() {
 		}
 	}
 	if (createType_ == EditorCreateType::ParticleEmitter) {
-		const std::vector<std::string> particlePresets = LoadParticlePresetNames();
+		const std::vector<std::string> particlePresets = ParticlePresetRepository::LoadNames();
 		if (particlePresets.empty()) {
 			ImGui::Text("No particle presets");
 		} else {
@@ -734,6 +739,16 @@ void BaseScene::DrawEditorInspector() {
 	if (componentLabels.size() == 1) {
 		ImGui::Text("No optional components");
 	}
+	DrawSelectedComponentInspector(selectedObject, selectedComponentLabel);
+	DrawEnemySpawnPointInspector(selectedObject);
+	DrawOBBColliderInspector(selectedObject);
+
+	ImGui::End();
+#endif
+}
+
+void BaseScene::DrawSelectedComponentInspector(GameObject* selectedObject, const std::string& selectedComponentLabel) {
+#ifdef USE_IMGUI
 	if (Object3dComponent* object3dComponent = selectedObject->GetComponent<Object3dComponent>()) {
 		if (selectedComponentLabel == "Object3d" || object3dComponent->HasModel() || object3dComponent->HasSkeleton()) {
 			ImGui::Separator();
@@ -749,6 +764,21 @@ void BaseScene::DrawEditorInspector() {
 					ImGui::Text("Skeleton: None");
 				}
 				if (object3dComponent->HasAnimation()) {
+					const std::vector<std::string>& animationNames = object3dComponent->GetAnimationNames();
+					if (!animationNames.empty()) {
+						int currentAnimationIndex = 0;
+						for (int animationIndex = 0; animationIndex < static_cast<int>(animationNames.size()); ++animationIndex) {
+							if (animationNames[animationIndex] == object3dComponent->GetAnimationName()) {
+								currentAnimationIndex = animationIndex;
+								break;
+							}
+						}
+						std::vector<const char*> animationLabels = MakeLabelPointers(animationNames);
+						if (ImGui::Combo("Animation Clip", &currentAnimationIndex, animationLabels.data(), static_cast<int>(animationLabels.size()))) {
+							object3dComponent->SetAnimation(animationNames[currentAnimationIndex], true);
+						}
+						ImGui::Text("Animation Clips: %d", static_cast<int>(animationNames.size()));
+					}
 					bool isAnimationPlaying = object3dComponent->GetAnimationPlaying();
 					if (ImGui::Checkbox("Play Animation", &isAnimationPlaying)) {
 						object3dComponent->SetAnimationPlaying(isAnimationPlaying);
@@ -906,6 +936,15 @@ void BaseScene::DrawEditorInspector() {
 	if (selectedObject->GetComponent<ParticleEmitterComponent>()) {
 		DrawParticleEmitterInspector(selectedObject);
 	}
+
+#else
+	(void)selectedObject;
+	(void)selectedComponentLabel;
+#endif
+}
+
+void BaseScene::DrawEnemySpawnPointInspector(GameObject* selectedObject) {
+#ifdef USE_IMGUI
 	if (EnemySpawnPointComponent* enemySpawnPoint = selectedObject->GetComponent<EnemySpawnPointComponent>()) {
 		ImGui::Separator();
 		ImGui::Text("EnemySpawnPointComponent");
@@ -1073,9 +1112,8 @@ void BaseScene::DrawEditorInspector() {
 		}
 		ImGui::Text("Spawn Points: %d", static_cast<int>(enemySpawnPoint->GetSpawnPoints().size()));
 	}
-	DrawOBBColliderInspector(selectedObject);
-
-	ImGui::End();
+#else
+	(void)selectedObject;
 #endif
 }
 
@@ -1285,6 +1323,14 @@ void BaseScene::DrawPlayerInspector() {
 		SaveEditorObjects();
 	}
 
+	DrawPlayerStatsInspector(selectedObject, player);
+
+	ImGui::End();
+#endif
+}
+
+void BaseScene::DrawPlayerStatsInspector(GameObject* selectedObject, Player* player) {
+#ifdef USE_IMGUI
 	PlayerStats stats = player->GetBaseStats();
 	bool statsChanged = false;
 	bool statusSlotsChanged = false;
@@ -1443,6 +1489,15 @@ void BaseScene::DrawPlayerInspector() {
 		ImGui::Text("Experience Correction %%: %.1f", appliedStatusStats.experienceCorrection);
 	}
 
+	DrawPlayerPersistenceInspector(selectedObject, player, stats, statsChanged, statusSlotsChanged);
+#else
+	(void)selectedObject;
+	(void)player;
+#endif
+}
+
+void BaseScene::DrawPlayerPersistenceInspector(GameObject* selectedObject, Player* player, PlayerStats& stats, bool& statsChanged, bool statusSlotsChanged) {
+#ifdef USE_IMGUI
 	if (ImGui::CollapsingHeader("Status Item Settings")) {
 		static int selectedStatusItemIndex = 0;
 		static std::array<char, 128> statusItemNameBuffer{};
@@ -1531,8 +1586,6 @@ void BaseScene::DrawPlayerInspector() {
 		stats.initialAttackLevel = stats.attackSlots[0].attackLevel;
 		// ステータススロットはJSONへ即時保存せず、現在シーン上のプレイヤーにだけ反映する。
 		player->ApplyStats(stats, ApplyPlayerStatusItems(stats));
-		// ステータススロットはJSONへ即時保存せず、現在シーン上のプレイヤーにだけ反映する。
-		player->ApplyStats(stats, ApplyPlayerStatusItems(stats));
 		if (PlayerAttackComponent* attack = selectedObject->GetComponent<PlayerAttackComponent>()) {
 			ApplyPlayerAttackSlots(attack, stats);
 		}
@@ -1549,7 +1602,12 @@ void BaseScene::DrawPlayerInspector() {
 		SavePlayerStats(player->GetPlayerTypeName(), saveStats);
 	}
 
-	ImGui::End();
+#else
+	(void)selectedObject;
+	(void)player;
+	(void)stats;
+	(void)statsChanged;
+	(void)statusSlotsChanged;
 #endif
 }
 
@@ -1690,10 +1748,20 @@ void BaseScene::DrawPlayerAttackInspector() {
 	while (static_cast<int>(selectedLevel->angles.size()) > selectedLevel->shotCount) {
 		selectedLevel->angles.pop_back();
 	}
+	while (static_cast<int>(selectedLevel->spawnOffsets.size()) < selectedLevel->shotCount) {
+		selectedLevel->spawnOffsets.push_back(
+		    selectedLevel->spawnOffsets.empty() ? Vector3{0.0f, 0.5f, 1.2f} : selectedLevel->spawnOffsets.back());
+	}
+	while (static_cast<int>(selectedLevel->spawnOffsets.size()) > selectedLevel->shotCount) {
+		selectedLevel->spawnOffsets.pop_back();
+	}
 	for (int index = 0; index < selectedLevel->shotCount; ++index) {
 		std::string label = "Shot Angle " + std::to_string(index + 1);
 		changed |= ImGui::DragFloat(label.c_str(), &selectedLevel->angles[index], 1.0f, -180.0f, 180.0f);
+		label = "Shot " + std::to_string(index + 1) + " Spawn Offset";
+		changed |= ImGui::DragFloat3(label.c_str(), &selectedLevel->spawnOffsets[index].x, 0.05f, -100.0f, 100.0f);
 	}
+	ImGui::TextDisabled("Local position: X = right, Y = up, Z = forward");
 
 	const std::vector<std::string> loadedModels = CollectAllLoadedModelNames();
 	if (!loadedModels.empty()) {
@@ -1716,6 +1784,7 @@ void BaseScene::DrawPlayerAttackInspector() {
 	changed |= ImGui::SliderFloat("Homing Accuracy", &selectedLevel->homingAccuracy, 0.0f, 1.0f);
 	changed |= ImGui::DragFloat("Attack Interval", &selectedLevel->attackInterval, 0.01f, 0.01f, 100.0f);
 	changed |= ImGui::DragFloat("Life Time", &selectedLevel->lifeTime, 0.01f, 0.01f, 100.0f);
+	changed |= ImGui::DragFloat("Travel Distance", &selectedLevel->travelDistance, 0.1f, 0.1f, 1000.0f);
 	changed |= ImGui::DragInt("Pierce Count", &selectedLevel->pierceCount, 1.0f, 0, 1000);
 	changed |= ImGui::Checkbox("Infinite Pierce", &selectedLevel->infinitePierce);
 
@@ -1756,7 +1825,7 @@ void BaseScene::DrawParticleEmitterInspector(GameObject* selectedObject) {
 	ImGui::Separator();
 	ImGui::Text("ParticleEmitterComponent");
 
-	const std::vector<std::string> particlePresets = LoadParticlePresetNames();
+	const std::vector<std::string> particlePresets = ParticlePresetRepository::LoadNames();
 	if (!particlePresets.empty()) {
 		if (selectedParticlePresetIndex_ >= static_cast<int>(particlePresets.size())) {
 			selectedParticlePresetIndex_ = 0;
@@ -1770,7 +1839,7 @@ void BaseScene::DrawParticleEmitterInspector(GameObject* selectedObject) {
 
 		ImGui::Combo("Preset", &selectedParticlePresetIndex_, presetLabels.data(), static_cast<int>(presetLabels.size()));
 		if (ImGui::Button("Apply Preset")) {
-			ApplyParticlePreset(particlePresets[selectedParticlePresetIndex_], emitter);
+			ParticlePresetRepository::Apply(particlePresets[selectedParticlePresetIndex_], emitter);
 		}
 	} else {
 		ImGui::Text("No particle presets");
@@ -1784,7 +1853,7 @@ void BaseScene::DrawParticleEmitterInspector(GameObject* selectedObject) {
 	}
 	ImGui::InputText("Preset Name", particlePresetNameBuffer_.data(), particlePresetNameBuffer_.size());
 	if (ImGui::Button("Save Preset")) {
-		SaveParticlePreset(particlePresetNameBuffer_.data(), emitter);
+		ParticlePresetRepository::Save(particlePresetNameBuffer_.data(), emitter);
 	}
 
 	const std::vector<std::string> textures = CollectResourceTexturePaths();
@@ -1812,7 +1881,7 @@ void BaseScene::DrawParticleEmitterInspector(GameObject* selectedObject) {
 		emitter->SetFrequency(frequency);
 	}
 
-	ParticleEmitParam param = emitter->GetPalam();
+	ParticleEmitParam param = emitter->GetParam();
 	int count = static_cast<int>(param.count);
 	if (ImGui::DragInt("Emit Count", &count, 1.0f, 0, 1000)) {
 		param.count = static_cast<uint32_t>(count);
@@ -2034,7 +2103,7 @@ void BaseScene::DrawCameraInspector(GameObject* selectedObject) {
 		cameraComponent->SetLocalOffset({0.0f, 15.0f, 0.0f});
 		cameraComponent->SetFollowOffset({0.0f, 15.0f, 0.0f});
 		cameraComponent->SetOverrideRotationEnabled(true);
-		cameraComponent->SetOverrideRotation({kPi * 0.5f, 0.0f, 0.0f});
+		cameraComponent->SetOverrideRotation({MathConstants::kPi * 0.5f, 0.0f, 0.0f});
 		cameraComponent->SetFovY(0.75f);
 		cameraComponent->SetFarClip(1000.0f);
 	}
@@ -2091,7 +2160,11 @@ void BaseScene::DrawEditorGizmo() {
 
 	Matrix4x4 objectMatrix{};
 	float translation[3] = {transform.translate.x, transform.translate.y, transform.translate.z};
-	float rotation[3] = {ToDegrees(transform.rotate.x), ToDegrees(transform.rotate.y), ToDegrees(transform.rotate.z)};
+	float rotation[3] = {
+	    BaseSceneEditorGeometry::ToDegrees(transform.rotate.x),
+	    BaseSceneEditorGeometry::ToDegrees(transform.rotate.y),
+	    BaseSceneEditorGeometry::ToDegrees(transform.rotate.z)
+	};
 	float scale[3] = {transform.scale.x, transform.scale.y, transform.scale.z};
 	ImGuizmo::RecomposeMatrixFromComponents(translation, rotation, scale, &objectMatrix.m[0][0]);
 
@@ -2113,7 +2186,11 @@ void BaseScene::DrawEditorGizmo() {
 	if (ImGuizmo::Manipulate(&viewMatrix.m[0][0], &projectionMatrix.m[0][0], gizmoOperations[operationIndex], gizmoMode, &objectMatrix.m[0][0])) {
 		ImGuizmo::DecomposeMatrixToComponents(&objectMatrix.m[0][0], translation, rotation, scale);
 		transform.translate = {translation[0], translation[1], translation[2]};
-		transform.rotate = {ToRadians(rotation[0]), ToRadians(rotation[1]), ToRadians(rotation[2])};
+		transform.rotate = {
+		    BaseSceneEditorGeometry::ToRadians(rotation[0]),
+		    BaseSceneEditorGeometry::ToRadians(rotation[1]),
+		    BaseSceneEditorGeometry::ToRadians(rotation[2])
+		};
 		transform.scale = {scale[0], scale[1], scale[2]};
 	}
 #endif

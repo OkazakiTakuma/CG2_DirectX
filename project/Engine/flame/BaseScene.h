@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "Audio.h"
-#include "Camera.h"
-#include "CameraComponent.h"
+#include "camera/Camera.h"
+#include "camera/CameraComponent.h"
 #include "EnemyComponent.h"
 #include "EnemySpawnPointComponent.h"
 #include "ExperienceComponent.h"
@@ -9,34 +9,39 @@
 #include "ImGuiManager.h"
 #include "Input.h"
 #include "Matrix.h"
-#include "Object3dCommon.h"
-#include "ParticleEmitter.h"
-#include "ParticleManager.h"
+#include "object/Object3dCommon.h"
+#include "particle/ParticleEmitter.h"
+#include "particle/ParticleManager.h"
+#include "particle/TrailRendererComponent.h"
 #include "Resource.h"
-#include "SkyBox.h"
-#include "SkyBoxCommon.h"
+#include "sky/SkyBox.h"
+#include "sky/SkyBoxCommon.h"
 #include "Sprite.h"
 #include "SpriteCommon.h"
 #include "SrvManager.h"
 #include "Vector.h"
 #include "struct.h"
-#include <Object3d.h>
-#include "Object3dComponent.h"
-#include "OBBColliderComponent.h"
-#include "ParticleEmitterComponent.h"
+#include <object/Object3d.h>
+#include "object/Object3dComponent.h"
+#include "collision/OBBColliderComponent.h"
+#include "particle/ParticleEmitterComponent.h"
 #include "PlayerAttackComponent.h"
 #include "PlayerProjectileComponent.h"
 #include "../../Player/Player.h"
-#include "SphereColliderComponent.h"
+#include "collision/SphereColliderComponent.h"
 #include "SpriteComponent.h"
 #include "TextComponent.h"
-#include "InstancingModel.h"
+#include "instancing/InstancingModel.h"
 #include <array>
 #include <memory>
 #include <string>
 #include <vector>
 class SceneManager;
 
+/// <summary>
+/// シーン内オブジェクトの所有、実行時更新、衝突処理、シリアライズ、エディタ操作を統括します。
+/// 個別シーンは仮想関数をオーバーライドし、シーン固有の振る舞いを追加します。
+/// </summary>
 class BaseScene {
 public:
 	enum class EditorCreateType {
@@ -152,7 +157,23 @@ private:
 /// 選択中オブジェクトのインスペクタを描画します。
 /// </summary>
 	void DrawEditorInspector();
+	/// <summary>
+	/// 選択中オブジェクトのComponent固有設定を描画します。
+	/// </summary>
+	void DrawSelectedComponentInspector(GameObject* selectedObject, const std::string& selectedComponentLabel);
+	/// <summary>
+	/// EnemySpawnPointComponentの生成条件とスケジュール設定を描画します。
+	/// </summary>
+	void DrawEnemySpawnPointInspector(GameObject* selectedObject);
 	void DrawPlayerInspector();
+	/// <summary>
+	/// 選択中プレイヤーの能力値、装備スロット、モデルと保存操作を描画します。
+	/// </summary>
+	void DrawPlayerStatsInspector(GameObject* selectedObject, Player* player);
+	/// <summary>
+	/// プレイヤーのステータスアイテム定義、モデル選択、変更反映と保存操作を描画します。
+	/// </summary>
+	void DrawPlayerPersistenceInspector(GameObject* selectedObject, Player* player, PlayerStats& stats, bool& statsChanged, bool statusSlotsChanged);
 	void DrawEnemyInspector();
 	void DrawPlayerAttackInspector();
 	void ReloadPlayerAttackInspectorCache();

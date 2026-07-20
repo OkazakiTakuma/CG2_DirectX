@@ -335,44 +335,6 @@ void DirectXCommon::UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Resource> tex
 	}
 }
 /// <summary>
-/// DepthStenecilTextureResource を作成し、利用できる状態にします。
-/// </summary>
-/// <param name="device">device に使用する値を指定します。</param>
-/// <param name="width">幅を指定します。</param>
-/// <param name="height">高さを指定します。</param>
-/// <returns>処理結果を返します。</returns>
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDepthStenecilTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, int32_t width, int32_t height) {
-	D3D12_RESOURCE_DESC resourceDesc{};
-	resourceDesc.Width = width;
-	resourceDesc.Height = height;
-	resourceDesc.MipLevels = 1;
-	resourceDesc.DepthOrArraySize = 1;
-	resourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	resourceDesc.SampleDesc.Count = 1;
-	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-	D3D12_HEAP_PROPERTIES heapProperties{};
-	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
-
-	D3D12_CLEAR_VALUE depthClearValue{};
-	depthClearValue.DepthStencil.Depth = 1.0f;
-	depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
-	HRESULT hr = device->CreateCommittedResource(
-	    &heapProperties,
-	    D3D12_HEAP_FLAG_NONE,
-	    &resourceDesc,
-	    D3D12_RESOURCE_STATE_DEPTH_WRITE,
-	    &depthClearValue,
-	    IID_PPV_ARGS(&resource));
-	assert(SUCCEEDED(hr));
-
-	return resource;
-}
-
-/// <summary>
 /// Device を作成し、利用できる状態にします。
 /// </summary>
 void DirectXCommon::CreateDevice() {
@@ -422,7 +384,6 @@ void DirectXCommon::CreateDevice() {
 	if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
 		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
 		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
-		// infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
 		D3D12_MESSAGE_ID denyIds[] = {D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE};
 		D3D12_MESSAGE_SEVERITY severities[] = {D3D12_MESSAGE_SEVERITY_INFO};
 		D3D12_INFO_QUEUE_FILTER filter{};
@@ -443,7 +404,6 @@ void DirectXCommon::CreateCommand() {
 	hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator));
 	assert(SUCCEEDED(hr));
 
-	// Define the missing identifiers and fix the syntax error
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
 	hr = device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&commandQueue));
 	assert(SUCCEEDED(hr));
@@ -601,7 +561,6 @@ void DirectXCommon::Release() {
 	swapChain.Reset();
 
 	depthStencilResource.Reset();
-	depthStenecilResource.Reset();
 	wvpResorce.Reset();
 	wvpResorceModel.Reset();
 	rtvDescriptorHeap.Reset();

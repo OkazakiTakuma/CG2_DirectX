@@ -7,7 +7,7 @@
 /// 必要なリソースを準備し、オブジェクトを初期化します。
 /// </summary>
 /// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
-void Sprite::Initialize(std::string textureFilePath) {
+void Sprite::Initialize(const std::string& textureFilePath) {
 	SpriteCommon* common = SpriteCommon::GetInstance();
 	if (common == nullptr) {
 		assert(false && "SpriteCommon instance does not exist.");
