@@ -4,12 +4,12 @@
 #ifdef USE_IMGUI
 #include "../../../imgui/imgui_internal.h"
 #include "LineCommon.h"
-#include "Object3dCommon.h"
-#include "ParticleManager.h"
+#include "object/Object3dCommon.h"
+#include "particle/ParticleManager.h"
 #include "PostEffect.h"
-#include "SkyBoxCommon.h"
+#include "sky/SkyBoxCommon.h"
 #include "SpriteCommon.h"
-#include "InstancingModelCommon.h"
+#include "instancing/InstancingModelCommon.h"
 #include "TextureManager.h"
 #include <array>
 #include <chrono>

@@ -1,5 +1,6 @@
 #pragma once
 #include "Component.h"
+#include "MathConstants.h"
 #include "GameObject.h"
 #include "../../Player/Player.h"
 #include "Vector.h"
@@ -16,11 +17,13 @@ struct PlayerAttackLevelStats {
 	float size = 100.0f;
 	int shotCount = 1;
 	std::vector<float> angles = {0.0f};
+	std::vector<Vector3> spawnOffsets = {{0.0f, 0.5f, 1.2f}};
 	std::string modelFilePath = "sphere.obj";
 	bool homing = false;
 	float homingAccuracy = 1.0f;
 	float attackInterval = 0.5f;
 	float lifeTime = 3.0f;
+	float travelDistance = 6.0f;
 	int pierceCount = 0;
 	bool infinitePierce = false;
 };
@@ -35,7 +38,9 @@ struct PlayerAttackStats {
 enum class PlayerProjectileMotionType {
 	Linear,
 	Orbit,
-	SkyLaser
+	SkyLaser,
+	Boomerang,
+	Ricochet
 };
 
 struct PlayerAttackShotRequest {
@@ -56,7 +61,9 @@ struct PlayerAttackShotRequest {
 	GameObject* motionAnchor = nullptr;
 	float orbitAngleRadians = 0.0f;
 	float orbitRadius = 2.2f;
+	float orbitHeight = 0.65f;
 	float orbitAngularSpeed = 2.2f;
+	float travelDistance = 6.0f;
 };
 
 class PlayerAttackComponent : public Component {
@@ -164,21 +171,39 @@ private:
 		return NormalizeReturnVector(rotated);
 	}
 
-	void QueueShot(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel, float angleDegrees) {
+	static Vector3 GetShotSpawnOffset(const PlayerAttackLevelStats& levelStats, int shotIndex) {
+		if (shotIndex >= 0 && shotIndex < static_cast<int>(levelStats.spawnOffsets.size())) {
+			return levelStats.spawnOffsets[shotIndex];
+		}
+		if (!levelStats.spawnOffsets.empty()) {
+			return levelStats.spawnOffsets.back();
+		}
+		return {0.0f, 0.5f, 1.2f};
+	}
+
+	void QueueShot(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel, float angleDegrees, int shotIndex) {
 		const float playerAttackRate = player.GetStats().attack / 100.0f;
 		const float playerAttackSizeRate = player.GetStats().attackSize / 100.0f;
+		const Vector3 spawnOffset = GetShotSpawnOffset(levelStats, shotIndex);
 		Vector3 forward = {
 		    std::sin(owner->GetTransform().rotate.y),
 		    0.0f,
 		    std::cos(owner->GetTransform().rotate.y)
 		};
 		forward = NormalizeReturnVector(forward);
+		const Vector3 right = {
+		    std::cos(owner->GetTransform().rotate.y),
+		    0.0f,
+		    -std::sin(owner->GetTransform().rotate.y)
+		};
 
 		PlayerAttackShotRequest request;
 		request.attackName = slot.stats.name;
 		request.level = currentLevel;
-		request.position = owner->GetTransform().translate + 1.2f * forward;
-		request.position.y += 0.5f;
+		request.position = owner->GetTransform().translate +
+		    spawnOffset.x * right +
+		    Vector3{0.0f, spawnOffset.y, 0.0f} +
+		    spawnOffset.z * forward;
 		request.direction = RotateYaw(forward, angleDegrees);
 		request.attack = levelStats.attack * playerAttackRate;
 		request.speed = levelStats.speed;
@@ -193,14 +218,14 @@ private:
 	}
 
 	void CreateStraightAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
-		QueueShot(owner, player, slot, levelStats, currentLevel, 0.0f);
+		QueueShot(owner, player, slot, levelStats, currentLevel, 0.0f, 0);
 	}
 
 	void CreateSpreadAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
 		const int shotCount = (std::max)(1, levelStats.shotCount);
 		for (int index = 0; index < shotCount; ++index) {
 			const float angle = index < static_cast<int>(levelStats.angles.size()) ? levelStats.angles[index] : 0.0f;
-			QueueShot(owner, player, slot, levelStats, currentLevel, angle);
+			QueueShot(owner, player, slot, levelStats, currentLevel, angle, index);
 		}
 	}
 
@@ -213,12 +238,19 @@ private:
 		const int shotCount = (std::max)(1, levelStats.shotCount);
 		constexpr float kTwoPi = 6.28318530717958647692f;
 		for (int index = 0; index < shotCount; ++index) {
-			QueueShot(owner, player, slot, levelStats, currentLevel, 0.0f);
+			QueueShot(owner, player, slot, levelStats, currentLevel, 0.0f, index);
 			PlayerAttackShotRequest& request = shotRequests_.back();
+			const Vector3 spawnOffset = GetShotSpawnOffset(levelStats, index);
+			const float horizontalRadius = std::sqrt(
+			    spawnOffset.x * spawnOffset.x + spawnOffset.z * spawnOffset.z);
+			const float localStartAngle = horizontalRadius > MathConstants::kDirectionEpsilon
+			    ? std::atan2(spawnOffset.z, spawnOffset.x)
+			    : kTwoPi * static_cast<float>(index) / static_cast<float>(shotCount);
 			request.motionType = PlayerProjectileMotionType::Orbit;
 			request.motionAnchor = owner;
-			request.orbitAngleRadians = kTwoPi * static_cast<float>(index) / static_cast<float>(shotCount);
-			request.orbitRadius = 2.2f;
+			request.orbitAngleRadians = localStartAngle - owner->GetTransform().rotate.y;
+			request.orbitRadius = (std::max)(0.1f, horizontalRadius);
+			request.orbitHeight = spawnOffset.y;
 			request.orbitAngularSpeed = (std::max)(0.1f, levelStats.speed);
 			request.speed = 0.0f;
 		}
@@ -227,7 +259,7 @@ private:
 	void CreateSkyLaserAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
 		const int targetCount = (std::max)(1, levelStats.shotCount);
 		for (int index = 0; index < targetCount; ++index) {
-			QueueShot(owner, player, slot, levelStats, currentLevel, 0.0f);
+			QueueShot(owner, player, slot, levelStats, currentLevel, 0.0f, index);
 			PlayerAttackShotRequest& request = shotRequests_.back();
 			request.motionType = PlayerProjectileMotionType::SkyLaser;
 			request.direction = {0.0f, -1.0f, 0.0f};
@@ -235,7 +267,35 @@ private:
 		}
 	}
 
+	void CreateBoomerangAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
+		QueueShot(owner, player, slot, levelStats, currentLevel, 0.0f, 0);
+		PlayerAttackShotRequest& request = shotRequests_.back();
+		request.motionType = PlayerProjectileMotionType::Boomerang;
+		request.motionAnchor = owner;
+		request.travelDistance = levelStats.travelDistance;
+		request.homing = false;
+	}
+
+	void CreateRicochetAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
+		const int shotCount = (std::max)(1, levelStats.shotCount);
+		for (int index = 0; index < shotCount; ++index) {
+			const float angle = index < static_cast<int>(levelStats.angles.size()) ? levelStats.angles[index] : 0.0f;
+			QueueShot(owner, player, slot, levelStats, currentLevel, angle, index);
+			PlayerAttackShotRequest& request = shotRequests_.back();
+			request.motionType = PlayerProjectileMotionType::Ricochet;
+			request.homing = false;
+		}
+	}
+
 	void CreateAttackByName(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
+		if (slot.stats.name == "Ricochet") {
+			CreateRicochetAttack(owner, player, slot, levelStats, currentLevel);
+			return;
+		}
+		if (slot.stats.name == "Boomerang") {
+			CreateBoomerangAttack(owner, player, slot, levelStats, currentLevel);
+			return;
+		}
 		if (slot.stats.name == "Orbit") {
 			CreateOrbitAttack(owner, player, slot, levelStats, currentLevel);
 			return;

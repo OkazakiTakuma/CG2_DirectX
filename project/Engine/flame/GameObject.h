@@ -9,6 +9,10 @@
 #include <utility>
 #include <vector>
 
+/// <summary>
+/// シーン上の名前、Transform、親子関係とComponent群を所有するエンティティです。
+/// Componentの初期化、更新、描画、破棄を一括して管理します。
+/// </summary>
 class GameObject {
 public:
 	GameObject() = default;

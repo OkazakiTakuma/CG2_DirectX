@@ -1,4 +1,5 @@
 #include "LineCommon.h"
+#include "PipelineStateUtility.h"
 
 #include "Logger.h"
 
@@ -66,28 +67,7 @@ void LineCommon::CreateRootSignature() {
 	descriptionRootSignature.pParameters = rootParameters;
 	descriptionRootSignature.NumParameters = _countof(rootParameters);
 
-	Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob = nullptr;
-	Microsoft::WRL::ComPtr<ID3DBlob> errorBlob = nullptr;
-	HRESULT hr = D3D12SerializeRootSignature(
-		&descriptionRootSignature,
-		D3D_ROOT_SIGNATURE_VERSION_1,
-		&signatureBlob,
-		&errorBlob
-	);
-	if (FAILED(hr)) {
-		if (errorBlob) {
-			Log(reinterpret_cast<const char*>(errorBlob->GetBufferPointer()));
-		}
-		assert(false);
-	}
-
-	hr = dxCommon_->GetDevice()->CreateRootSignature(
-		0,
-		signatureBlob->GetBufferPointer(),
-		signatureBlob->GetBufferSize(),
-		IID_PPV_ARGS(&rootSignature)
-	);
-	assert(SUCCEEDED(hr));
+	rootSignature = PipelineStateUtility::CreateRootSignature(dxCommon_->GetDevice().Get(), descriptionRootSignature);
 }
 
 /// <summary>
@@ -109,9 +89,7 @@ void LineCommon::CreatePipelineState() {
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
 	inputLayoutDesc.NumElements = _countof(inputElementDescs);
 
-	D3D12_RASTERIZER_DESC rasterizerDesc{};
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
-	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+	const D3D12_RASTERIZER_DESC rasterizerDesc = PipelineStateUtility::MakeRasterizerDesc(D3D12_CULL_MODE_NONE);
 
 	auto vertexShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Line.VS.hlsl", L"vs_6_0");
 	auto pixelShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Line.PS.hlsl", L"ps_6_0");
@@ -120,11 +98,7 @@ void LineCommon::CreatePipelineState() {
 
 	for (int depthMode = 0; depthMode < 2; ++depthMode) {
 	for (int i = 0; i < kBlendCountblend; ++i) {
-		D3D12_BLEND_DESC blendDesc{};
-		blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-		blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-		blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-		blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+		D3D12_BLEND_DESC blendDesc = PipelineStateUtility::MakeBlendDesc();
 
 		switch (i) {
 		case kBlendModeNone:
@@ -164,10 +138,8 @@ void LineCommon::CreatePipelineState() {
 			break;
 		}
 
-		D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
-		depthStencilDesc.DepthEnable = depthMode == 0;
-		depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-		depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		const D3D12_DEPTH_STENCIL_DESC depthStencilDesc = PipelineStateUtility::MakeDepthStencilDesc(
+		    depthMode == 0, D3D12_DEPTH_WRITE_MASK_ZERO);
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
 		psoDesc.pRootSignature = rootSignature.Get();

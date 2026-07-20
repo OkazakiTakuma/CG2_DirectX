@@ -14,7 +14,7 @@ public:
 	/// 必要なリソースを準備し、オブジェクトを初期化します。
 	/// </summary>
 	/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
-	void Initialize(std::string textureFilePath);
+	void Initialize(const std::string& textureFilePath);
 	/// <summary>
 	/// 使用するテクスチャを変更します。
 	/// </summary>

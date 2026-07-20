@@ -13,6 +13,30 @@
     <Filter Include="Engine\3d">
       <UniqueIdentifier>{FFD223B7-C52C-450B-910E-575C9F64374A}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Engine\3d\camera">
+      <UniqueIdentifier>{E68155B9-63D9-4CD2-A012-B4B5272423B1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\3d\collision">
+      <UniqueIdentifier>{CFA50811-0829-4743-A4F6-A38AA15D67AD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\3d\instancing">
+      <UniqueIdentifier>{7AE30754-CF80-4726-B792-D5242FDC677D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\3d\model">
+      <UniqueIdentifier>{84616753-82EE-4687-B241-D844870C7E78}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\3d\object">
+      <UniqueIdentifier>{4A8E772C-3C1A-4BA4-8789-EB01C3F30CDE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\3d\particle">
+      <UniqueIdentifier>{DC24C280-77C7-4E6F-9C9E-92CC9EDE3C60}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\3d\sky">
+      <UniqueIdentifier>{BB15F5A4-FAC8-4854-B9B1-AD6E301E269B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\3d\utilities">
+      <UniqueIdentifier>{816ABF36-B01D-48C4-8CA7-403A95AEF20A}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Engine\audio">
       <UniqueIdentifier>{FD0FB91F-5737-49E8-A103-4A7FF7EA9A72}</UniqueIdentifier>
     </Filter>
@@ -24,6 +48,12 @@
     </Filter>
     <Filter Include="Engine\flame">
       <UniqueIdentifier>{9D1137CC-2DBB-4CF9-B2F1-83AB88E60B62}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\flame\helpers">
+      <UniqueIdentifier>{B613AC04-AD64-4D17-BEA5-3D172390F921}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\flame\repositories">
+      <UniqueIdentifier>{2DD24BE9-4721-4C4B-9F7D-7C1F5C511D29}</UniqueIdentifier>
     </Filter>
     <Filter Include="Engine\math">
       <UniqueIdentifier>{54434938-DC8E-4BE9-ACCA-40B73762817A}</UniqueIdentifier>
@@ -57,46 +87,55 @@
     <ClCompile Include="Engine\2d\TextureManager.cpp">
       <Filter>Engine\2d</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\Camera.cpp">
-      <Filter>Engine\3d</Filter>
+    <ClCompile Include="Engine\3d\camera\Camera.cpp">
+      <Filter>Engine\3d\camera</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\InstancingModel.cpp">
-      <Filter>Engine\3d</Filter>
+    <ClCompile Include="Engine\3d\instancing\InstancingModel.cpp">
+      <Filter>Engine\3d\instancing</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\InstancingModelCommon.cpp">
-      <Filter>Engine\3d</Filter>
+    <ClCompile Include="Engine\3d\instancing\InstancingModelCommon.cpp">
+      <Filter>Engine\3d\instancing</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\Model.cpp">
-      <Filter>Engine\3d</Filter>
+    <ClCompile Include="Engine\3d\model\Model.cpp">
+      <Filter>Engine\3d\model</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\ModelCommon.cpp">
-      <Filter>Engine\3d</Filter>
+    <ClCompile Include="Engine\3d\model\ModelCommon.cpp">
+      <Filter>Engine\3d\model</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\ModelManager.cpp">
-      <Filter>Engine\3d</Filter>
+    <ClCompile Include="Engine\3d\model\ModelManager.cpp">
+      <Filter>Engine\3d\model</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\Object3d.cpp">
-      <Filter>Engine\3d</Filter>
+    <ClCompile Include="Engine\3d\object\Object3d.cpp">
+      <Filter>Engine\3d\object</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\Object3dCommon.cpp">
-      <Filter>Engine\3d</Filter>
+    <ClCompile Include="Engine\3d\object\Object3dCommon.cpp">
+      <Filter>Engine\3d\object</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\ParticleEmitter.cpp">
-      <Filter>Engine\3d</Filter>
+    <ClCompile Include="Engine\3d\particle\ParticleEmitter.cpp">
+      <Filter>Engine\3d\particle</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\ParticleManager.cpp">
-      <Filter>Engine\3d</Filter>
+    <ClCompile Include="Engine\3d\particle\ParticleManager.cpp">
+      <Filter>Engine\3d\particle</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\SkyBox.cpp">
-      <Filter>Engine\3d</Filter>
+    <ClCompile Include="Engine\3d\utilities\PrimitiveMeshGenerator.cpp">
+      <Filter>Engine\3d\utilities</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\3d\SkyBoxCommon.cpp">
-      <Filter>Engine\3d</Filter>
+	<ClCompile Include="Engine\3d\particle\TrailRenderer.cpp">
+	  <Filter>Engine\3d\particle</Filter>
+	</ClCompile>
+    <ClCompile Include="Engine\3d\sky\SkyBox.cpp">
+      <Filter>Engine\3d\sky</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\3d\sky\SkyBoxCommon.cpp">
+      <Filter>Engine\3d\sky</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\3d\utilities\SkeletonAnimationUtility.cpp">
+      <Filter>Engine\3d\utilities</Filter>
     </ClCompile>
     <ClCompile Include="Engine\audio\Audio.cpp">
       <Filter>Engine\audio</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\base\D3DResouceLeakCheker.cpp">
+    <ClCompile Include="Engine\base\D3DResourceLeakChecker.cpp">
       <Filter>Engine\base</Filter>
     </ClCompile>
     <ClCompile Include="Engine\base\DirectXCommon.cpp">
@@ -203,61 +242,73 @@
     <ClInclude Include="Engine\2d\TextureManager.h">
       <Filter>Engine\2d</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\Camera.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\camera\Camera.h">
+      <Filter>Engine\3d\camera</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\CameraComponent.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\camera\CameraComponent.h">
+      <Filter>Engine\3d\camera</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\InstancingModel.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\instancing\InstancingModel.h">
+      <Filter>Engine\3d\instancing</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\InstancingModelCommon.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\instancing\InstancingModelCommon.h">
+      <Filter>Engine\3d\instancing</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\Model.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\model\Model.h">
+      <Filter>Engine\3d\model</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\ModelCommon.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\model\ModelCommon.h">
+      <Filter>Engine\3d\model</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\ModelManager.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\model\ModelManager.h">
+      <Filter>Engine\3d\model</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\OBBColliderComponent.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\collision\OBBColliderComponent.h">
+      <Filter>Engine\3d\collision</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\Object3d.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\object\Object3d.h">
+      <Filter>Engine\3d\object</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\Object3dCommon.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\object\Object3dCommon.h">
+      <Filter>Engine\3d\object</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\Object3dComponent.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\object\Object3dComponent.h">
+      <Filter>Engine\3d\object</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\ParticleEmitter.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\particle\ParticleEmitter.h">
+      <Filter>Engine\3d\particle</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\ParticleEmitterComponent.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\particle\ParticleEmitterComponent.h">
+      <Filter>Engine\3d\particle</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\ParticleManager.h">
-      <Filter>Engine\3d</Filter>
+	<ClInclude Include="Engine\3d\particle\TrailRenderer.h">
+	  <Filter>Engine\3d\particle</Filter>
+	</ClInclude>
+	<ClInclude Include="Engine\3d\particle\TrailRendererComponent.h">
+	  <Filter>Engine\3d\particle</Filter>
+	</ClInclude>
+    <ClInclude Include="Engine\3d\particle\ParticleManager.h">
+      <Filter>Engine\3d\particle</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\SkyBox.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\utilities\PrimitiveMeshGenerator.h">
+      <Filter>Engine\3d\utilities</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\SkyBoxCommon.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\sky\SkyBox.h">
+      <Filter>Engine\3d\sky</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\3d\SphereColliderComponent.h">
-      <Filter>Engine\3d</Filter>
+    <ClInclude Include="Engine\3d\sky\SkyBoxCommon.h">
+      <Filter>Engine\3d\sky</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\3d\utilities\SkeletonAnimationUtility.h">
+      <Filter>Engine\3d\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\3d\collision\SphereColliderComponent.h">
+      <Filter>Engine\3d\collision</Filter>
     </ClInclude>
     <ClInclude Include="Engine\audio\Audio.h">
       <Filter>Engine\audio</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\base\D3DResouceLeakCheker.h">
+    <ClInclude Include="Engine\base\D3DResourceLeakChecker.h">
       <Filter>Engine\base</Filter>
     </ClInclude>
     <ClInclude Include="Engine\base\DirectXCommon.h">
@@ -279,6 +330,9 @@
       <Filter>Engine\base</Filter>
     </ClInclude>
     <ClInclude Include="Engine\base\PerformanceMonitor.h">
+      <Filter>Engine\base</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\base\PipelineStateUtility.h">
       <Filter>Engine\base</Filter>
     </ClInclude>
     <ClInclude Include="Engine\base\Resource.h">
@@ -305,8 +359,20 @@
     <ClInclude Include="Engine\flame\BaseScene.h">
       <Filter>Engine\flame</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\flame\BaseSceneHelpers.h">
-      <Filter>Engine\flame</Filter>
+    <ClInclude Include="Engine\flame\helpers\BaseSceneResourceCatalog.h">
+      <Filter>Engine\flame\helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\flame\helpers\BaseSceneCollisionHelpers.h">
+      <Filter>Engine\flame\helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\flame\helpers\BaseSceneEditorGeometry.h">
+      <Filter>Engine\flame\helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\flame\repositories\EnemyStatusRepository.h">
+      <Filter>Engine\flame\repositories</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\flame\repositories\PlayerStatusRepository.h">
+      <Filter>Engine\flame\repositories</Filter>
     </ClInclude>
     <ClInclude Include="Engine\flame\EnemyComponent.h">
       <Filter>Engine\flame</Filter>
@@ -322,6 +388,12 @@
     </ClInclude>
     <ClInclude Include="Engine\flame\PlayerProjectileComponent.h">
       <Filter>Engine\flame</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\flame\repositories\ParticlePresetRepository.h">
+      <Filter>Engine\flame\repositories</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\flame\helpers\SceneJsonUtility.h">
+      <Filter>Engine\flame\helpers</Filter>
     </ClInclude>
     <ClInclude Include="Engine\flame\Component.h">
       <Filter>Engine\flame</Filter>
@@ -339,6 +411,9 @@
       <Filter>Engine\math</Filter>
     </ClInclude>
     <ClInclude Include="Engine\math\Matrix.h">
+      <Filter>Engine\math</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\math\MathConstants.h">
       <Filter>Engine\math</Filter>
     </ClInclude>
     <ClInclude Include="Engine\math\Quaternion.h">

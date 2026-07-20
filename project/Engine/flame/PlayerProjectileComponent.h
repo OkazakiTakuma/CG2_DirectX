@@ -1,5 +1,6 @@
 #pragma once
 #include "Component.h"
+#include "MathConstants.h"
 #include "GameObject.h"
 #include "Vector.h"
 #include "PlayerAttackComponent.h"
@@ -29,7 +30,7 @@ public:
 			const Vector3 anchorPosition = motionAnchor_->GetTransform().translate;
 			owner->GetTransform().translate = {
 				anchorPosition.x + std::cos(orbitAngleRadians_) * orbitRadius_,
-				anchorPosition.y + 0.65f,
+				anchorPosition.y + orbitHeight_,
 				anchorPosition.z + std::sin(orbitAngleRadians_) * orbitRadius_
 			};
 			owner->GetTransform().rotate.y = -orbitAngleRadians_;
@@ -44,10 +45,14 @@ public:
 			lifeTime_ -= deltaTime;
 			return;
 		}
+		if (motionType_ == PlayerProjectileMotionType::Boomerang) {
+			UpdateBoomerang(owner, deltaTime, frameScale);
+			return;
+		}
 		if (homingEnabled_ && homingTarget_) {
 			Vector3 toTarget = homingTarget_->GetTransform().translate - owner->GetTransform().translate;
 			toTarget.y = 0.0f;
-			if (Length(toTarget) > 0.0001f) {
+			if (Length(toTarget) > MathConstants::kDirectionEpsilon) {
 				const Vector3 targetDirection = NormalizeReturnVector(toTarget);
 				const float accuracy = 1.0f - std::pow(1.0f - (std::clamp)(homingAccuracy_, 0.0f, 1.0f), frameScale);
 				direction_ = NormalizeReturnVector(Leap(direction_, targetDirection, accuracy));
@@ -63,7 +68,7 @@ public:
 	const std::string& GetAttackName() const { return attackName_; }
 	void SetLevel(const std::string& level) { level_ = level; }
 	const std::string& GetLevel() const { return level_; }
-	void SetDirection(const Vector3& direction) { direction_ = Length(direction) > 0.0001f ? NormalizeReturnVector(direction) : Vector3{0.0f, 0.0f, 1.0f}; }
+	void SetDirection(const Vector3& direction) { direction_ = Length(direction) > MathConstants::kDirectionEpsilon ? NormalizeReturnVector(direction) : Vector3{0.0f, 0.0f, 1.0f}; }
 	const Vector3& GetDirection() const { return direction_; }
 	void SetSpeed(float speed) { speed_ = speed < 0.0f ? 0.0f : speed; }
 	float GetSpeed() const { return speed_; }
@@ -80,7 +85,10 @@ public:
 	void SetMotionAnchor(GameObject* motionAnchor) { motionAnchor_ = motionAnchor; }
 	void SetOrbitAngleRadians(float angle) { orbitAngleRadians_ = angle; }
 	void SetOrbitRadius(float radius) { orbitRadius_ = (std::max)(0.1f, radius); }
+	void SetOrbitHeight(float height) { orbitHeight_ = height; }
 	void SetOrbitAngularSpeed(float speed) { orbitAngularSpeed_ = speed; }
+	void SetTravelDistance(float distance) { travelDistance_ = (std::max)(0.1f, distance); }
+	void SetTravelOrigin(const Vector3& origin) { travelOrigin_ = origin; }
 	void SetHomingTarget(GameObject* target) { homingTarget_ = target; }
 	GameObject* GetHomingTarget() const { return homingTarget_; }
 	void SetLifeTime(float lifeTime) { lifeTime_ = lifeTime; }
@@ -135,6 +143,44 @@ private:
 			hitRecords_.end());
 	}
 
+	void UpdateBoomerang(GameObject* owner, float deltaTime, float frameScale) {
+		if (!motionAnchor_) {
+			lifeTime_ = 0.0f;
+			return;
+		}
+
+		Vector3& position = owner->GetTransform().translate;
+		if (!returning_) {
+			Vector3 traveled = position - travelOrigin_;
+			traveled.y = 0.0f;
+			if (Length(traveled) >= travelDistance_) {
+				returnTarget_ = motionAnchor_->GetTransform().translate;
+				returnTarget_.y = position.y;
+				const Vector3 toPlayer = returnTarget_ - position;
+				if (Length(toPlayer) <= MathConstants::kDirectionEpsilon) {
+					lifeTime_ = 0.0f;
+					return;
+				}
+				direction_ = NormalizeReturnVector(toPlayer);
+				returning_ = true;
+			}
+		}
+
+		const float movement = speed_ * frameScale;
+		if (returning_) {
+			const Vector3 toReturnTarget = returnTarget_ - position;
+			if (Length(toReturnTarget) <= (std::max)(movement, 0.05f)) {
+				position = returnTarget_;
+				lifeTime_ = 0.0f;
+				return;
+			}
+		}
+
+		position = position + movement * direction_;
+		owner->GetTransform().rotate.y = std::atan2(direction_.x, direction_.z);
+		lifeTime_ -= deltaTime;
+	}
+
 	std::string attackName_;
 	std::string level_ = "1";
 	Vector3 direction_{0.0f, 0.0f, 1.0f};
@@ -151,7 +197,12 @@ private:
 	GameObject* motionAnchor_ = nullptr;
 	float orbitAngleRadians_ = 0.0f;
 	float orbitRadius_ = 2.2f;
+	float orbitHeight_ = 0.65f;
 	float orbitAngularSpeed_ = 2.2f;
+	float travelDistance_ = 6.0f;
+	Vector3 travelOrigin_{};
+	Vector3 returnTarget_{};
+	bool returning_ = false;
 	GameObject* homingTarget_ = nullptr;
 	float repeatHitIntervalSeconds_ = 0.0f;
 	std::vector<HitRecord> hitRecords_;

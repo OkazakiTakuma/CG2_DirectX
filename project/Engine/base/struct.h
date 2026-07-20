@@ -42,16 +42,16 @@ struct Material {
 	float padding2[3];
 };
 
-struct VertexWeghtData
+struct VertexWeightData
 {
 	float weght;
 	uint32_t vertexIndex;
 };
 
-struct JointWeghtData
+struct JointWeightData
 {
 	Matrix4x4 inverseBindPoseMatrix = MakeIdentity4x4();
-	std::vector<VertexWeghtData> vertexWeights;
+	std::vector<VertexWeightData> vertexWeights;
 	uint32_t paletteIndex = 0;
 };
 
@@ -69,7 +69,7 @@ struct Node {
 };
 
 struct ModelData {
-	std::map<std::string, JointWeghtData> skincluserData;
+	std::map<std::string, JointWeightData> skinClusterData;
 	std::vector<VertexData> vertices;
 	std::vector<uint32_t> indices;
 	MaterialData material;

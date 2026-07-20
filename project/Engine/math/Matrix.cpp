@@ -169,14 +169,14 @@ Matrix4x4 Inverse(const Matrix4x4& m) {
 /// <param name="m">計算に使用する行列を指定します。</param>
 /// <returns>処理結果を返します。</returns>
 Matrix4x4 Transpose(const Matrix4x4& m) {
-	Matrix4x4 trancepose{};
+	Matrix4x4 transpose{};
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 4; j++) {
-			trancepose.m[i][j] = m.m[j][i];
+			transpose.m[i][j] = m.m[j][i];
 		}
 	}
 
-	return trancepose;
+	return transpose;
 };
 /// <summary>
 /// Identity4x4 を生成して返します。
@@ -223,14 +223,14 @@ Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
 /// <summary>
 /// RotateXMatrix を生成して返します。
 /// </summary>
-/// <param name="radiun">radiun に使用する値を指定します。</param>
+/// <param name="radians">回転角をラジアンで指定します。</param>
 /// <returns>処理結果を返します。</returns>
-Matrix4x4 MakeRotateXMatrix(float radiun) {
+Matrix4x4 MakeRotateXMatrix(float radians) {
 	Matrix4x4 rotateX = MakeIdentity4x4();
-	rotateX.m[1][1] = std::cos(radiun);
-	rotateX.m[2][1] = -std::sin(radiun);
-	rotateX.m[1][2] = std::sin(radiun);
-	rotateX.m[2][2] = std::cos(radiun);
+	rotateX.m[1][1] = std::cos(radians);
+	rotateX.m[2][1] = -std::sin(radians);
+	rotateX.m[1][2] = std::sin(radians);
+	rotateX.m[2][2] = std::cos(radians);
 
 	return rotateX;
 }
@@ -238,14 +238,14 @@ Matrix4x4 MakeRotateXMatrix(float radiun) {
 /// <summary>
 /// RotateYMatrix を生成して返します。
 /// </summary>
-/// <param name="radiun">radiun に使用する値を指定します。</param>
+/// <param name="radians">回転角をラジアンで指定します。</param>
 /// <returns>処理結果を返します。</returns>
-Matrix4x4 MakeRotateYMatrix(float radiun) {
+Matrix4x4 MakeRotateYMatrix(float radians) {
 	Matrix4x4 rotateY = MakeIdentity4x4();
-	rotateY.m[0][0] = std::cos(radiun);
-	rotateY.m[2][0] = std::sin(radiun);
-	rotateY.m[0][2] = -std::sin(radiun);
-	rotateY.m[2][2] = std::cos(radiun);
+	rotateY.m[0][0] = std::cos(radians);
+	rotateY.m[2][0] = std::sin(radians);
+	rotateY.m[0][2] = -std::sin(radians);
+	rotateY.m[2][2] = std::cos(radians);
 
 	return rotateY;
 }
@@ -253,14 +253,14 @@ Matrix4x4 MakeRotateYMatrix(float radiun) {
 /// <summary>
 /// RotateZMatrix を生成して返します。
 /// </summary>
-/// <param name="radiun">radiun に使用する値を指定します。</param>
+/// <param name="radians">回転角をラジアンで指定します。</param>
 /// <returns>処理結果を返します。</returns>
-Matrix4x4 MakeRotateZMatrix(float radiun) {
+Matrix4x4 MakeRotateZMatrix(float radians) {
 	Matrix4x4 rotateZ = MakeIdentity4x4();
-	rotateZ.m[0][0] = std::cos(radiun);
-	rotateZ.m[1][0] = -std::sin(radiun);
-	rotateZ.m[0][1] = std::sin(radiun);
-	rotateZ.m[1][1] = std::cos(radiun);
+	rotateZ.m[0][0] = std::cos(radians);
+	rotateZ.m[1][0] = -std::sin(radians);
+	rotateZ.m[0][1] = std::sin(radians);
+	rotateZ.m[1][1] = std::cos(radians);
 
 	return rotateZ;
 }
@@ -270,7 +270,7 @@ Matrix4x4 MakeRotateZMatrix(float radiun) {
 /// </summary>
 /// <param name="rotate">回転量を指定します。</param>
 /// <returns>処理結果を返します。</returns>
-Matrix4x4 MakeRotateXYZMatrix(Vector3 rotate) {
+Matrix4x4 MakeRotateXYZMatrix(const Vector3& rotate) {
 	Matrix4x4 XMatrix = MakeRotateXMatrix(rotate.x);
 	Matrix4x4 YMatrix = MakeRotateYMatrix(rotate.y);
 	Matrix4x4 ZMatrix = MakeRotateZMatrix(rotate.z);
@@ -396,10 +396,10 @@ Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip
 /// <param name="top">top に使用する値を指定します。</param>
 /// <param name="width">幅を指定します。</param>
 /// <param name="height">高さを指定します。</param>
-/// <param name="minDeapth">範囲判定に使用する値を指定します。</param>
+/// <param name="minDepth">ビューポートの最小深度を指定します。</param>
 /// <param name="maxDepth">範囲判定に使用する値を指定します。</param>
 /// <returns>処理結果を返します。</returns>
-Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDeapth, float maxDepth) {
+Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDepth, float maxDepth) {
 	Matrix4x4 viewportMatrix{};
 	viewportMatrix.m[0][0] = width / 2;
 	viewportMatrix.m[3][0] = left + width / 2;
@@ -407,8 +407,8 @@ Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, f
 	viewportMatrix.m[1][1] = -height / 2;
 	viewportMatrix.m[3][1] = top + height / 2;
 
-	viewportMatrix.m[2][2] = maxDepth - minDeapth;
-	viewportMatrix.m[3][2] = minDeapth;
+	viewportMatrix.m[2][2] = maxDepth - minDepth;
+	viewportMatrix.m[3][2] = minDepth;
 
 	viewportMatrix.m[3][3] = 1.0f;
 	return viewportMatrix;

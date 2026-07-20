@@ -1,11 +1,11 @@
 #include "SceneManager.h"
 
-#include "Object3dCommon.h"
-#include "ParticleManager.h"
+#include "object/Object3dCommon.h"
+#include "particle/ParticleManager.h"
 #include "BaseScene.h"
 #include "Input.h"
 #include "SpriteCommon.h"
-#include "SkyBoxCommon.h"
+#include "sky/SkyBoxCommon.h"
 #include "GameTime.h"
 
 #include <assert.h>
@@ -132,7 +132,7 @@ void SceneManager::DrawEditorImGui() {
 		ImGui::BeginDisabled();
 	}
 	if (ImGui::Button("Change Scene")) {
-		ChengeScene(kSceneNames[selectedSceneIndex_]);
+		ChangeScene(kSceneNames[selectedSceneIndex_]);
 	}
 	if (!canChange) {
 		ImGui::EndDisabled();
@@ -199,10 +199,10 @@ void SceneManager::ApplyFallbackCamera() {
 }
 
 /// <summary>
-/// ChengeScene の処理を行います。
+/// 次のシーンへの切り替えを予約します。
 /// </summary>
 /// <param name="sceneName">対象となるシーン名を指定します。</param>
-void SceneManager::ChengeScene(const std::string& sceneName) {
+void SceneManager::ChangeScene(const std::string& sceneName) {
 	assert(sceneFactory_);
 	assert(nextScene_ == nullptr);
 

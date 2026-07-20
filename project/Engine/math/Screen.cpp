@@ -168,16 +168,16 @@ Matrix3x3 MakeViewportMatrix(float left, float top, float width, float height) {
 /// <param name="rotate">回転量を指定します。</param>
 /// <param name="position">位置を指定します。</param>
 /// <param name="cameraMatrix">cameraMatrix に使用する値を指定します。</param>
-/// <param name="kWindowsWidih">kWindowsWidih に使用する値を指定します。</param>
+/// <param name="windowWidth">描画先の幅を指定します。</param>
 /// <param name="kWindowsHeight">kWindowsHeight に使用する値を指定します。</param>
 /// <returns>処理結果を返します。</returns>
-Vector2 ScreenPoint(Vector2 scale, float rotate, Vector2 position, Matrix3x3 cameraMatrix, int kWindowsWidih, int kWindowsHeight) {
+Vector2 ScreenPoint(Vector2 scale, float rotate, Vector2 position, Matrix3x3 cameraMatrix, int windowWidth, int windowHeight) {
 	float theta = rotate * 3.1415f;
 	Vector2 size = {0, 0};
 
 	Matrix3x3 viewMatrix = InverseMatrix(cameraMatrix);
-	Matrix3x3 orthoMatrix = MakeOrthographicMatrix(-float(kWindowsWidih / 2), float(kWindowsHeight / 2), float(kWindowsWidih / 2), -float(kWindowsHeight / 2));
-	Matrix3x3 viewPortMatrix = MakeViewportMatrix(0, 0, float(kWindowsWidih), float(kWindowsHeight));
+	Matrix3x3 orthoMatrix = MakeOrthographicMatrix(-float(windowWidth / 2), float(windowHeight / 2), float(windowWidth / 2), -float(windowHeight / 2));
+	Matrix3x3 viewPortMatrix = MakeViewportMatrix(0, 0, float(windowWidth), float(windowHeight));
 
 	Matrix3x3 worldMatrix = MakeAffineMatrix(scale, theta, position);
 	Matrix3x3 wvpVpMatrix = Multply(worldMatrix, viewMatrix);
@@ -192,9 +192,9 @@ Vector2 ScreenPoint(Vector2 scale, float rotate, Vector2 position, Matrix3x3 cam
 /// DrawShaft の処理を行います。
 /// </summary>
 /// <param name="cameraMatrix">cameraMatrix に使用する値を指定します。</param>
-/// <param name="kWindowsWidih">kWindowsWidih に使用する値を指定します。</param>
+/// <param name="windowWidth">描画先の幅を指定します。</param>
 /// <param name="kWindowsHeight">kWindowsHeight に使用する値を指定します。</param>
-void DrawShaft(Matrix3x3 cameraMatrix, int kWindowsWidih, int kWindowsHeight) {
+void DrawShaft(Matrix3x3 cameraMatrix, int windowWidth, int windowHeight) {
 	Matrix3x3 lineMatrix = {0};
 	Vector2 position = {0};
 	Vector2 scale = {1, 1};
@@ -206,8 +206,8 @@ void DrawShaft(Matrix3x3 cameraMatrix, int kWindowsWidih, int kWindowsHeight) {
 
 	lineMatrix = MakeAffineMatrix(scale, 0.0f, position);
 	Matrix3x3 viewMatrix = InverseMatrix(cameraMatrix);
-	Matrix3x3 orthoMatrix = MakeOrthographicMatrix(-float(kWindowsWidih / 2), float(kWindowsHeight / 2), float(kWindowsWidih / 2), -float(kWindowsHeight / 2));
-	Matrix3x3 viewPortMatrix = MakeViewportMatrix(0, 0, float(kWindowsWidih), float(kWindowsHeight));
+	Matrix3x3 orthoMatrix = MakeOrthographicMatrix(-float(windowWidth / 2), float(windowHeight / 2), float(windowWidth / 2), -float(windowHeight / 2));
+	Matrix3x3 viewPortMatrix = MakeViewportMatrix(0, 0, float(windowWidth), float(windowHeight));
 	Matrix3x3 wvpVpLineMatrix = Multply(lineMatrix, viewMatrix);
 	wvpVpLineMatrix = Multply(wvpVpLineMatrix, orthoMatrix);
 	wvpVpLineMatrix = Multply(wvpVpLineMatrix, viewPortMatrix);

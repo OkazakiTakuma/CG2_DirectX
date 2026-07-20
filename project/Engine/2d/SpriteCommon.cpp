@@ -1,4 +1,5 @@
 #include "SpriteCommon.h"
+#include "PipelineStateUtility.h"
 
 using namespace Logger;
 
@@ -47,8 +48,6 @@ void SpriteCommon::Finalize() {
 /// RootSignature を作成し、利用できる状態にします。
 /// </summary>
 void SpriteCommon::CreateRootSignature() {
-	HRESULT hr;
-
 	D3D12_DESCRIPTOR_RANGE descriptorRange[1] = {};
 	descriptorRange[0].BaseShaderRegister = 0;
 	descriptorRange[0].NumDescriptors = 1;
@@ -110,16 +109,7 @@ void SpriteCommon::CreateRootSignature() {
 	descriptionRootSignature.pStaticSamplers = staticSamplers;
 	descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 
-	ID3DBlob* signatureBlob = nullptr;
-	ID3DBlob* errorBlob = nullptr;
-	hr = D3D12SerializeRootSignature(&descriptionRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
-	if (FAILED(hr)) {
-		Log(reinterpret_cast<const char*>(errorBlob->GetBufferPointer()));
-		assert(false);
-	}
-
-	hr = dxCommon_->GetDevice()->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
-	assert(SUCCEEDED(hr));
+	rootSignature = PipelineStateUtility::CreateRootSignature(dxCommon_->GetDevice().Get(), descriptionRootSignature);
 }
 
 /// <summary>
@@ -146,25 +136,17 @@ void SpriteCommon::CreatePipelineState() {
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
 	inputLayoutDesc.NumElements = _countof(inputElementDescs);
 
-	D3D12_RASTERIZER_DESC rasterizerDesc{};
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
-	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+	const D3D12_RASTERIZER_DESC rasterizerDesc = PipelineStateUtility::MakeRasterizerDesc(D3D12_CULL_MODE_NONE);
 
 	auto vertexShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Sprite.VS.hlsl", L"vs_6_0");
 	auto pixelShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Object3d.PS.hlsl", L"ps_6_0");
 	assert(vertexShaderBlob != nullptr);
 	assert(pixelShaderBlob != nullptr);
 
-	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
-	depthStencilDesc.DepthEnable = false;
-	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	const D3D12_DEPTH_STENCIL_DESC depthStencilDesc =
+	    PipelineStateUtility::MakeDepthStencilDesc(FALSE, D3D12_DEPTH_WRITE_MASK_ZERO);
 	for (int i = 0; i < kBlendCountblend; ++i) {
-		D3D12_BLEND_DESC blendDesc{};
-		blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-		blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-		blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-		blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+		D3D12_BLEND_DESC blendDesc = PipelineStateUtility::MakeBlendDesc();
 
 		switch (i) {
 		case kBlendModeNone:

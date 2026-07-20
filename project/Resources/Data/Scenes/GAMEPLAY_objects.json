@@ -214,35 +214,35 @@
                     {
                         "endTime": 59.9900016784668,
                         "enemyTypeName": "Default",
-                        "intervalFrames": 300,
+                        "intervalFrames": 240,
                         "spawnAmount": 1,
                         "startTime": 0.0
                     },
                     {
                         "endTime": 119.98999786376953,
                         "enemyTypeName": "Default",
-                        "intervalFrames": 240,
+                        "intervalFrames": 180,
                         "spawnAmount": 1,
                         "startTime": 60.0
                     },
                     {
                         "endTime": 179.99000549316406,
                         "enemyTypeName": "Default",
-                        "intervalFrames": 240,
+                        "intervalFrames": 200,
                         "spawnAmount": 2,
                         "startTime": 120.0
                     },
                     {
                         "endTime": 299.989990234375,
                         "enemyTypeName": "Default",
-                        "intervalFrames": 180,
+                        "intervalFrames": 150,
                         "spawnAmount": 2,
                         "startTime": 180.0
                     },
                     {
                         "endTime": 36000.0,
                         "enemyTypeName": "Default",
-                        "intervalFrames": 150,
+                        "intervalFrames": 120,
                         "spawnAmount": 2,
                         "startTime": 300.0
                     }

@@ -1,12 +1,36 @@
 {
+    "Ricochet": {
+        "levels": {
+            "1": {"angles": [0.0], "attack": 24.0, "attackInterval": 1.4, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "1", "lifeTime": 5.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 1, "size": 65.0, "speed": 0.30},
+            "2": {"angles": [0.0], "attack": 30.0, "attackInterval": 1.3, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "2", "lifeTime": 5.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 1, "size": 70.0, "speed": 0.32},
+            "3": {"angles": [0.0], "attack": 38.0, "attackInterval": 1.2, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "3", "lifeTime": 6.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 1, "size": 75.0, "speed": 0.34},
+            "4": {"angles": [0.0], "attack": 48.0, "attackInterval": 1.1, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "4", "lifeTime": 6.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 1, "size": 80.0, "speed": 0.36},
+            "5": {"angles": [0.0], "attack": 60.0, "attackInterval": 1.0, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "5", "lifeTime": 7.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 1, "size": 90.0, "speed": 0.38},
+            "super": {"angles": [-18.0, 0.0, 18.0], "attack": 75.0, "attackInterval": 0.8, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "super", "lifeTime": 8.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 3, "size": 100.0, "speed": 0.42}
+        },
+        "name": "Ricochet",
+        "superCondition": {"level": "1", "status": "SpeedUp"}
+    },
+    "Boomerang": {
+        "levels": {
+            "1": {"angles": [0.0], "attack": 38.0, "attackInterval": 1.2, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "1", "lifeTime": 2.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 1, "size": 85.0, "speed": 0.32, "travelDistance": 5.5},
+            "2": {"angles": [0.0], "attack": 48.0, "attackInterval": 1.15, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "2", "lifeTime": 2.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 1, "size": 90.0, "speed": 0.34, "travelDistance": 6.0},
+            "3": {"angles": [0.0], "attack": 60.0, "attackInterval": 1.1, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "3", "lifeTime": 2.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 1, "size": 95.0, "speed": 0.36, "travelDistance": 6.5},
+            "4": {"angles": [0.0], "attack": 74.0, "attackInterval": 1.05, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "4", "lifeTime": 2.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 1, "size": 105.0, "speed": 0.38, "travelDistance": 7.0},
+            "5": {"angles": [0.0], "attack": 90.0, "attackInterval": 1.0, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "5", "lifeTime": 2.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 1, "size": 115.0, "speed": 0.40, "travelDistance": 7.5},
+            "super": {"angles": [0.0], "attack": 120.0, "attackInterval": 0.8, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "super", "lifeTime": 3.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 1, "size": 130.0, "speed": 0.45, "travelDistance": 8.0}
+        },
+        "name": "Boomerang",
+        "superCondition": {"level": "1", "status": "AttackUp"}
+    },
     "Orbit": {
         "levels": {
-            "1": {"angles": [0.0], "attack": 18.0, "attackInterval": 4.0, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "1", "lifeTime": 4.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 3, "size": 55.0, "speed": 2.2},
-            "2": {"angles": [0.0], "attack": 23.0, "attackInterval": 4.0, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "2", "lifeTime": 4.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 3, "size": 60.0, "speed": 2.3},
-            "3": {"angles": [0.0], "attack": 25.0, "attackInterval": 4.5, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "3", "lifeTime": 4.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 4, "size": 65.0, "speed": 2.4},
-            "4": {"angles": [0.0], "attack": 32.0, "attackInterval": 4.5, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "4", "lifeTime": 4.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 4, "size": 70.0, "speed": 2.5},
-            "5": {"angles": [0.0], "attack": 36.0, "attackInterval": 5.0, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "5", "lifeTime": 5.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 5, "size": 75.0, "speed": 2.6},
-            "super": {"angles": [0.0], "attack": 45.0, "attackInterval": 5.5, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "super", "lifeTime": 5.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 6, "size": 85.0, "speed": 3.0}
+            "1": {"angles": [0.0], "attack": 18.0, "attackInterval": 4.0, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "1", "lifeTime": 4.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 3, "size": 55.0, "spawnOffset": [0.0, 0.65, 2.2], "speed": 2.2},
+            "2": {"angles": [0.0], "attack": 23.0, "attackInterval": 4.0, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "2", "lifeTime": 4.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 3, "size": 60.0, "spawnOffset": [0.0, 0.65, 2.2], "speed": 2.3},
+            "3": {"angles": [0.0], "attack": 25.0, "attackInterval": 4.5, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "3", "lifeTime": 4.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 4, "size": 65.0, "spawnOffset": [0.0, 0.65, 2.2], "speed": 2.4},
+            "4": {"angles": [0.0], "attack": 32.0, "attackInterval": 4.5, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "4", "lifeTime": 4.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 4, "size": 70.0, "spawnOffset": [0.0, 0.65, 2.2], "speed": 2.5},
+            "5": {"angles": [0.0], "attack": 36.0, "attackInterval": 5.0, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "5", "lifeTime": 5.0, "model": "sphere.obj", "pierceCount": 0, "shotCount": 5, "size": 75.0, "spawnOffset": [0.0, 0.65, 2.2], "speed": 2.6},
+            "super": {"angles": [0.0], "attack": 45.0, "attackInterval": 5.5, "homing": false, "homingAccuracy": 1.0, "infinitePierce": true, "level": "super", "lifeTime": 5.5, "model": "sphere.obj", "pierceCount": 0, "shotCount": 6, "size": 85.0, "spawnOffset": [0.0, 0.65, 2.2], "speed": 3.0}
         },
         "name": "Orbit",
         "superCondition": {"level": "1", "status": "SizeUp"}

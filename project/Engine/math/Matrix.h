@@ -121,27 +121,27 @@ Matrix4x4 MakeScaleMatrix(const Vector3& scale);
 /// <summary>
 /// RotateXMatrix を生成して返します。
 /// </summary>
-/// <param name="radiun">radiun に使用する値を指定します。</param>
+/// <param name="radians">回転角をラジアンで指定します。</param>
 /// <returns>処理結果を返します。</returns>
-Matrix4x4 MakeRotateXMatrix(float radiun);
+Matrix4x4 MakeRotateXMatrix(float radians);
 /// <summary>
 /// RotateYMatrix を生成して返します。
 /// </summary>
-/// <param name="radiun">radiun に使用する値を指定します。</param>
+/// <param name="radians">回転角をラジアンで指定します。</param>
 /// <returns>処理結果を返します。</returns>
-Matrix4x4 MakeRotateYMatrix(float radiun);
+Matrix4x4 MakeRotateYMatrix(float radians);
 /// <summary>
 /// RotateZMatrix を生成して返します。
 /// </summary>
-/// <param name="radiun">radiun に使用する値を指定します。</param>
+/// <param name="radians">回転角をラジアンで指定します。</param>
 /// <returns>処理結果を返します。</returns>
-Matrix4x4 MakeRotateZMatrix(float radiun);
+Matrix4x4 MakeRotateZMatrix(float radians);
 /// <summary>
 /// RotateXYZMatrix を生成して返します。
 /// </summary>
-/// <param name="radiun">radiun に使用する値を指定します。</param>
+/// <param name="radians">各軸の回転角をラジアンで指定します。</param>
 /// <returns>処理結果を返します。</returns>
-Matrix4x4 MakeRotateXYZMatrix(Vector3 radiun);
+Matrix4x4 MakeRotateXYZMatrix(const Vector3& radians);
 /// <summary>
 /// AffineMatrix を生成して返します。
 /// </summary>
@@ -171,4 +171,4 @@ Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip
 /// <summary>
 /// </summary>
 /// <returns></returns>
-Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDeapth, float maxDepth);
+Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDepth, float maxDepth);

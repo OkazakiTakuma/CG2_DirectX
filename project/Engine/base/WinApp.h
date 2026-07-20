@@ -1,6 +1,9 @@
 #pragma once
 #include <Windows.h>
 #include <cstdint>
+/// <summary>
+/// Win32ウィンドウの生成、メッセージ処理、表示モードとクライアントサイズを管理します。
+/// </summary>
 class WinApp {
 public:
 	/// <summary>
@@ -37,6 +40,7 @@ public:
 	static const int32_t kClientHeight = 720;
 
 private:
+	static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 	HWND hwnd = nullptr;
 	WNDCLASS wc = {};
 	WINDOWPLACEMENT windowPlacement_ = {sizeof(WINDOWPLACEMENT)};

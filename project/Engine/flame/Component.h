@@ -1,8 +1,13 @@
 #pragma once
 #include "../base/struct.h"
+#include "MathConstants.h"
 
 class GameObject;
 
+/// <summary>
+/// GameObjectへ追加できる振る舞いの共通インターフェースです。
+/// 有効状態、所有者、共通の重力応答を管理し、更新・描画処理を派生クラスへ委譲します。
+/// </summary>
 class Component {
 public:
 	virtual ~Component() = default;
@@ -43,14 +48,14 @@ public:
 		}
 
 		const float normalLength = Length(collisionNormal);
-		if (normalLength <= 0.00001f) {
+		if (normalLength <= MathConstants::kNormalizationEpsilon) {
 			return;
 		}
 
 		const Vector3 normal = Normalize(collisionNormal);
 		const float upwardRate = normal.y < 0.0f ? 0.0f : normal.y;
 		gravityVelocity_ *= 1.0f - upwardRate;
-		if (gravityVelocity_ < 0.0001f) {
+		if (gravityVelocity_ < MathConstants::kDirectionEpsilon) {
 			gravityVelocity_ = 0.0f;
 		}
 	}

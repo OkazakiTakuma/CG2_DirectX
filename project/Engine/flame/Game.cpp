@@ -2,13 +2,14 @@
 #include "ImGuiManager.h"
 #include "Input.h"
 #include "LineDrawer.h"
-#include "Object3dCommon.h"
-#include "ParticleManager.h"
+#include "particle/TrailRenderer.h"
+#include "object/Object3dCommon.h"
+#include "particle/ParticleManager.h"
 #include"LineCommon.h"
 #include "PostEffect.h"
 #include "SceneFactory.h"
 #include "SceneManager.h"
-#include "SkyBoxCommon.h"
+#include "sky/SkyBoxCommon.h"
 #include <DbgHelp.h>
 #include <strsafe.h>
 
@@ -27,7 +28,7 @@ void Game::Initialize() {
 	sceneManager = std::make_unique<SceneManager>();
 	sceneManager->SetFallbackCamera(camera.get());
 	sceneManager->SetSceneFactory(sceneFactory.get());
-	sceneManager->ChengeScene("TITLE");
+	sceneManager->ChangeScene("TITLE");
 	SkyBoxCommon::GetInstance()->SetDefaultCamera(camera.get());
 }
 
@@ -80,6 +81,7 @@ void Game::Draw() {
 
 		Object3dCommon::GetInstance()->SetDraw();
 		sceneManager->Draw3D();
+		TrailRenderer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
 		LineDrawer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
 
 		SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeNone);
@@ -98,6 +100,7 @@ void Game::Draw() {
 
 		Object3dCommon::GetInstance()->SetDraw();
 		sceneManager->Draw3D();
+		TrailRenderer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
 		LineDrawer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
 
 		SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeNone);

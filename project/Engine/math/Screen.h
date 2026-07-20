@@ -56,10 +56,10 @@ Matrix3x3 MakeViewportMatrix(float left, float top, float width, float height);
 /// </summary>
 /// <param name="scale">蛟咲紫</param>
 /// <returns></returns>
-Vector2 ScreenPoint(Vector2 scale, float rotate, Vector2 position, Matrix3x3 cameraMatrix, const int kWindowsWidih, const int kWindowsHeight);
+Vector2 ScreenPoint(Vector2 scale, float rotate, Vector2 position, Matrix3x3 cameraMatrix, int windowWidth, int windowHeight);
 /// <summary>
 /// </summary>
 /// <param name="cameraMatrix">cameraMatrix に使用する値を指定します。</param>
-/// <param name="kWindowsWidih">kWindowsWidih に使用する値を指定します。</param>
+/// <param name="windowWidth">描画先の幅を指定します。</param>
 /// <param name="kWindowsHeight">kWindowsHeight に使用する値を指定します。</param>
-void DrawShaft(Matrix3x3 cameraMatrix, int kWindowsWidih, int kWindowsHeight);
+void DrawShaft(Matrix3x3 cameraMatrix, int windowWidth, int windowHeight);

@@ -1,8 +1,8 @@
 #pragma once
 #include "BaseScene.h"
 #include "GameObject.h"
-#include "Object3dComponent.h"
-#include "ParticleEmitterComponent.h"
+#include "object/Object3dComponent.h"
+#include "particle/ParticleEmitterComponent.h"
 #include "SpriteComponent.h"
 
 

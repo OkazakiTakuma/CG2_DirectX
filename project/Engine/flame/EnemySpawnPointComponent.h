@@ -1,11 +1,12 @@
 #pragma once
 #include "../base/GameTime.h"
-#include "Camera.h"
+#include "camera/Camera.h"
 #include "Component.h"
+#include "MathConstants.h"
 #include "GameObject.h"
 #include "LineDrawer.h"
 #include "Matrix.h"
-#include "Object3dCommon.h"
+#include "object/Object3dCommon.h"
 #include <algorithm>
 #include <cmath>
 #include <string>
@@ -178,7 +179,7 @@ private:
 		const Vector3 nearPoint = TransformCoord({ndc.x, ndc.y, 0.0f}, inverseViewProjection);
 		const Vector3 farPoint = TransformCoord({ndc.x, ndc.y, 1.0f}, inverseViewProjection);
 		const Vector3 direction = Normalize(farPoint - nearPoint);
-		if (std::fabs(direction.y) <= 0.00001f) {
+		if (std::fabs(direction.y) <= MathConstants::kNormalizationEpsilon) {
 			return false;
 		}
 
@@ -218,9 +219,8 @@ private:
 			}
 		}
 
-		constexpr float kPi = 3.14159265358979323846f;
 		for (int index = 0; index < spawnCount_; ++index) {
-			const float angle = (static_cast<float>(index) / static_cast<float>(spawnCount_)) * kPi * 2.0f;
+			const float angle = (static_cast<float>(index) / static_cast<float>(spawnCount_)) * MathConstants::kPi * 2.0f;
 			const Vector3 direction{std::cos(angle), 0.0f, std::sin(angle)};
 			float visibleRadiusInDirection = minimumRadius_;
 			for (const Vector3& corner : groundViewCorners_) {
