@@ -13,6 +13,38 @@
 namespace {
 constexpr float kProjectThumbnailSize = 64.0f;
 
+bool InputTextMultilineString(const char* label, std::string& value, const ImVec2& size = ImVec2(0.0f, 72.0f)) {
+	std::array<char, 1024> buffer{};
+	const size_t copyLength = (std::min)(value.size(), buffer.size() - 1);
+	std::memcpy(buffer.data(), value.data(), copyLength);
+	if (!ImGui::InputTextMultiline(label, buffer.data(), buffer.size(), size)) {
+		return false;
+	}
+	value = buffer.data();
+	return true;
+}
+
+bool SelectionTextureCombo(const char* label, std::string& textureFilePath) {
+	const std::vector<std::string> textures = CollectResourceTexturePaths();
+	std::vector<std::string> labels;
+	labels.reserve(textures.size() + 1);
+	labels.push_back("None");
+	labels.insert(labels.end(), textures.begin(), textures.end());
+	int selectedIndex = 0;
+	for (int index = 0; index < static_cast<int>(textures.size()); ++index) {
+		if (textures[index] == textureFilePath) {
+			selectedIndex = index + 1;
+			break;
+		}
+	}
+	const std::vector<const char*> labelPointers = MakeLabelPointers(labels);
+	if (!ImGui::Combo(label, &selectedIndex, labelPointers.data(), static_cast<int>(labelPointers.size()))) {
+		return false;
+	}
+	textureFilePath = selectedIndex == 0 ? "" : textures[selectedIndex - 1];
+	return true;
+}
+
 void DrawProjectAssetDragSource(const std::string& label, const char* payloadType, const std::string& path) {
 	ImGui::Selectable(label.c_str(), false);
 	if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
@@ -240,16 +272,18 @@ GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::stri
 	}
 	case EditorCreateType::Enemy: {
 		const std::string enemyTypeName = modelFilePath.empty() ? "Default" : modelFilePath;
+		const EnemyStats enemyStats = LoadEnemyStats(enemyTypeName);
 		object->SetName(MakeUniqueObjectName(enemyTypeName));
 		object->SetEditorType("Enemy");
 		EnemyComponent* enemy = object->AddComponent<EnemyComponent>();
 		enemy->SetEnemyTypeName(enemyTypeName);
-		enemy->ApplyStats(LoadEnemyStats(enemyTypeName));
+		enemy->ApplyStats(enemyStats);
 
 		ModelManager::GetInstance()->LoadModel("sphere.obj");
 		Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
 		object3d->SetModel("sphere.obj");
-		object->GetTransform().scale = {0.75f, 0.75f, 0.75f};
+		const float enemyScale = 0.75f * enemyStats.sizeScale;
+		object->GetTransform().scale = {enemyScale, enemyScale, enemyScale};
 
 		OBBColliderComponent* collider = object->AddComponent<OBBColliderComponent>();
 		collider->SetHalfSize({0.4f, 0.4f, 0.4f});
@@ -1191,7 +1225,10 @@ void BaseScene::DrawEnemyInspector() {
 		if (ImGui::Combo("Enemy Type", &currentEnemyTypeIndex, enemyTypeLabels.data(), static_cast<int>(enemyTypeLabels.size()))) {
 			const std::string& selectedTypeName = enemyTypes[currentEnemyTypeIndex];
 			enemy->SetEnemyTypeName(selectedTypeName);
-			enemy->ApplyStats(LoadEnemyStats(selectedTypeName));
+			const EnemyStats selectedStats = LoadEnemyStats(selectedTypeName);
+			enemy->ApplyStats(selectedStats);
+			const float enemyScale = 0.75f * selectedStats.sizeScale;
+			selectedObject->GetTransform().scale = {enemyScale, enemyScale, enemyScale};
 			updateTypeNameBuffer(selectedTypeName);
 		}
 	}
@@ -1201,8 +1238,32 @@ void BaseScene::DrawEnemyInspector() {
 	statsChanged |= ImGui::DragFloat("Health", &stats.health, 0.1f, 0.0f, 10000.0f);
 	statsChanged |= ImGui::DragFloat("Attack", &stats.attack, 0.1f, 0.0f, 10000.0f);
 	statsChanged |= ImGui::DragFloat("Speed", &stats.speed, 0.001f, 0.0f, 100.0f);
-	statsChanged |= ImGui::Checkbox("Shoots", &stats.shoots);
-	statsChanged |= ImGui::DragFloat("Shoot Interval", &stats.shootingInterval, 0.01f, 0.0f, 1000.0f);
+	if (ImGui::DragFloat("Size Scale", &stats.sizeScale, 0.05f, 0.1f, 10.0f)) {
+		const float enemyScale = 0.75f * stats.sizeScale;
+		selectedObject->GetTransform().scale = {enemyScale, enemyScale, enemyScale};
+		statsChanged = true;
+	}
+	const char* behaviorLabels[] = {"Chase", "Shooter", "Charger"};
+	int behaviorIndex = static_cast<int>(stats.behavior);
+	if (ImGui::Combo("Behavior", &behaviorIndex, behaviorLabels, 3)) {
+		stats.behavior = static_cast<EnemyBehaviorType>(behaviorIndex);
+		stats.shoots = stats.behavior == EnemyBehaviorType::Shooter;
+		statsChanged = true;
+	}
+	if (stats.behavior == EnemyBehaviorType::Shooter) {
+		statsChanged |= ImGui::DragFloat("Shoot Interval", &stats.shootingInterval, 0.01f, 0.05f, 1000.0f);
+		statsChanged |= ImGui::DragFloat("Preferred Distance", &stats.preferredDistance, 0.1f, 0.0f, 1000.0f);
+		statsChanged |= ImGui::DragFloat("Distance Tolerance", &stats.distanceTolerance, 0.1f, 0.0f, 1000.0f);
+		statsChanged |= ImGui::DragFloat("Projectile Speed", &stats.projectileSpeed, 0.005f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Projectile Size", &stats.projectileSize, 0.01f, 0.01f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Projectile Life", &stats.projectileLifeTime, 0.1f, 0.0f, 1000.0f);
+	} else if (stats.behavior == EnemyBehaviorType::Charger) {
+		statsChanged |= ImGui::DragFloat("Charge Trigger Distance", &stats.chargeTriggerDistance, 0.1f, 0.0f, 1000.0f);
+		statsChanged |= ImGui::DragFloat("Charge Warning Time", &stats.chargeDuration, 0.05f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Dash Speed", &stats.dashSpeed, 0.005f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Dash Duration", &stats.dashDuration, 0.05f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Dash Recovery", &stats.dashRecovery, 0.05f, 0.0f, 100.0f);
+	}
 	statsChanged |= ImGui::DragFloat("Spawns Per Minute", &stats.spawnsPerMinute, 0.1f, 0.0f, 10000.0f);
 	statsChanged |= ImGui::DragInt("Drop Experience", &stats.experience, 1.0f, 0, 100000);
 
@@ -1535,12 +1596,16 @@ void BaseScene::DrawPlayerPersistenceInspector(GameObject* selectedObject, Playe
 		for (int levelIndex = 0; levelIndex < static_cast<int>(editingStatusItemStats.levelAmounts.size()); ++levelIndex) {
 			ImGui::PushID(2000 + levelIndex);
 			ImGui::DragFloat(("Lv" + std::to_string(levelIndex + 1) + " Amount").c_str(), &editingStatusItemStats.levelAmounts[levelIndex], 1.0f, 0.0f, 100000.0f);
+			InputTextMultilineString(("Lv" + std::to_string(levelIndex + 1) + " Selection Text").c_str(), editingStatusItemStats.levelDescriptions[levelIndex]);
+			SelectionTextureCombo(("Lv" + std::to_string(levelIndex + 1) + " Selection Texture").c_str(), editingStatusItemStats.levelTextureFilePaths[levelIndex]);
 			ImGui::PopID();
 		}
 		if (ImGui::Button("Save Status Item")) {
 			const std::string saveItemName = statusItemNameBuffer.data();
 			editingStatusItemStats.name = saveItemName.empty() ? selectedItemName : saveItemName;
 			SavePlayerStatusItemStats(editingStatusItemStats.name, editingStatusItemStats);
+			playerStatusSlotTextureKeys_.fill({});
+			playerStatusSlotTexturePaths_.fill({});
 			player->ApplyStats(stats, ApplyPlayerStatusItems(stats));
 			std::fill(statusItemNameBuffer.begin(), statusItemNameBuffer.end(), '\0');
 			isEditingStatusItemLoaded = false;
@@ -1738,6 +1803,13 @@ void BaseScene::DrawPlayerAttackInspector() {
 		}
 	}
 	ImGui::Separator();
+	changed |= InputTextMultilineString("Selection Text", selectedLevel->choiceDescription);
+	if (selectedLevel->level == "super") {
+		changed |= SelectionTextureCombo("Super Selection Texture", selectedLevel->choiceTextureFilePath);
+	} else {
+		changed |= SelectionTextureCombo("Selection Texture (Lv1-5)", attackStats->choiceTextureFilePath);
+	}
+	ImGui::TextDisabled("Shown when this level is offered. Empty text uses the default description.");
 	changed |= ImGui::DragFloat("Attack", &selectedLevel->attack, 1.0f, 0.0f, 100000.0f);
 	changed |= ImGui::DragFloat("Speed", &selectedLevel->speed, 0.01f, 0.0f, 100.0f);
 	changed |= ImGui::DragFloat("Size %", &selectedLevel->size, 1.0f, 0.0f, 100000.0f);
@@ -1803,6 +1875,8 @@ void BaseScene::DrawPlayerAttackInspector() {
 		const std::string finalName = saveName.empty() ? currentAttackName : saveName;
 		attackStats->name = finalName;
 		SavePlayerAttackStats(finalName, *attackStats);
+		playerAttackSlotTextureKeys_.fill({});
+		playerAttackSlotTexturePaths_.fill({});
 		cachedPlayerAttackNames_[selectedPlayerAttackTypeIndex_] = finalName;
 		std::fill(playerAttackNameBuffer_.begin(), playerAttackNameBuffer_.end(), '\0');
 	}
@@ -2155,8 +2229,12 @@ void BaseScene::DrawEditorGizmo() {
 	EulerTransform& transform = selectedObject->GetTransform();
 
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	const ImVec2 viewportPos = viewport ? viewport->Pos : ImVec2(0.0f, 0.0f);
-	const ImVec2 viewportSize = viewport ? viewport->Size : ImGui::GetIO().DisplaySize;
+	ImVec2 viewportPos = ImGuiManager::GetInstance()->GetGameViewContentPosition();
+	ImVec2 viewportSize = ImGuiManager::GetInstance()->GetGameViewContentSize();
+	if (viewportSize.x <= 1.0f || viewportSize.y <= 1.0f) {
+		viewportPos = viewport ? viewport->Pos : ImVec2(0.0f, 0.0f);
+		viewportSize = viewport ? viewport->Size : ImGui::GetIO().DisplaySize;
+	}
 
 	Matrix4x4 objectMatrix{};
 	float translation[3] = {transform.translate.x, transform.translate.y, transform.translate.z};

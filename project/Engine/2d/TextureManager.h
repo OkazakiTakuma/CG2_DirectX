@@ -19,7 +19,6 @@ public:
 	/// <summary>
 	/// 共有インスタンスを取得します。
 	/// </summary>
-	/// <returns>処理結果を返します。</returns>
 	static TextureManager* GetInstance();
 	/// <summary>
 	/// 必要なリソースを準備し、オブジェクトを初期化します。
@@ -30,51 +29,42 @@ public:
 	/// 確保したリソースを解放し、終了処理を行います。
 	/// </summary>
 	void Finalize();
-	/// <summary>
-	/// Release の処理を行います。
-	/// </summary>
 	void Release();
 	/// <summary>
 	/// Texture を読み込み、内部データへ反映します。
 	/// </summary>
-	/// <param name="filepath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 	void LoadTexture(const std::string& filepath);
+	/// <summary>
+	/// RGBA8形式のピクセル列から実行時テクスチャを生成します。
+	/// </summary>
+	/// <param name="key">生成したテクスチャを識別する一意なキーです。</param>
+	/// <param name="width">テクスチャの幅です。</param>
+	/// <param name="height">テクスチャの高さです。</param>
+	/// <param name="pixels">1ピクセル4バイトのRGBAデータです。</param>
 	void CreateTextureFromRGBA(const std::string& key, uint32_t width, uint32_t height, const std::vector<uint8_t>& pixels);
+	/// <summary>
+	/// 登録済みのSRVを維持したまま、ファイルからGPUリソースを再作成します。
+	/// </summary>
 	bool ReloadTexture(const std::string& filepath);
+	/// <summary>
+	/// ファイルから読み込んだ全テクスチャを再読み込みします。
+	/// </summary>
+	/// <returns>再読み込みに成功したテクスチャ数を返します。</returns>
 	size_t ReloadAllTextures();
+	/// <summary>SRV領域でテクスチャに使用する先頭インデックスです。</summary>
 	static uint32_t kSRVIndexTop;
-	/// <summary>
-	/// TextureIndexByFilePath を取得します。
-	/// </summary>
-	/// <param name="filepath">読み込みまたは保存に使用するファイルパスを指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	uint32_t GetTextureIndexByFilePath(const std::string& filepath);
-	/// <summary>
-	/// SRVHandleGPU を取得します。
-	/// </summary>
-	/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVHandleGPU(const std::string& filePath) {
 		assert(!SrvManager::GetInstance()->IsOverAllocated());
 		assert(textureDatas.contains(filePath));
 		return textureDatas.at(filePath).srvHandleGPU;
 	}
 	void SetDirectXCommon(DirectXCommon* dxCommon) { dxCommon_ = dxCommon; }
-	/// <summary>
-	/// TextureMetadata を取得します。
-	/// </summary>
-	/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	const DirectX::TexMetadata& GetTextureMetadata(const std::string& filePath) {
 		assert(!SrvManager::GetInstance()->IsOverAllocated());
 		assert(textureDatas.contains(filePath));
 		return textureDatas.at(filePath).metadata;
 	}
-	/// <summary>
-	/// SrvIndex を取得します。
-	/// </summary>
-	/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	uint32_t GetSrvIndex(const std::string& filePath) {
 		assert(!SrvManager::GetInstance()->IsOverAllocated());
 		assert(textureDatas.contains(filePath));
@@ -97,15 +87,32 @@ private:
 	~TextureManager() = default;
 	TextureManager(const TextureManager&) = delete;
 	TextureManager& operator=(const TextureManager&) = delete;
+
+	/// <summary>1枚のテクスチャに対応するCPU・GPU側の管理情報です。</summary>
 	struct TextureData {
+		/// <summary>画像サイズ、フォーマット、ミップ数などの情報です。</summary>
 		DirectX::TexMetadata metadata;
+		/// <summary>GPU上に確保されたテクスチャリソースです。</summary>
 		Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
+		/// <summary>SRVディスクリプタヒープ内の割り当て位置です。</summary>
 		uint32_t srvIndex=0;
+		/// <summary>SRV作成時にCPUから参照するディスクリプタハンドルです。</summary>
 		D3D12_CPU_DESCRIPTOR_HANDLE srvHandleCPU;
+		/// <summary>描画時にシェーダーから参照するディスクリプタハンドルです。</summary>
 		D3D12_GPU_DESCRIPTOR_HANDLE srvHandleGPU;
 	};
 
+	/// <summary>画像を読み込み、必要に応じてミップマップを生成します。</summary>
+	bool LoadTextureImage(const std::string& filepath, DirectX::ScratchImage& mipImages) const;
+	/// <summary>テクスチャ用SRVを1つ確保し、CPU/GPUハンドルを保存します。</summary>
+	void AllocateSrv(TextureData& textureData) const;
+	/// <summary>メタデータに合わせたSRVを、確保済みディスクリプタへ作成します。</summary>
+	void CreateSrv(const TextureData& textureData) const;
+	/// <summary>画像をGPUへ転送し、描画可能なリソース状態へ遷移させます。</summary>
+	void UploadAndTransition(TextureData& textureData, const DirectX::ScratchImage& image) const;
+
+	/// <summary>識別キーと、読み込み済みテクスチャ情報の対応表です。</summary>
 	std::unordered_map<std::string, TextureData> textureDatas;
-	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12Resource>> textureResources_;
+	/// <summary>GPUリソースの作成とコマンド発行に使用する共通処理です。</summary>
 	DirectXCommon* dxCommon_ = nullptr;
 };

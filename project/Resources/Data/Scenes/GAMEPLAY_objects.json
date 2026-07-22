@@ -1,6 +1,6 @@
 {
     "activeCamera": "Player_5",
-    "nextObjectId": 238,
+    "nextObjectId": 416,
     "objects": [
         {
             "camera": {
@@ -52,6 +52,7 @@
                 "pushBack": true
             },
             "object3d": {
+                "animationName": "Armature|mixamo.com|Layer0",
                 "animationPlaying": false,
                 "drawSkeleton": true,
                 "enabled": true,
@@ -71,9 +72,9 @@
                     "decay": 1.0,
                     "intensity": 1.0,
                     "position": [
-                        0.11398869752883911,
-                        -0.5601629614830017,
-                        0.968877911567688
+                        0.0,
+                        -0.5533170700073242,
+                        0.0
                     ],
                     "radius": 10.0
                 }
@@ -82,7 +83,7 @@
             "player": {
                 "currentHealth": 100.0,
                 "enabled": true,
-                "experience": 13,
+                "experience": 0,
                 "gravity": {
                     "enabled": false,
                     "strength": 9.800000190734863
@@ -118,7 +119,7 @@
                 ],
                 "translate": [
                     0.0,
-                    0.0,
+                    -0.5452309250831604,
                     0.0
                 ]
             },
@@ -148,6 +149,7 @@
                 "pushBack": false
             },
             "object3d": {
+                "animationName": "",
                 "animationPlaying": true,
                 "drawSkeleton": false,
                 "enabled": true,
@@ -245,6 +247,27 @@
                         "intervalFrames": 120,
                         "spawnAmount": 2,
                         "startTime": 300.0
+                    },
+                    {
+                        "endTime": 36000.0,
+                        "enemyTypeName": "Shooter",
+                        "intervalFrames": 360,
+                        "spawnAmount": 1,
+                        "startTime": 60.0
+                    },
+                    {
+                        "endTime": 36000.0,
+                        "enemyTypeName": "Charger",
+                        "intervalFrames": 540,
+                        "spawnAmount": 1,
+                        "startTime": 120.0
+                    },
+                    {
+                        "endTime": 36000.0,
+                        "enemyTypeName": "MidBoss",
+                        "intervalFrames": 3600,
+                        "spawnAmount": 1,
+                        "startTime": 120.0
                     }
                 ],
                 "spawnCount": 8,
@@ -265,80 +288,17 @@
                     1.0
                 ],
                 "translate": [
-                    0.11398869752883911,
+                    0.0,
                     0.20000000298023224,
-                    0.968877911567688
+                    0.0
                 ]
             },
             "type": "EnemySpawnPoint"
-        },
-        {
-            "children": [],
-            "name": "Text_10",
-            "parent": "",
-            "text": {
-                "anchor": 0,
-                "color": [
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                "enabled": true,
-                "fontName": "Meiryo Bold",
-                "fontSize": 32.0,
-                "gravity": {
-                    "enabled": false,
-                    "strength": 9.800000190734863
-                },
-                "value": "くぁｚｗｘせｃｄｒｖｔｆｂｇｙｈぬじｍこｌｐ"
-            },
-            "transform": {
-                "rotate": [
-                    0.0,
-                    0.0,
-                    0.0
-                ],
-                "scale": [
-                    1.0,
-                    1.0,
-                    1.0
-                ],
-                "translate": [
-                    100.0,
-                    100.0,
-                    0.0
-                ]
-            },
-            "type": "Text"
-        },
-        {
-            "children": [],
-            "name": "Straight_220",
-            "parent": "",
-            "transform": {
-                "rotate": [
-                    0.0,
-                    -1.4003080129623413,
-                    0.0
-                ],
-                "scale": [
-                    1.0,
-                    1.0,
-                    1.0
-                ],
-                "translate": [
-                    -5.888057231903076,
-                    -0.0452309250831604,
-                    0.9516894817352295
-                ]
-            },
-            "type": "PlayerProjectile"
         }
     ],
     "scene": "GAMEPLAY",
     "skyBox": {
-        "enabled": true,
-        "textureFilePath": "Resources/rostock_laage_airport_4k.dds"
+        "enabled": false,
+        "textureFilePath": ""
     }
 }

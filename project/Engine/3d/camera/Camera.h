@@ -5,9 +5,6 @@
 
 class Camera {
 public:
-	/// <summary>
-	/// Camera の処理を行います。
-	/// </summary>
 	Camera();
 	/// <summary>
 	/// 毎フレームの状態更新を行います。

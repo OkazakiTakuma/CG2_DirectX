@@ -44,10 +44,6 @@ public:
 
 	Camera* GetCamera() const { return camera_.get(); }
 
-	/// <summary>
-	/// FollowTarget を設定します。
-	/// </summary>
-	/// <param name="target">target に使用する値を指定します。</param>
 	void SetFollowTarget(GameObject* target) {
 		followTarget_ = target;
 		followTargetName_ = target ? target->GetName() : "";
@@ -65,30 +61,18 @@ public:
 	const Vector3& GetOverrideRotation() const { return overrideRotation_; }
 
 	float GetFovY() const { return camera_ ? camera_->GetFovY() : 0.45f; }
-	/// <summary>
-	/// FovY を設定します。
-	/// </summary>
-	/// <param name="fovY">fovY に使用する値を指定します。</param>
 	void SetFovY(float fovY) {
 		if (camera_) {
 			camera_->SetfovY(fovY);
 		}
 	}
 	float GetNearClip() const { return camera_ ? camera_->GetNearClip() : 0.1f; }
-	/// <summary>
-	/// NearClip を設定します。
-	/// </summary>
-	/// <param name="nearClip">nearClip に使用する値を指定します。</param>
 	void SetNearClip(float nearClip) {
 		if (camera_) {
 			camera_->SetNearClip(nearClip);
 		}
 	}
 	float GetFarClip() const { return camera_ ? camera_->GetFarClip() : 100.0f; }
-	/// <summary>
-	/// FarClip を設定します。
-	/// </summary>
-	/// <param name="farClip">farClip に使用する値を指定します。</param>
 	void SetFarClip(float farClip) {
 		if (camera_) {
 			camera_->SetFarClip(farClip);
@@ -96,9 +80,6 @@ public:
 	}
 
 private:
-	/// <summary>
-	/// SyncOwnerTransformToCamera の処理を行います。
-	/// </summary>
 	void SyncOwnerTransformToCamera() {
 		if (!camera_ || GetOwner() == nullptr) {
 			return;

@@ -10,7 +10,6 @@ using namespace Logger;
 /// <summary>
 /// 共有インスタンスを取得します。
 /// </summary>
-/// <returns>処理結果を返します。</returns>
 LineCommon* LineCommon::GetInstance() {
 	static LineCommon instance;
 	return &instance;
@@ -39,9 +38,6 @@ void LineCommon::Finalize() {
 	dxCommon_ = nullptr;
 }
 
-/// <summary>
-/// Draw を設定します。
-/// </summary>
 /// <param name="blendMode">描画時に使用するブレンドモードを指定します。</param>
 void LineCommon::SetDraw(uint32_t blendMode, bool ignoreDepth) {
 	assert(dxCommon_);

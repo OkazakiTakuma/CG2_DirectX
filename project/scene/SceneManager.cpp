@@ -13,6 +13,7 @@
 namespace {
 const char* kSceneNames[] = {
     "TITLE",
+	"PLAYER_SELECT",
     "GAMEPLAY"
 };
 
@@ -20,7 +21,6 @@ const char* kSceneNames[] = {
 /// SceneIndex を検索して取得します。
 /// </summary>
 /// <param name="sceneName">対象となるシーン名を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 int FindSceneIndex(const std::string& sceneName) {
 	for (int index = 0; index < static_cast<int>(_countof(kSceneNames)); ++index) {
 		if (sceneName == kSceneNames[index]) {
@@ -98,9 +98,6 @@ void SceneManager::Draw3D() {
 	}
 }
 
-/// <summary>
-/// DrawEditorImGui の処理を行います。
-/// </summary>
 void SceneManager::DrawEditorImGui() {
 #ifdef USE_IMGUI
 	Input* input = Input::GetInstance();
@@ -210,4 +207,7 @@ void SceneManager::ChangeScene(const std::string& sceneName) {
 	assert(nextScene_);
 	nextSceneName_ = sceneName;
 	nextScene_->SetSceneManager(this);
+	if (sceneName == "GAMEPLAY") {
+		nextScene_->SetPlayerTypeOverride(selectedPlayerTypeName_);
+	}
 }

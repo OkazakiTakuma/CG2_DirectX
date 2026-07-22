@@ -22,11 +22,6 @@ public:
 	GameObject& operator=(const GameObject&) = delete;
 
 	template<class T, class... Args>
-	/// <summary>
-	/// AddComponent の処理を行います。
-	/// </summary>
-	/// <param name="args">args に使用する値を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	T* AddComponent(Args&&... args) {
 		static_assert(std::is_base_of_v<Component, T>, "T must inherit from Component.");
 
@@ -39,10 +34,6 @@ public:
 	}
 
 	template<class T>
-	/// <summary>
-	/// Component を取得します。
-	/// </summary>
-	/// <returns>処理結果を返します。</returns>
 	T* GetComponent() {
 		static_assert(std::is_base_of_v<Component, T>, "T must inherit from Component.");
 

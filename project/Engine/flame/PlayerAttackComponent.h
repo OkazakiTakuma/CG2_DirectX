@@ -10,8 +10,11 @@
 #include <string>
 #include <vector>
 
+/// <summary>攻撃1種類の特定レベルにおける発射・威力設定です。</summary>
 struct PlayerAttackLevelStats {
 	std::string level = "1";
+	std::string choiceDescription;
+	std::string choiceTextureFilePath;
 	float attack = 100.0f;
 	float speed = 0.3f;
 	float size = 100.0f;
@@ -28,21 +31,26 @@ struct PlayerAttackLevelStats {
 	bool infinitePierce = false;
 };
 
+/// <summary>攻撃名と、選択可能なレベル設定のまとまりです。</summary>
 struct PlayerAttackStats {
 	std::string name = "Straight";
+	std::string choiceTextureFilePath;
 	std::string superConditionStatusName;
 	std::string superConditionStatusLevel = "1";
 	std::vector<PlayerAttackLevelStats> levels;
 };
 
+/// <summary>プレイヤー弾の移動パターンです。</summary>
 enum class PlayerProjectileMotionType {
 	Linear,
 	Orbit,
 	SkyLaser,
 	Boomerang,
-	Ricochet
+	Ricochet,
+	ClawSlash
 };
 
+/// <summary>シーン側で実体の弾へ変換する発射要求です。</summary>
 struct PlayerAttackShotRequest {
 	std::string attackName;
 	std::string level;
@@ -64,11 +72,15 @@ struct PlayerAttackShotRequest {
 	float orbitHeight = 0.65f;
 	float orbitAngularSpeed = 2.2f;
 	float travelDistance = 6.0f;
+	int clawSlashIndex = 0;
+	int clawSlashCount = 3;
 };
 
+/// <summary>装備中の攻撃スロットを更新し、発射タイミングごとに弾生成要求を作ります。</summary>
 class PlayerAttackComponent : public Component {
 public:
 	void Update() override {
+		// 各攻撃スロットのクールダウンを進め、発射可能な攻撃を要求へ変換する。
 		GameObject* owner = GetOwner();
 		if (!owner) {
 			return;
@@ -137,6 +149,7 @@ public:
 	}
 
 private:
+	/// <summary>装備スロットごとのレベル、クールダウン、利用可否を保持します。</summary>
 	struct AttackSlotRuntime {
 		PlayerAttackStats stats;
 		std::string level = "1";
@@ -287,7 +300,26 @@ private:
 		}
 	}
 
+	void CreateClawSlashAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
+		const int slashCount = (std::max)(3, levelStats.shotCount);
+		for (int index = 0; index < slashCount; ++index) {
+			QueueShot(owner, player, slot, levelStats, currentLevel, 0.0f, index);
+			PlayerAttackShotRequest& request = shotRequests_.back();
+			request.motionType = PlayerProjectileMotionType::ClawSlash;
+			request.motionAnchor = owner;
+			request.speed = 0.0f;
+			request.homing = false;
+			request.attack /= static_cast<float>(slashCount);
+			request.clawSlashIndex = index;
+			request.clawSlashCount = slashCount;
+		}
+	}
+
 	void CreateAttackByName(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
+		if (slot.stats.name == "ClawSlash") {
+			CreateClawSlashAttack(owner, player, slot, levelStats, currentLevel);
+			return;
+		}
 		if (slot.stats.name == "Ricochet") {
 			CreateRicochetAttack(owner, player, slot, levelStats, currentLevel);
 			return;
@@ -317,6 +349,8 @@ private:
 
 	PlayerAttackStats emptyStats_;
 	std::string defaultLevel_ = "1";
+	/// <summary>同時に更新する攻撃スロットの実行時状態です。</summary>
 	std::vector<AttackSlotRuntime> slots_;
+	/// <summary>次にシーンが回収する未処理の発射要求です。</summary>
 	std::vector<PlayerAttackShotRequest> shotRequests_;
 };

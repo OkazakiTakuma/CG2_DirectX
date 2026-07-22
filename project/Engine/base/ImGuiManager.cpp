@@ -1,5 +1,6 @@
 #include "ImGuiManager.h"
 #include <algorithm>
+#include <cmath>
 
 #ifdef USE_IMGUI
 #include "../../../imgui/imgui_internal.h"
@@ -20,13 +21,6 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #endif
 
 namespace {
-/// <summary>
-/// ClampLayoutValue の処理を行います。
-/// </summary>
-/// <param name="value">計算に使用する値を指定します。</param>
-/// <param name="minValue">範囲判定に使用する値を指定します。</param>
-/// <param name="maxValue">範囲判定に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 float ClampLayoutValue(float value, float minValue, float maxValue) {
 	if (maxValue < minValue) {
 		return maxValue;
@@ -119,13 +113,6 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 	initInfo.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	initInfo.SrvDescriptorHeap = srvManager->GetDescriptorHeap().Get();
 
-	/// <summary>
-	/// [] の処理を行います。
-	/// </summary>
-	/// <param name="info">info に使用する値を指定します。</param>
-	/// <param name="out_cpu_desc_handle">out_cpu_desc_handle に使用する値を指定します。</param>
-	/// <param name="out_gpu_desc_handle">out_gpu_desc_handle に使用する値を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	initInfo.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle) {
 		SrvManager* srvmanager = SrvManager::GetInstance();
 		uint32_t index = srvmanager->Allocate();
@@ -134,13 +121,6 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 	};
 
 	initInfo.CommandQueue = dxCommon->GetCommandQueue().Get();
-	/// <summary>
-	/// [] の処理を行います。
-	/// </summary>
-	/// <param name="info">info に使用する値を指定します。</param>
-	/// <param name="cpu_desc_handle">cpu_desc_handle に使用する値を指定します。</param>
-	/// <param name="gpu_desc_handle">gpu_desc_handle に使用する値を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	initInfo.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_desc_handle) {
 	};
 
@@ -217,9 +197,6 @@ void ImGuiManager::Finalize() {
 #endif
 }
 
-/// <summary>
-/// Begin の処理を行います。
-/// </summary>
 void ImGuiManager::Begin() {
 #ifdef USE_IMGUI
 	performanceMonitor_.Update();
@@ -232,9 +209,6 @@ void ImGuiManager::Begin() {
 #endif
 }
 
-/// <summary>
-/// upExternalEditorDockSpaces を設定します。
-/// </summary>
 void ImGuiManager::SetupExternalEditorDockSpaces() {
 #if defined(USE_IMGUI) && defined(IMGUI_HAS_DOCK)
 	static bool isLayoutBuilt = false;
@@ -318,9 +292,6 @@ void ImGuiManager::SetupExternalEditorDockSpaces() {
 #endif
 }
 
-/// <summary>
-/// DrawUtilityWindows の処理を行います。
-/// </summary>
 void ImGuiManager::DrawUtilityWindows() {
 #ifdef USE_IMGUI
 	if (ImGui::Begin("Console")) {
@@ -349,6 +320,7 @@ void ImGuiManager::DrawUtilityWindows() {
 
 void ImGuiManager::DrawGameViewWindow() {
 #ifdef USE_IMGUI
+	isGameViewVisible_ = false;
 	const ImGuiWindowFlags windowFlags =
 	    ImGuiWindowFlags_NoBackground |
 	    ImGuiWindowFlags_NoScrollbar |
@@ -363,7 +335,8 @@ void ImGuiManager::DrawGameViewWindow() {
 	if (ImGui::Begin("GameView", nullptr, windowFlags)) {
 		gameViewContentPosition_ = ImGui::GetCursorScreenPos();
 		gameViewContentSize_ = ImGui::GetContentRegionAvail();
-		DrawEditorBackgroundMask(ImGui::GetWindowPos(), ImGui::GetWindowSize());
+		isGameViewVisible_ = gameViewContentSize_.x > 1.0f && gameViewContentSize_.y > 1.0f;
+		DrawEditorBackgroundMask(gameViewContentPosition_, gameViewContentSize_);
 		if (ImGui::BeginDragDropTarget()) {
 			auto acceptAssetPayload = [this](const char* payloadType, DroppedAssetPayload::Type assetType) {
 				const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadType);
@@ -388,6 +361,92 @@ void ImGuiManager::DrawGameViewWindow() {
 	ImGui::PopStyleColor();
 #endif
 	ImGui::PopStyleColor(2);
+#endif
+}
+
+bool ImGuiManager::CalculateGameViewRenderRect(float& left, float& top, float& width, float& height) const {
+#ifdef USE_IMGUI
+	if (!dxcommon || !isGameViewVisible_) {
+		return false;
+	}
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+	if (!viewport || viewport->Size.x <= 1.0f || viewport->Size.y <= 1.0f) {
+		return false;
+	}
+	const float renderWidth = static_cast<float>(dxcommon->GetRenderWidth());
+	const float renderHeight = static_cast<float>(dxcommon->GetRenderHeight());
+	const float scaleX = renderWidth / viewport->Size.x;
+	const float scaleY = renderHeight / viewport->Size.y;
+	left = (std::clamp)((gameViewContentPosition_.x - viewport->Pos.x) * scaleX, 0.0f, renderWidth);
+	top = (std::clamp)((gameViewContentPosition_.y - viewport->Pos.y) * scaleY, 0.0f, renderHeight);
+	const float right = (std::clamp)(left + gameViewContentSize_.x * scaleX, left, renderWidth);
+	const float bottom = (std::clamp)(top + gameViewContentSize_.y * scaleY, top, renderHeight);
+	width = right - left;
+	height = bottom - top;
+	return width > 1.0f && height > 1.0f;
+#else
+	(void)left;
+	(void)top;
+	(void)width;
+	(void)height;
+	return false;
+#endif
+}
+
+float ImGuiManager::GetGameViewAspectRatio() const {
+	float left = 0.0f;
+	float top = 0.0f;
+	float width = 0.0f;
+	float height = 0.0f;
+	return CalculateGameViewRenderRect(left, top, width, height) && height > 0.0f ? width / height : 0.0f;
+}
+
+bool ImGuiManager::ApplyGameViewRenderArea() {
+#ifdef USE_IMGUI
+	float left = 0.0f;
+	float top = 0.0f;
+	float width = 0.0f;
+	float height = 0.0f;
+	if (!CalculateGameViewRenderRect(left, top, width, height)) {
+		return false;
+	}
+	auto commandList = dxcommon->GetCommandList();
+	D3D12_VIEWPORT viewport{};
+	viewport.TopLeftX = left;
+	viewport.TopLeftY = top;
+	viewport.Width = width;
+	viewport.Height = height;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+	D3D12_RECT scissor{};
+	scissor.left = static_cast<LONG>(std::floor(left));
+	scissor.top = static_cast<LONG>(std::floor(top));
+	scissor.right = static_cast<LONG>(std::ceil(left + width));
+	scissor.bottom = static_cast<LONG>(std::ceil(top + height));
+	commandList->RSSetViewports(1, &viewport);
+	commandList->RSSetScissorRects(1, &scissor);
+	return true;
+#else
+	return false;
+#endif
+}
+
+void ImGuiManager::RestoreFullRenderArea() {
+#ifdef USE_IMGUI
+	if (!dxcommon) {
+		return;
+	}
+	auto commandList = dxcommon->GetCommandList();
+	D3D12_VIEWPORT viewport{};
+	viewport.Width = static_cast<float>(dxcommon->GetRenderWidth());
+	viewport.Height = static_cast<float>(dxcommon->GetRenderHeight());
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+	D3D12_RECT scissor{};
+	scissor.right = dxcommon->GetRenderWidth();
+	scissor.bottom = dxcommon->GetRenderHeight();
+	commandList->RSSetViewports(1, &viewport);
+	commandList->RSSetScissorRects(1, &scissor);
 #endif
 }
 
@@ -704,9 +763,6 @@ bool ImGuiManager::UpdateHotReload(const std::string& sceneJsonPath, const std::
 #endif
 }
 
-/// <summary>
-/// End の処理を行います。
-/// </summary>
 void ImGuiManager::End() {
 #ifdef USE_IMGUI
 	ImGui::Render();

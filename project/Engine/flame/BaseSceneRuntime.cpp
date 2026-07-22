@@ -5,7 +5,9 @@
 #include "MathConstants.h"
 #include "model/ModelManager.h"
 #include "repositories/PlayerStatusRepository.h"
+#include <filesystem>
 #include <random>
+#include <unordered_set>
 #include <Xinput.h>
 #ifdef USE_IMGUI
 #include "../../../imgui/ImGuizmo.h"
@@ -26,6 +28,27 @@ struct EnemyPlayerContact {
 	EnemyComponent* enemy = nullptr;
 	Player* player = nullptr;
 };
+
+constexpr std::array<int, 4> kExperienceDenominations = {1, 10, 50, 100};
+constexpr float kExperienceCompressionDistance = 1.5f;
+
+Vector4 GetExperienceColor(int denomination) {
+	switch (denomination) {
+	case 100: return {1.0f, 0.65f, 0.08f, 1.0f};
+	case 50: return {0.72f, 0.25f, 1.0f, 1.0f};
+	case 10: return {0.20f, 1.0f, 0.35f, 1.0f};
+	default: return {0.15f, 0.75f, 1.0f, 1.0f};
+	}
+}
+
+float GetExperienceScale(int denomination) {
+	switch (denomination) {
+	case 100: return 0.55f;
+	case 50: return 0.48f;
+	case 10: return 0.41f;
+	default: return 0.35f;
+	}
+}
 
 bool RegisterEnemyPlayerContact(GameObject* objectA, GameObject* objectB, std::vector<EnemyPlayerContact>& contacts) {
 	if (!objectA || !objectB) {
@@ -139,9 +162,14 @@ void BaseScene::ApplyCamera(Camera* camera) {
 
 	const float clientWidth = static_cast<float>(Input::GetInstance()->GetClientWidth());
 	const float clientHeight = static_cast<float>(Input::GetInstance()->GetClientHeight());
-	if (clientWidth > 0.0f && clientHeight > 0.0f) {
-		camera->SetAspectRatio(clientWidth / clientHeight);
+	float aspectRatio = clientWidth > 0.0f && clientHeight > 0.0f ? clientWidth / clientHeight : 1.0f;
+#ifdef USE_IMGUI
+	const float gameViewAspectRatio = ImGuiManager::GetInstance()->GetGameViewAspectRatio();
+	if (gameViewAspectRatio > 0.0f) {
+		aspectRatio = gameViewAspectRatio;
 	}
+#endif
+	camera->SetAspectRatio(aspectRatio);
 	camera->Update();
 	Object3dCommon::GetInstance()->SetDefaultCamera(camera);
 	SkyBoxCommon::GetInstance()->SetDefaultCamera(camera);
@@ -334,14 +362,17 @@ void BaseScene::UpdatePlayerAttacks() {
 
 GameObject* BaseScene::CreateRuntimeEnemy(const std::string& enemyTypeName, const Vector3& position, GameObject* target) {
 	auto object = std::make_unique<GameObject>();
-	object->SetName(MakeUniqueObjectName(enemyTypeName.empty() ? "Enemy" : enemyTypeName));
+	const std::string resolvedTypeName = enemyTypeName.empty() ? "Default" : enemyTypeName;
+	const EnemyStats stats = LoadEnemyStats(resolvedTypeName);
+	object->SetName(MakeUniqueObjectName(resolvedTypeName));
 	object->SetEditorType("Enemy");
 	object->GetTransform().translate = position;
-	object->GetTransform().scale = {0.75f, 0.75f, 0.75f};
+	const float scale = 0.75f * stats.sizeScale;
+	object->GetTransform().scale = {scale, scale, scale};
 
 	EnemyComponent* enemy = object->AddComponent<EnemyComponent>();
-	enemy->SetEnemyTypeName(enemyTypeName.empty() ? "Default" : enemyTypeName);
-	enemy->ApplyStats(LoadEnemyStats(enemy->GetEnemyTypeName()));
+	enemy->SetEnemyTypeName(resolvedTypeName);
+	enemy->ApplyStats(stats);
 	enemy->SetRuntimeSpawned(true);
 	if (target) {
 		enemy->SetTarget(target);
@@ -383,28 +414,11 @@ GameObject* BaseScene::CreateRuntimeExperience(const EnemyStats& enemyStats, con
 		ModelManager::GetInstance()->LoadModel("sphere.obj");
 	}
 	const std::string resolvedModelFilePath = ModelManager::GetInstance()->FindModel(modelFilePath) ? modelFilePath : "sphere.obj";
-	const std::array<int, 4> denominations = {100, 50, 10, 1};
-	auto getExperienceColor = [](int denomination) {
-		switch (denomination) {
-		case 100: return Vector4{1.0f, 0.65f, 0.08f, 1.0f};
-		case 50: return Vector4{0.72f, 0.25f, 1.0f, 1.0f};
-		case 10: return Vector4{0.20f, 1.0f, 0.35f, 1.0f};
-		default: return Vector4{0.15f, 0.75f, 1.0f, 1.0f};
-		}
-	};
-	auto getExperienceScale = [](int denomination) {
-		switch (denomination) {
-		case 100: return 0.55f;
-		case 50: return 0.48f;
-		case 10: return 0.41f;
-		default: return 0.35f;
-		}
-	};
-
 	GameObject* firstExperienceObject = nullptr;
 	int remainingExperience = enemyStats.experience;
 	int particleIndex = 0;
-	for (const int denomination : denominations) {
+	for (auto denominationIt = kExperienceDenominations.rbegin(); denominationIt != kExperienceDenominations.rend(); ++denominationIt) {
+		const int denomination = *denominationIt;
 		const int particleCount = remainingExperience / denomination;
 		remainingExperience %= denomination;
 		for (int index = 0; index < particleCount; ++index, ++particleIndex) {
@@ -418,7 +432,7 @@ GameObject* BaseScene::CreateRuntimeExperience(const EnemyStats& enemyStats, con
 				position.y + 0.08f * static_cast<float>(particleIndex % 3),
 				position.z + std::sin(angle) * radius
 			};
-			const float scale = getExperienceScale(denomination);
+			const float scale = GetExperienceScale(denomination);
 			object->GetTransform().scale = {scale, scale, scale};
 
 			ExperienceComponent* experience = object->AddComponent<ExperienceComponent>();
@@ -428,7 +442,7 @@ GameObject* BaseScene::CreateRuntimeExperience(const EnemyStats& enemyStats, con
 
 			Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
 			object3d->SetModel(resolvedModelFilePath);
-			object3d->SetColor(getExperienceColor(denomination));
+			object3d->SetColor(GetExperienceColor(denomination));
 
 			object->Update();
 			GameObject* createdObject = object.get();
@@ -440,6 +454,148 @@ GameObject* BaseScene::CreateRuntimeExperience(const EnemyStats& enemyStats, con
 		}
 	}
 	return firstExperienceObject;
+}
+
+void BaseScene::UpdateEnemyAttacks() {
+	std::vector<EnemyShotRequest> shotRequests;
+	for (const auto& object : sceneObjects_) {
+		EnemyComponent* enemy = object->GetComponent<EnemyComponent>();
+		if (!enemy || !enemy->IsEnabled() || enemy->GetCurrentHealth() <= 0.0f) {
+			continue;
+		}
+		std::vector<EnemyShotRequest> requests = enemy->ConsumeShotRequests();
+		shotRequests.insert(shotRequests.end(), requests.begin(), requests.end());
+
+		if (Object3dComponent* object3d = object->GetComponent<Object3dComponent>()) {
+			if (enemy->IsChargeWarningActive()) {
+				const float pulse = 0.45f + 0.55f * std::sin(enemy->GetChargeProgress() * 18.0f * MathConstants::kPi);
+				object3d->SetColor({1.0f, 0.05f + 0.25f * pulse, 0.02f, 1.0f});
+			} else if (enemy->GetStats().behavior == EnemyBehaviorType::Shooter) {
+				object3d->SetColor({0.25f, 0.55f, 1.0f, 1.0f});
+			} else if (enemy->GetStats().behavior == EnemyBehaviorType::Charger) {
+				object3d->SetColor({1.0f, 0.35f, 0.08f, 1.0f});
+			} else if (enemy->GetEnemyTypeName() == "MidBoss") {
+				object3d->SetColor({0.62f, 0.16f, 0.85f, 1.0f});
+			}
+		}
+	}
+	for (const EnemyShotRequest& request : shotRequests) {
+		CreateRuntimeEnemyProjectile(request);
+	}
+}
+
+GameObject* BaseScene::CreateRuntimeEnemyProjectile(const EnemyShotRequest& request) {
+	auto object = std::make_unique<GameObject>();
+	object->SetName(MakeUniqueObjectName("EnemyProjectile"));
+	object->SetEditorType("EnemyProjectile");
+	object->GetTransform().translate = request.position;
+	object->GetTransform().scale = {request.size, request.size, request.size};
+	object->GetTransform().rotate.y = std::atan2(request.direction.x, request.direction.z);
+
+	EnemyProjectileComponent* projectile = object->AddComponent<EnemyProjectileComponent>();
+	projectile->SetDirection(request.direction);
+	projectile->SetSpeed(request.speed);
+	projectile->SetAttack(request.attack);
+	projectile->SetSize(request.size);
+	projectile->SetLifeTime(request.lifeTime);
+
+	ModelManager::GetInstance()->LoadModel("sphere.obj");
+	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
+	object3d->SetModel("sphere.obj");
+	object3d->SetColor({1.0f, 0.12f, 0.04f, 1.0f});
+	TrailRendererComponent* trail = object->AddComponent<TrailRendererComponent>();
+	trail->SetWidth((std::max)(0.10f, request.size * 0.8f));
+	trail->SetLifeTime(0.28f);
+	trail->SetHeadColor({1.0f, 0.35f, 0.05f, 0.95f});
+	trail->SetTailColor({0.70f, 0.02f, 0.01f, 0.0f});
+
+	object->Update();
+	sceneObjects_.push_back(std::move(object));
+	++nextObjectId_;
+	return sceneObjects_.back().get();
+}
+
+void BaseScene::UpdateEnemyProjectileHits() {
+	for (const auto& projectileObject : sceneObjects_) {
+		EnemyProjectileComponent* projectile = projectileObject->GetComponent<EnemyProjectileComponent>();
+		if (!projectile || !projectile->IsEnabled() || projectile->IsExpired()) {
+			continue;
+		}
+		for (const auto& playerObject : sceneObjects_) {
+			Player* player = playerObject->GetComponent<Player>();
+			if (!player || !player->IsEnabled() || player->GetCurrentHealth() <= 0.0f) {
+				continue;
+			}
+			Vector3 difference = playerObject->GetTransform().translate - projectileObject->GetTransform().translate;
+			if (Length(difference) <= projectile->GetSize() + 0.5f) {
+				player->TakeDamage(projectile->GetAttack());
+				projectile->MarkHit();
+				break;
+			}
+		}
+	}
+}
+
+void BaseScene::UpdateExperienceCompression() {
+	for (size_t denominationIndex = 0; denominationIndex + 1 < kExperienceDenominations.size(); ++denominationIndex) {
+		const int denomination = kExperienceDenominations[denominationIndex];
+		const int nextDenomination = kExperienceDenominations[denominationIndex + 1];
+		const int requiredCount = nextDenomination / denomination;
+
+		bool compressed = true;
+		while (compressed) {
+			compressed = false;
+			for (const auto& anchorObject : sceneObjects_) {
+				ExperienceComponent* anchor = anchorObject->GetComponent<ExperienceComponent>();
+				if (!anchor || anchor->IsCollected() || anchor->IsConsumedByCompression() ||
+				    anchor->GetExperience() != denomination) {
+					continue;
+				}
+
+				std::vector<GameObject*> nearbyObjects;
+				nearbyObjects.reserve(requiredCount);
+				nearbyObjects.push_back(anchorObject.get());
+				const Vector3 anchorPosition = anchorObject->GetTransform().translate;
+				for (const auto& candidateObject : sceneObjects_) {
+					if (candidateObject.get() == anchorObject.get()) {
+						continue;
+					}
+					ExperienceComponent* candidate = candidateObject->GetComponent<ExperienceComponent>();
+					if (!candidate || candidate->IsCollected() || candidate->IsConsumedByCompression() ||
+					    candidate->GetExperience() != denomination) {
+						continue;
+					}
+					if (Length(candidateObject->GetTransform().translate - anchorPosition) <= kExperienceCompressionDistance) {
+						nearbyObjects.push_back(candidateObject.get());
+						if (static_cast<int>(nearbyObjects.size()) == requiredCount) {
+							break;
+						}
+					}
+				}
+				if (static_cast<int>(nearbyObjects.size()) < requiredCount) {
+					continue;
+				}
+
+				Vector3 mergedPosition{};
+				for (GameObject* object : nearbyObjects) {
+					mergedPosition = mergedPosition + object->GetTransform().translate;
+				}
+				mergedPosition = (1.0f / static_cast<float>(requiredCount)) * mergedPosition;
+				anchorObject->GetTransform().translate = mergedPosition;
+				const float scale = GetExperienceScale(nextDenomination);
+				anchorObject->GetTransform().scale = {scale, scale, scale};
+				anchor->SetExperience(nextDenomination);
+				if (Object3dComponent* object3d = anchorObject->GetComponent<Object3dComponent>()) {
+					object3d->SetColor(GetExperienceColor(nextDenomination));
+				}
+				for (size_t index = 1; index < nearbyObjects.size(); ++index) {
+					nearbyObjects[index]->GetComponent<ExperienceComponent>()->MarkConsumedByCompression();
+				}
+				compressed = true;
+				break;
+			}
+		}
+	}
 }
 
 GameObject* BaseScene::FindNearestEnemy(const Vector3& position) const {
@@ -487,6 +643,8 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 	projectile->SetOrbitAngularSpeed(request.orbitAngularSpeed);
 	projectile->SetTravelDistance(request.travelDistance);
 	projectile->SetTravelOrigin(request.position);
+	projectile->SetClawSlashIndex(request.clawSlashIndex);
+	projectile->SetClawSlashCount(request.clawSlashCount);
 	if (request.motionType == PlayerProjectileMotionType::Orbit) {
 		projectile->SetRepeatHitInterval(0.75f);
 	}
@@ -509,6 +667,8 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 	}
 	if (request.motionType == PlayerProjectileMotionType::SkyLaser) {
 		object->GetTransform().scale = {request.size * 0.30f, request.size * 5.0f, request.size * 0.30f};
+	} else if (request.motionType == PlayerProjectileMotionType::ClawSlash) {
+		object->GetTransform().scale = {request.size * 0.18f, request.size * 0.18f, request.size * 0.18f};
 	}
 	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
 	if (ModelManager::GetInstance()->FindModel(modelFilePath)) {
@@ -525,11 +685,17 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 		object3d->SetColor({1.0f, 0.65f, 0.20f, 1.0f});
 	} else if (request.motionType == PlayerProjectileMotionType::Ricochet) {
 		object3d->SetColor({0.45f, 1.0f, 0.30f, 1.0f});
+	} else if (request.motionType == PlayerProjectileMotionType::ClawSlash) {
+		object3d->SetColor({1.0f, 0.22f, 0.10f, 1.0f});
 	}
 	if (request.motionType != PlayerProjectileMotionType::SkyLaser) {
 		TrailRendererComponent* trail = object->AddComponent<TrailRendererComponent>();
-		trail->SetWidth((std::max)(0.12f, request.size * 0.8f));
-		trail->SetLifeTime(request.motionType == PlayerProjectileMotionType::Orbit ? 0.45f : 0.32f);
+		trail->SetWidth(request.motionType == PlayerProjectileMotionType::ClawSlash
+		        ? (std::max)(0.10f, request.size * 0.22f)
+		        : (std::max)(0.12f, request.size * 0.8f));
+		trail->SetLifeTime(request.motionType == PlayerProjectileMotionType::Orbit
+		        ? 0.45f
+		        : request.motionType == PlayerProjectileMotionType::ClawSlash ? 0.20f : 0.32f);
 		trail->SetMinSegmentLength((std::max)(0.025f, request.size * 0.08f));
 		if (request.motionType == PlayerProjectileMotionType::Boomerang) {
 			trail->SetHeadColor({1.0f, 0.72f, 0.20f, 0.95f});
@@ -541,6 +707,9 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 		} else if (request.motionType == PlayerProjectileMotionType::Ricochet) {
 			trail->SetHeadColor({0.65f, 1.0f, 0.30f, 0.95f});
 			trail->SetTailColor({0.05f, 0.80f, 0.15f, 0.0f});
+		} else if (request.motionType == PlayerProjectileMotionType::ClawSlash) {
+			trail->SetHeadColor({1.0f, 0.95f, 0.72f, 1.0f});
+			trail->SetTailColor({1.0f, 0.05f, 0.01f, 0.0f});
 		}
 	}
 
@@ -656,12 +825,12 @@ void BaseScene::UpdatePlayerProjectileHits() {
 			}
 
 			float distance = Length(enemyObject->GetTransform().translate - projectileObject->GetTransform().translate);
-			float hitRadius = projectile->GetSize() + 0.5f;
+			float hitRadius = projectile->GetSize() + 0.5f * enemy->GetStats().sizeScale;
 			if (projectile->GetMotionType() == PlayerProjectileMotionType::SkyLaser) {
 				Vector3 horizontalDifference = enemyObject->GetTransform().translate - projectileObject->GetTransform().translate;
 				horizontalDifference.y = 0.0f;
 				distance = Length(horizontalDifference);
-				hitRadius = projectile->GetSize() * 0.35f + 0.5f;
+				hitRadius = projectile->GetSize() * 0.35f + 0.5f * enemy->GetStats().sizeScale;
 			}
 			if (distance <= hitRadius) {
 				enemy->SetCurrentHealth(enemy->GetCurrentHealth() - projectile->GetAttack());
@@ -690,12 +859,16 @@ void BaseScene::CleanupExpiredPlayerProjectiles() {
 				    return true;
 			    }
 		    }
+		    EnemyProjectileComponent* enemyProjectile = object->GetComponent<EnemyProjectileComponent>();
+		    if (enemyProjectile && enemyProjectile->IsExpired()) {
+			    return true;
+		    }
 		    EnemyComponent* enemy = object->GetComponent<EnemyComponent>();
 		    if (enemy && enemy->GetCurrentHealth() <= 0.0f) {
 			    return true;
 		    }
 		    ExperienceComponent* experience = object->GetComponent<ExperienceComponent>();
-		    return experience && experience->IsCollected();
+		    return experience && (experience->IsCollected() || experience->IsConsumedByCompression());
 	    }),
 	    sceneObjects_.end()
 	);
@@ -753,6 +926,223 @@ void BaseScene::UpdatePlayerHealthHud() {
 
 	playerHealthBarBackground_->Update();
 	playerHealthBarFill_->Update();
+}
+
+void BaseScene::UpdatePlayerExperienceHud() {
+	Player* player = nullptr;
+	for (const auto& object : sceneObjects_) {
+		Player* candidate = object->GetComponent<Player>();
+		if (candidate && candidate->IsEnabled()) {
+			player = candidate;
+			break;
+		}
+	}
+
+	isPlayerExperienceHudVisible_ = player != nullptr;
+	if (!player) {
+		playerExperienceRate_ = 0.0f;
+		return;
+	}
+
+	if (!playerExperienceBarBackground_) {
+		playerExperienceBarBackground_ = std::make_unique<Sprite>();
+		playerExperienceBarBackground_->Initialize("Resources/human/white.png");
+	}
+	if (!playerExperienceBarFill_) {
+		playerExperienceBarFill_ = std::make_unique<Sprite>();
+		playerExperienceBarFill_->Initialize("Resources/human/white.png");
+	}
+	if (!playerExperienceTextObject_) {
+		playerExperienceTextObject_ = std::make_unique<GameObject>();
+		TextComponent* text = playerExperienceTextObject_->AddComponent<TextComponent>();
+		text->SetFontSize(17.0f);
+		text->SetAnchor(TextComponent::Anchor::BottomCenter);
+		text->SetColor({0.92f, 0.96f, 1.0f, 1.0f});
+	}
+
+	const PlayerStats& stats = player->GetBaseStats();
+	const int level = (std::max)(1, stats.level);
+	const int previousLevelExperience = level > 1 ? Player::GetRequiredExperienceForNextLevel(level - 1) : 0;
+	const int nextLevelExperience = Player::GetRequiredExperienceForNextLevel(level);
+	const long long requiredExperience = (std::max)(1LL, static_cast<long long>(nextLevelExperience) - previousLevelExperience);
+	const long long currentExperience = (std::max)(0LL, static_cast<long long>(stats.experience) - previousLevelExperience);
+	playerExperienceRate_ = static_cast<float>(currentExperience) / static_cast<float>(requiredExperience);
+	playerExperienceRate_ = (std::max)(0.0f, (std::min)(1.0f, playerExperienceRate_));
+
+	const float screenWidth = static_cast<float>(Input::GetInstance()->GetClientWidth());
+	const float screenHeight = static_cast<float>(Input::GetInstance()->GetClientHeight());
+	constexpr float kHorizontalMargin = 32.0f;
+	constexpr float kBottomMargin = 18.0f;
+	constexpr float kBarHeight = 18.0f;
+	constexpr float kBorderSize = 3.0f;
+	const float barWidth = (std::max)(160.0f, screenWidth - kHorizontalMargin * 2.0f);
+	const float left = (screenWidth - barWidth) * 0.5f;
+	const float top = (std::max)(0.0f, screenHeight - kBottomMargin - kBarHeight);
+
+	EulerTransform backgroundTransform = playerExperienceBarBackground_->GetTransform();
+	backgroundTransform.translate = {left, top, 0.0f};
+	playerExperienceBarBackground_->SetTransform(backgroundTransform);
+	playerExperienceBarBackground_->SetSize({barWidth, kBarHeight});
+	playerExperienceBarBackground_->SetColor({0.025f, 0.04f, 0.07f, 0.94f});
+
+	EulerTransform fillTransform = playerExperienceBarFill_->GetTransform();
+	fillTransform.translate = {left + kBorderSize, top + kBorderSize, 0.0f};
+	playerExperienceBarFill_->SetTransform(fillTransform);
+	playerExperienceBarFill_->SetSize({(barWidth - kBorderSize * 2.0f) * playerExperienceRate_, kBarHeight - kBorderSize * 2.0f});
+	playerExperienceBarFill_->SetColor({0.16f, 0.72f, 1.0f, 1.0f});
+
+	playerExperienceBarBackground_->Update();
+	playerExperienceBarFill_->Update();
+	playerExperienceTextObject_->GetTransform().translate = {screenWidth * 0.5f, top - 3.0f, 0.0f};
+	playerExperienceTextObject_->GetComponent<TextComponent>()->SetText(
+	    "LV " + std::to_string(level) + "    EXP " + std::to_string(currentExperience) + " / " + std::to_string(requiredExperience));
+}
+
+void BaseScene::DrawPlayerExperienceHud() {
+	if (!isPlayerExperienceHudVisible_ || !playerExperienceBarBackground_ || !playerExperienceBarFill_) return;
+	SpriteCommon::GetInstance()->SetDraw(kBlendModeNormal);
+	playerExperienceBarBackground_->Draw();
+	if (playerExperienceRate_ > 0.0f) playerExperienceBarFill_->Draw();
+	if (playerExperienceTextObject_) playerExperienceTextObject_->Draw2D();
+}
+
+void BaseScene::UpdatePlayerSlotHud() {
+	Player* player = nullptr;
+	for (const auto& object : sceneObjects_) {
+		Player* candidate = object->GetComponent<Player>();
+		if (candidate && candidate->IsEnabled()) {
+			player = candidate;
+			break;
+		}
+	}
+
+	isPlayerSlotHudVisible_ = player != nullptr;
+	if (!player) {
+		playerAttackSlotIconVisible_.fill(false);
+		playerStatusSlotIconVisible_.fill(false);
+		return;
+	}
+
+	auto createSprite = []() {
+		auto sprite = std::make_unique<Sprite>();
+		sprite->Initialize("Resources/human/white.png");
+		return sprite;
+	};
+	auto createLabel = [](const std::string& label) {
+		auto object = std::make_unique<GameObject>();
+		TextComponent* text = object->AddComponent<TextComponent>();
+		text->SetText(label);
+		text->SetFontSize(15.0f);
+		text->SetAnchor(TextComponent::Anchor::CenterRight);
+		text->SetColor({1.0f, 1.0f, 1.0f, 0.9f});
+		return object;
+	};
+	for (int index = 0; index < 5; ++index) {
+		if (!playerAttackSlotBackgroundSprites_[index]) playerAttackSlotBackgroundSprites_[index] = createSprite();
+		if (!playerAttackSlotIconSprites_[index]) playerAttackSlotIconSprites_[index] = createSprite();
+		if (!playerStatusSlotBackgroundSprites_[index]) playerStatusSlotBackgroundSprites_[index] = createSprite();
+		if (!playerStatusSlotIconSprites_[index]) playerStatusSlotIconSprites_[index] = createSprite();
+	}
+	if (!playerAttackSlotLabelObject_) playerAttackSlotLabelObject_ = createLabel("ATTACK");
+	if (!playerStatusSlotLabelObject_) playerStatusSlotLabelObject_ = createLabel("STATUS");
+
+	const float screenWidth = static_cast<float>(Input::GetInstance()->GetClientWidth());
+	constexpr float kRightMargin = 24.0f;
+	constexpr float kTop = 68.0f;
+	constexpr float kLabelWidth = 64.0f;
+	constexpr float kSlotSize = 46.0f;
+	constexpr float kSlotGap = 5.0f;
+	constexpr float kRowGap = 7.0f;
+	constexpr float kInnerMargin = 3.0f;
+	const float slotsWidth = kSlotSize * 5.0f + kSlotGap * 4.0f;
+	const float slotsLeft = (std::max)(kRightMargin + kLabelWidth, screenWidth - kRightMargin - slotsWidth);
+	const float labelRight = slotsLeft - 8.0f;
+	const float attackY = kTop;
+	const float statusY = attackY + kSlotSize + kRowGap;
+	playerAttackSlotLabelObject_->GetTransform().translate = {labelRight, attackY + kSlotSize * 0.5f, 0.0f};
+	playerStatusSlotLabelObject_->GetTransform().translate = {labelRight, statusY + kSlotSize * 0.5f, 0.0f};
+
+	const PlayerStats& stats = player->GetBaseStats();
+	for (int index = 0; index < 5; ++index) {
+		const float slotX = slotsLeft + static_cast<float>(index) * (kSlotSize + kSlotGap);
+		const PlayerAttackSlot& attackSlot = stats.attackSlots[index];
+		const PlayerStatusSlot& statusSlot = stats.statusSlots[index];
+		const bool hasAttack = !attackSlot.attackName.empty();
+		const bool hasStatus = !statusSlot.statusName.empty();
+
+		auto updateBackground = [slotX, kSlotSize](Sprite* sprite, float y, const Vector4& color) {
+			EulerTransform transform = sprite->GetTransform();
+			transform.translate = {slotX, y, 0.0f};
+			sprite->SetTransform(transform);
+			sprite->SetSize({kSlotSize, kSlotSize});
+			sprite->SetColor(color);
+			sprite->Update();
+		};
+		updateBackground(playerAttackSlotBackgroundSprites_[index].get(), attackY,
+		    hasAttack ? (attackSlot.enabled ? Vector4{0.12f, 0.28f, 0.52f, 0.95f} : Vector4{0.18f, 0.20f, 0.24f, 0.75f})
+		              : Vector4{0.05f, 0.06f, 0.08f, 0.82f});
+		updateBackground(playerStatusSlotBackgroundSprites_[index].get(), statusY,
+		    hasStatus ? (statusSlot.enabled ? Vector4{0.10f, 0.42f, 0.25f, 0.95f} : Vector4{0.18f, 0.20f, 0.24f, 0.75f})
+		              : Vector4{0.05f, 0.06f, 0.08f, 0.82f});
+
+		const std::string attackTextureKey = hasAttack ? attackSlot.attackName + "#" + attackSlot.attackLevel : std::string{};
+		const bool attackTextureChanged = playerAttackSlotTextureKeys_[index] != attackTextureKey;
+		if (attackTextureChanged) {
+			playerAttackSlotTextureKeys_[index] = attackTextureKey;
+			playerAttackSlotTexturePaths_[index].clear();
+			if (hasAttack) {
+				const PlayerAttackStats attackStats = LoadPlayerAttackStats(attackSlot.attackName);
+				playerAttackSlotTexturePaths_[index] = attackStats.choiceTextureFilePath;
+				if (attackSlot.attackLevel == "super") {
+					for (const PlayerAttackLevelStats& levelStats : attackStats.levels) {
+						if (levelStats.level == "super") {
+							playerAttackSlotTexturePaths_[index] = levelStats.choiceTextureFilePath;
+							break;
+						}
+					}
+				}
+			}
+		}
+		const std::string statusTextureKey = hasStatus ? statusSlot.statusName + "#" + statusSlot.level : std::string{};
+		const bool statusTextureChanged = playerStatusSlotTextureKeys_[index] != statusTextureKey;
+		if (statusTextureChanged) {
+			playerStatusSlotTextureKeys_[index] = statusTextureKey;
+			playerStatusSlotTexturePaths_[index].clear();
+			if (hasStatus) {
+				const PlayerStatusItemStats statusStats = LoadPlayerStatusItemStats(statusSlot.statusName);
+				playerStatusSlotTexturePaths_[index] = statusStats.levelTextureFilePaths[PlayerStatusSlotLevelToIndex(statusSlot.level)];
+			}
+		}
+		const std::string& attackTexture = playerAttackSlotTexturePaths_[index];
+		const std::string& statusTexture = playerStatusSlotTexturePaths_[index];
+
+		auto updateIcon = [slotX, kSlotSize, kInnerMargin](Sprite* sprite, float y, const std::string& texture, bool enabled) {
+			if (sprite->GetTextureFilePath() != texture) sprite->SetTexture(texture);
+			EulerTransform transform = sprite->GetTransform();
+			transform.translate = {slotX + kInnerMargin, y + kInnerMargin, 0.0f};
+			sprite->SetTransform(transform);
+			sprite->SetSize({kSlotSize - kInnerMargin * 2.0f, kSlotSize - kInnerMargin * 2.0f});
+			sprite->SetColor(enabled ? Vector4{1.0f, 1.0f, 1.0f, 1.0f} : Vector4{0.55f, 0.55f, 0.55f, 0.55f});
+			sprite->Update();
+		};
+		playerAttackSlotIconVisible_[index] = hasAttack && !attackTexture.empty() && std::filesystem::exists(attackTexture);
+		playerStatusSlotIconVisible_[index] = hasStatus && !statusTexture.empty() && std::filesystem::exists(statusTexture);
+		if (playerAttackSlotIconVisible_[index]) updateIcon(playerAttackSlotIconSprites_[index].get(), attackY, attackTexture, attackSlot.enabled);
+		if (playerStatusSlotIconVisible_[index]) updateIcon(playerStatusSlotIconSprites_[index].get(), statusY, statusTexture, statusSlot.enabled);
+	}
+}
+
+void BaseScene::DrawPlayerSlotHud() {
+	if (!isPlayerSlotHudVisible_) return;
+	SpriteCommon::GetInstance()->SetDraw(kBlendModeNormal);
+	for (int index = 0; index < 5; ++index) {
+		playerAttackSlotBackgroundSprites_[index]->Draw();
+		if (playerAttackSlotIconVisible_[index]) playerAttackSlotIconSprites_[index]->Draw();
+		playerStatusSlotBackgroundSprites_[index]->Draw();
+		if (playerStatusSlotIconVisible_[index]) playerStatusSlotIconSprites_[index]->Draw();
+	}
+	if (playerAttackSlotLabelObject_) playerAttackSlotLabelObject_->Draw2D();
+	if (playerStatusSlotLabelObject_) playerStatusSlotLabelObject_->Draw2D();
 }
 
 /// <summary>
@@ -902,7 +1292,7 @@ void BaseScene::UpdateEditorObjectPicking() {
 	if (!input->TriggerMouseButton(kLeftMouseButton)) {
 		return;
 	}
-	if (ImGui::GetIO().WantCaptureMouse || ImGuizmo::IsOver() || ImGuizmo::IsUsing()) {
+	if (ImGuizmo::IsOver() || ImGuizmo::IsUsing()) {
 		return;
 	}
 
@@ -911,16 +1301,23 @@ void BaseScene::UpdateEditorObjectPicking() {
 		return;
 	}
 
-	const float width = static_cast<float>(input->GetClientWidth());
-	const float height = static_cast<float>(input->GetClientHeight());
+	ImGuiViewport* mainViewport = ImGui::GetMainViewport();
+	const ImVec2 gameViewPosition = ImGuiManager::GetInstance()->GetGameViewContentPosition();
+	const ImVec2 gameViewSize = ImGuiManager::GetInstance()->GetGameViewContentSize();
+	const float viewportOriginX = mainViewport ? mainViewport->Pos.x : 0.0f;
+	const float viewportOriginY = mainViewport ? mainViewport->Pos.y : 0.0f;
+	const float viewLeft = gameViewSize.x > 1.0f ? gameViewPosition.x - viewportOriginX : 0.0f;
+	const float viewTop = gameViewSize.y > 1.0f ? gameViewPosition.y - viewportOriginY : 0.0f;
+	const float width = gameViewSize.x > 1.0f ? gameViewSize.x : static_cast<float>(input->GetClientWidth());
+	const float height = gameViewSize.y > 1.0f ? gameViewSize.y : static_cast<float>(input->GetClientHeight());
 	const float mouseX = static_cast<float>(input->GetMouseClientX());
 	const float mouseY = static_cast<float>(input->GetMouseClientY());
-	if (mouseX < 0.0f || mouseX > width || mouseY < 0.0f || mouseY > height) {
+	if (mouseX < viewLeft || mouseX > viewLeft + width || mouseY < viewTop || mouseY > viewTop + height) {
 		return;
 	}
 
-	const float ndcX = (mouseX / width) * 2.0f - 1.0f;
-	const float ndcY = 1.0f - (mouseY / height) * 2.0f;
+	const float ndcX = ((mouseX - viewLeft) / width) * 2.0f - 1.0f;
+	const float ndcY = 1.0f - ((mouseY - viewTop) / height) * 2.0f;
 	const Matrix4x4 inverseViewProjection = Inverse(camera->GetViewProjectionMatrix());
 	const Vector3 nearPoint = BaseSceneEditorGeometry::TransformCoord({ndcX, ndcY, 0.0f}, inverseViewProjection);
 	const Vector3 farPoint = BaseSceneEditorGeometry::TransformCoord({ndcX, ndcY, 1.0f}, inverseViewProjection);
@@ -1087,8 +1484,56 @@ bool BaseScene::BuildLevelUpChoices(Player* player) {
 	std::vector<LevelUpChoice> candidates;
 	std::vector<std::string> equippedAttacks;
 	std::vector<std::string> equippedStatuses;
+	std::unordered_set<std::string> otherPlayerInitialAttacks;
 	int emptyAttackSlot = -1;
 	int emptyStatusSlot = -1;
+	for (const std::string& playerTypeName : LoadPlayerTypeNames()) {
+		if (playerTypeName == player->GetPlayerTypeName()) {
+			continue;
+		}
+		const PlayerStats otherPlayerStats = LoadPlayerStats(playerTypeName);
+		for (const PlayerAttackSlot& slot : otherPlayerStats.attackSlots) {
+			if (slot.enabled && !slot.attackName.empty()) {
+				otherPlayerInitialAttacks.insert(slot.attackName);
+			}
+		}
+	}
+	auto getAttackDescription = [](const std::string& attackName, const std::string& targetLevel, const std::string& fallback) {
+		const PlayerAttackStats attackStats = LoadPlayerAttackStats(attackName);
+		for (const PlayerAttackLevelStats& levelStats : attackStats.levels) {
+			if (levelStats.level == targetLevel && !levelStats.choiceDescription.empty()) {
+				return levelStats.choiceDescription;
+			}
+		}
+		return fallback;
+	};
+	auto getStatusDescription = [](const std::string& statusName, int targetLevelIndex, const std::string& fallback) {
+		const PlayerStatusItemStats statusStats = LoadPlayerStatusItemStats(statusName);
+		if (targetLevelIndex >= 0 && targetLevelIndex < static_cast<int>(statusStats.levelDescriptions.size()) &&
+		    !statusStats.levelDescriptions[targetLevelIndex].empty()) {
+			return statusStats.levelDescriptions[targetLevelIndex];
+		}
+		return fallback;
+	};
+	auto getAttackTexture = [](const std::string& attackName, const std::string& targetLevel) {
+		const PlayerAttackStats attackStats = LoadPlayerAttackStats(attackName);
+		if (targetLevel != "super") {
+			return attackStats.choiceTextureFilePath;
+		}
+		for (const PlayerAttackLevelStats& levelStats : attackStats.levels) {
+			if (levelStats.level == targetLevel) {
+				return levelStats.choiceTextureFilePath;
+			}
+		}
+		return std::string{};
+	};
+	auto getStatusTexture = [](const std::string& statusName, int targetLevelIndex) {
+		const PlayerStatusItemStats statusStats = LoadPlayerStatusItemStats(statusName);
+		if (targetLevelIndex >= 0 && targetLevelIndex < static_cast<int>(statusStats.levelTextureFilePaths.size())) {
+			return statusStats.levelTextureFilePaths[targetLevelIndex];
+		}
+		return std::string{};
+	};
 
 	for (int index = 0; index < static_cast<int>(stats.attackSlots.size()); ++index) {
 		const PlayerAttackSlot& slot = stats.attackSlots[index];
@@ -1099,7 +1544,9 @@ bool BaseScene::BuildLevelUpChoices(Player* player) {
 		equippedAttacks.push_back(slot.attackName);
 		const int level = std::atoi(slot.attackLevel.c_str());
 		if (slot.attackLevel != "super" && level >= 1 && level < 5) {
-			candidates.push_back({LevelUpChoiceType::AttackLevelUp, slot.attackName, slot.attackName, "Attack level " + slot.attackLevel + " -> " + std::to_string(level + 1), index});
+			const std::string targetLevel = std::to_string(level + 1);
+			const std::string fallback = "Attack level " + slot.attackLevel + " -> " + targetLevel;
+			candidates.push_back({LevelUpChoiceType::AttackLevelUp, slot.attackName, slot.attackName, getAttackDescription(slot.attackName, targetLevel, fallback), index, getAttackTexture(slot.attackName, targetLevel)});
 		}
 		if (slot.attackLevel == "5") {
 			const PlayerAttackStats attackStats = LoadPlayerAttackStats(slot.attackName);
@@ -1115,7 +1562,7 @@ bool BaseScene::BuildLevelUpChoices(Player* player) {
 				}
 			}
 			if (conditionMet) {
-				candidates.push_back({LevelUpChoiceType::AttackSuper, slot.attackName, slot.attackName + " SUPER", "Promote attack level 5 -> super", index});
+				candidates.push_back({LevelUpChoiceType::AttackSuper, slot.attackName, slot.attackName + " SUPER", getAttackDescription(slot.attackName, "super", "Promote attack level 5 -> super"), index, getAttackTexture(slot.attackName, "super")});
 			}
 		}
 	}
@@ -1129,21 +1576,24 @@ bool BaseScene::BuildLevelUpChoices(Player* player) {
 		equippedStatuses.push_back(slot.statusName);
 		const int level = std::atoi(slot.level.c_str());
 		if (level >= 1 && level < 5) {
-			candidates.push_back({LevelUpChoiceType::StatusLevelUp, slot.statusName, slot.statusName, "Status level " + slot.level + " -> " + std::to_string(level + 1), index});
+			const std::string targetLevel = std::to_string(level + 1);
+			const std::string fallback = "Status level " + slot.level + " -> " + targetLevel;
+			candidates.push_back({LevelUpChoiceType::StatusLevelUp, slot.statusName, slot.statusName, getStatusDescription(slot.statusName, level, fallback), index, getStatusTexture(slot.statusName, level)});
 		}
 	}
 
 	if (emptyAttackSlot >= 0) {
 		for (const std::string& attackName : LoadPlayerAttackNames()) {
-			if (std::find(equippedAttacks.begin(), equippedAttacks.end(), attackName) == equippedAttacks.end()) {
-				candidates.push_back({LevelUpChoiceType::NewAttack, attackName, attackName, "Add a new attack at level 1", emptyAttackSlot});
+			if (std::find(equippedAttacks.begin(), equippedAttacks.end(), attackName) == equippedAttacks.end() &&
+			    !otherPlayerInitialAttacks.contains(attackName)) {
+				candidates.push_back({LevelUpChoiceType::NewAttack, attackName, attackName, getAttackDescription(attackName, "1", "Add a new attack at level 1"), emptyAttackSlot, getAttackTexture(attackName, "1")});
 			}
 		}
 	}
 	if (emptyStatusSlot >= 0) {
 		for (const std::string& statusName : LoadPlayerStatusItemNames()) {
 			if (std::find(equippedStatuses.begin(), equippedStatuses.end(), statusName) == equippedStatuses.end()) {
-				candidates.push_back({LevelUpChoiceType::NewStatus, statusName, statusName, "Add a new status at level 1", emptyStatusSlot});
+				candidates.push_back({LevelUpChoiceType::NewStatus, statusName, statusName, getStatusDescription(statusName, 0, "Add a new status at level 1"), emptyStatusSlot, getStatusTexture(statusName, 0)});
 			}
 		}
 	}
@@ -1207,6 +1657,7 @@ void BaseScene::EnsureLevelUpSelectionSprites() {
 	for (int index = 0; index < 3; ++index) {
 		levelUpChoiceBorderSprites_[index] = createSprite();
 		levelUpChoiceSprites_[index] = createSprite();
+		levelUpChoiceIconSprites_[index] = createSprite();
 	}
 
 	auto createTextObject = [](const std::string& text, float fontSize) {
@@ -1275,9 +1726,22 @@ void BaseScene::DrawLevelUpSelection2D() {
 			color.z = (std::min)(1.0f, color.z + 0.14f);
 		}
 		drawSprite(levelUpChoiceSprites_[index].get(), cardX, cardY, cardWidth, cardHeight, color);
+		const std::string& textureFilePath = levelUpChoices_[index].textureFilePath;
+		const bool hasTexture = !textureFilePath.empty() && std::filesystem::exists(textureFilePath);
+		if (hasTexture) {
+			Sprite* iconSprite = levelUpChoiceIconSprites_[index].get();
+			if (iconSprite->GetTextureFilePath() != textureFilePath) {
+				iconSprite->SetTexture(textureFilePath);
+			}
+			const float iconMargin = 18.0f;
+			const float iconHeight = (std::min)(cardHeight * 0.43f, 125.0f);
+			drawSprite(iconSprite, cardX + iconMargin, cardY + iconMargin, cardWidth - iconMargin * 2.0f, iconHeight,
+			    selected ? Vector4{1.0f, 1.0f, 1.0f, 1.0f} : Vector4{0.88f, 0.88f, 0.88f, 1.0f});
+		}
 
 		GameObject* textObject = levelUpChoiceTextObjects_[index].get();
-		textObject->GetTransform().translate = {cardX + cardWidth * 0.5f, cardY + cardHeight * 0.5f, 0.0f};
+		const float textCenterY = hasTexture ? cardY + cardHeight * 0.72f : cardY + cardHeight * 0.5f;
+		textObject->GetTransform().translate = {cardX + cardWidth * 0.5f, textCenterY, 0.0f};
 		TextComponent* text = textObject->GetComponent<TextComponent>();
 		text->SetText(levelUpChoices_[index].title + "\n\n" + levelUpChoices_[index].description);
 		text->SetColor(selected ? Vector4{1.0f, 0.92f, 0.55f, 1.0f} : Vector4{1.0f, 1.0f, 1.0f, 1.0f});

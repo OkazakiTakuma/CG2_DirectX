@@ -96,8 +96,5 @@ private:
 	Vector2 textureLeftTop = {0.0f, 0.0f};
 	Vector2 textureSize = {512.0f, 512.0f};
 
-	/// <summary>
-	/// AdjustTextureSize の処理を行います。
-	/// </summary>
 	void AdjustTextureSize();
 };

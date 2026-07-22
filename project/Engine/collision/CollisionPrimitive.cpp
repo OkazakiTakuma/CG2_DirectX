@@ -6,34 +6,14 @@
 namespace {
 constexpr float kEpsilon = 0.00001f;
 
-/// <summary>
-/// AbsDot の処理を行います。
-/// </summary>
-/// <param name="a">a に使用する値を指定します。</param>
-/// <param name="b">b に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 float AbsDot(const Vector3& a, const Vector3& b) {
 	return std::fabs(Dot(a, b));
 }
 
-/// <summary>
-/// PointOnLine を取得します。
-/// </summary>
-/// <param name="origin">origin に使用する値を指定します。</param>
-/// <param name="diff">diff に使用する値を指定します。</param>
-/// <param name="t">t に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 Vector3 GetPointOnLine(const Vector3& origin, const Vector3& diff, float t) {
 	return origin + t * diff;
 }
 
-/// <summary>
-/// IsPointInsideTriangle の処理を行います。
-/// </summary>
-/// <param name="point">point に使用する値を指定します。</param>
-/// <param name="triangle">triangle に使用する値を指定します。</param>
-/// <param name="normal">normal に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsPointInsideTriangle(const Vector3& point, const TriangleColliderShape& triangle, const Vector3& normal) {
 	for (int i = 0; i < 3; ++i) {
 		const Vector3& a = triangle.vertices[i];
@@ -50,12 +30,6 @@ bool IsPointInsideTriangle(const Vector3& point, const TriangleColliderShape& tr
 /// <summary>
 /// AABBWithParamRange の交差判定を行います。
 /// </summary>
-/// <param name="aabb">aabb に使用する値を指定します。</param>
-/// <param name="origin">origin に使用する値を指定します。</param>
-/// <param name="diff">diff に使用する値を指定します。</param>
-/// <param name="minT">範囲判定に使用する値を指定します。</param>
-/// <param name="maxT">範囲判定に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IntersectAABBWithParamRange(const AABBColliderShape& aabb, const Vector3& origin, const Vector3& diff, float minT, float maxT) {
 	float tMin = minT;
 	float tMax = maxT;
@@ -87,12 +61,6 @@ bool IntersectAABBWithParamRange(const AABBColliderShape& aabb, const Vector3& o
 	return true;
 }
 
-/// <summary>
-/// ToOBBLocalPoint の処理を行います。
-/// </summary>
-/// <param name="obb">obb に使用する値を指定します。</param>
-/// <param name="point">point に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 Vector3 ToOBBLocalPoint(const OBBColliderShape& obb, const Vector3& point) {
 	const Vector3 diff = point - obb.center;
 	return {
@@ -102,13 +70,6 @@ Vector3 ToOBBLocalPoint(const OBBColliderShape& obb, const Vector3& point) {
 	};
 }
 
-/// <summary>
-/// IsSeparatedOnAxis の処理を行います。
-/// </summary>
-/// <param name="a">a に使用する値を指定します。</param>
-/// <param name="b">b に使用する値を指定します。</param>
-/// <param name="axis">axis に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsSeparatedOnAxis(const OBBColliderShape& a, const OBBColliderShape& b, const Vector3& axis) {
 	const float axisLength = Length(axis);
 	if (axisLength <= kEpsilon) {
@@ -134,9 +95,6 @@ bool IsSeparatedOnAxis(const OBBColliderShape& a, const OBBColliderShape& b, con
 /// <summary>
 /// SphereToSphere の当たり判定を行います。
 /// </summary>
-/// <param name="a">a に使用する値を指定します。</param>
-/// <param name="b">b に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsCollisionSphereToSphere(const SphereColliderShape& a, const SphereColliderShape& b) {
 	const float radius = a.radius + b.radius;
 	const Vector3 diff = b.center - a.center;
@@ -146,9 +104,6 @@ bool IsCollisionSphereToSphere(const SphereColliderShape& a, const SphereCollide
 /// <summary>
 /// SphereToPlane の当たり判定を行います。
 /// </summary>
-/// <param name="sphere">sphere に使用する値を指定します。</param>
-/// <param name="plane">plane に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsCollisionSphereToPlane(const SphereColliderShape& sphere, const PlaneColliderShape& plane) {
 	const Vector3 normal = Normalize(plane.normal);
 	const float distance = std::fabs(Dot(sphere.center, normal) - plane.distance);
@@ -158,9 +113,6 @@ bool IsCollisionSphereToPlane(const SphereColliderShape& sphere, const PlaneColl
 /// <summary>
 /// SegmentToPlane の当たり判定を行います。
 /// </summary>
-/// <param name="segment">segment に使用する値を指定します。</param>
-/// <param name="plane">plane に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsCollisionSegmentToPlane(const SegmentColliderShape& segment, const PlaneColliderShape& plane) {
 	const Vector3 normal = Normalize(plane.normal);
 	const float denominator = Dot(normal, segment.diff);
@@ -174,9 +126,6 @@ bool IsCollisionSegmentToPlane(const SegmentColliderShape& segment, const PlaneC
 /// <summary>
 /// LineToPlane の当たり判定を行います。
 /// </summary>
-/// <param name="line">line に使用する値を指定します。</param>
-/// <param name="plane">plane に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsCollisionLineToPlane(const LineColliderShape& line, const PlaneColliderShape& plane) {
 	const Vector3 normal = Normalize(plane.normal);
 	return std::fabs(Dot(normal, line.diff)) >= kEpsilon;
@@ -185,9 +134,6 @@ bool IsCollisionLineToPlane(const LineColliderShape& line, const PlaneColliderSh
 /// <summary>
 /// RayToPlane の当たり判定を行います。
 /// </summary>
-/// <param name="ray">ray に使用する値を指定します。</param>
-/// <param name="plane">plane に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsCollisionRayToPlane(const RayColliderShape& ray, const PlaneColliderShape& plane) {
 	const Vector3 normal = Normalize(plane.normal);
 	const float denominator = Dot(normal, ray.diff);
@@ -201,9 +147,6 @@ bool IsCollisionRayToPlane(const RayColliderShape& ray, const PlaneColliderShape
 /// <summary>
 /// TriangleToSegment の当たり判定を行います。
 /// </summary>
-/// <param name="triangle">triangle に使用する値を指定します。</param>
-/// <param name="segment">segment に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsCollisionTriangleToSegment(const TriangleColliderShape& triangle, const SegmentColliderShape& segment) {
 	const Vector3 edge01 = triangle.vertices[1] - triangle.vertices[0];
 	const Vector3 edge02 = triangle.vertices[2] - triangle.vertices[0];
@@ -226,9 +169,6 @@ bool IsCollisionTriangleToSegment(const TriangleColliderShape& triangle, const S
 /// <summary>
 /// AABBToAABB の当たり判定を行います。
 /// </summary>
-/// <param name="a">a に使用する値を指定します。</param>
-/// <param name="b">b に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsCollisionAABBToAABB(const AABBColliderShape& a, const AABBColliderShape& b) {
 	return a.min.x <= b.max.x && a.max.x >= b.min.x &&
 	       a.min.y <= b.max.y && a.max.y >= b.min.y &&
@@ -238,9 +178,6 @@ bool IsCollisionAABBToAABB(const AABBColliderShape& a, const AABBColliderShape& 
 /// <summary>
 /// SphereToAABB の当たり判定を行います。
 /// </summary>
-/// <param name="sphere">sphere に使用する値を指定します。</param>
-/// <param name="aabb">aabb に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsCollisionSphereToAABB(const SphereColliderShape& sphere, const AABBColliderShape& aabb) {
 	const Vector3 closestPoint{
 	    std::clamp(sphere.center.x, aabb.min.x, aabb.max.x),
@@ -254,9 +191,6 @@ bool IsCollisionSphereToAABB(const SphereColliderShape& sphere, const AABBCollid
 /// <summary>
 /// AABBToSegment の当たり判定を行います。
 /// </summary>
-/// <param name="aabb">aabb に使用する値を指定します。</param>
-/// <param name="segment">segment に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsCollisionAABBToSegment(const AABBColliderShape& aabb, const SegmentColliderShape& segment) {
 	return IntersectAABBWithParamRange(aabb, segment.origin, segment.diff, 0.0f, 1.0f);
 }
@@ -264,9 +198,6 @@ bool IsCollisionAABBToSegment(const AABBColliderShape& aabb, const SegmentCollid
 /// <summary>
 /// AABBToLine の当たり判定を行います。
 /// </summary>
-/// <param name="aabb">aabb に使用する値を指定します。</param>
-/// <param name="line">line に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsCollisionAABBToLine(const AABBColliderShape& aabb, const LineColliderShape& line) {
 	return IntersectAABBWithParamRange(aabb, line.origin, line.diff, -std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity());
 }
@@ -274,9 +205,6 @@ bool IsCollisionAABBToLine(const AABBColliderShape& aabb, const LineColliderShap
 /// <summary>
 /// OBBToSphere の当たり判定を行います。
 /// </summary>
-/// <param name="obb">obb に使用する値を指定します。</param>
-/// <param name="sphere">sphere に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsCollisionOBBToSphere(const OBBColliderShape& obb, const SphereColliderShape& sphere) {
 	const Vector3 sphereCenterInOBB = ToOBBLocalPoint(obb, sphere.center);
 	const AABBColliderShape localAABB{{-obb.halfSize.x, -obb.halfSize.y, -obb.halfSize.z}, obb.halfSize};
@@ -287,9 +215,6 @@ bool IsCollisionOBBToSphere(const OBBColliderShape& obb, const SphereColliderSha
 /// <summary>
 /// OBBToLine の当たり判定を行います。
 /// </summary>
-/// <param name="obb">obb に使用する値を指定します。</param>
-/// <param name="line">line に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsCollisionOBBToLine(const OBBColliderShape& obb, const LineColliderShape& line) {
 	const Vector3 localOrigin = ToOBBLocalPoint(obb, line.origin);
 	const Vector3 localEnd = ToOBBLocalPoint(obb, line.origin + line.diff);
@@ -301,9 +226,6 @@ bool IsCollisionOBBToLine(const OBBColliderShape& obb, const LineColliderShape& 
 /// <summary>
 /// OBBToOBB の当たり判定を行います。
 /// </summary>
-/// <param name="a">a に使用する値を指定します。</param>
-/// <param name="b">b に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool IsCollisionOBBToOBB(const OBBColliderShape& a, const OBBColliderShape& b) {
 	for (int axisIndex = 0; axisIndex < 3; ++axisIndex) {
 		if (IsSeparatedOnAxis(a, b, a.orientation[axisIndex])) {

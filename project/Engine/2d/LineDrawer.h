@@ -12,7 +12,6 @@ public:
     /// <summary>
     /// 共有インスタンスを取得します。
     /// </summary>
-    /// <returns>処理結果を返します。</returns>
     static LineDrawer* GetInstance();
 
     /// <summary>
@@ -24,11 +23,6 @@ public:
     /// </summary>
     void Finalize();
 
-    /// <summary>
-    /// DrawLine の処理を行います。
-    /// </summary>
-    /// <param name="p1">p1 に使用する値を指定します。</param>
-    /// <param name="p2">p2 に使用する値を指定します。</param>
     /// <param name="color">色を指定します。</param>
     void DrawLine(const Vector3& p1, const Vector3& p2, const Vector4& color, bool ignoreDepth = false);
 

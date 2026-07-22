@@ -24,6 +24,20 @@ inline EnemyStats MakeDefaultStats() {
 	return {};
 }
 
+inline const char* BehaviorToString(EnemyBehaviorType behavior) {
+	switch (behavior) {
+	case EnemyBehaviorType::Shooter: return "Shooter";
+	case EnemyBehaviorType::Charger: return "Charger";
+	default: return "Chase";
+	}
+}
+
+inline EnemyBehaviorType BehaviorFromString(const std::string& behavior) {
+	if (behavior == "Shooter") return EnemyBehaviorType::Shooter;
+	if (behavior == "Charger") return EnemyBehaviorType::Charger;
+	return EnemyBehaviorType::Chase;
+}
+
 inline nlohmann::json ToJson(const EnemyStats& stats) {
 	nlohmann::json json;
 	json["health"] = stats.health;
@@ -34,6 +48,18 @@ inline nlohmann::json ToJson(const EnemyStats& stats) {
 	json["spawnsPerMinute"] = stats.spawnsPerMinute;
 	json["experience"] = stats.experience;
 	json["experienceModel"] = stats.experienceModelFilePath;
+	json["behavior"] = BehaviorToString(stats.behavior);
+	json["preferredDistance"] = stats.preferredDistance;
+	json["distanceTolerance"] = stats.distanceTolerance;
+	json["projectileSpeed"] = stats.projectileSpeed;
+	json["projectileSize"] = stats.projectileSize;
+	json["projectileLifeTime"] = stats.projectileLifeTime;
+	json["chargeTriggerDistance"] = stats.chargeTriggerDistance;
+	json["chargeDuration"] = stats.chargeDuration;
+	json["dashSpeed"] = stats.dashSpeed;
+	json["dashDuration"] = stats.dashDuration;
+	json["dashRecovery"] = stats.dashRecovery;
+	json["sizeScale"] = stats.sizeScale;
 	return json;
 }
 
@@ -51,6 +77,19 @@ inline EnemyStats FromJson(const nlohmann::json& json, const EnemyStats& fallbac
 	stats.spawnsPerMinute = (std::max)(0.0f, json.value("spawnsPerMinute", stats.spawnsPerMinute));
 	stats.experience = (std::max)(0, json.value("experience", stats.experience));
 	stats.experienceModelFilePath = json.value("experienceModel", stats.experienceModelFilePath);
+	stats.behavior = BehaviorFromString(json.value("behavior", std::string(BehaviorToString(stats.behavior))));
+	if (stats.shoots && !json.contains("behavior")) stats.behavior = EnemyBehaviorType::Shooter;
+	stats.preferredDistance = (std::max)(0.0f, json.value("preferredDistance", stats.preferredDistance));
+	stats.distanceTolerance = (std::max)(0.0f, json.value("distanceTolerance", stats.distanceTolerance));
+	stats.projectileSpeed = (std::max)(0.0f, json.value("projectileSpeed", stats.projectileSpeed));
+	stats.projectileSize = (std::max)(0.01f, json.value("projectileSize", stats.projectileSize));
+	stats.projectileLifeTime = (std::max)(0.0f, json.value("projectileLifeTime", stats.projectileLifeTime));
+	stats.chargeTriggerDistance = (std::max)(0.0f, json.value("chargeTriggerDistance", stats.chargeTriggerDistance));
+	stats.chargeDuration = (std::max)(0.0f, json.value("chargeDuration", stats.chargeDuration));
+	stats.dashSpeed = (std::max)(0.0f, json.value("dashSpeed", stats.dashSpeed));
+	stats.dashDuration = (std::max)(0.0f, json.value("dashDuration", stats.dashDuration));
+	stats.dashRecovery = (std::max)(0.0f, json.value("dashRecovery", stats.dashRecovery));
+	stats.sizeScale = (std::max)(0.1f, json.value("sizeScale", stats.sizeScale));
 	return stats;
 }
 

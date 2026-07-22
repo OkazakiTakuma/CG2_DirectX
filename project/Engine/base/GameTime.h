@@ -2,14 +2,17 @@
 
 #include <chrono>
 
+/// <summary>フレーム間隔と一時停止状態をアプリケーション全体で共有します。</summary>
 class GameTime final {
 public:
+	/// <summary>計測基準時刻と初期フレーム時間を設定します。</summary>
 	static void Initialize() {
 		previousTime_ = Clock::now();
 		deltaTime_ = 1.0f / 60.0f;
 		isInitialized_ = true;
 	}
 
+	/// <summary>前フレームからの経過時間を計測します。</summary>
 	static void Update() {
 		const Clock::time_point now = Clock::now();
 		if (!isInitialized_) {
@@ -20,7 +23,7 @@ public:
 		const float elapsed = std::chrono::duration<float>(now - previousTime_).count();
 		previousTime_ = now;
 		if (elapsed > 0.0f) {
-			// Prevent a debugger pause or window operation from advancing the game excessively.
+			// デバッガ停止やウィンドウ操作後に、ゲーム時間が一度に進みすぎるのを防ぐ。
 			deltaTime_ = elapsed > 0.25f ? 0.25f : elapsed;
 		}
 	}
@@ -32,9 +35,14 @@ public:
 	static float GetFrameScale60() { return GetDeltaTime() * 60.0f; }
 
 private:
+	/// <summary>システム時刻の変更に影響されない経過時間計測用クロックです。</summary>
 	using Clock = std::chrono::steady_clock;
+	/// <summary>直前のUpdateを実行した時刻です。</summary>
 	static inline Clock::time_point previousTime_{};
+	/// <summary>前フレームからの経過秒数です。</summary>
 	static inline float deltaTime_ = 1.0f / 60.0f;
+	/// <summary>初回計測が完了しているかを表します。</summary>
 	static inline bool isInitialized_ = false;
+	/// <summary>ゲーム内時間を停止しているかを表します。</summary>
 	static inline bool isPaused_ = false;
 };

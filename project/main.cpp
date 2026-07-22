@@ -5,7 +5,6 @@
 /// <summary>
 /// アプリケーションのエントリーポイントとしてゲームを起動し、終了まで実行します。
 /// </summary>
-/// <returns>処理結果を返します。</returns>
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	std::unique_ptr<FlameWork> game = std::make_unique<Game>();

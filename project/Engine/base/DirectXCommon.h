@@ -13,7 +13,6 @@
 #include <dxcapi.h>
 #include <dxgi1_6.h>
 #include <format>
-#include <thread>
 #include <wrl.h>
 #include <xaudio2.h>
 #pragma comment(lib, "xaudio2.lib")
@@ -37,10 +36,6 @@ public:
 	/// <summary>
 	/// DescriptorHeap を作成し、利用できる状態にします。
 	/// </summary>
-	/// <param name="type">type に使用する値を指定します。</param>
-	/// <param name="numDescriptors">numDescriptors に使用する値を指定します。</param>
-	/// <param name="shaderVisible">shaderVisible に使用する値を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors, bool shaderVisible);
 
 	/// <summary>
@@ -49,12 +44,10 @@ public:
 	/// <param name="winApp">ウィンドウ管理オブジェクトを指定します。</param>
 	void Initialize(WinApp* winApp);
 	/// <summary>
-	/// PreDraw の処理を行います。
+	/// 描画に使用するバックバッファの完了を待ち、そのフレーム用のコマンド記録を開始します。
 	/// </summary>
+	void BeginFrame();
 	void PreDraw();
-	/// <summary>
-	/// PostDraw の処理を行います。
-	/// </summary>
 	void PostDraw();
 	void ResizeIfNeeded();
 	int32_t GetRenderWidth() const { return renderWidth_; }
@@ -62,23 +55,16 @@ public:
 	/// <summary>
 	/// 指定された HLSL シェーダーをコンパイルします。
 	/// </summary>
-	/// <param name="filepath">読み込みまたは保存に使用するファイルパスを指定します。</param>
-	/// <param name="profile">profile に使用する値を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(const std::wstring& filepath, const wchar_t* profile);
 	Microsoft::WRL::ComPtr<IDxcBlob> TryCompileShader(const std::wstring& filepath, const wchar_t* profile, std::string& errorMessage);
 	void FlushGPU() { WaitForGPU(); }
 	/// <summary>
 	/// BufferResource を作成し、利用できる状態にします。
 	/// </summary>
-	/// <param name="sizeInBytes">sizeInBytes に使用する値を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferResource(size_t sizeInBytes);
 	/// <summary>
 	/// TextureResource を作成し、利用できる状態にします。
 	/// </summary>
-	/// <param name="metaData">metaData に使用する値を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metaData);
 
 	Microsoft::WRL::ComPtr<ID3D12Device> GetDevice() { return device.Get(); }
@@ -86,52 +72,31 @@ public:
 	IDxcUtils* GetDxcUtils() { return dxcUtils.Get(); }
 	IDxcIncludeHandler* GetIncludeHandler() { return includeHandler.Get(); }
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetCommandList() { return commandList.Get(); }
-	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> GetCommandAllocator() { return commandAllocator.Get(); }
+	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> GetCommandAllocator() {
+		return frameResources_[currentFrameIndex_].commandAllocator.Get();
+	}
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> GetCommandQueue() { return commandQueue.Get(); }
 	size_t GetSwapChainResourceCount() const { return _countof(swapChainResources); }
 
 
-	/// <summary>
-	/// UploadTextureData の処理を行います。
-	/// </summary>
-	/// <param name="texture">texture に使用する値を指定します。</param>
-	/// <param name="mipImages">mipImages に使用する値を指定します。</param>
 	void UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Resource> texture, const DirectX::ScratchImage& mipImages);
 
-	/// <summary>
-	/// CPUDescriptorHandle を取得します。
-	/// </summary>
-	/// <param name="descriptorHeap">descriptorHeap に使用する値を指定します。</param>
-	/// <param name="descriptorSize">descriptorSize に使用する値を指定します。</param>
 	/// <param name="index">対象要素のインデックスを指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index);
 
-	/// <summary>
-	/// GPUDescriptorHandle を取得します。
-	/// </summary>
-	/// <param name="descriptorHeap">descriptorHeap に使用する値を指定します。</param>
-	/// <param name="descriptorSize">descriptorSize に使用する値を指定します。</param>
 	/// <param name="index">対象要素のインデックスを指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index);
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetRTVDescriptorHeap() { return rtvDescriptorHeap; }
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetDSVDescriptorHeap() { return dsvDescriptorHeap; }
-	/// <summary>
-	/// Release の処理を行います。
-	/// </summary>
 	void Release();
 
 	/// <summary>
 	/// RenderTextureResource を作成し、利用できる状態にします。
 	/// </summary>
-	/// <param name="device">device に使用する値を指定します。</param>
 	/// <param name="width">幅を指定します。</param>
 	/// <param name="height">高さを指定します。</param>
-	/// <param name="format">format に使用する値を指定します。</param>
 	/// <param name="color">色を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateRenderTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, int32_t width, int32_t height, DXGI_FORMAT format, const Vector4 color);
 
 private:
@@ -186,6 +151,9 @@ private:
 	/// </summary>
 	void CreateScissorRect();
 	void WaitForGPU();
+	void WaitForFrame(uint32_t frameIndex);
+	void WaitForFenceValue(uint64_t waitValue);
+	void LimitFrameRate();
 	void ResizeBackBuffers(int32_t width, int32_t height);
 
 	/// <summary>
@@ -198,22 +166,18 @@ private:
 	/// </summary>
 	void CreateXAudio2();
 
-	/// <summary>
-	/// InitializeFixFPS の処理を行います。
-	/// </summary>
-	void InitializeFixFPS();
-
-	/// <summary>
-	/// UpdateFixFPS の処理を行います。
-	/// </summary>
-	void UpdateFixFPS();
-
-
 	WinApp* winApp = nullptr;
+	static constexpr uint32_t kFrameCount = 2;
+	struct FrameResource {
+		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandAllocator;
+		uint64_t fenceValue = 0;
+	};
 
 	Microsoft::WRL::ComPtr<IDXGIFactory6> dxgiFactory = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Device> device = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandAllocator = nullptr;
+	std::array<FrameResource, kFrameCount> frameResources_{};
+	uint32_t currentFrameIndex_ = 0;
+	bool frameStarted_ = false;
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList = nullptr;
 	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain = nullptr;
@@ -226,9 +190,11 @@ private:
 	uint32_t descroptorSizeRTV;
 	uint32_t descroptorSizeDSV;
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
-	Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources[2] = {nullptr};
+	Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources[kFrameCount] = {nullptr};
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence = nullptr;
-	uint16_t fenceValue = 0;
+	uint64_t fenceValue = 0;
+	uint64_t lastSubmittedFenceValue_ = 0;
+	std::chrono::steady_clock::time_point nextFrameTime_{};
 	HANDLE fenceEvent = nullptr;
 	D3D12_VIEWPORT viewport{};
 	D3D12_RECT scissorRect{};
@@ -237,11 +203,10 @@ private:
 	Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler = nullptr;
 	Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils = nullptr;
 	Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler = nullptr;
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[kFrameCount];
 
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
 
-	std::chrono::steady_clock::time_point reference_;
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
 	IXAudio2MasteringVoice* masteringVoice = nullptr;
 };

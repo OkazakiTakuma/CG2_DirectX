@@ -10,6 +10,7 @@ namespace {
 constexpr float kEpsilon = 0.00001f;
 
 Vector4 LerpColor(const Vector4& from, const Vector4& to, float t) {
+	// 軌跡上の位置と寿命に応じた色を成分ごとに補間する。
 	t = (std::clamp)(t, 0.0f, 1.0f);
 	return {
 	    from.x + (to.x - from.x) * t,
@@ -26,6 +27,7 @@ TrailRenderer* TrailRenderer::GetInstance() {
 }
 
 void TrailRenderer::Initialize(DirectXCommon* dxCommon) {
+	// 最大頂点数分の動的バッファと、描画に必要なパイプラインを一度だけ作成する。
 	assert(dxCommon);
 	dxCommon_ = dxCommon;
 	CreateRootSignature();
@@ -64,6 +66,7 @@ void TrailRenderer::Submit(
     const Vector4& headColor,
     const Vector4& tailColor
 ) {
+	// 頂点化はカメラ位置が確定するDrawまで遅延し、要求だけを保存する。
 	if (points.size() < 2 || width <= 0.0f) {
 		return;
 	}
@@ -71,6 +74,7 @@ void TrailRenderer::Submit(
 }
 
 void TrailRenderer::Draw(Camera* camera) {
+	// 全要求を1つの頂点バッファへまとめ、描画コールを1回に集約する。
 	if (!camera || requests_.empty() || !dxCommon_) {
 		requests_.clear();
 		return;
@@ -96,6 +100,7 @@ void TrailRenderer::Draw(Camera* camera) {
 }
 
 void TrailRenderer::AppendRequestVertices(const Request& request, const Vector3& cameraPosition) {
+	// 各線分とカメラ方向の外積から帯の左右頂点を求める。
 	const size_t pointCount = request.points.size();
 	std::vector<Vector3> sides(pointCount);
 	std::vector<Vertex> left(pointCount);
@@ -146,6 +151,7 @@ void TrailRenderer::AppendRequestVertices(const Request& request, const Vector3&
 }
 
 void TrailRenderer::CreateRootSignature() {
+	// 軌跡描画ではカメラ行列だけをルート定数バッファとして公開する。
 	D3D12_ROOT_PARAMETER rootParameter{};
 	rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
@@ -160,6 +166,7 @@ void TrailRenderer::CreateRootSignature() {
 }
 
 void TrailRenderer::CreatePipelineState() {
+	// 半透明の帯を前面から重ねるためのブレンド・深度設定を構築する。
 	D3D12_INPUT_ELEMENT_DESC inputElements[2]{};
 	inputElements[0].SemanticName = "POSITION";
 	inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;

@@ -17,14 +17,8 @@ public:
     /// <summary>
     /// 必要なリソースを準備し、オブジェクトを初期化します。
     /// </summary>
-    /// <param name="model">model に使用する値を指定します。</param>
-    /// <param name="maxInstanceCount">範囲判定に使用する値を指定します。</param>
     void Initialize(Model* model, uint32_t maxInstanceCount);
 
-    /// <summary>
-    /// AddInstance の処理を行います。
-    /// </summary>
-    /// <param name="transform">transform に使用する値を指定します。</param>
     void AddInstance(const EulerTransform& transform);
 
     /// <summary>

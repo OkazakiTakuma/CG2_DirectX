@@ -2,7 +2,7 @@
 
 Texture2D<float4> gTexture : register(t0);
 Texture2D<float> gDepthTexture : register(t1);
-Texture2D<float> gDissolveMask : register(t2);
+Texture2D<float> maskTexture : register(t2);
 SamplerState gSampler : register(s0);
 
 cbuffer ColorInfo : register(b0)
@@ -32,6 +32,10 @@ cbuffer ColorInfo : register(b0)
     float2 paddingTexel;
     float4 outlineColor;
     float4 dissolveEdgeColor;
+    float damageVignetteIntensity;
+    float damageVignetteRadius;
+    float damageVignetteSoftness;
+    float paddingDamageVignette;
 };
 
 struct PixelShaderOutPut
@@ -132,11 +136,14 @@ float4 ApplyDepthOutline(float2 uv, float4 sourceColor)
 
 float4 ApplyDissolve(float2 uv, float4 sourceColor)
 {
-    const float animatedMask = gDissolveMask.Sample(gSampler, uv + float2(time * 0.015f, time * 0.01f));
-    clip(animatedMask - dissolveThreshold);
+    const float maskValue = maskTexture.Sample(gSampler, uv + float2(time * 0.015f, time * 0.01f));
+    if (maskValue < dissolveThreshold)
+    {
+        discard;
+    }
 
     const float edgeWidth = max(dissolveEdgeWidth, 0.0001f);
-    const float edge = 1.0f - smoothstep(dissolveThreshold, dissolveThreshold + edgeWidth, animatedMask);
+    const float edge = 1.0f - smoothstep(dissolveThreshold, dissolveThreshold + edgeWidth, maskValue);
     sourceColor.rgb = lerp(sourceColor.rgb, dissolveEdgeColor.rgb, saturate(edge) * dissolveEdgeColor.a);
     return sourceColor;
 }
@@ -191,6 +198,19 @@ PixelShaderOutPut main(VertexShaderOutput input)
     if (enableDissolve != 0)
     {
         resultColor = ApplyDissolve(input.uv, resultColor);
+    }
+
+    if (damageVignetteIntensity > 0.0f)
+    {
+        const float2 centeredUv = abs(input.uv - float2(0.5f, 0.5f));
+        const float rectangularDistance = max(centeredUv.x, centeredUv.y);
+        const float damageEdge = smoothstep(
+            damageVignetteRadius,
+            damageVignetteRadius + max(damageVignetteSoftness, 0.001f),
+            rectangularDistance
+        );
+        const float damageBlend = saturate(damageEdge * damageVignetteIntensity);
+        resultColor.rgb = lerp(resultColor.rgb, float3(0.72f, 0.0f, 0.0f), damageBlend);
     }
 
     output.color = resultColor * tintColor;

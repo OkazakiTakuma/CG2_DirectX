@@ -7,7 +7,6 @@ using namespace Logger;
 /// <summary>
 /// 共有インスタンスを取得します。
 /// </summary>
-/// <returns>処理結果を返します。</returns>
 Object3dCommon* Object3dCommon::GetInstance() {
 	static Object3dCommon instance;
 	return &instance;
@@ -24,9 +23,14 @@ void Object3dCommon::Initialize(DirectXCommon* dxCommon) {
 	CreatePipelineState();
 }
 
-/// <summary>
-/// Draw を設定します。
-/// </summary>
+void Object3dCommon::EnsureInitialized(DirectXCommon* dxCommon) {
+	assert(dxCommon);
+	if (dxCommon_ == dxCommon && rootSignature && graphicsPipelineState && shadowPipelineState) {
+		return;
+	}
+	Initialize(dxCommon);
+}
+
 void Object3dCommon::SetDraw() {
 	dxCommon_->GetCommandList()->SetPipelineState(graphicsPipelineState.Get());
 	dxCommon_->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());

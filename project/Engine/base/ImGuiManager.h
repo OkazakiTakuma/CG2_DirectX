@@ -41,7 +41,6 @@ public:
 	/// <summary>
 	/// 共有インスタンスを取得します。
 	/// </summary>
-	/// <returns>処理結果を返します。</returns>
 	static ImGuiManager* GetInstance();
 
 	~ImGuiManager() = default;
@@ -57,13 +56,7 @@ public:
 	/// </summary>
 	void Finalize();
 
-	/// <summary>
-	/// Begin の処理を行います。
-	/// </summary>
 	void Begin();
-	/// <summary>
-	/// End の処理を行います。
-	/// </summary>
 	void End();
 
 	/// <summary>
@@ -75,20 +68,18 @@ public:
 	ImFont* GetFont(const std::string& fontName) const;
 	ImVec2 GetGameViewContentPosition() const { return gameViewContentPosition_; }
 	ImVec2 GetGameViewContentSize() const { return gameViewContentSize_; }
+	float GetGameViewAspectRatio() const;
+	bool ApplyGameViewRenderArea();
+	void RestoreFullRenderArea();
 	bool UpdateHotReload(const std::string& sceneJsonPath, const std::function<bool()>& reloadScene);
 
 private:
 	ImGuiManager() = default;
-	/// <summary>
-	/// upExternalEditorDockSpaces を設定します。
-	/// </summary>
 	void SetupExternalEditorDockSpaces();
-	/// <summary>
-	/// DrawUtilityWindows の処理を行います。
-	/// </summary>
 	void DrawUtilityWindows();
 	void DrawGameViewWindow();
 	void DrawEditorBackgroundMask(const ImVec2& gameViewPosition, const ImVec2& gameViewSize);
+	bool CalculateGameViewRenderRect(float& left, float& top, float& width, float& height) const;
 	void LoadGameFonts();
 	bool ReloadShaders();
 	bool ReloadTextures();
@@ -110,6 +101,7 @@ private:
 	std::unordered_map<std::string, ImFont*> fonts_;
 	ImVec2 gameViewContentPosition_ = {};
 	ImVec2 gameViewContentSize_ = {};
+	bool isGameViewVisible_ = false;
 	bool autoReloadShaders_ = true;
 	bool autoReloadScene_ = true;
 	bool autoReloadTextures_ = true;

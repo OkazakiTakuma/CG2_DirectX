@@ -32,7 +32,6 @@ public:
 	/// <summary>
 	/// Windows メッセージを処理し、終了要求の有無を返します。
 	/// </summary>
-	/// <returns>処理結果を返します。</returns>
 	bool ProcessMessage();
 
 

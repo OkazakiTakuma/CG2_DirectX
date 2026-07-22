@@ -25,6 +25,24 @@ void BaseScene::Finalize() {
 	playerHealthBarBackground_.reset();
 	playerHealthBarFill_.reset();
 	isPlayerHealthHudVisible_ = false;
+	playerExperienceBarBackground_.reset();
+	playerExperienceBarFill_.reset();
+	playerExperienceTextObject_.reset();
+	playerExperienceRate_ = 0.0f;
+	isPlayerExperienceHudVisible_ = false;
+	for (auto& sprite : playerAttackSlotBackgroundSprites_) sprite.reset();
+	for (auto& sprite : playerAttackSlotIconSprites_) sprite.reset();
+	for (auto& sprite : playerStatusSlotBackgroundSprites_) sprite.reset();
+	for (auto& sprite : playerStatusSlotIconSprites_) sprite.reset();
+	playerAttackSlotIconVisible_.fill(false);
+	playerStatusSlotIconVisible_.fill(false);
+	playerAttackSlotTextureKeys_.fill({});
+	playerAttackSlotTexturePaths_.fill({});
+	playerStatusSlotTextureKeys_.fill({});
+	playerStatusSlotTexturePaths_.fill({});
+	playerAttackSlotLabelObject_.reset();
+	playerStatusSlotLabelObject_.reset();
+	isPlayerSlotHudVisible_ = false;
 	isLevelUpSelectionActive_ = false;
 	levelUpPlayer_ = nullptr;
 	levelUpChoices_.clear();
@@ -32,6 +50,7 @@ void BaseScene::Finalize() {
 	levelUpPanelSprite_.reset();
 	for (auto& sprite : levelUpChoiceBorderSprites_) sprite.reset();
 	for (auto& sprite : levelUpChoiceSprites_) sprite.reset();
+	for (auto& sprite : levelUpChoiceIconSprites_) sprite.reset();
 	levelUpTitleTextObject_.reset();
 	levelUpInstructionTextObject_.reset();
 	for (auto& object : levelUpChoiceTextObjects_) object.reset();
@@ -54,11 +73,16 @@ void BaseScene::UpdateSceneObjects() {
 	for (const auto& object : sceneObjects_) {
 		object->Update();
 	}
+	UpdateEnemyAttacks();
+	UpdateEnemyProjectileHits();
 	UpdatePlayerAttacks();
 	UpdatePlayerProjectileHits();
+	UpdateExperienceCompression();
 	UpdateEnemySpawning();
 	CleanupExpiredPlayerProjectiles();
 	UpdatePlayerHealthHud();
+	UpdatePlayerExperienceHud();
+	UpdatePlayerSlotHud();
 	UpdateEditorObjectPicking();
 	UpdateEditorCameraControl();
 	UpdateColliderCollisions();
@@ -76,6 +100,8 @@ void BaseScene::UpdateEditorTools() {
 		editorSkyBox_->Update();
 	}
 	UpdatePlayerHealthHud();
+	UpdatePlayerExperienceHud();
+	UpdatePlayerSlotHud();
 	UpdateEditorObjectPicking();
 	UpdateEditorCameraControl();
 	ApplyActiveCamera();
@@ -92,6 +118,8 @@ void BaseScene::DrawSceneObjects2D() {
 		playerHealthBarBackground_->Draw();
 		playerHealthBarFill_->Draw();
 	}
+	DrawPlayerExperienceHud();
+	DrawPlayerSlotHud();
 	DrawLevelUpSelection2D();
 }
 

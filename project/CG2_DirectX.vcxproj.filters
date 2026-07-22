@@ -210,6 +210,9 @@
     <ClCompile Include="scene\GamePlayScene.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
+	<ClCompile Include="scene\PlayerSelectScene.cpp">
+	  <Filter>Scene</Filter>
+	</ClCompile>
     <ClCompile Include="scene\SceneFactory.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
@@ -431,6 +434,9 @@
     <ClInclude Include="scene\GamePlayScene.h">
       <Filter>Scene</Filter>
     </ClInclude>
+	<ClInclude Include="scene\PlayerSelectScene.h">
+	  <Filter>Scene</Filter>
+	</ClInclude>
     <ClInclude Include="scene\SceneFactory.h">
       <Filter>Scene</Filter>
     </ClInclude>

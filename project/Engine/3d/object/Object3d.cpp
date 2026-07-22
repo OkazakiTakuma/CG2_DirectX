@@ -5,9 +5,11 @@
 #include "../../2d/LineDrawer.h"
 #include "../../base/SrvManager.h"
 #include "../../base/GameTime.h"
+#include "../../base/Logger.h"
 #include "../model/Model.h"
 #include "../model/ModelManager.h"
 #include "Object3dCommon.h"
+#include <algorithm>
 #include <cmath>
 
 namespace {
@@ -84,6 +86,12 @@ void DrawDebugWireSphere(const Vector3& center, float radius, const Vector4& col
 /// </summary>
 void Object3d::Initialize() {
 	Object3dCommon* common = Object3dCommon::GetInstance();
+	dxCommon_ = common ? common->GetDxCommon() : nullptr;
+	assert(dxCommon_);
+	if (!dxCommon_) {
+		Logger::Log("Object3d::Initialize failed: DirectXCommon is not initialized.\n");
+		return;
+	}
 
 	environmentMultiplier = 0.0f;
 
@@ -91,18 +99,18 @@ void Object3d::Initialize() {
 	CreateDirectionalLightResource();
 	CreateCameraResource();
 	CreatePointLightResource();
-	shadowWvpResource = common->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
+	shadowWvpResource = dxCommon_->CreateBufferResource(sizeof(TransformationMatrix));
 	shadowWvpResource->Map(0, nullptr, reinterpret_cast<void**>(&shadowTransformationMatrix));
 	shadowTransformationMatrix->WVP = MakeIdentity4x4();
 	shadowTransformationMatrix->world = MakeIdentity4x4();
 	shadowTransformationMatrix->WorldInverseTranspose = MakeIdentity4x4();
-	shadowMaterialResource = common->GetDxCommon()->CreateBufferResource(sizeof(MaterialData));
+	shadowMaterialResource = dxCommon_->CreateBufferResource(sizeof(MaterialData));
 	shadowMaterialResource->Map(0, nullptr, reinterpret_cast<void**>(&shadowMaterialData));
 	shadowMaterialData->color = {0.0f, 0.0f, 0.0f, shadowAlpha_};
 	shadowMaterialData->enableLighting = -1;
 	shadowMaterialData->uvTransform = MakeIdentity4x4();
 	shadowMaterialData->shininess = 1.0f;
-	materialOverrideResource_ = common->GetDxCommon()->CreateBufferResource(sizeof(MaterialData));
+	materialOverrideResource_ = dxCommon_->CreateBufferResource(sizeof(MaterialData));
 	materialOverrideResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialOverrideData_));
 	materialOverrideData_->color = {1.0f, 1.0f, 1.0f, 1.0f};
 	materialOverrideData_->enableLighting = 1;
@@ -118,9 +126,6 @@ void Object3d::Initialize() {
 	this->camera = common->GetDefaultCamera();
 	TextureManager::GetInstance()->LoadTexture(envMapTexturePath);
 }
-/// <summary>
-/// EnvironmentMap を設定します。
-/// </summary>
 /// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 void Object3d::SetEnvironmentMap(const std::string& textureFilePath) {
 	envMapTexturePath = textureFilePath;
@@ -133,7 +138,7 @@ void Object3d::SetEnvironmentMap(const std::string& textureFilePath) {
 /// WVPResource を作成し、利用できる状態にします。
 /// </summary>
 void Object3d::CreateWVPResource() {
-	wvpResorceModel = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
+	wvpResorceModel = dxCommon_->CreateBufferResource(sizeof(TransformationMatrix));
 	wvpResorceModel->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrix));
 	transformationMatrix->WVP = MakeIdentity4x4();
 	transformationMatrix->world = MakeIdentity4x4();
@@ -144,7 +149,7 @@ void Object3d::CreateWVPResource() {
 /// CameraResource を作成し、利用できる状態にします。
 /// </summary>
 void Object3d::CreateCameraResource() {
-	cameraResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(CameraForGPU));
+	cameraResource = dxCommon_->CreateBufferResource(sizeof(CameraForGPU));
 	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
 	cameraData->worldPosition = {0.0f, 0.0f, 0.0f};
 	cameraData->environmentMultiplier = environmentMultiplier;
@@ -153,28 +158,36 @@ void Object3d::CreateCameraResource() {
 /// <summary>
 /// SkinningPaletteResource を作成し、利用できる状態にします。
 /// </summary>
-/// <param name="paletteCount">paletteCount に使用する値を指定します。</param>
 void Object3d::CreateSkinningPaletteResource(uint32_t paletteCount) {
-	paletteCount = paletteCount > 0 ? paletteCount : 1;
-	if (skinningPaletteData) {
-		skinningPaletteResource->Unmap(0, nullptr);
-		skinningPaletteData = nullptr;
+	paletteCount = (std::max)(paletteCount, 1u);
+	auto newResource = dxCommon_->CreateBufferResource(sizeof(Matrix4x4) * paletteCount);
+	if (!newResource) {
+		return;
 	}
 
-	skinningPaletteCapacity_ = paletteCount;
-	skinningPaletteResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(Matrix4x4) * skinningPaletteCapacity_);
-	skinningPaletteResource->Map(0, nullptr, reinterpret_cast<void**>(&skinningPaletteData));
-	for (uint32_t index = 0; index < skinningPaletteCapacity_; index++) {
-		skinningPaletteData[index] = MakeIdentity4x4();
+	Matrix4x4* newPaletteData = nullptr;
+	const HRESULT hr = newResource->Map(0, nullptr, reinterpret_cast<void**>(&newPaletteData));
+	if (FAILED(hr) || !newPaletteData) {
+		return;
 	}
+	for (uint32_t index = 0; index < paletteCount; ++index) {
+		newPaletteData[index] = MakeIdentity4x4();
+	}
+
+	if (skinningPaletteResource && skinningPaletteData) {
+		skinningPaletteResource->Unmap(0, nullptr);
+	}
+	skinningPaletteResource = std::move(newResource);
+	skinningPaletteData = newPaletteData;
+	skinningPaletteCapacity_ = paletteCount;
 }
 
-/// <summary>
-/// UpdateSkinningPaletteResource の処理を行います。
-/// </summary>
 void Object3d::UpdateSkinningPaletteResource() {
 	if (!skinningPaletteData) {
 		CreateSkinningPaletteResource(1);
+	}
+	if (!skinningPaletteData || skinningPaletteCapacity_ == 0) {
+		return;
 	}
 
 	if (!model || !model->HasSkinCluster()) {
@@ -186,16 +199,23 @@ void Object3d::UpdateSkinningPaletteResource() {
 	if (requiredPaletteCount > skinningPaletteCapacity_) {
 		CreateSkinningPaletteResource(requiredPaletteCount);
 	}
+	if (!skinningPaletteData || requiredPaletteCount > skinningPaletteCapacity_) {
+		return;
+	}
 
 	model->BuildSkinningPalette(skeleton, skinningPalette_);
-	std::memcpy(skinningPaletteData, skinningPalette_.data(), sizeof(Matrix4x4) * skinningPalette_.size());
+	const size_t copyCount = (std::min)(skinningPalette_.size(), static_cast<size_t>(skinningPaletteCapacity_));
+	if (copyCount == 0) {
+		return;
+	}
+	std::copy_n(skinningPalette_.begin(), copyCount, skinningPaletteData);
 }
 
 /// <summary>
 /// DirectionalLightResource を作成し、利用できる状態にします。
 /// </summary>
 void Object3d::CreateDirectionalLightResource() {
-	lightResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(DirectionalLight));
+	lightResource = dxCommon_->CreateBufferResource(sizeof(DirectionalLight));
 	lightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionallightData));
 	directionallightData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	directionallightData->direction = NormalizeReturnVector(Vector3(0.0f, -1.0f, 0.0f));
@@ -206,7 +226,7 @@ void Object3d::CreateDirectionalLightResource() {
 /// PointLightResource を作成し、利用できる状態にします。
 /// </summary>
 void Object3d::CreatePointLightResource() {
-	pointLightResource = Object3dCommon::GetInstance()->GetDxCommon()->CreateBufferResource(sizeof(PointLight));
+	pointLightResource = dxCommon_->CreateBufferResource(sizeof(PointLight));
 	pointLightResource->Map(0, nullptr, reinterpret_cast<void**>(&pointLightData));
 	pointLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	pointLightData->position = { 0.0f, 0.0f, 0.0f };
@@ -220,9 +240,6 @@ void Object3d::CreatePointLightResource() {
 /// </summary>
 /// <param name="radius">半径を指定します。</param>
 /// <param name="height">高さを指定します。</param>
-/// <param name="subdivision">subdivision に使用する値を指定します。</param>
-/// <param name="createTopCap">createTopCap に使用する値を指定します。</param>
-/// <param name="createBottomCap">createBottomCap に使用する値を指定します。</param>
 void Object3d::CreateCylinder(float radius, float height, uint32_t subdivision, bool createTopCap, bool createBottomCap) {
 	PrimitiveMeshGenerator::MeshData mesh = PrimitiveMeshGenerator::GenerateCylinder(
 	    radius, height, subdivision, createTopCap, createBottomCap);
@@ -237,7 +254,10 @@ void Object3d::CreateCylinder(float radius, float height, uint32_t subdivision, 
 
 	// -------------------------------------------------------
 	// -------------------------------------------------------
-	DirectXCommon* dxCommon = Object3dCommon::GetInstance()->GetDxCommon();
+	DirectXCommon* dxCommon = dxCommon_;
+	if (!dxCommon) {
+		return;
+	}
 
 	size_t vertexBufferSize = sizeof(VertexData) * vertices.size();
 	vertexResourceCylinder = dxCommon->CreateBufferResource(vertexBufferSize);
@@ -274,9 +294,6 @@ void Object3d::CreateCylinder(float radius, float height, uint32_t subdivision, 
 	}
 }
 
-/// <summary>
-/// Texture を設定します。
-/// </summary>
 /// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 void Object3d::SetTexture(const std::string& textureFilePath) {
 	TextureManager::GetInstance()->LoadTexture(textureFilePath);
@@ -434,9 +451,9 @@ void Object3d::ResetAnimationPoseToInitial() {
 /// 現在の状態をもとに描画処理を行います。
 /// </summary>
 void Object3d::Draw() {
-	if (!wvpResorceModel || !lightResource || !cameraResource || !pointLightResource) return;
+	if (!dxCommon_ || !wvpResorceModel || !lightResource || !cameraResource || !pointLightResource) return;
 
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList = Object3dCommon::GetInstance()->GetDxCommon()->GetCommandList();
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList = dxCommon_->GetCommandList();
 	SrvManager::GetInstance()->PreDraw();
 
 	commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
@@ -490,9 +507,6 @@ void Object3d::Draw() {
 	}
 }
 
-/// <summary>
-/// DrawDebugSkeleton の処理を行います。
-/// </summary>
 void Object3d::DrawDebugSkeleton() {
 	if (!isDrawSkeleton_ || !hasSkeleton || skeleton.joints.empty()) {
 		return;
@@ -520,10 +534,6 @@ void Object3d::DrawDebugSkeleton() {
 	}
 }
 
-/// <summary>
-/// Model を設定します。
-/// </summary>
-/// <param name="newModel">newModel に使用する値を指定します。</param>
 void Object3d::SetModel(Model* newModel) {
 	model = newModel;
 	hasSkeleton = false;
@@ -546,10 +556,6 @@ void Object3d::SetModel(Model* newModel) {
 	}
 }
 
-/// <summary>
-/// Model を設定します。
-/// </summary>
-/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 void Object3d::SetModel(const std::string& filePath) {
 	SetModel(ModelManager::GetInstance()->FindModel(filePath));
 }
@@ -593,11 +599,7 @@ Object3d::~Object3d() {
 	model = nullptr;
 }
 
-/// <summary>
-/// DirectionalLight を設定します。
-/// </summary>
 /// <param name="color">色を指定します。</param>
-/// <param name="direction">direction に使用する値を指定します。</param>
 /// <param name="intensity">強度を指定します。</param>
 void Object3d::SetDirectionalLight(const Vector4& color, const Vector3& direction, float intensity) {
 	if (directionallightData) {
@@ -607,14 +609,10 @@ void Object3d::SetDirectionalLight(const Vector4& color, const Vector3& directio
 	}
 }
 
-/// <summary>
-/// PointLight を設定します。
-/// </summary>
 /// <param name="color">色を指定します。</param>
 /// <param name="position">位置を指定します。</param>
 /// <param name="intensity">強度を指定します。</param>
 /// <param name="radius">半径を指定します。</param>
-/// <param name="decay">decay に使用する値を指定します。</param>
 void Object3d::SetPointLight(const Vector4& color, const Vector3& position, float intensity, float radius, float decay) {
 	if (pointLightData) {
 		pointLightData->color = color;
@@ -625,10 +623,6 @@ void Object3d::SetPointLight(const Vector4& color, const Vector3& position, floa
 	}
 }
 
-/// <summary>
-/// EnvironmentMultiplier を設定します。
-/// </summary>
-/// <param name="multiplier">multiplier に使用する値を指定します。</param>
 void Object3d::SetEnvironmentMultiplier(float multiplier) {
 	environmentMultiplier = multiplier;
 }
