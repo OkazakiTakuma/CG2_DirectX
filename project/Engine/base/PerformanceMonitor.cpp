@@ -12,6 +12,7 @@ constexpr auto kUpdateInterval = std::chrono::milliseconds(250);
 }
 
 void PerformanceMonitor::Initialize() {
+	// CPU差分計算用の初期値を取得し、GPU用PDHクエリを準備する。
 	hasPreviousCpuTimes_ = false;
 	cpuUsagePercent_ = 0.0f;
 	gpuUsagePercent_ = 0.0f;
@@ -36,6 +37,7 @@ void PerformanceMonitor::Initialize() {
 }
 
 void PerformanceMonitor::Finalize() {
+	// PDHハンドルは生成と逆順に閉じ、再初期化できる状態へ戻す。
 	if (gpuQuery_) {
 		PdhCloseQuery(gpuQuery_);
 	}
@@ -46,6 +48,7 @@ void PerformanceMonitor::Finalize() {
 }
 
 void PerformanceMonitor::Update() {
+	// カウンター取得コストを抑えるため、一定間隔に達したときだけ更新する。
 	const auto now = std::chrono::steady_clock::now();
 	if (now - previousUpdateTime_ < kUpdateInterval) {
 		return;
@@ -57,6 +60,7 @@ void PerformanceMonitor::Update() {
 }
 
 void PerformanceMonitor::UpdateCpuUsage() {
+	// Windowsの累積時間を前回値と比較し、アイドル以外の割合を算出する。
 	FILETIME idleTime{};
 	FILETIME kernelTime{};
 	FILETIME userTime{};
@@ -88,6 +92,7 @@ void PerformanceMonitor::UpdateCpuUsage() {
 }
 
 void PerformanceMonitor::UpdateGpuUsage() {
+	// GPU Engineカウンターの全インスタンスを収集し、利用可能な値を集計する。
 	if (!isGpuQueryInitialized_ || !gpuCounter_) {
 		isGpuUsageAvailable_ = false;
 		return;

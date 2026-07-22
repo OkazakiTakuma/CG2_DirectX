@@ -1,8 +1,5 @@
 #include "Camera.h"
 #include"WinApp.h"
-/// <summary>
-/// Camera の処理を行います。
-/// </summary>
 Camera::Camera() {
 	transform = {
 	    {1.0f, 1.0f, 1.0f  },

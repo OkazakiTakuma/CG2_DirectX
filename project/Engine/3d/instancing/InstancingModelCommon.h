@@ -8,7 +8,6 @@ public:
     /// <summary>
     /// 共有インスタンスを取得します。
     /// </summary>
-    /// <returns>処理結果を返します。</returns>
     static InstancingModelCommon* GetInstance();
 
     /// <summary>
@@ -21,9 +20,6 @@ public:
     /// </summary>
     void Finalize();
     void ReloadPipelineState() { CreatePipelineState(); }
-    /// <summary>
-    /// Draw を設定します。
-    /// </summary>
     void SetDraw();
 
 private:

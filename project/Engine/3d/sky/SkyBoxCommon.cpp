@@ -5,7 +5,6 @@
 /// <summary>
 /// 共有インスタンスを取得します。
 /// </summary>
-/// <returns>処理結果を返します。</returns>
 SkyBoxCommon* SkyBoxCommon::GetInstance() {
 	static SkyBoxCommon instance;
 	return &instance;
@@ -23,9 +22,6 @@ void SkyBoxCommon::Initialize(DirectXCommon* dxCommon) {
 	CreatePipelineState();
 }
 
-/// <summary>
-/// Draw を設定します。
-/// </summary>
 void SkyBoxCommon::SetDraw() {
 	auto commandList = dxCommon_->GetCommandList();
 

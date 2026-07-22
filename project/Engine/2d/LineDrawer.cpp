@@ -5,7 +5,6 @@
 /// <summary>
 /// 共有インスタンスを取得します。
 /// </summary>
-/// <returns>処理結果を返します。</returns>
 LineDrawer* LineDrawer::GetInstance() {
     static LineDrawer instance;
     return &instance;
@@ -28,11 +27,6 @@ void LineDrawer::Initialize() {
     constBuffer->Map(0, nullptr, reinterpret_cast<void**>(&constData));
 }
 
-/// <summary>
-/// DrawLine の処理を行います。
-/// </summary>
-/// <param name="p1">p1 に使用する値を指定します。</param>
-/// <param name="p2">p2 に使用する値を指定します。</param>
 /// <param name="color">色を指定します。</param>
 void LineDrawer::DrawLine(const Vector3& p1, const Vector3& p2, const Vector4& color, bool ignoreDepth) {
     uint32_t& lineCount = ignoreDepth ? currentIgnoreDepthLineCount_ : currentLineCount_;

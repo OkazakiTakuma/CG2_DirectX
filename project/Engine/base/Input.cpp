@@ -42,7 +42,6 @@ Vector3 NormalizeGamepadLeftStick(SHORT rawX, SHORT rawY) {
 /// <summary>
 /// 共有インスタンスを取得します。
 /// </summary>
-/// <returns>処理結果を返します。</returns>
 Input* Input::GetInstance() {
 	static Input instance;
 	return &instance;
@@ -171,11 +170,6 @@ bool Input::TriggerGamepadRight() const {
 	return TriggerGamepadButton(XINPUT_GAMEPAD_DPAD_RIGHT) || (gamepadLeftStick_.x > 0.5f && previousGamepadLeftStick_.x <= 0.5f);
 }
 
-/// <summary>
-/// PushMouseButton の処理を行います。
-/// </summary>
-/// <param name="buttonIndex">buttonIndex に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool Input::PushMouseButton(int buttonIndex) const {
 	if (buttonIndex < 0 || buttonIndex >= 8) {
 		return false;
@@ -183,11 +177,6 @@ bool Input::PushMouseButton(int buttonIndex) const {
 	return (mouseState.rgbButtons[buttonIndex] & 0x80) != 0;
 }
 
-/// <summary>
-/// TriggerMouseButton の処理を行います。
-/// </summary>
-/// <param name="buttonIndex">buttonIndex に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool Input::TriggerMouseButton(int buttonIndex) const {
 	if (buttonIndex < 0 || buttonIndex >= 8) {
 		return false;

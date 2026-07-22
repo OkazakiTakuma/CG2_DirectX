@@ -16,6 +16,7 @@ Matrix4x4 MakeQuaternionAffineMatrix(
 }
 
 Vector3 Interpolate(const std::vector<KeyframeVector3>& keyframes, float time) {
+	// 指定時刻を挟む2キーを探し、移動・拡縮値を線形補間する。
 	assert(!keyframes.empty());
 	if (keyframes.size() == 1 || time <= keyframes.front().time) {
 		return keyframes.front().value;
@@ -35,6 +36,7 @@ Vector3 Interpolate(const std::vector<KeyframeVector3>& keyframes, float time) {
 }
 
 Quaternion Interpolate(const std::vector<KeyframeQuaternion>& keyframes, float time) {
+	// 回転は一定角速度に近い補間となるよう球面線形補間を使用する。
 	assert(!keyframes.empty());
 	if (keyframes.size() == 1 || time <= keyframes.front().time) {
 		return keyframes.front().value;
@@ -59,6 +61,7 @@ int32_t CreateJoint(
     std::vector<Joint>& joints,
     std::map<std::string, int32_t>& jointMap) {
 	Joint joint;
+	// ノード階層を深さ優先で平坦な配列へ変換し、親子インデックスを保存する。
 	joint.transform = node.transform;
 	joint.bindTransform = node.transform;
 	joint.localMatrix = node.localMatrix;
@@ -82,6 +85,7 @@ int32_t CreateJoint(
 namespace SkeletonAnimationUtility {
 
 Skeleton CreateSkeleton(const Node& rootNode) {
+	// モデルのルートノードから実行時スケルトンと名前検索表を構築する。
 	Skeleton skeleton;
 	skeleton.root = CreateJoint(rootNode, std::nullopt, skeleton.joints, skeleton.jointMap);
 	return skeleton;
@@ -91,6 +95,7 @@ void ApplyAnimation(Skeleton& skeleton, const Animation& animation, float time, 
 	if (skeleton.joints.empty() || animation.duration <= 0.0f) {
 		return;
 	}
+	// 毎フレームバインド姿勢へ戻してから、存在するチャンネルだけを上書きする。
 	for (Joint& joint : skeleton.joints) {
 		joint.transform = joint.bindTransform;
 		joint.localMatrix = joint.bindLocalMatrix;
@@ -117,6 +122,7 @@ void ApplyAnimation(Skeleton& skeleton, const Animation& animation, float time, 
 }
 
 void UpdateMatrices(Skeleton& skeleton) {
+	// 親が先に格納されているため、配列順に更新してスケルトン空間行列を伝播する。
 	for (Joint& joint : skeleton.joints) {
 		joint.localMatrix = MakeQuaternionAffineMatrix(
 		    joint.transform.scale, joint.transform.rotate, joint.transform.translate);

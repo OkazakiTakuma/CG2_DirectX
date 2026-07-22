@@ -28,16 +28,12 @@ public:
 	/// <summary>
 	/// 共有インスタンスを取得します。
 	/// </summary>
-	/// <returns>処理結果を返します。</returns>
 	static ParticleManager* GetInstance();
 	/// <summary>
 	/// 確保したリソースを解放し、終了処理を行います。
 	/// </summary>
 	void Finalize();
 	void ReloadPipelineState() { CreatePipelineState(); }
-	/// <summary>
-	/// ClearGroups の処理を行います。
-	/// </summary>
 	void ClearGroups();
 	static const uint32_t kMaxParticle;
 	/// <summary>
@@ -45,7 +41,6 @@ public:
 	/// </summary>
 	/// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
 	/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
-	/// <param name="meshType">meshType に使用する値を指定します。</param>
 	void CreateParticleGroup(const std::string& groupName, const std::string& textureFilePath, ParticleMeshType meshType = kMeshTypeQuad);
 	/// <summary>
 	/// 現在の状態をもとに描画処理を行います。
@@ -57,9 +52,6 @@ public:
 	/// </summary>
 	void Update();
 	void SetCamera(Camera* camera) { camera_ = camera; }
-	/// <summary>
-	/// GroupTexture を設定します。
-	/// </summary>
 	/// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
 	/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 	void SetGroupTexture(const std::string& groupName, const std::string& textureFilePath);
@@ -69,11 +61,7 @@ public:
 	/// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
 	/// <param name="position">位置を指定します。</param>
 	/// <param name="count">処理する個数を指定します。</param>
-	/// <param name="emitParam">emitParam に使用する値を指定します。</param>
 	void Emit(const std::string& groupName, const Vector3& position, uint32_t count, const ParticleEmitParam& emitParam);
-	/// <summary>
-	/// GroupBlendMode を設定します。
-	/// </summary>
 	/// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
 	/// <param name="blendMode">描画時に使用するブレンドモードを指定します。</param>
 	void SetGroupBlendMode(const std::string& groupName, BlendMode blendMode);
@@ -95,11 +83,7 @@ public:
 		Matrix4x4 viewProjection;
 		Matrix4x4 billboard;
 	};
-	/// <summary>
-	/// Group を取得します。
-	/// </summary>
 	/// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	ParticleGroup* GetGroup(const std::string& groupName);
 
 private:

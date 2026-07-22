@@ -8,7 +8,6 @@ public:
 	/// <summary>
 	/// 共有インスタンスを取得します。
 	/// </summary>
-	/// <returns>処理結果を返します。</returns>
 	static SkyBoxCommon* GetInstance();
 
 	/// <summary>
@@ -16,9 +15,6 @@ public:
 	/// </summary>
 	/// <param name="dxCommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 	void Initialize(DirectXCommon* dxCommon);
-	/// <summary>
-	/// Draw を設定します。
-	/// </summary>
 	void SetDraw();
 	/// <summary>
 	/// 確保したリソースを解放し、終了処理を行います。

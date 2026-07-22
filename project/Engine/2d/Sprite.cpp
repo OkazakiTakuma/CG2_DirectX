@@ -147,9 +147,6 @@ Sprite::~Sprite() {
 	transformationMatrixResource.Reset();
 }
 
-/// <summary>
-/// AdjustTextureSize の処理を行います。
-/// </summary>
 void Sprite::AdjustTextureSize() {
 	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetTextureMetadata(filepath);
 	textureSize = {static_cast<float>(metadata.width), static_cast<float>(metadata.height)};

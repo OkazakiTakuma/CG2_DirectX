@@ -1,12 +1,12 @@
 #include "SpriteCommon.h"
 #include "PipelineStateUtility.h"
+#include "SrvManager.h"
 
 using namespace Logger;
 
 /// <summary>
 /// 共有インスタンスを取得します。
 /// </summary>
-/// <returns>処理結果を返します。</returns>
 SpriteCommon* SpriteCommon::GetInstance() {
 	static SpriteCommon instance;
 	return &instance;
@@ -23,11 +23,9 @@ void SpriteCommon::Initialize(DirectXCommon* dxCommon) {
 	CreatePipelineState();
 }
 
-/// <summary>
-/// Draw を設定します。
-/// </summary>
 /// <param name="blendMode">描画時に使用するブレンドモードを指定します。</param>
 void SpriteCommon::SetDraw(uint32_t blendMode) {
+	SrvManager::GetInstance()->PreDraw();
 	dxCommon_->GetCommandList()->SetPipelineState(graphicsPipelineStates[blendMode].Get());
 	dxCommon_->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());
 	dxCommon_->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

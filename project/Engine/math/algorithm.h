@@ -7,22 +7,11 @@
 /// <summary>
 /// 指定条件に基づくランダムな値を生成します。
 /// </summary>
-/// <param name="min">範囲判定に使用する値を指定します。</param>
-/// <param name="max">範囲判定に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 inline float RandomFloatRange(float min, float max) {
     float r = (float)rand() / (float)RAND_MAX; // 0.0 ~ 1.0
     return min + r * (max - min);
 }
 
-/// <summary>
-/// GenerateLightningRecursive の処理を行います。
-/// </summary>
-/// <param name="start">start に使用する値を指定します。</param>
-/// <param name="end">end に使用する値を指定します。</param>
-/// <param name="displacement">displacement に使用する値を指定します。</param>
-/// <param name="generation">generation に使用する値を指定します。</param>
-/// <param name="outPath">outPath に使用する値を指定します。</param>
 inline void GenerateLightningRecursive(const Vector3& start, const Vector3& end, float displacement, int generation, std::vector<Vector3>& outPath) {
     if (generation <= 0) {
         return;
@@ -37,87 +26,38 @@ inline void GenerateLightningRecursive(const Vector3& start, const Vector3& end,
     /// <summary>
     /// 指定条件に基づくランダムな値を生成します。
     /// </summary>
-    /// <param name="displacement">displacement に使用する値を指定します。</param>
-    /// <returns>処理結果を返します。</returns>
     mid.x += RandomFloatRange(-displacement, displacement);
     /// <summary>
     /// 指定条件に基づくランダムな値を生成します。
     /// </summary>
-    /// <param name="displacement">displacement に使用する値を指定します。</param>
-    /// <returns>処理結果を返します。</returns>
     mid.y += RandomFloatRange(-displacement, displacement);
     /// <summary>
     /// 指定条件に基づくランダムな値を生成します。
     /// </summary>
-    /// <param name="displacement">displacement に使用する値を指定します。</param>
-    /// <returns>処理結果を返します。</returns>
     mid.z += RandomFloatRange(-displacement, displacement);
 
-    /// <summary>
-    /// GenerateLightningRecursive の処理を行います。
-    /// </summary>
-    /// <param name="start">start に使用する値を指定します。</param>
-    /// <param name="mid">mid に使用する値を指定します。</param>
-    /// <param name="outPath">outPath に使用する値を指定します。</param>
     GenerateLightningRecursive(start, mid, displacement * 0.5f, generation - 1, outPath);
 
-    /// <summary>
-    /// outPath.push_back の処理を行います。
-    /// </summary>
-    /// <param name="mid">mid に使用する値を指定します。</param>
     outPath.push_back(mid);
 
-    /// <summary>
-    /// GenerateLightningRecursive の処理を行います。
-    /// </summary>
-    /// <param name="mid">mid に使用する値を指定します。</param>
-    /// <param name="end">end に使用する値を指定します。</param>
-    /// <param name="outPath">outPath に使用する値を指定します。</param>
     GenerateLightningRecursive(mid, end, displacement * 0.5f, generation - 1, outPath);
 }
 
 /// <summary>
 /// LightningPath を作成し、利用できる状態にします。
 /// </summary>
-/// <param name="start">start に使用する値を指定します。</param>
-/// <param name="end">end に使用する値を指定します。</param>
-/// <param name="initialDisplacement">initialDisplacement に使用する値を指定します。</param>
-/// <param name="generations">generations に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 inline std::vector<Vector3> CreateLightningPath(const Vector3& start, const Vector3& end, float initialDisplacement, int generations) {
     std::vector<Vector3> path;
 
     path.push_back(start); // 蟋狗せ
-    /// <summary>
-    /// GenerateLightningRecursive の処理を行います。
-    /// </summary>
-    /// <param name="start">start に使用する値を指定します。</param>
-    /// <param name="end">end に使用する値を指定します。</param>
-    /// <param name="initialDisplacement">initialDisplacement に使用する値を指定します。</param>
-    /// <param name="generations">generations に使用する値を指定します。</param>
-    /// <param name="path">読み込みまたは保存に使用するファイルパスを指定します。</param>
     GenerateLightningRecursive(start, end, initialDisplacement, generations, path);
-    /// <summary>
-    /// path.push_back の処理を行います。
-    /// </summary>
-    /// <param name="end">end に使用する値を指定します。</param>
     path.push_back(end);
 
     return path;
 }
 
-/// <summary>
-/// GenerateRingVertices の処理を行います。
-/// </summary>
-/// <param name="segments">segments に使用する値を指定します。</param>
-/// <param name="outerRadius">outerRadius に使用する値を指定します。</param>
-/// <param name="innerRadius">innerRadius に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 inline std::vector<VertexData> GenerateRingVertices(uint32_t segments, float outerRadius, float innerRadius) {
 	std::vector<VertexData> vertices;
-	/// <summary>
-	/// vertices.reserve の処理を行います。
-	/// </summary>
 	vertices.reserve(segments * 6);
 
 	for (uint32_t i = 0; i < segments; ++i) {
@@ -151,18 +91,10 @@ inline std::vector<VertexData> GenerateRingVertices(uint32_t segments, float out
 	return vertices;
 }
 
-/// <summary>
-/// GenerateCylinderSideVertices の処理を行います。
-/// </summary>
-/// <param name="segments">segments に使用する値を指定します。</param>
 /// <param name="radius">半径を指定します。</param>
 /// <param name="height">高さを指定します。</param>
-/// <returns>処理結果を返します。</returns>
 inline std::vector<VertexData> GenerateCylinderSideVertices(uint32_t segments, float radius, float height) {
     std::vector<VertexData> vertices;
-    /// <summary>
-    /// vertices.reserve の処理を行います。
-    /// </summary>
     vertices.reserve(segments * 6);
 
     for (uint32_t i = 0; i < segments; ++i) {

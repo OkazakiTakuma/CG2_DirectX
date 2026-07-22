@@ -13,9 +13,6 @@ namespace {
 /// <summary>
 /// 指定条件に基づくランダムな値を生成します。
 /// </summary>
-/// <param name="min">範囲判定に使用する値を指定します。</param>
-/// <param name="max">範囲判定に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 float RandomRange(float min, float max) {
 	return min + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * (max - min);
 }
@@ -23,10 +20,6 @@ float RandomRange(float min, float max) {
 /// <summary>
 /// 2 つの値を補間して結果を返します。
 /// </summary>
-/// <param name="a">a に使用する値を指定します。</param>
-/// <param name="b">b に使用する値を指定します。</param>
-/// <param name="t">t に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 Vector3 Lerp(const Vector3& a, const Vector3& b, float t) {
 	return {
 	    a.x + (b.x - a.x) * t,
@@ -35,13 +28,7 @@ Vector3 Lerp(const Vector3& a, const Vector3& b, float t) {
 	};
 }
 
-/// <summary>
-/// AddScaled の処理を行います。
-/// </summary>
-/// <param name="a">a に使用する値を指定します。</param>
-/// <param name="b">b に使用する値を指定します。</param>
 /// <param name="scale">拡大率を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 Vector3 AddScaled(const Vector3& a, const Vector3& b, float scale) {
 	return {a.x + b.x * scale, a.y + b.y * scale, a.z + b.z * scale};
 }
@@ -49,9 +36,6 @@ Vector3 AddScaled(const Vector3& a, const Vector3& b, float scale) {
 /// <summary>
 /// 指定条件に基づくランダムな値を生成します。
 /// </summary>
-/// <param name="direction">direction に使用する値を指定します。</param>
-/// <param name="length">length に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 Vector3 RandomPerpendicular(const Vector3& direction, float length) {
 	Vector3 axis = std::fabs(direction.y) < 0.9f ? Vector3{0.0f, 1.0f, 0.0f} : Vector3{1.0f, 0.0f, 0.0f};
 	Vector3 side = Normalize(Cross(direction, axis));
@@ -64,7 +48,6 @@ Vector3 RandomPerpendicular(const Vector3& direction, float length) {
 /// <summary>
 /// パーティクルを発生させます。
 /// </summary>
-/// <param name="targetPosition">targetPosition に使用する値を指定します。</param>
 void ParticleEmitter::EmitLightning(const Vector3& targetPosition) {
 	Vector3 startPos = transform_.translate;
 	Vector3 endPos = targetPosition;
@@ -110,9 +93,6 @@ void ParticleEmitter::EmitLightning(const Vector3& targetPosition) {
 	}
 }
 
-/// <summary>
-/// ParticleEmitter の処理を行います。
-/// </summary>
 ParticleEmitter::ParticleEmitter() : groupName_(""), count_(0), frequency_(0.0f), frequencyTimer_(0.0f), textureFilePath_(""), isActive_(true), blendMode_(kBlendModeNormal) {
 	transform_.scale = { 1.0f, 1.0f, 1.0f };
 	transform_.rotate = { 0.0f, 0.0f, 0.0f };
@@ -207,9 +187,6 @@ void ParticleEmitter::Emit() {
 	}
 }
 
-/// <summary>
-/// Texture を設定します。
-/// </summary>
 /// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 void ParticleEmitter::SetTexture(const std::string& textureFilePath) {
 	textureFilePath_ = textureFilePath;
@@ -221,7 +198,6 @@ void ParticleEmitter::SetTexture(const std::string& textureFilePath) {
 /// <summary>
 /// ToJson を保存します。
 /// </summary>
-/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 void ParticleEmitter::SaveToJson(const std::string& filePath) {
 	nlohmann::json root;
 
@@ -277,7 +253,6 @@ void ParticleEmitter::SaveToJson(const std::string& filePath) {
 /// <summary>
 /// FromJson を読み込み、内部データへ反映します。
 /// </summary>
-/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 void ParticleEmitter::LoadFromJson(const std::string& filePath) {
 	count_ = 0;
 	frequency_ = 0.0f;

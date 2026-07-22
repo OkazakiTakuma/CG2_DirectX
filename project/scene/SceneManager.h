@@ -27,6 +27,8 @@ public:
 	/// </summary>
 	/// <param name="sceneName">対象となるシーン名を指定します。</param>
 	void ChangeScene(const std::string& sceneName);
+	void SetSelectedPlayerTypeName(const std::string& playerTypeName) { selectedPlayerTypeName_ = playerTypeName; }
+	const std::string& GetSelectedPlayerTypeName() const { return selectedPlayerTypeName_; }
 
 	/// <summary>
 	/// 毎フレームの状態更新を行います。
@@ -44,9 +46,6 @@ public:
 	/// 3D 要素の描画処理を行います。
 	/// </summary>
 	void Draw3D();
-	/// <summary>
-	/// DrawEditorImGui の処理を行います。
-	/// </summary>
 	void DrawEditorImGui();
 
 	void SetSceneFactory(AbstractSceneFactory* factory) { sceneFactory_ = factory; }
@@ -72,4 +71,5 @@ private:
 	int selectedSceneIndex_ = 0;
 	bool isScenePlaying_ = true;
 	bool isFrameStepRequested_ = false;
+	std::string selectedPlayerTypeName_ = "Default";
 };

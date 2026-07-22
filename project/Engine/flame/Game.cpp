@@ -37,7 +37,6 @@ void Game::Initialize() {
 /// </summary>
 void Game::Update() {
 	ImGuiManager::GetInstance()->Begin();
-	// ============================
 
 	FlameWork::Update();
 	if (FlameWork::IsEndRequest()) {
@@ -55,7 +54,14 @@ void Game::Update() {
 		ToggleFullscreen();
 	}
 	if (camera) {
-		camera->SetAspectRatio(GetRenderAspectRatio());
+		float aspectRatio = GetRenderAspectRatio();
+#ifdef USE_IMGUI
+		const float gameViewAspectRatio = ImGuiManager::GetInstance()->GetGameViewAspectRatio();
+		if (gameViewAspectRatio > 0.0f) {
+			aspectRatio = gameViewAspectRatio;
+		}
+#endif
+		camera->SetAspectRatio(aspectRatio);
 		camera->Update();
 	}
 	PostEffect::GetInstance()->UpdateHotkeys();
@@ -90,10 +96,12 @@ void Game::Draw() {
 		PostEffect::GetInstance()->PostDrawScene();
 
 		SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
+		ImGuiManager::GetInstance()->ApplyGameViewRenderArea();
 
 		PostEffect::GetInstance()->Draw();
 	} else {
 		SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
+		ImGuiManager::GetInstance()->ApplyGameViewRenderArea();
 
 		SkyBoxCommon::GetInstance()->SetDraw();
 		sceneManager->DrawSkyBox();
@@ -106,6 +114,7 @@ void Game::Draw() {
 		SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeNone);
 		sceneManager->Draw2D();
 	}
+	ImGuiManager::GetInstance()->RestoreFullRenderArea();
 	PostEffect::GetInstance()->DrawImGui();
 	ImGuiManager::GetInstance()->End();
 	ImGuiManager::GetInstance()->Draw();

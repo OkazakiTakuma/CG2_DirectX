@@ -13,7 +13,6 @@
 /// <summary>
 /// 共有インスタンスを取得します。
 /// </summary>
-/// <returns>処理結果を返します。</returns>
 PostEffect* PostEffect::GetInstance() {
 	static PostEffect instance;
 	return &instance;
@@ -376,6 +375,10 @@ void PostEffect::ApplySettingsToBuffer() {
 	colorData_->dissolveEdgeColor[1] = dissolveEdgeColor_[1];
 	colorData_->dissolveEdgeColor[2] = dissolveEdgeColor_[2];
 	colorData_->dissolveEdgeColor[3] = dissolveEdgeColor_[3];
+	colorData_->damageVignetteIntensity = damageVignetteCurrentIntensity_;
+	colorData_->damageVignetteRadius = damageVignetteRadius_;
+	colorData_->damageVignetteSoftness = damageVignetteSoftness_;
+	colorData_->paddingDamageVignette = 0.0f;
 }
 
 void PostEffect::ResizeIfNeeded() {
@@ -413,17 +416,18 @@ void PostEffect::ResizeResources(int32_t width, int32_t height) {
 	ApplySettingsToBuffer();
 }
 
-/// <summary>
-/// UpdateHotkeys の処理を行います。
-/// </summary>
 void PostEffect::UpdateHotkeys() {
+	if (damageVignetteTimer_ > 0.0f) {
+		damageVignetteTimer_ = (std::max)(0.0f, damageVignetteTimer_ - GameTime::GetDeltaTime());
+		const float normalizedTime = damageVignetteDuration_ > 0.0f
+			? damageVignetteTimer_ / damageVignetteDuration_
+			: 0.0f;
+		damageVignetteCurrentIntensity_ = damageVignetteMaxIntensity_ * normalizedTime * normalizedTime;
+	} else {
+		damageVignetteCurrentIntensity_ = 0.0f;
+	}
+
 	Input* input = Input::GetInstance();
-	/// <summary>
-	/// [input] の処理を行います。
-	/// </summary>
-	/// <param name="key">key に使用する値を指定します。</param>
-	/// <param name="numpadKey">numpadKey に使用する値を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	const auto triggered = [input](BYTE key, BYTE numpadKey) {
 		return input->TriggerKey(key) || input->TriggerKey(numpadKey);
 	};
@@ -458,9 +462,12 @@ void PostEffect::UpdateHotkeys() {
 
 	ApplySettingsToBuffer();
 }
-/// <summary>
-/// PreDrawScene の処理を行います。
-/// </summary>
+
+void PostEffect::TriggerDamageVignette() {
+	damageVignetteTimer_ = damageVignetteDuration_;
+	damageVignetteCurrentIntensity_ = damageVignetteMaxIntensity_;
+	ApplySettingsToBuffer();
+}
 void PostEffect::PreDrawScene() {
 	ResizeIfNeeded();
 	auto commandList = dxCommon_->GetCommandList();
@@ -513,9 +520,6 @@ void PostEffect::PreDrawScene() {
 	commandList->RSSetScissorRects(1, &scissorRect);
 }
 
-/// <summary>
-/// PostDrawScene の処理を行います。
-/// </summary>
 void PostEffect::PostDrawScene() {
 	auto commandList = dxCommon_->GetCommandList();
 
@@ -679,6 +683,16 @@ void PostEffect::DrawImGui() {
 	}
 	if (!enableVignetting_) {
 		ImGui::EndDisabled();
+	}
+
+	ImGui::Separator();
+	ImGui::Text("Damage Vignette");
+	ImGui::SliderFloat("Damage Intensity", &damageVignetteMaxIntensity_, 0.0f, 1.0f);
+	ImGui::SliderFloat("Damage Duration", &damageVignetteDuration_, 0.05f, 2.0f);
+	ImGui::SliderFloat("Damage Radius", &damageVignetteRadius_, 0.0f, 0.5f);
+	ImGui::SliderFloat("Damage Softness", &damageVignetteSoftness_, 0.01f, 0.5f);
+	if (ImGui::Button("Test Damage Vignette")) {
+		TriggerDamageVignette();
 	}
 
 	ApplySettingsToBuffer();

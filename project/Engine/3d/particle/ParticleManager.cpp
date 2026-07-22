@@ -7,13 +7,6 @@
 #include <numbers>
 #include <cmath>
 
-/// <summary>
-/// GenerateRingVerticesForParticle の処理を行います。
-/// </summary>
-/// <param name="segments">segments に使用する値を指定します。</param>
-/// <param name="outerRadius">outerRadius に使用する値を指定します。</param>
-/// <param name="innerRadius">innerRadius に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 std::vector<VertexData> GenerateRingVerticesForParticle(uint32_t segments, float outerRadius, float innerRadius) {
 	std::vector<VertexData> vertices;
 	vertices.reserve(segments * 6);
@@ -54,7 +47,6 @@ const uint32_t ParticleManager::kMaxParticle = 512;
 /// <summary>
 /// 共有インスタンスを取得します。
 /// </summary>
-/// <returns>処理結果を返します。</returns>
 ParticleManager* ParticleManager::GetInstance() {
 	static ParticleManager instance;
 	return &instance;
@@ -78,9 +70,6 @@ void ParticleManager::Finalize() {
 	}
 }
 
-/// <summary>
-/// ClearGroups の処理を行います。
-/// </summary>
 void ParticleManager::ClearGroups() {
 	for (auto& group : particleGroups_) {
 		group.second.instanceResource.Reset();
@@ -158,7 +147,6 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon) {
 /// </summary>
 /// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
 /// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
-/// <param name="meshtype">meshtype に使用する値を指定します。</param>
 void ParticleManager::CreateParticleGroup(const std::string& groupName, const std::string& textureFilePath, ParticleMeshType meshtype) {
 
 	if (particleGroups_.find(groupName) != particleGroups_.end()) {
@@ -515,7 +503,6 @@ void ParticleManager::Update() {
 /// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
 /// <param name="position">位置を指定します。</param>
 /// <param name="count">処理する個数を指定します。</param>
-/// <param name="emitParam">emitParam に使用する値を指定します。</param>
 void ParticleManager::Emit(const std::string& groupName, const Vector3& position, uint32_t count, const ParticleEmitParam& emitParam) {
 	if (particleGroups_.find(groupName) == particleGroups_.end())
 		return;
@@ -557,9 +544,6 @@ void ParticleManager::Emit(const std::string& groupName, const Vector3& position
 		group.particles.push_back(newParticle);
 	}
 }
-/// <summary>
-/// GroupTexture を設定します。
-/// </summary>
 /// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
 /// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 void ParticleManager::SetGroupTexture(const std::string& groupName, const std::string& textureFilePath) {
@@ -574,9 +558,6 @@ void ParticleManager::SetGroupTexture(const std::string& groupName, const std::s
 	group.material.textureIndex = TextureManager::GetInstance()->GetSrvIndex(textureFilePath);
 }
 
-/// <summary>
-/// GroupBlendMode を設定します。
-/// </summary>
 /// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
 /// <param name="blendMode">描画時に使用するブレンドモードを指定します。</param>
 void ParticleManager::SetGroupBlendMode(const std::string& groupName, BlendMode blendMode) {
@@ -586,11 +567,7 @@ void ParticleManager::SetGroupBlendMode(const std::string& groupName, BlendMode 
 	}
 }
 
-/// <summary>
-/// Group を取得します。
-/// </summary>
 /// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 ParticleManager::ParticleGroup* ParticleManager::GetGroup(const std::string& groupName) {
 	auto it = particleGroups_.find(groupName);
 	if (it != particleGroups_.end()) {

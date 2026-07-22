@@ -11,7 +11,6 @@ public:
 	/// <summary>
 	/// 共有インスタンスを取得します。
 	/// </summary>
-	/// <returns>処理結果を返します。</returns>
 	static PostEffect* GetInstance();
 
 	/// <summary>
@@ -20,14 +19,8 @@ public:
 	/// <param name="dxCommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 	void Initialize(DirectXCommon* dxCommon);
 
-	/// <summary>
-	/// PreDrawScene の処理を行います。
-	/// </summary>
 	void PreDrawScene();
 
-	/// <summary>
-	/// PostDrawScene の処理を行います。
-	/// </summary>
 	void PostDrawScene();
 
 	/// <summary>
@@ -47,10 +40,9 @@ public:
 	/// </summary>
 	void DrawImGui();
 
-	/// <summary>
-	/// UpdateHotkeys の処理を行います。
-	/// </summary>
 	void UpdateHotkeys();
+	/// <summary>プレイヤー被弾時の赤い画面端エフェクトを開始します。</summary>
+	void TriggerDamageVignette();
 
 	bool IsActive() const { return isActive_; }
 
@@ -149,6 +141,10 @@ private:
 		float paddingTexel[2];
 		float outlineColor[4];
 		float dissolveEdgeColor[4];
+		float damageVignetteIntensity;
+		float damageVignetteRadius;
+		float damageVignetteSoftness;
+		float paddingDamageVignette;
 	};
 
 	ColorData* colorData_ = nullptr;
@@ -176,4 +172,10 @@ private:
 	float dissolveEdgeWidth_ = 0.08f;
 	float dissolveEdgeColor_[4] = { 1.0f, 0.45f, 0.05f, 1.0f };
 	float time_ = 0.0f;
+	float damageVignetteTimer_ = 0.0f;
+	float damageVignetteDuration_ = 0.45f;
+	float damageVignetteMaxIntensity_ = 0.82f;
+	float damageVignetteCurrentIntensity_ = 0.0f;
+	float damageVignetteRadius_ = 0.24f;
+	float damageVignetteSoftness_ = 0.24f;
 };

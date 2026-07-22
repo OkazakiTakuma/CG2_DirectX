@@ -14,7 +14,6 @@ public:
     /// <summary>
     /// 共有インスタンスを取得します。
     /// </summary>
-    /// <returns>処理結果を返します。</returns>
     static LineCommon* GetInstance();
 
     // Prepares the line rendering pipeline with shared DirectX resources.
@@ -32,9 +31,6 @@ public:
     void ReloadPipelineState() { CreatePipelineState(); }
 
     // Sets the pipeline state used for line rendering.
-    /// <summary>
-    /// Draw を設定します。
-    /// </summary>
     /// <param name="blendMode">描画時に使用するブレンドモードを指定します。</param>
     void SetDraw(uint32_t blendMode = kBlendModeNormal, bool ignoreDepth = false);
 

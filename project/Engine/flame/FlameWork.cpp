@@ -28,11 +28,6 @@
 using namespace Logger;
 using namespace StringUtility;
 using namespace Microsoft::WRL;
-/// <summary>
-/// ExportDump の処理を行います。
-/// </summary>
-/// <param name="exception">exception に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 static LONG WINAPI ExportDump(EXCEPTION_POINTERS* exception) {
 	SYSTEMTIME time;
 	GetLocalTime(&time);
@@ -63,7 +58,7 @@ void FlameWork::Initialize() {
 	winApp->Initialize();
 
 
-#if _DEBUG
+#if defined(_DEBUG)
 	Microsoft::WRL::ComPtr<ID3D12Debug1> debugController1 = nullptr;
 	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController1)))) {
 		debugController1->EnableDebugLayer();
@@ -74,7 +69,7 @@ void FlameWork::Initialize() {
 #endif
 	}
 
-#endif // _DEBUG
+#endif
 
 	OutputDebugStringA("Hello, World!\n");
 	resourceLeakChecker_ = std::make_unique<D3DResourceLeakChecker>();
@@ -107,9 +102,13 @@ void FlameWork::Update() {
 	GameTime::Update();
 	if (winApp->ProcessMessage()) {
 		endRequest = true;
+		return;
 	}
 	if (dxCommon) {
+		Object3dCommon::GetInstance()->EnsureInitialized(dxCommon.get());
+		ModelManager::GetInstance()->EnsureInitialized(dxCommon.get());
 		dxCommon->ResizeIfNeeded();
+		dxCommon->BeginFrame();
 	}
 }
 
@@ -180,9 +179,6 @@ void FlameWork::Finalize() {
 	resourceLeakChecker_.reset();
 }
 
-/// <summary>
-/// Run の処理を行います。
-/// </summary>
 void FlameWork::Run() {
 	Initialize();
 	while (true) {

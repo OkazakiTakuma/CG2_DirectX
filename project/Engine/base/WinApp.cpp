@@ -5,11 +5,6 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #endif // USE_IMGUI
 
-/// <summary>
-/// WindowProc の処理を行います。
-/// </summary>
-/// <param name="msg">msg に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 LRESULT CALLBACK WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 #ifdef USE_IMGUI
 
@@ -157,7 +152,6 @@ void WinApp::Finalize() {
 /// <summary>
 /// Windows メッセージを処理し、終了要求の有無を返します。
 /// </summary>
-/// <returns>処理結果を返します。</returns>
 bool WinApp::ProcessMessage() {
 	MSG msg = {};
 

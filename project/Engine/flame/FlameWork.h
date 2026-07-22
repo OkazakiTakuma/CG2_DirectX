@@ -59,9 +59,6 @@ public:
 	/// 確保したリソースを解放し、終了処理を行います。
 	/// </summary>
 	virtual void Finalize();
-	/// <summary>
-	/// Run の処理を行います。
-	/// </summary>
 	void Run();
 	/// <summary>
 	/// Fullscreen の状態を切り替えます。

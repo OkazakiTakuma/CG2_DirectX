@@ -80,9 +80,6 @@ public:
 	void SetTextureSize(const Vector2& size) { sprite_->SetTextureSize(size); }
 
 private:
-	/// <summary>
-	/// SyncOwnerTransformToSprite の処理を行います。
-	/// </summary>
 	void SyncOwnerTransformToSprite() {
 		if (!sprite_ || GetOwner() == nullptr) {
 			return;

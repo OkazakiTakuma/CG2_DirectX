@@ -10,7 +10,7 @@ void TitleScene::Initialize() {  }
 /// </summary>
 void TitleScene::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
-		sceneManager->ChangeScene("GAMEPLAY");
+		sceneManager->ChangeScene("PLAYER_SELECT");
 
 	}
 }

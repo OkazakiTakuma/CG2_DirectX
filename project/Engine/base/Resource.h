@@ -30,18 +30,21 @@
 
 
 
+/// <summary>DirectXリソースの寿命をComPtrで共有管理する軽量ラッパーです。</summary>
 class ResourceObject  
 {  
 public:  
-   
+	/// <summary>管理対象のDirectXリソースを共有参照として受け取ります。</summary>
     ResourceObject(const Microsoft::WRL::ComPtr<ID3D12Resource>& resource)  
         : resource_(resource) {}
 
     ~ResourceObject() = default;
 
+	/// <summary>保持しているGPUリソースの共有参照を返します。</summary>
     Microsoft::WRL::ComPtr<ID3D12Resource> Get() { return resource_; }
 
 private:  
+	/// <summary>参照カウント付きで保持するGPUリソースです。</summary>
     Microsoft::WRL::ComPtr<ID3D12Resource> resource_;
 };
 

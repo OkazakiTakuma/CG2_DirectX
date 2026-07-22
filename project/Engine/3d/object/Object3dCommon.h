@@ -13,7 +13,6 @@ public:
 	/// <summary>
 	/// 共有インスタンスを取得します。
 	/// </summary>
-	/// <returns>処理結果を返します。</returns>
 	static Object3dCommon* GetInstance();
 
 	/// <summary>
@@ -22,14 +21,15 @@ public:
 	/// <param name="dxCommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 	void Initialize(DirectXCommon* dxCommon);
 	/// <summary>
+	/// DirectX共通コンテキストが有効であることを保証します。
+	/// </summary>
+	void EnsureInitialized(DirectXCommon* dxCommon);
+	/// <summary>
 	/// 確保したリソースを解放し、終了処理を行います。
 	/// </summary>
 	void Finalize();
 	void ReloadPipelineState() { CreatePipelineState(); }
 
-	/// <summary>
-	/// Draw を設定します。
-	/// </summary>
 	void SetDraw();
 	void SetShadowDraw();
 

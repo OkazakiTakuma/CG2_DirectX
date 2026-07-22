@@ -7,10 +7,6 @@
 
 namespace {
 #ifdef USE_IMGUI
-/// <summary>
-/// PrimaryWorkPos を取得します。
-/// </summary>
-/// <returns>処理結果を返します。</returns>
 ImVec2 GetPrimaryWorkPos() {
 	const ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
 	if (platformIO.Monitors.Size > 0) {
@@ -19,10 +15,6 @@ ImVec2 GetPrimaryWorkPos() {
 	return ImVec2(0.0f, 0.0f);
 }
 
-/// <summary>
-/// PrimaryWorkSize を取得します。
-/// </summary>
-/// <returns>処理結果を返します。</returns>
 ImVec2 GetPrimaryWorkSize() {
 	const ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
 	if (platformIO.Monitors.Size > 0) {
@@ -31,13 +23,6 @@ ImVec2 GetPrimaryWorkSize() {
 	return ImVec2(1280.0f, 720.0f);
 }
 
-/// <summary>
-/// ClampFloat の処理を行います。
-/// </summary>
-/// <param name="value">計算に使用する値を指定します。</param>
-/// <param name="minValue">範囲判定に使用する値を指定します。</param>
-/// <param name="maxValue">範囲判定に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 float ClampFloat(float value, float minValue, float maxValue) {
 	if (maxValue < minValue) {
 		return minValue;
@@ -51,13 +36,6 @@ float ClampFloat(float value, float minValue, float maxValue) {
 	return value;
 }
 
-/// <summary>
-/// ClampLayoutValue の処理を行います。
-/// </summary>
-/// <param name="value">計算に使用する値を指定します。</param>
-/// <param name="minValue">範囲判定に使用する値を指定します。</param>
-/// <param name="maxValue">範囲判定に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 float ClampLayoutValue(float value, float minValue, float maxValue) {
 	if (maxValue < minValue) {
 		return maxValue;
@@ -71,12 +49,6 @@ float ClampLayoutValue(float value, float minValue, float maxValue) {
 	return value;
 }
 
-/// <summary>
-/// ClampWindowPosToWorkArea の処理を行います。
-/// </summary>
-/// <param name="pos">pos に使用する値を指定します。</param>
-/// <param name="size">size に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 ImVec2 ClampWindowPosToWorkArea(const ImVec2& pos, const ImVec2& size) {
 	const ImVec2 workPos = GetPrimaryWorkPos();
 	const ImVec2 workSize = GetPrimaryWorkSize();
@@ -100,7 +72,6 @@ struct EditorLayout {
 /// <summary>
 /// EditorLayout を生成して返します。
 /// </summary>
-/// <returns>処理結果を返します。</returns>
 EditorLayout MakeEditorLayout() {
 	const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
 	const float width = displaySize.x > 0.0f ? displaySize.x : 1280.0f;
@@ -121,13 +92,6 @@ EditorLayout MakeEditorLayout() {
 	return layout;
 }
 
-/// <summary>
-/// BeginEditorPanel の処理を行います。
-/// </summary>
-/// <param name="name">name に使用する値を指定します。</param>
-/// <param name="pos">pos に使用する値を指定します。</param>
-/// <param name="size">size に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 bool BeginEditorPanel(const char* name, const ImVec2& pos, const ImVec2& size) {
 #ifdef IMGUI_HAS_DOCK
 	(void)pos;

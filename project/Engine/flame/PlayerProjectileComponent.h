@@ -10,9 +10,11 @@
 #include <vector>
 #include <string>
 
+/// <summary>プレイヤー弾の移動方式、追尾、寿命、貫通・再ヒット制御を管理します。</summary>
 class PlayerProjectileComponent : public Component {
 public:
 	void Update() override {
+		// 移動方式ごとの位置更新後に、追尾補正と寿命更新を適用する。
 		GameObject* owner = GetOwner();
 		if (!owner) {
 			return;
@@ -47,6 +49,10 @@ public:
 		}
 		if (motionType_ == PlayerProjectileMotionType::Boomerang) {
 			UpdateBoomerang(owner, deltaTime, frameScale);
+			return;
+		}
+		if (motionType_ == PlayerProjectileMotionType::ClawSlash) {
+			UpdateClawSlash(owner, deltaTime);
 			return;
 		}
 		if (homingEnabled_ && homingTarget_) {
@@ -89,9 +95,11 @@ public:
 	void SetOrbitAngularSpeed(float speed) { orbitAngularSpeed_ = speed; }
 	void SetTravelDistance(float distance) { travelDistance_ = (std::max)(0.1f, distance); }
 	void SetTravelOrigin(const Vector3& origin) { travelOrigin_ = origin; }
+	void SetClawSlashIndex(int index) { clawSlashIndex_ = (std::max)(0, index); }
+	void SetClawSlashCount(int count) { clawSlashCount_ = (std::max)(1, count); }
 	void SetHomingTarget(GameObject* target) { homingTarget_ = target; }
 	GameObject* GetHomingTarget() const { return homingTarget_; }
-	void SetLifeTime(float lifeTime) { lifeTime_ = lifeTime; }
+	void SetLifeTime(float lifeTime) { lifeTime_ = lifeTime; initialLifeTime_ = lifeTime; }
 	void Expire() { lifeTime_ = 0.0f; }
 	bool IsExpired() const { return lifeTime_ <= 0.0f; }
 	void SetPierceCount(int pierceCount) { pierceCount_ = pierceCount < 0 ? 0 : pierceCount; }
@@ -124,6 +132,7 @@ public:
 	}
 
 private:
+	/// <summary>同じ対象への連続ヒットを抑制する対象別クールダウンです。</summary>
 	struct HitRecord {
 		GameObject* object = nullptr;
 		float cooldownSeconds = -1.0f;
@@ -181,6 +190,32 @@ private:
 		lifeTime_ -= deltaTime;
 	}
 
+	void UpdateClawSlash(GameObject* owner, float deltaTime) {
+		if (!motionAnchor_) {
+			lifeTime_ = 0.0f;
+			return;
+		}
+
+		lifeTime_ -= deltaTime;
+		const float duration = (std::max)(0.01f, initialLifeTime_);
+		const float progress = (std::clamp)(1.0f - lifeTime_ / duration, 0.0f, 1.0f);
+		if (!isClawSlashYawInitialized_) {
+			clawSlashYaw_ = motionAnchor_->GetTransform().rotate.y;
+			isClawSlashYawInitialized_ = true;
+		}
+		const Vector3 forward{std::sin(clawSlashYaw_), 0.0f, std::cos(clawSlashYaw_)};
+		const Vector3 right{std::cos(clawSlashYaw_), 0.0f, -std::sin(clawSlashYaw_)};
+		const float centeredIndex = static_cast<float>(clawSlashIndex_) - (static_cast<float>(clawSlashCount_) - 1.0f) * 0.5f;
+		const float localX = -0.9f + 1.8f * progress + centeredIndex * 0.34f;
+		const float localY = 1.15f - 0.70f * progress + centeredIndex * 0.18f;
+		const float localZ = 1.55f + std::abs(centeredIndex) * 0.03f;
+
+		owner->GetTransform().translate = motionAnchor_->GetTransform().translate +
+		    localX * right + Vector3{0.0f, localY, 0.0f} + localZ * forward;
+		owner->GetTransform().rotate.y = clawSlashYaw_;
+		owner->GetTransform().rotate.z = -0.65f;
+	}
+
 	std::string attackName_;
 	std::string level_ = "1";
 	Vector3 direction_{0.0f, 0.0f, 1.0f};
@@ -189,11 +224,13 @@ private:
 	float size_ = 1.0f;
 	float visualScaleRate_ = 1.0f;
 	float lifeTime_ = 3.0f;
+	float initialLifeTime_ = 3.0f;
 	int pierceCount_ = 0;
 	bool infinitePierce_ = false;
 	bool homingEnabled_ = false;
 	float homingAccuracy_ = 1.0f;
 	PlayerProjectileMotionType motionType_ = PlayerProjectileMotionType::Linear;
+	/// <summary>周回弾などの中心として使用する非所有参照です。</summary>
 	GameObject* motionAnchor_ = nullptr;
 	float orbitAngleRadians_ = 0.0f;
 	float orbitRadius_ = 2.2f;
@@ -203,7 +240,14 @@ private:
 	Vector3 travelOrigin_{};
 	Vector3 returnTarget_{};
 	bool returning_ = false;
+	int clawSlashIndex_ = 0;
+	int clawSlashCount_ = 3;
+	float clawSlashYaw_ = 0.0f;
+	bool isClawSlashYawInitialized_ = false;
+	/// <summary>追尾対象となるGameObjectへの非所有参照です。</summary>
 	GameObject* homingTarget_ = nullptr;
+	/// <summary>同一対象へ再度命中可能になるまでの秒数です。</summary>
 	float repeatHitIntervalSeconds_ = 0.0f;
+	/// <summary>命中済み対象と残りクールダウンの一覧です。</summary>
 	std::vector<HitRecord> hitRecords_;
 };

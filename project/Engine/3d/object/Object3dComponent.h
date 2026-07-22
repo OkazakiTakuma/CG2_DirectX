@@ -62,9 +62,6 @@ public:
 	/// </summary>
 	/// <param name="radius">半径を指定します。</param>
 	/// <param name="height">高さを指定します。</param>
-	/// <param name="subdivision">subdivision に使用する値を指定します。</param>
-	/// <param name="createTopCap">createTopCap に使用する値を指定します。</param>
-	/// <param name="createBottomCap">createBottomCap に使用する値を指定します。</param>
 	void CreateCylinder(float radius = 1.0f, float height = 2.0f, uint32_t subdivision = 16, bool createTopCap = true, bool createBottomCap = true) {
 		object3d_->CreateCylinder(radius, height, subdivision, createTopCap, createBottomCap);
 	}
@@ -73,27 +70,18 @@ public:
 	std::string GetModelTextureFilePath() const { return object3d_ ? object3d_->GetModelTextureFilePath() : std::string(); }
 
 	const Vector3& GetTranslate() { return GetOwner()->GetTransform().translate; }
-	/// <summary>
-	/// Translate を設定します。
-	/// </summary>
 	/// <param name="translate">位置を指定します。</param>
 	void SetTranslate(const Vector3& translate) {
 		GetOwner()->GetTransform().translate = translate;
 		SyncOwnerTransformToObject();
 	}
 	const Vector3& GetRotate() { return GetOwner()->GetTransform().rotate; }
-	/// <summary>
-	/// Rotate を設定します。
-	/// </summary>
 	/// <param name="rotate">回転量を指定します。</param>
 	void SetRotate(const Vector3& rotate) {
 		GetOwner()->GetTransform().rotate = rotate;
 		SyncOwnerTransformToObject();
 	}
 	const Vector3& GetScale() { return GetOwner()->GetTransform().scale; }
-	/// <summary>
-	/// Scale を設定します。
-	/// </summary>
 	/// <param name="scale">拡大率を指定します。</param>
 	void SetScale(const Vector3& scale) {
 		GetOwner()->GetTransform().scale = scale;
@@ -101,23 +89,15 @@ public:
 	}
 
 	void SetCamera(Camera* camera) { object3d_->SetCamera(camera); }
-	/// <summary>
-	/// DirectionalLight を設定します。
-	/// </summary>
 	/// <param name="color">色を指定します。</param>
-	/// <param name="direction">direction に使用する値を指定します。</param>
 	/// <param name="intensity">強度を指定します。</param>
 	void SetDirectionalLight(const Vector4& color, const Vector3& direction, float intensity) {
 		object3d_->SetDirectionalLight(color, direction, intensity);
 	}
-	/// <summary>
-	/// PointLight を設定します。
-	/// </summary>
 	/// <param name="color">色を指定します。</param>
 	/// <param name="position">位置を指定します。</param>
 	/// <param name="intensity">強度を指定します。</param>
 	/// <param name="radius">半径を指定します。</param>
-	/// <param name="decay">decay に使用する値を指定します。</param>
 	void SetPointLight(const Vector4& color, const Vector3& position, float intensity, float radius, float decay) {
 		object3d_->SetPointLight(color, position, intensity, radius, decay);
 	}
@@ -159,9 +139,6 @@ public:
 	const float GetEnvironmentMultiplier() const { return object3d_->GetEnvironmentMultiplier(); }
 
 private:
-	/// <summary>
-	/// SyncOwnerTransformToObject の処理を行います。
-	/// </summary>
 	void SyncOwnerTransformToObject() {
 		if (!object3d_ || GetOwner() == nullptr) {
 			return;

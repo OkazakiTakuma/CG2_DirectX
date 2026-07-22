@@ -4,6 +4,7 @@
 #include "Input.h"
 #include "GameTime.h"
 #include "object/Object3dComponent.h"
+#include "PostEffect.h"
 #include <cmath>
 #include <limits>
 #include <dinput.h>
@@ -125,6 +126,7 @@ int Player::TakeDamage(float rawDamage) {
 
 	SetCurrentHealth(currentHealth_ - static_cast<float>(damage));
 	damageInvincibilityTimer_ = effectiveStats_.damageInvincibilityDuration;
+	PostEffect::GetInstance()->TriggerDamageVignette();
 	return damage;
 }
 

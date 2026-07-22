@@ -12,8 +12,10 @@
 #include <string>
 #include <vector>
 
+/// <summary>カメラ表示範囲の外側に敵の出現候補点を作り、時間帯別の生成要求を発行します。</summary>
 class EnemySpawnPointComponent : public Component {
 public:
+	/// <summary>一定時間帯に適用する敵タイプ、生成間隔、生成数の設定です。</summary>
 	struct SpawnSchedule {
 		float startTimeSeconds = 0.0f;
 		float endTimeSeconds = 60.0f;
@@ -22,12 +24,14 @@ public:
 		int spawnAmount = 1;
 		int frameCounter = 0;
 	};
+	/// <summary>シーン側へ渡す、生成位置が確定した敵生成要求です。</summary>
 	struct ScheduledSpawnRequest {
 		std::string enemyTypeName;
 		Vector3 position{};
 	};
 
 	void Update() override {
+		// カメラの変化へ追従して候補点を更新し、生成が有効な間だけ経過時間を進める。
 		RecalculateSpawnPoints();
 		if (spawnEnabled_) {
 			elapsedTimeSeconds_ += GameTime::GetDeltaTime();
@@ -118,6 +122,7 @@ public:
 	}
 
 	std::vector<ScheduledSpawnRequest> ConsumeScheduledSpawnRequests() {
+		// 有効時間帯に達し、指定間隔を満たしたスケジュールだけ要求へ変換する。
 		std::vector<ScheduledSpawnRequest> requests;
 		if (!spawnEnabled_ || spawnPoints_.empty()) {
 			return requests;
@@ -192,6 +197,7 @@ private:
 		return true;
 	}
 
+	/// <summary>カメラの地面投影範囲を基に、画面外の生成候補点を再計算します。</summary>
 	void RecalculateSpawnPoints() {
 		spawnPoints_.clear();
 		groundViewCorners_.clear();
@@ -236,17 +242,22 @@ private:
 		}
 	}
 
+	/// <summary>生成位置の基準となる対象への非所有参照です。</summary>
 	GameObject* target_ = nullptr;
 	Camera* camera_ = nullptr;
 	std::string enemyTypeName_ = "Default";
 	std::string targetName_;
 	std::string cameraName_;
+	/// <summary>画面外周に配置した敵生成候補位置です。</summary>
 	std::vector<Vector3> spawnPoints_;
+	/// <summary>カメラ視錐台を地面へ投影した四隅です。</summary>
 	std::vector<Vector3> groundViewCorners_;
+	/// <summary>候補点を均等に使用するための次回位置です。</summary>
 	size_t nextSpawnIndex_ = 0;
 	int spawnCount_ = 8;
 	float spawnTimerSeconds_ = 0.0f;
 	float elapsedTimeSeconds_ = 0.0f;
+	/// <summary>ゲーム時間帯ごとの敵生成設定です。</summary>
 	std::vector<SpawnSchedule> spawnSchedules_;
 	float outerMargin_ = 5.0f;
 	float minimumRadius_ = 8.0f;

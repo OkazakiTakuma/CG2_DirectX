@@ -1,4 +1,20 @@
 {
+    "Charger": {
+        "attack": 18.0,
+        "behavior": "Charger",
+        "chargeDuration": 1.25,
+        "chargeTriggerDistance": 7.0,
+        "dashDuration": 0.65,
+        "dashRecovery": 1.1,
+        "dashSpeed": 0.30000001192092896,
+        "experience": 7,
+        "experienceModel": "sphere.obj",
+        "health": 150.0,
+        "shootingInterval": 2.0,
+        "shoots": false,
+        "spawnsPerMinute": 5.0,
+        "speed": 0.03500000014901161
+    },
     "Default": {
         "attack": 8.0,
         "experience": 4,
@@ -8,5 +24,33 @@
         "shoots": false,
         "spawnsPerMinute": 12.0,
         "speed": 0.03999999910593033
+    },
+    "MidBoss": {
+        "attack": 25.0,
+        "behavior": "Chase",
+        "experience": 30,
+        "experienceModel": "sphere.obj",
+        "health": 600.0,
+        "shootingInterval": 2.0,
+        "shoots": false,
+        "sizeScale": 2.4000000953674316,
+        "spawnsPerMinute": 1.0,
+        "speed": 0.02500000037252903
+    },
+    "Shooter": {
+        "attack": 10.0,
+        "behavior": "Shooter",
+        "distanceTolerance": 1.5,
+        "experience": 6,
+        "experienceModel": "sphere.obj",
+        "health": 80.0,
+        "preferredDistance": 7.0,
+        "projectileLifeTime": 6.0,
+        "projectileSize": 0.2199999988079071,
+        "projectileSpeed": 0.11999999731779099,
+        "shootingInterval": 1.6,
+        "shoots": true,
+        "spawnsPerMinute": 7.0,
+        "speed": 0.03500000014901161
     }
 }

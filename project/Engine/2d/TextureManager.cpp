@@ -22,7 +22,6 @@ void TextureManager::Initialize(DirectXCommon* dxcommon) {
 /// <summary>
 /// 共有インスタンスを取得します。
 /// </summary>
-/// <returns>処理結果を返します。</returns>
 TextureManager* TextureManager::GetInstance() {
 	static TextureManager instance;
 	return &instance;
@@ -32,86 +31,104 @@ TextureManager* TextureManager::GetInstance() {
 /// 確保したリソースを解放し、終了処理を行います。
 /// </summary>
 void TextureManager::Finalize() {
-	for (auto& pair : textureDatas) {
-		pair.second.resource.Reset();
-	}
 	textureDatas.clear();
 }
 
 void TextureManager::Release() {}
 
-/// <summary>
-/// TextureIndexByFilePath を取得します。
-/// </summary>
-/// <param name="filepath">読み込みまたは保存に使用するファイルパスを指定します。</param>
-/// <returns>処理結果を返します。</returns>
 uint32_t TextureManager::GetTextureIndexByFilePath(const std::string& filepath) {
 	assert(!SrvManager::GetInstance()->IsOverAllocated());
-	return 0;
+	assert(textureDatas.contains(filepath));
+	return textureDatas.at(filepath).srvIndex;
 }
 
-/// <summary>
-/// Texture を読み込み、内部データへ反映します。
-/// </summary>
-/// <param name="filepath">読み込みまたは保存に使用するファイルパスを指定します。</param>
-void TextureManager::LoadTexture(const std::string& filepath) {
-	HRESULT hr;
-	if (textureDatas.contains(filepath)) {
-		return;
-	}
-	SrvManager* srvManager = SrvManager::GetInstance();
-	DirectX::ScratchImage image{};
-	if (filepath.ends_with(".dds")) {
-		hr = DirectX::LoadFromDDSFile(ConvertString(filepath).c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image);
-	} else {
-		hr = DirectX::LoadFromWICFile(ConvertString(filepath).c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
+bool TextureManager::LoadTextureImage(const std::string& filepath, DirectX::ScratchImage& mipImages) const {
+	// DDSは圧縮形式を維持し、それ以外は描画用のsRGB画像として読み込む。
+	DirectX::ScratchImage image;
+	HRESULT hr = filepath.ends_with(".dds")
+		? DirectX::LoadFromDDSFile(ConvertString(filepath).c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image)
+		: DirectX::LoadFromWICFile(ConvertString(filepath).c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
+	if (FAILED(hr)) {
+		return false;
 	}
 
-	assert(SUCCEEDED(hr));
-
-	DirectX::ScratchImage mipImages{};
+	// 圧縮済み画像へのミップ生成は行わず、元データをそのまま利用する。
 	if (DirectX::IsCompressed(image.GetMetadata().format)) {
 		mipImages = std::move(image);
-	} else {
-
-		hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
+		return true;
 	}
-	assert(SUCCEEDED(hr));
 
-	TextureData& textureData = textureDatas[filepath];
-	textureData.metadata = mipImages.GetMetadata();
-	textureData.resource = dxCommon_->CreateTextureResource(textureData.metadata);
+	// 非圧縮画像には縮小描画時の品質を保つためのミップマップを生成する。
+	hr = DirectX::GenerateMipMaps(
+		image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
+	return SUCCEEDED(hr);
+}
+
+void TextureManager::AllocateSrv(TextureData& textureData) const {
+	SrvManager* srvManager = SrvManager::GetInstance();
+	// 同じインデックスからCPU用・GPU用の両ハンドルを取得して対応を保つ。
 	textureData.srvIndex = srvManager->Allocate();
 	textureData.srvHandleCPU = srvManager->GetCPUDescriptorHandle(textureData.srvIndex);
 	textureData.srvHandleGPU = srvManager->GetGPUDescriptorHandle(textureData.srvIndex);
+}
+
+void TextureManager::CreateSrv(const TextureData& textureData) const {
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = textureData.metadata.format;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	// キューブマップと通常の2DテクスチャではSRVの次元設定が異なる。
 	if (textureData.metadata.IsCubemap()) {
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
 		srvDesc.TextureCube.MostDetailedMip = 0;
 		srvDesc.TextureCube.MipLevels = UINT_MAX;
 		srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
-
 	} else {
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MipLevels = UINT(mipImages.GetMetadata().mipLevels);
+		srvDesc.Texture2D.MipLevels = static_cast<UINT>(textureData.metadata.mipLevels);
 	}
 	dxCommon_->GetDevice()->CreateShaderResourceView(textureData.resource.Get(), &srvDesc, textureData.srvHandleCPU);
+}
 
-	dxCommon_->UploadTextureData(textureData.resource, mipImages);
+void TextureManager::UploadAndTransition(TextureData& textureData, const DirectX::ScratchImage& image) const {
+	// COPY_DEST状態のGPUリソースへ、全ミップレベルの画像データを転送する。
+	dxCommon_->UploadTextureData(textureData.resource, image);
+
+	// 転送後のテクスチャをピクセルシェーダーから読み取れる状態に変更する。
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 	barrier.Transition.pResource = textureData.resource.Get();
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-
 	dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
 }
 
+/// <summary>
+/// Texture を読み込み、内部データへ反映します。
+/// </summary>
+void TextureManager::LoadTexture(const std::string& filepath) {
+	// 同じファイルを複数回ロードしてSRVを浪費しないようにする。
+	if (textureDatas.contains(filepath)) {
+		return;
+	}
+	DirectX::ScratchImage mipImages;
+	const bool loaded = LoadTextureImage(filepath, mipImages);
+	assert(loaded);
+	if (!loaded) {
+		return;
+	}
+
+	// CPU側の画像情報を基にGPUリソースと対応するSRVをまとめて構築する。
+	TextureData& textureData = textureDatas[filepath];
+	textureData.metadata = mipImages.GetMetadata();
+	textureData.resource = dxCommon_->CreateTextureResource(textureData.metadata);
+	AllocateSrv(textureData);
+	CreateSrv(textureData);
+	UploadAndTransition(textureData, mipImages);
+}
+
 void TextureManager::CreateTextureFromRGBA(const std::string& key, uint32_t width, uint32_t height, const std::vector<uint8_t>& pixels) {
+	// RGBA8として必要なデータ量を満たさない入力はGPUへ送らない。
 	if (textureDatas.contains(key) || !dxCommon_ || width == 0 || height == 0 || pixels.size() < static_cast<size_t>(width) * height * 4) {
 		return;
 	}
@@ -119,6 +136,7 @@ void TextureManager::CreateTextureFromRGBA(const std::string& key, uint32_t widt
 	HRESULT hr = image.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, width, height, 1, 1);
 	assert(SUCCEEDED(hr));
 	const DirectX::Image* destination = image.GetImage(0, 0, 0);
+	// 転送先のrowPitchを考慮し、入力ピクセルを1行ずつコピーする。
 	for (uint32_t row = 0; row < height; ++row) {
 		std::memcpy(destination->pixels + destination->rowPitch * row, pixels.data() + static_cast<size_t>(width) * row * 4, static_cast<size_t>(width) * 4);
 	}
@@ -126,25 +144,9 @@ void TextureManager::CreateTextureFromRGBA(const std::string& key, uint32_t widt
 	TextureData& textureData = textureDatas[key];
 	textureData.metadata = image.GetMetadata();
 	textureData.resource = dxCommon_->CreateTextureResource(textureData.metadata);
-	SrvManager* srvManager = SrvManager::GetInstance();
-	textureData.srvIndex = srvManager->Allocate();
-	textureData.srvHandleCPU = srvManager->GetCPUDescriptorHandle(textureData.srvIndex);
-	textureData.srvHandleGPU = srvManager->GetGPUDescriptorHandle(textureData.srvIndex);
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = textureData.metadata.format;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = 1;
-	dxCommon_->GetDevice()->CreateShaderResourceView(textureData.resource.Get(), &srvDesc, textureData.srvHandleCPU);
-	dxCommon_->UploadTextureData(textureData.resource, image);
-
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Transition.pResource = textureData.resource.Get();
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
+	AllocateSrv(textureData);
+	CreateSrv(textureData);
+	UploadAndTransition(textureData, image);
 }
 
 bool TextureManager::ReloadTexture(const std::string& filepath) {
@@ -153,53 +155,17 @@ bool TextureManager::ReloadTexture(const std::string& filepath) {
 		return false;
 	}
 
-	HRESULT hr;
-	DirectX::ScratchImage image{};
-	if (filepath.ends_with(".dds")) {
-		hr = DirectX::LoadFromDDSFile(ConvertString(filepath).c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image);
-	} else {
-		hr = DirectX::LoadFromWICFile(ConvertString(filepath).c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
-	}
-	if (FAILED(hr)) {
+	DirectX::ScratchImage mipImages;
+	if (!LoadTextureImage(filepath, mipImages)) {
 		return false;
 	}
 
-	DirectX::ScratchImage mipImages{};
-	if (DirectX::IsCompressed(image.GetMetadata().format)) {
-		mipImages = std::move(image);
-	} else {
-		hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
-		if (FAILED(hr)) {
-			return false;
-		}
-	}
-
+	// 既存のSRVハンドルを引き継ぎ、参照元を変更せずリソースだけを差し替える。
 	TextureData replacement = textureIt->second;
 	replacement.metadata = mipImages.GetMetadata();
 	replacement.resource = dxCommon_->CreateTextureResource(replacement.metadata);
-	dxCommon_->UploadTextureData(replacement.resource, mipImages);
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = replacement.metadata.format;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	if (replacement.metadata.IsCubemap()) {
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-		srvDesc.TextureCube.MostDetailedMip = 0;
-		srvDesc.TextureCube.MipLevels = UINT_MAX;
-		srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
-	} else {
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MipLevels = static_cast<UINT>(replacement.metadata.mipLevels);
-	}
-	dxCommon_->GetDevice()->CreateShaderResourceView(replacement.resource.Get(), &srvDesc, replacement.srvHandleCPU);
-
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Transition.pResource = replacement.resource.Get();
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
+	CreateSrv(replacement);
+	UploadAndTransition(replacement, mipImages);
 
 	textureIt->second = std::move(replacement);
 	return true;
@@ -207,6 +173,7 @@ bool TextureManager::ReloadTexture(const std::string& filepath) {
 
 size_t TextureManager::ReloadAllTextures() {
 	size_t reloadedCount = 0;
+	// 実行時生成テクスチャを除いたスナップショットを使い、走査中の変更を避ける。
 	const std::vector<std::string> filePaths = GetLoadedTextureNames();
 	for (const std::string& filePath : filePaths) {
 		if (ReloadTexture(filePath)) {
@@ -224,6 +191,7 @@ std::vector<std::string> TextureManager::GetLoadedTextureNames() const {
 	std::vector<std::string> names;
 	names.reserve(textureDatas.size());
 	for (const auto& [filePath, textureData] : textureDatas) {
+		// ファイルを持たない実行時生成テクスチャは再読み込み対象に含めない。
 		if (filePath.starts_with("__runtime_")) {
 			continue;
 		}

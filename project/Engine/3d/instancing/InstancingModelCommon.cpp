@@ -7,7 +7,6 @@ using namespace Logger;
 /// <summary>
 /// 共有インスタンスを取得します。
 /// </summary>
-/// <returns>処理結果を返します。</returns>
 InstancingModelCommon* InstancingModelCommon::GetInstance() {
     static InstancingModelCommon instance;
     return &instance;
@@ -34,9 +33,6 @@ void InstancingModelCommon::Finalize() {
     dxCommon_ = nullptr;
 }
 
-/// <summary>
-/// Draw を設定します。
-/// </summary>
 void InstancingModelCommon::SetDraw() {
     auto commandList = dxCommon_->GetCommandList();
     commandList->SetPipelineState(pipelineState_.Get());

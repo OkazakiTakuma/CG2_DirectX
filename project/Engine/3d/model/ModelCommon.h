@@ -18,9 +18,6 @@ public:
 	void Finalize();
 
 	// Sets the pipeline state used for model rendering.
-	/// <summary>
-	/// Draw を設定します。
-	/// </summary>
 	void SetDraw();
 
 	DirectXCommon* GetDxCommon() { return dxCommon_; }

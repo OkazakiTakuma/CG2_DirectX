@@ -11,7 +11,6 @@ public:
 	/// <summary>
 	/// 共有インスタンスを取得します。
 	/// </summary>
-	/// <returns>処理結果を返します。</returns>
 	static Input* GetInstance();
 
 	~Input() = default;
@@ -26,38 +25,13 @@ public:
 	/// </summary>
 	void Update();
 
-	/// <summary>
-	/// PushKey の処理を行います。
-	/// </summary>
-	/// <param name="keyNumber">keyNumber に使用する値を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	bool PushKey(BYTE keyNumber);
-	/// <summary>
-	/// TriggerKey の処理を行います。
-	/// </summary>
-	/// <param name="keyNumber">keyNumber に使用する値を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	bool TriggerKey(BYTE keyNumber);
-	/// <summary>
-	/// ReleaseKey の処理を行います。
-	/// </summary>
-	/// <param name="keyNumber">keyNumber に使用する値を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	bool ReleaseKey(BYTE keyNumber);
 	LONG GetMouseWheelDelta() const { return mouseWheelDelta; }
 	LONG GetMouseMoveX() const { return mouseMoveX; }
 	LONG GetMouseMoveY() const { return mouseMoveY; }
-	/// <summary>
-	/// PushMouseButton の処理を行います。
-	/// </summary>
-	/// <param name="buttonIndex">buttonIndex に使用する値を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	bool PushMouseButton(int buttonIndex) const;
-	/// <summary>
-	/// TriggerMouseButton の処理を行います。
-	/// </summary>
-	/// <param name="buttonIndex">buttonIndex に使用する値を指定します。</param>
-	/// <returns>処理結果を返します。</returns>
 	bool TriggerMouseButton(int buttonIndex) const;
 	LONG GetMouseClientX() const { return mouseClientPosition.x; }
 	LONG GetMouseClientY() const { return mouseClientPosition.y; }

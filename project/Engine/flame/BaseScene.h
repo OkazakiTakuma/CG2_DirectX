@@ -3,6 +3,7 @@
 #include "camera/Camera.h"
 #include "camera/CameraComponent.h"
 #include "EnemyComponent.h"
+#include "EnemyProjectileComponent.h"
 #include "EnemySpawnPointComponent.h"
 #include "ExperienceComponent.h"
 #include "GameObject.h"
@@ -85,9 +86,6 @@ public:
 /// シーンが保持しているリソースを解放します。
 /// </summary>
 	virtual void Finalize();
-/// <summary>
-/// ~BaseScene の処理を行います。
-/// </summary>
 	virtual ~BaseScene();
 
 	virtual void SetSceneManager(SceneManager* manager) { sceneManager = manager; }
@@ -113,6 +111,7 @@ public:
 	void DrawEditorImGui();
 	void SetSceneName(const std::string& sceneName) { sceneName_ = sceneName; }
 	void SetFallbackCamera(Camera* camera) { fallbackCamera_ = camera; }
+	void SetPlayerTypeOverride(const std::string& playerTypeName) { playerTypeOverride_ = playerTypeName; }
 	bool IsLevelUpSelectionActive() const { return isLevelUpSelectionActive_; }
 /// <summary>
 /// エディタで配置したオブジェクト情報をJSONへ保存します。
@@ -137,6 +136,7 @@ private:
 		std::string title;
 		std::string description;
 		int slotIndex = -1;
+		std::string textureFilePath;
 	};
 /// <summary>
 /// 指定された種類のエディタオブジェクトを生成します。
@@ -221,10 +221,17 @@ private:
 	void ResolveEnemySpawnPointLinks();
 	void ResolveEnemyLinks();
 	void UpdateEnemySpawning();
+	void UpdateEnemyAttacks();
+	void UpdateEnemyProjectileHits();
 	void UpdatePlayerAttacks();
 	void UpdatePlayerProjectileHits();
+	void UpdateExperienceCompression();
 	void CleanupExpiredPlayerProjectiles();
 	void UpdatePlayerHealthHud();
+	void UpdatePlayerExperienceHud();
+	void DrawPlayerExperienceHud();
+	void UpdatePlayerSlotHud();
+	void DrawPlayerSlotHud();
 	void UpdateLevelUpSelection();
 	bool BuildLevelUpChoices(Player* player);
 	void ApplyLevelUpChoice(int choiceIndex);
@@ -247,6 +254,7 @@ private:
 /// </summary>
 	std::string MakeUniqueObjectName(const std::string& baseName) const;
 	GameObject* CreateRuntimeEnemy(const std::string& enemyTypeName, const Vector3& position, GameObject* target);
+	GameObject* CreateRuntimeEnemyProjectile(const EnemyShotRequest& request);
 	GameObject* CreateRuntimeExperience(const EnemyStats& enemyStats, const Vector3& position, GameObject* target);
 	GameObject* CreateRuntimePlayerProjectile(const PlayerAttackShotRequest& request);
 	GameObject* FindNearestEnemy(const Vector3& position) const;
@@ -263,6 +271,7 @@ private:
 
 	SceneManager* sceneManager = nullptr;
 	std::string sceneName_ = "None";
+	std::string playerTypeOverride_;
 	std::vector<std::unique_ptr<GameObject>> sceneObjects_;
 	int selectedObjectIndex_ = -1;
 	int nextObjectId_ = 1;
@@ -296,6 +305,24 @@ private:
 	std::unique_ptr<Sprite> playerHealthBarBackground_;
 	std::unique_ptr<Sprite> playerHealthBarFill_;
 	bool isPlayerHealthHudVisible_ = false;
+	std::unique_ptr<Sprite> playerExperienceBarBackground_;
+	std::unique_ptr<Sprite> playerExperienceBarFill_;
+	std::unique_ptr<GameObject> playerExperienceTextObject_;
+	float playerExperienceRate_ = 0.0f;
+	bool isPlayerExperienceHudVisible_ = false;
+	std::array<std::unique_ptr<Sprite>, 5> playerAttackSlotBackgroundSprites_;
+	std::array<std::unique_ptr<Sprite>, 5> playerAttackSlotIconSprites_;
+	std::array<std::unique_ptr<Sprite>, 5> playerStatusSlotBackgroundSprites_;
+	std::array<std::unique_ptr<Sprite>, 5> playerStatusSlotIconSprites_;
+	std::array<bool, 5> playerAttackSlotIconVisible_{};
+	std::array<bool, 5> playerStatusSlotIconVisible_{};
+	std::array<std::string, 5> playerAttackSlotTextureKeys_{};
+	std::array<std::string, 5> playerAttackSlotTexturePaths_{};
+	std::array<std::string, 5> playerStatusSlotTextureKeys_{};
+	std::array<std::string, 5> playerStatusSlotTexturePaths_{};
+	std::unique_ptr<GameObject> playerAttackSlotLabelObject_;
+	std::unique_ptr<GameObject> playerStatusSlotLabelObject_;
+	bool isPlayerSlotHudVisible_ = false;
 	bool isLevelUpSelectionActive_ = false;
 	Player* levelUpPlayer_ = nullptr;
 	int selectedLevelUpChoiceIndex_ = 0;
@@ -304,6 +331,7 @@ private:
 	std::unique_ptr<Sprite> levelUpPanelSprite_;
 	std::array<std::unique_ptr<Sprite>, 3> levelUpChoiceBorderSprites_;
 	std::array<std::unique_ptr<Sprite>, 3> levelUpChoiceSprites_;
+	std::array<std::unique_ptr<Sprite>, 3> levelUpChoiceIconSprites_;
 	std::unique_ptr<GameObject> levelUpTitleTextObject_;
 	std::unique_ptr<GameObject> levelUpInstructionTextObject_;
 	std::array<std::unique_ptr<GameObject>, 3> levelUpChoiceTextObjects_;

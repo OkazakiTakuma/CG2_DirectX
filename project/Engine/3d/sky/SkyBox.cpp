@@ -5,7 +5,6 @@
 /// <summary>
 /// 必要なリソースを準備し、オブジェクトを初期化します。
 /// </summary>
-/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 void SkyBox::Initialize(const std::string& filePath) {
 	common_ = SkyBoxCommon::GetInstance();
 	textureFilePath = filePath;

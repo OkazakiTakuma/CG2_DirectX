@@ -10,12 +10,14 @@
 #include <wrl.h>
 #include <map>
 
+/// <summary>オブジェクト描画時にシェーダーへ渡す座標変換行列です。</summary>
 struct TransformationMatrix {
 	Matrix4x4 WVP;
 	Matrix4x4 world;
 	Matrix4x4 WorldInverseTranspose;
 };
 
+/// <summary>描画時に使用するカラー合成方式です。</summary>
 enum BlendMode {
 	kBlendModeNone,
 	kBlendModeNormal,
@@ -25,6 +27,7 @@ enum BlendMode {
 	kBlendModeScreen,
 	kBlendCountblend,
 };
+/// <summary>静的・スキニングモデルで共用する頂点属性です。</summary>
 struct VertexData {
 	Vector4 position;
 	Vector2 texcoord;
@@ -33,6 +36,7 @@ struct VertexData {
 	Vector4 boneWeights = {0.0f, 0.0f, 0.0f, 0.0f};
 };
 
+/// <summary>シェーダーへ転送するマテリアル定数です。</summary>
 struct Material {
 	Vector4 color;
 	int32_t enableLighting;
@@ -68,6 +72,7 @@ struct Node {
 	std::vector<Node> children;
 };
 
+/// <summary>ファイルから読み込んだメッシュ、マテリアル、階層情報のまとまりです。</summary>
 struct ModelData {
 	std::map<std::string, JointWeightData> skinClusterData;
 	std::vector<VertexData> vertices;
@@ -75,6 +80,7 @@ struct ModelData {
 	MaterialData material;
 	Node rootNode;
 };
+/// <summary>CPU上で更新する1パーティクルの状態です。</summary>
 struct Particle {
 	EulerTransform transform;
 	Vector3 velocity;
@@ -105,6 +111,7 @@ struct ParticleForGPU {
 	float padding1;
 	Vector4 color;
 };
+/// <summary>XAudio2へ渡す音声形式とPCMバッファです。</summary>
 struct SoundData {
 	WAVEFORMATEX wfx;
 	std::vector<BYTE> buffer;
@@ -119,6 +126,7 @@ struct PointLight {
 	float padding[2];
 };
 
+/// <summary>パーティクル生成時の初期値とランダム範囲です。</summary>
 struct ParticleEmitParam {
 	Vector3 scale = { 1.0f, 1.0f, 1.0f };
 	Vector3 endScale = { 0.0f, 0.0f, 0.0f };
@@ -155,6 +163,7 @@ struct ParticleSetting {
 	BlendMode blendMode;
 };
 
+/// <summary>アニメーション曲線上の時刻と値の組です。</summary>
 template <typename tValue>
 struct Keyframe {
 	float time;
@@ -191,6 +200,7 @@ struct Joint
 	std::optional<int32_t> parent;
 };
 
+/// <summary>ルート、名前検索表、全ジョイントを保持するスケルトンです。</summary>
 struct Skeleton
 {
 	int32_t root = -1;

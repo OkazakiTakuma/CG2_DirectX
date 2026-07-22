@@ -210,6 +210,9 @@ void BaseScene::SaveEditorObjects() {
 		if (object->GetComponent<ExperienceComponent>()) {
 			continue;
 		}
+		if (object->GetComponent<EnemyProjectileComponent>()) {
+			continue;
+		}
 		if (object->GetParentName().empty() || !FindObjectByName(object->GetParentName())) {
 			root["objects"].push_back(makeObjectJson(object.get()));
 		}
@@ -279,7 +282,9 @@ void BaseScene::LoadEditorObjects() {
 		std::string modelFilePath = objectJson.value("model", "");
 		if (typeName == "Player") {
 			const nlohmann::json playerJson = objectJson.value("player", nlohmann::json::object());
-			modelFilePath = playerJson.value("typeName", playerJson.value("model", modelFilePath));
+			modelFilePath = playerTypeOverride_.empty()
+			    ? playerJson.value("typeName", playerJson.value("model", modelFilePath))
+			    : playerTypeOverride_;
 		}
 		if (typeName == "Enemy") {
 			const nlohmann::json enemyJson = objectJson.value("enemy", nlohmann::json::object());
@@ -309,7 +314,9 @@ void BaseScene::LoadEditorObjects() {
 			const nlohmann::json playerJson = objectJson.value("player", nlohmann::json::object());
 			player->SetEnabled(playerJson.value("enabled", player->IsEnabled()));
 			LoadComponentGravity(playerJson, player);
-			const std::string playerTypeName = playerJson.value("typeName", player->GetPlayerTypeName());
+			const std::string playerTypeName = playerTypeOverride_.empty()
+			    ? playerJson.value("typeName", player->GetPlayerTypeName())
+			    : playerTypeOverride_;
 			player->SetPlayerTypeName(playerTypeName);
 			PlayerStats playerStats = LoadPlayerStats(playerTypeName);
 			player->ApplyStats(playerStats, ApplyPlayerStatusItems(playerStats));
@@ -323,9 +330,13 @@ void BaseScene::LoadEditorObjects() {
 			LoadComponentGravity(attackJson, attack);
 			const Vector3 spawnPoint = JsonToVector3(playerJson.value("spawnPoint", nlohmann::json::array()), transform.translate);
 			player->SetSpawnPoint(spawnPoint);
-			const std::string playerModelFilePath = playerJson.value("model", player->GetModelFilePath());
+			const std::string playerModelFilePath = playerTypeOverride_.empty()
+			    ? playerJson.value("model", player->GetModelFilePath())
+			    : playerStats.modelFilePath;
 			Model* playerModel = ModelManager::GetInstance()->FindModel(playerModelFilePath);
-			const bool isAnimationModel = playerJson.value("isAnimationModel", playerModel && playerModel->GetIsAnimation());
+			const bool isAnimationModel = playerTypeOverride_.empty()
+			    ? playerJson.value("isAnimationModel", playerModel && playerModel->GetIsAnimation())
+			    : playerStats.isAnimationModel;
 			player->SetModelFilePath(playerModelFilePath, isAnimationModel);
 			if (Object3dComponent* object3dComponent = object->GetComponent<Object3dComponent>()) {
 				if (playerModel) {
@@ -335,8 +346,8 @@ void BaseScene::LoadEditorObjects() {
 			}
 			player->ResetToSpawnPoint();
 			player->SetCurrentHealth(player->GetMaxHealth());
-			player->SetLevel(playerJson.value("level", player->GetStats().level));
-			player->SetExperience(playerJson.value("experience", player->GetStats().experience));
+			player->SetLevel(playerTypeOverride_.empty() ? playerJson.value("level", player->GetStats().level) : playerStats.level);
+			player->SetExperience(playerTypeOverride_.empty() ? playerJson.value("experience", player->GetStats().experience) : playerStats.experience);
 			CameraComponent* playerCamera = object->GetComponent<CameraComponent>();
 			if (!playerCamera) {
 				playerCamera = object->AddComponent<CameraComponent>();

@@ -23,10 +23,6 @@ public:
 #endif
 	}
 
-	/// <summary>
-	/// WorldOBB を取得します。
-	/// </summary>
-	/// <returns>処理結果を返します。</returns>
 	OBBColliderShape GetWorldOBB() const {
 		OBBColliderShape result{};
 		if (!GetOwner()) {
@@ -72,10 +68,6 @@ public:
 	bool IsColliding() const { return isColliding_; }
 
 private:
-	/// <summary>
-	/// DrawDebugOBB の処理を行います。
-	/// </summary>
-	/// <param name="obb">obb に使用する値を指定します。</param>
 	/// <param name="color">色を指定します。</param>
 	static void DrawDebugOBB(const OBBColliderShape& obb, const Vector4& color) {
 		Vector3 vertices[8]{};

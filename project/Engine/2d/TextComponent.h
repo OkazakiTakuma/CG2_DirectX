@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+/// <summary>文字列をGDIでRGBAテクスチャへ変換し、Spriteとして2D描画します。</summary>
 class TextComponent : public Component {
 public:
 	enum class Anchor {
@@ -28,6 +29,7 @@ public:
 	};
 
 	void Draw2D() override {
+		// 文字やフォントの変更時だけテクスチャを再生成し、通常フレームの負荷を抑える。
 		if (text_.empty() || !GetOwner()) {
 			return;
 		}
@@ -83,6 +85,7 @@ public:
 	void Finalize() override { textSprite_.reset(); }
 
 private:
+	/// <summary>UTF-8文字列をWindows描画APIで使用するUTF-16へ変換します。</summary>
 	static std::wstring ToWideString(const std::string& text) {
 		if (text.empty()) return {};
 		const int length = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()), nullptr, 0);
@@ -92,6 +95,7 @@ private:
 		return result;
 	}
 
+	/// <summary>設定変更時に文字テクスチャと描画Spriteを再構築します。</summary>
 	void EnsureTextSprite() {
 		if (!isTextureDirty_ && textSprite_) return;
 		const std::wstring wideText = ToWideString(text_);
@@ -100,6 +104,7 @@ private:
 			isTextureDirty_ = false;
 			return;
 		}
+		// 文字の描画範囲を測定し、必要な大きさだけビットマップを確保する。
 		HDC measureDc = CreateCompatibleDC(nullptr);
 		const std::wstring requestedFont = fontName_ == "Default" ? L"Meiryo" : ToWideString(fontName_);
 		HFONT font = CreateFontW(-static_cast<int>(std::round(fontSize_)), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
@@ -126,6 +131,7 @@ private:
 		RECT drawRect{2, 2, width - 2, height - 2};
 		DrawTextW(measureDc, wideText.c_str(), static_cast<int>(wideText.size()), &drawRect, DT_LEFT | DT_TOP | DT_NOPREFIX);
 
+		// GDIのBGRAデータをエンジンが使用するRGBA順へ並べ替える。
 		std::vector<uint8_t> rgbaPixels(static_cast<size_t>(width) * height * 4);
 		const uint8_t* bgraPixels = static_cast<const uint8_t*>(bitmapPixels);
 		for (size_t pixel = 0; pixel < static_cast<size_t>(width) * height; ++pixel) {
@@ -151,11 +157,14 @@ private:
 		isTextureDirty_ = false;
 	}
 
+	/// <summary>次回のテクスチャ生成に使用する表示文字列です。</summary>
 	std::string text_ = "Text";
 	std::string fontName_ = "Default";
 	float fontSize_ = 32.0f;
 	Vector4 color_ = {1.0f, 1.0f, 1.0f, 1.0f};
 	Anchor anchor_ = Anchor::TopLeft;
+	/// <summary>文字テクスチャの再生成が必要かを表します。</summary>
 	bool isTextureDirty_ = true;
+	/// <summary>生成済み文字テクスチャを表示するSpriteです。</summary>
 	std::unique_ptr<Sprite> textSprite_;
 };

@@ -29,6 +29,20 @@
                 "level": "1"
             }
         ],
+        "attackSpeed": 100.0,
+        "baseHealth": 100.0,
+        "baseSpeed": 0.1,
+        "defense": 0.0,
+        "experience": 0,
+        "experienceCorrection": 100.0,
+        "health": 100.0,
+        "initialAttack": "Straight",
+        "initialAttackLevel": "1",
+        "isAnimationModel": false,
+        "level": 1,
+        "model": "sphere.obj",
+        "name": "Default",
+        "speed": 100.0,
         "statusSlots": [
             {
                 "enabled": false,
@@ -55,21 +69,80 @@
                 "level": "1",
                 "status": ""
             }
+        ]
+    },
+    "neko": {
+        "attack": 100.0,
+        "attackSize": 100.0,
+        "attackSlots": [
+            {
+                "attack": "ClawSlash",
+                "enabled": true,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            }
         ],
-        "attackSpeed": 100.0,
-        "baseHealth": 100.0,
-        "baseSpeed": 0.1,
+        "attackSpeed": 130.0,
+        "baseHealth": 110.0,
+        "baseSpeed": 0.12999999523162842,
+        "damageInvincibilityDuration": 1.0,
         "defense": 0.0,
         "experience": 0,
         "experienceCorrection": 100.0,
         "health": 100.0,
-        "initialAttack": "Straight",
+        "initialAttack": "ClawSlash",
         "initialAttackLevel": "1",
-        "isAnimationModel": false,
+        "isAnimationModel": true,
         "level": 1,
-        "model": "sphere.obj",
-        "name": "Default",
-        "speed": 100.0
+        "model": "walk.gltf",
+        "name": "neko",
+        "speed": 100.0,
+        "statusSlots": [
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            }
+        ]
     },
     "walk.gltf": {
         "attack": 100.0,
@@ -101,6 +174,21 @@
                 "level": "1"
             }
         ],
+        "attackSpeed": 100.0,
+        "baseHealth": 100.0,
+        "baseSpeed": 0.10000000149011612,
+        "damageInvincibilityDuration": 1.0,
+        "defense": 0.0,
+        "experience": 0,
+        "experienceCorrection": 100.0,
+        "health": 100.0,
+        "initialAttack": "Straight",
+        "initialAttackLevel": "1",
+        "isAnimationModel": true,
+        "level": 1,
+        "model": "walk.gltf",
+        "name": "walk.gltf",
+        "speed": 100.0,
         "statusSlots": [
             {
                 "enabled": false,
@@ -127,20 +215,6 @@
                 "level": "1",
                 "status": ""
             }
-        ],
-        "attackSpeed": 100.0,
-        "baseHealth": 100.0,
-        "baseSpeed": 0.10000000149011612,
-        "defense": 0.0,
-        "experience": 0,
-        "experienceCorrection": 100.0,
-        "health": 100.0,
-        "initialAttack": "Straight",
-        "initialAttackLevel": "1",
-        "isAnimationModel": true,
-        "level": 1,
-        "model": "walk.gltf",
-        "name": "walk.gltf",
-        "speed": 100.0
+        ]
     }
 }

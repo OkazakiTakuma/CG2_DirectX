@@ -15,6 +15,7 @@
 #include <wrl.h>
 
 class Object3dCommon;
+class DirectXCommon;
 class Model;
 
 /// <summary>
@@ -35,19 +36,8 @@ public:
 	/// 現在の状態をもとに描画処理を行います。
 	/// </summary>
 	void Draw();
-	/// <summary>
-	/// Model を設定します。
-	/// </summary>
-	/// <param name="model">model に使用する値を指定します。</param>
 	void SetModel(Model* model);
-	/// <summary>
-	/// Model を設定します。
-	/// </summary>
-	/// <param name="filePath">読み込みまたは保存に使用するファイルパスを指定します。</param>
 	void SetModel(const std::string& filePath);
-	/// <summary>
-	/// DrawDebugSkeleton の処理を行います。
-	/// </summary>
 	void DrawDebugSkeleton();
 	void SetDrawSkeleton(bool isDraw) { isDrawSkeleton_ = isDraw; }
 	bool GetDrawSkeleton() const { return isDrawSkeleton_; }
@@ -73,13 +63,7 @@ public:
 	/// </summary>
 	/// <param name="radius">半径を指定します。</param>
 	/// <param name="height">高さを指定します。</param>
-	/// <param name="subdivision">subdivision に使用する値を指定します。</param>
-	/// <param name="createTopCap">createTopCap に使用する値を指定します。</param>
-	/// <param name="createBottomCap">createBottomCap に使用する値を指定します。</param>
 	void CreateCylinder(float radius = 1.0f, float height = 2.0f, uint32_t subdivision = 16, bool createTopCap = true, bool createBottomCap = true);
-	/// <summary>
-	/// Texture を設定します。
-	/// </summary>
 	/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 	void SetTexture(const std::string& textureFilePath);
 	void SetModelTexture(const std::string& textureFilePath);
@@ -92,26 +76,14 @@ public:
 	const Vector3& GetScale() { return transform.scale; };
 	void SetScale(const Vector3& newTransformScale) { transform.scale = newTransformScale; }
 	void SetCamera(Camera* cmr) { camera = cmr; }
-	/// <summary>
-	/// DirectionalLight を設定します。
-	/// </summary>
 	/// <param name="color">色を指定します。</param>
-	/// <param name="direction">direction に使用する値を指定します。</param>
 	/// <param name="intensity">強度を指定します。</param>
 	void SetDirectionalLight(const Vector4& color, const Vector3& direction, float intensity);
-	/// <summary>
-	/// PointLight を設定します。
-	/// </summary>
 	/// <param name="color">色を指定します。</param>
 	/// <param name="position">位置を指定します。</param>
 	/// <param name="intensity">強度を指定します。</param>
 	/// <param name="radius">半径を指定します。</param>
-	/// <param name="decay">decay に使用する値を指定します。</param>
 	void SetPointLight(const Vector4& color, const Vector3& position, float intensity, float radius, float decay);
-	/// <summary>
-	/// EnvironmentMultiplier を設定します。
-	/// </summary>
-	/// <param name="multiplier">multiplier に使用する値を指定します。</param>
 	void SetEnvironmentMultiplier(float multiplier);
 	void SetColor(const Vector4& color) { if (materialOverrideData_) materialOverrideData_->color = color; }
 	Vector4 GetColor() const { return materialOverrideData_ ? materialOverrideData_->color : Vector4{1.0f, 1.0f, 1.0f, 1.0f}; }
@@ -127,13 +99,11 @@ public:
 	const float GetPointLightDecay() const { return pointLightData ? pointLightData->decay : 0.0f; }
 	const bool GetIsPointLightSet() const { return isPointLightSet; }
 	const float GetEnvironmentMultiplier() const { return environmentMultiplier; }
-	/// <summary>
-	/// EnvironmentMap を設定します。
-	/// </summary>
 	/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 	void SetEnvironmentMap(const std::string& textureFilePath);
 
 private:
+	DirectXCommon* dxCommon_ = nullptr;
 	struct CameraForGPU {
 		Vector3 worldPosition;
 		float environmentMultiplier;
@@ -148,11 +118,7 @@ private:
 	/// <summary>
 	/// SkinningPaletteResource を作成し、利用できる状態にします。
 	/// </summary>
-	/// <param name="paletteCount">paletteCount に使用する値を指定します。</param>
 	void CreateSkinningPaletteResource(uint32_t paletteCount);
-	/// <summary>
-	/// UpdateSkinningPaletteResource の処理を行います。
-	/// </summary>
 	void UpdateSkinningPaletteResource();
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResorceModel;

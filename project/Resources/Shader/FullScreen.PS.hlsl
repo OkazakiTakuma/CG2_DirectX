@@ -32,6 +32,10 @@ cbuffer ColorInfo : register(b0)
     float2 paddingTexel;
     float4 outlineColor;
     float4 dissolveEdgeColor;
+    float damageVignetteIntensity;
+    float damageVignetteRadius;
+    float damageVignetteSoftness;
+    float paddingDamageVignette;
 };
 
 struct PixelShaderOutPut
@@ -191,6 +195,19 @@ PixelShaderOutPut main(VertexShaderOutput input)
     if (enableDissolve != 0)
     {
         resultColor = ApplyDissolve(input.uv, resultColor);
+    }
+
+    if (damageVignetteIntensity > 0.0f)
+    {
+        const float2 centeredUv = abs(input.uv - float2(0.5f, 0.5f));
+        const float rectangularDistance = max(centeredUv.x, centeredUv.y);
+        const float damageEdge = smoothstep(
+            damageVignetteRadius,
+            damageVignetteRadius + max(damageVignetteSoftness, 0.001f),
+            rectangularDistance
+        );
+        const float damageBlend = saturate(damageEdge * damageVignetteIntensity);
+        resultColor.rgb = lerp(resultColor.rgb, float3(0.72f, 0.0f, 0.0f), damageBlend);
     }
 
     output.color = resultColor * tintColor;

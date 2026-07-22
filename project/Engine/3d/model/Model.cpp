@@ -24,7 +24,6 @@ constexpr unsigned int kAssimpModelImportFlags =
 /// <param name="scale">拡大率を指定します。</param>
 /// <param name="rotate">回転量を指定します。</param>
 /// <param name="translate">位置を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate) {
 	Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
 	Matrix4x4 rotateMatrix = MakeRotateMatrix(rotate);
@@ -36,11 +35,7 @@ Quaternion ConvertAssimpQuaternion(const aiQuaternion& quaternion) {
 	return Normalize({-quaternion.x, quaternion.y, quaternion.z, quaternion.w});
 }
 
-/// <summary>
-/// ConvertAssimpMatrix の処理を行います。
-/// </summary>
 /// <param name="matrix">計算に使用する行列を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 Matrix4x4 ConvertAssimpMatrix(const aiMatrix4x4& matrix) {
 	Matrix4x4 result{};
 	result.m[0][0] = matrix.a1;
@@ -64,12 +59,7 @@ Matrix4x4 ConvertAssimpMatrix(const aiMatrix4x4& matrix) {
 	return Multiply(mirrorX, Multiply(result, mirrorX));
 }
 
-/// <summary>
-/// TransformNormal の処理を行います。
-/// </summary>
-/// <param name="normal">normal に使用する値を指定します。</param>
 /// <param name="matrix">計算に使用する行列を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 Vector3 TransformNormal(const Vector3& normal, const Matrix4x4& matrix) {
 	Vector3 result{};
 	result.x = normal.x * matrix.m[0][0] + normal.y * matrix.m[1][0] + normal.z * matrix.m[2][0];
@@ -78,12 +68,6 @@ Vector3 TransformNormal(const Vector3& normal, const Matrix4x4& matrix) {
 	return result;
 }
 
-/// <summary>
-/// AddJointInfluence の処理を行います。
-/// </summary>
-/// <param name="vertex">vertex に使用する値を指定します。</param>
-/// <param name="paletteIndex">paletteIndex に使用する値を指定します。</param>
-/// <param name="weight">weight に使用する値を指定します。</param>
 void AddJointInfluence(VertexData& vertex, uint32_t paletteIndex, float weight) {
 	if (weight <= 0.0f) {
 		return;
@@ -125,7 +109,6 @@ void AddJointInfluence(VertexData& vertex, uint32_t paletteIndex, float weight) 
 /// <summary>
 /// 値を正規化して扱いやすい状態にします。
 /// </summary>
-/// <param name="vertex">vertex に使用する値を指定します。</param>
 void NormalizeJointInfluences(VertexData& vertex) {
 	const float totalWeight =
 	    vertex.boneWeights.x +
@@ -186,10 +169,6 @@ void RebuildJointWeightsFromVertexInfluences(ModelData& modelData) {
 /// <summary>
 /// 必要なリソースを準備し、オブジェクトを初期化します。
 /// </summary>
-/// <param name="modelCommon">modelCommon に使用する値を指定します。</param>
-/// <param name="directoryPath">読み込みまたは保存に使用するファイルパスを指定します。</param>
-/// <param name="filename">読み込みまたは保存に使用するファイルパスを指定します。</param>
-/// <param name="isAnimation">isAnimation に使用する値を指定します。</param>
 void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename, const bool isAnimation) {
 	this->modelCommon_ = modelCommon;
 	this->isAnimation_ = isAnimation;
@@ -270,9 +249,6 @@ void Model::SetTextureFilePath(const std::string& textureFilePath) {
 /// <summary>
 /// ModelFile を読み込み、内部データへ反映します。
 /// </summary>
-/// <param name="directoryPath">読み込みまたは保存に使用するファイルパスを指定します。</param>
-/// <param name="filename">読み込みまたは保存に使用するファイルパスを指定します。</param>
-/// <returns>処理結果を返します。</returns>
 ModelData Model::LoadModelFile(const std::string& directoryPath, const std::string& filename) {
 	ModelData modelData;
 	Assimp::Importer importer;
@@ -439,11 +415,6 @@ const Animation* Model::FindAnimation(const std::string& animationName) const {
 	const auto animationIterator = animations_.find(animationName);
 	return animationIterator != animations_.end() ? &animationIterator->second : nullptr;
 }
-/// <summary>
-/// ReadNode の処理を行います。
-/// </summary>
-/// <param name="aiNode">aiNode に使用する値を指定します。</param>
-/// <returns>処理結果を返します。</returns>
 Node Model::ReadNode(aiNode* aiNode) {
 	Node result;
 	aiVector3D scale;
@@ -467,9 +438,6 @@ Node Model::ReadNode(aiNode* aiNode) {
 /// <summary>
 /// MaterialTemplateFile を読み込み、内部データへ反映します。
 /// </summary>
-/// <param name="directoryPath">読み込みまたは保存に使用するファイルパスを指定します。</param>
-/// <param name="filename">読み込みまたは保存に使用するファイルパスを指定します。</param>
-/// <returns>処理結果を返します。</returns>
 MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename) {
 	MaterialData materialData;
 	std::string line;
@@ -538,10 +506,6 @@ void Model::CreateMaterialData() {
 	materialData->shininess = 20.0f;
 }
 
-/// <summary>
-/// SkinningPaletteSize を取得します。
-/// </summary>
-/// <returns>処理結果を返します。</returns>
 uint32_t Model::GetSkinningPaletteSize() const {
 	return modelData.skinClusterData.empty() ? 1u : static_cast<uint32_t>(modelData.skinClusterData.size());
 }
@@ -549,8 +513,6 @@ uint32_t Model::GetSkinningPaletteSize() const {
 /// <summary>
 /// SkinningPalette を構築します。
 /// </summary>
-/// <param name="skeleton">skeleton に使用する値を指定します。</param>
-/// <param name="palette">palette に使用する値を指定します。</param>
 void Model::BuildSkinningPalette(const Skeleton& skeleton, std::vector<Matrix4x4>& palette) const {
 	const uint32_t paletteSize = GetSkinningPaletteSize();
 	if (palette.size() != paletteSize) {
@@ -585,7 +547,6 @@ void Model::BuildSkinningPalette(const Skeleton& skeleton, std::vector<Matrix4x4
 /// <summary>
 /// Skinning を現在の状態へ反映します。
 /// </summary>
-/// <param name="skeleton">skeleton に使用する値を指定します。</param>
 void Model::ApplySkinning(const Skeleton& skeleton) {
 	if (modelData.skinClusterData.empty() || originalVertices_.empty() || !vertexData) {
 		return;

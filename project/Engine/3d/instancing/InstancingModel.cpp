@@ -5,8 +5,6 @@
 /// <summary>
 /// 必要なリソースを準備し、オブジェクトを初期化します。
 /// </summary>
-/// <param name="model">model に使用する値を指定します。</param>
-/// <param name="maxInstanceCount">範囲判定に使用する値を指定します。</param>
 void InstancingModel::Initialize(Model* model, uint32_t maxInstanceCount) {
     model_ = model;
     maxInstanceCount_ = maxInstanceCount;
@@ -65,10 +63,6 @@ void InstancingModel::CreateConstantBuffers() {
     pointLightData_->decay = 1.0f;
 }
 
-/// <summary>
-/// AddInstance の処理を行います。
-/// </summary>
-/// <param name="transform">transform に使用する値を指定します。</param>
 void InstancingModel::AddInstance(const EulerTransform& transform) {
     if (transforms_.size() < maxInstanceCount_) {
         transforms_.push_back(transform);

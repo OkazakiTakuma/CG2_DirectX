@@ -15,11 +15,13 @@
 #include <string>
 #include <vector>
 
+// プレイヤー能力、強化アイテム、攻撃設定をJSONへ変換して永続化するリポジトリ。
 namespace {
 constexpr const char* kPlayerStatusFilePath = "Resources/Data/player_status.json";
 constexpr const char* kPlayerAttackStatusFilePath = "Resources/Data/player_attack_status.json";
 constexpr const char* kPlayerStatusItemFilePath = "Resources/Data/player_status_item_status.json";
 
+/// <summary>強化アイテムが変更するプレイヤー能力の種類です。</summary>
 enum class PlayerStatusItemType {
 	Attack,
 	Health,
@@ -30,10 +32,13 @@ enum class PlayerStatusItemType {
 	Experience
 };
 
+/// <summary>強化アイテムのレベル別効果量と選択画面表示情報です。</summary>
 struct PlayerStatusItemStats {
 	std::string name = "AttackUp";
 	PlayerStatusItemType type = PlayerStatusItemType::Attack;
 	std::array<float, 5> levelAmounts{10.0f, 20.0f, 30.0f, 40.0f, 50.0f};
+	std::array<std::string, 5> levelDescriptions{};
+	std::array<std::string, 5> levelTextureFilePaths{};
 };
 
 std::vector<std::string> GetPlayerStatusItemLevels() {
@@ -91,7 +96,10 @@ nlohmann::json PlayerStatusItemStatsToJson(const PlayerStatusItemStats& stats) {
 	json["name"] = stats.name;
 	json["type"] = PlayerStatusItemTypeToName(stats.type);
 	for (int index = 0; index < static_cast<int>(stats.levelAmounts.size()); ++index) {
-		json["levels"][std::to_string(index + 1)] = stats.levelAmounts[index];
+		const std::string levelName = std::to_string(index + 1);
+		json["levels"][levelName] = stats.levelAmounts[index];
+		json["descriptions"][levelName] = stats.levelDescriptions[index];
+		json["textures"][levelName] = stats.levelTextureFilePaths[index];
 	}
 	return json;
 }
@@ -104,10 +112,14 @@ PlayerStatusItemStats JsonToPlayerStatusItemStats(const nlohmann::json& json, co
 	stats.name = json.value("name", stats.name);
 	stats.type = PlayerStatusItemTypeFromName(json.value("type", std::string(PlayerStatusItemTypeToName(stats.type))));
 	const nlohmann::json levelsJson = json.value("levels", nlohmann::json::object());
+	const nlohmann::json descriptionsJson = json.value("descriptions", nlohmann::json::object());
+	const nlohmann::json texturesJson = json.value("textures", nlohmann::json::object());
 	for (int index = 0; index < static_cast<int>(stats.levelAmounts.size()); ++index) {
 		const std::string levelName = std::to_string(index + 1);
 		stats.levelAmounts[index] = levelsJson.value(levelName, stats.levelAmounts[index]);
 		stats.levelAmounts[index] = (std::max)(0.0f, stats.levelAmounts[index]);
+		stats.levelDescriptions[index] = descriptionsJson.value(levelName, stats.levelDescriptions[index]);
+		stats.levelTextureFilePaths[index] = texturesJson.value(levelName, stats.levelTextureFilePaths[index]);
 	}
 	return stats;
 }
@@ -176,6 +188,7 @@ int PlayerStatusSlotLevelToIndex(const std::string& level) {
 }
 
 PlayerStats ApplyPlayerStatusItems(const PlayerStats& baseStats) {
+	// 基礎能力へ現在保存されている各強化アイテムの効果を順番に合成する。
 	PlayerStats effectiveStats = baseStats;
 	for (const PlayerStatusSlot& slot : baseStats.statusSlots) {
 		if (!slot.enabled || slot.statusName.empty()) {
@@ -256,6 +269,10 @@ PlayerAttackStats MakeDefaultPlayerAttackStats() {
 nlohmann::json PlayerAttackLevelStatsToJson(const PlayerAttackLevelStats& stats) {
 	nlohmann::json json;
 	json["level"] = stats.level;
+	json["description"] = stats.choiceDescription;
+	if (stats.level == "super") {
+		json["texture"] = stats.choiceTextureFilePath;
+	}
 	json["attack"] = stats.attack;
 	json["speed"] = stats.speed;
 	json["size"] = stats.size;
@@ -282,6 +299,8 @@ PlayerAttackLevelStats JsonToPlayerAttackLevelStats(const nlohmann::json& json, 
 		return stats;
 	}
 	stats.level = json.value("level", stats.level);
+	stats.choiceDescription = json.value("description", stats.choiceDescription);
+	stats.choiceTextureFilePath = json.value("texture", stats.choiceTextureFilePath);
 	stats.attack = (std::max)(0.0f, json.value("attack", stats.attack));
 	stats.speed = (std::max)(0.0f, json.value("speed", stats.speed));
 	stats.size = (std::max)(0.0f, json.value("size", stats.size));
@@ -326,6 +345,7 @@ PlayerAttackLevelStats JsonToPlayerAttackLevelStats(const nlohmann::json& json, 
 nlohmann::json PlayerAttackStatsToJson(const PlayerAttackStats& stats) {
 	nlohmann::json json;
 	json["name"] = stats.name;
+	json["texture"] = stats.choiceTextureFilePath;
 	json["superCondition"]["status"] = stats.superConditionStatusName;
 	json["superCondition"]["level"] = stats.superConditionStatusLevel;
 	for (const PlayerAttackLevelStats& levelStats : stats.levels) {
@@ -340,6 +360,7 @@ PlayerAttackStats JsonToPlayerAttackStats(const nlohmann::json& json, const Play
 		return stats;
 	}
 	stats.name = json.value("name", stats.name);
+	stats.choiceTextureFilePath = json.value("texture", stats.choiceTextureFilePath);
 	const nlohmann::json superConditionJson = json.value("superCondition", nlohmann::json::object());
 	stats.superConditionStatusName = superConditionJson.value("status", stats.superConditionStatusName);
 	stats.superConditionStatusLevel = superConditionJson.value("level", stats.superConditionStatusLevel);
@@ -374,6 +395,14 @@ PlayerAttackStats JsonToPlayerAttackStats(const nlohmann::json& json, const Play
 				    baseOffset.y,
 				    -baseOffset.x * sine + baseOffset.z * cosine
 				});
+			}
+		}
+	}
+	if (stats.choiceTextureFilePath.empty()) {
+		for (const PlayerAttackLevelStats& levelStats : stats.levels) {
+			if (levelStats.level != "super" && !levelStats.choiceTextureFilePath.empty()) {
+				stats.choiceTextureFilePath = levelStats.choiceTextureFilePath;
+				break;
 			}
 		}
 	}
@@ -425,6 +454,7 @@ PlayerAttackStats LoadPlayerAttackStats(const std::string& attackName) {
 }
 
 void ApplyPlayerAttackSlots(PlayerAttackComponent* attack, const PlayerStats& playerStats) {
+	// プレイヤー設定のスロット内容を実行時攻撃コンポーネントへ反映する。
 	if (!attack) {
 		return;
 	}
