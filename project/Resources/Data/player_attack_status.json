@@ -181,11 +181,11 @@
                 "homingAccuracy": 1.0,
                 "infinitePierce": true,
                 "level": "1",
-                "lifeTime": 0.2800000011920929,
+                "lifeTime": 0.42,
                 "model": "sphere.obj",
                 "pierceCount": 0,
                 "shotCount": 3,
-                "size": 85.0,
+                "size": 105.0,
                 "spawnOffsets": [
                     [
                         0.0,
@@ -219,11 +219,11 @@
                 "homingAccuracy": 1.0,
                 "infinitePierce": true,
                 "level": "2",
-                "lifeTime": 0.2800000011920929,
+                "lifeTime": 0.42,
                 "model": "sphere.obj",
                 "pierceCount": 0,
                 "shotCount": 3,
-                "size": 95.0,
+                "size": 115.0,
                 "spawnOffsets": [
                     [
                         0.0,
@@ -257,11 +257,11 @@
                 "homingAccuracy": 1.0,
                 "infinitePierce": true,
                 "level": "3",
-                "lifeTime": 0.30000001192092896,
+                "lifeTime": 0.45,
                 "model": "sphere.obj",
                 "pierceCount": 0,
                 "shotCount": 3,
-                "size": 105.0,
+                "size": 125.0,
                 "spawnOffsets": [
                     [
                         0.0,
@@ -295,11 +295,11 @@
                 "homingAccuracy": 1.0,
                 "infinitePierce": true,
                 "level": "4",
-                "lifeTime": 0.30000001192092896,
+                "lifeTime": 0.45,
                 "model": "sphere.obj",
                 "pierceCount": 0,
                 "shotCount": 3,
-                "size": 115.0,
+                "size": 135.0,
                 "spawnOffsets": [
                     [
                         0.0,
@@ -333,11 +333,11 @@
                 "homingAccuracy": 1.0,
                 "infinitePierce": true,
                 "level": "5",
-                "lifeTime": 0.3199999928474426,
+                "lifeTime": 0.48,
                 "model": "sphere.obj",
                 "pierceCount": 0,
                 "shotCount": 3,
-                "size": 125.0,
+                "size": 145.0,
                 "spawnOffsets": [
                     [
                         0.0,
@@ -373,11 +373,11 @@
                 "homingAccuracy": 1.0,
                 "infinitePierce": true,
                 "level": "super",
-                "lifeTime": 0.36000001430511475,
+                "lifeTime": 0.55,
                 "model": "sphere.obj",
                 "pierceCount": 0,
                 "shotCount": 5,
-                "size": 145.0,
+                "size": 165.0,
                 "spawnOffsets": [
                     [
                         0.0,

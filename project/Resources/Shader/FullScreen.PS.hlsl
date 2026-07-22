@@ -2,7 +2,7 @@
 
 Texture2D<float4> gTexture : register(t0);
 Texture2D<float> gDepthTexture : register(t1);
-Texture2D<float> gDissolveMask : register(t2);
+Texture2D<float> maskTexture : register(t2);
 SamplerState gSampler : register(s0);
 
 cbuffer ColorInfo : register(b0)
@@ -136,11 +136,14 @@ float4 ApplyDepthOutline(float2 uv, float4 sourceColor)
 
 float4 ApplyDissolve(float2 uv, float4 sourceColor)
 {
-    const float animatedMask = gDissolveMask.Sample(gSampler, uv + float2(time * 0.015f, time * 0.01f));
-    clip(animatedMask - dissolveThreshold);
+    const float maskValue = maskTexture.Sample(gSampler, uv + float2(time * 0.015f, time * 0.01f));
+    if (maskValue < dissolveThreshold)
+    {
+        discard;
+    }
 
     const float edgeWidth = max(dissolveEdgeWidth, 0.0001f);
-    const float edge = 1.0f - smoothstep(dissolveThreshold, dissolveThreshold + edgeWidth, animatedMask);
+    const float edge = 1.0f - smoothstep(dissolveThreshold, dissolveThreshold + edgeWidth, maskValue);
     sourceColor.rgb = lerp(sourceColor.rgb, dissolveEdgeColor.rgb, saturate(edge) * dissolveEdgeColor.a);
     return sourceColor;
 }

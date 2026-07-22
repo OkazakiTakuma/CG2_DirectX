@@ -572,12 +572,12 @@ void PostEffect::DrawImGui() {
 #ifndef IMGUI_HAS_DOCK
 	const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
 	const float width = displaySize.x > 0.0f ? displaySize.x : 1280.0f;
-	const float panelWidth = width < 900.0f ? 220.0f : 260.0f;
+	const float panelWidth = width < 900.0f ? 280.0f : 320.0f;
 	const float leftWidth = width * 0.18f;
 	const float x = (width - panelWidth) * 0.5f;
 
 	ImGui::SetNextWindowPos(ImVec2(x > leftWidth ? x : leftWidth, 0.0f), ImGuiCond_Always);
-	ImGui::SetNextWindowSize(ImVec2(panelWidth, 130.0f), ImGuiCond_Always);
+	ImGui::SetNextWindowSize(ImVec2(panelWidth, 420.0f), ImGuiCond_Always);
 	ImGui::Begin(
 	    "PostEffect Settings",
 	    nullptr,
@@ -587,9 +587,31 @@ void PostEffect::DrawImGui() {
 	ImGui::Begin("PostEffect Settings");
 #endif
 
-	ImGui::Checkbox("Enable PostEffect", &isActive_);
+	const ImVec4 enabledColor{0.2f, 1.0f, 0.35f, 1.0f};
+	const ImVec4 disabledColor{1.0f, 0.25f, 0.2f, 1.0f};
+	const auto drawEffectToggle = [&enabledColor, &disabledColor](const char* label, bool* enabled) {
+		const bool changed = ImGui::Checkbox(label, enabled);
+		ImGui::SameLine();
+		ImGui::TextColored(*enabled ? enabledColor : disabledColor, *enabled ? "[ON]" : "[OFF]");
+		return changed;
+	};
 
-	ImGui::Checkbox("Apply Grayscale", &enableGrayscale_);
+	const int enabledEffectCount =
+		static_cast<int>(enableGrayscale_) + static_cast<int>(enableSmoothing_) +
+		static_cast<int>(enableGaussianFilter_) + static_cast<int>(enableRadialBlur_) +
+		static_cast<int>(enableRandom_) + static_cast<int>(enableOutline_) +
+		static_cast<int>(enableDissolve_) + static_cast<int>(enableVignetting_);
+
+	drawEffectToggle("Enable PostEffect", &isActive_);
+	ImGui::TextColored(
+		isActive_ ? enabledColor : disabledColor,
+		isActive_ ? "APPLYING: %d effect(s)" : "MASTER OFF: effects are not applied",
+		enabledEffectCount
+	);
+	ImGui::TextDisabled("Hotkeys: 1 Master / 2-9 Effects");
+	ImGui::Separator();
+
+	drawEffectToggle("Apply Grayscale", &enableGrayscale_);
 
 	if (ImGui::ColorEdit4("Tint Color", tintColor_)) {
 		colorData_->r = tintColor_[0];
@@ -599,15 +621,15 @@ void PostEffect::DrawImGui() {
 	}
 
 	ImGui::Separator();
-	if (ImGui::Checkbox("Apply Smoothing", &enableSmoothing_)) {
+	if (drawEffectToggle("Apply Smoothing", &enableSmoothing_)) {
 		colorData_->enableSmoothing = enableSmoothing_ ? 1 : 0;
 	}
 
-	if (ImGui::Checkbox("Apply Gaussian Filter", &enableGaussianFilter_)) {
+	if (drawEffectToggle("Apply Gaussian Filter", &enableGaussianFilter_)) {
 		colorData_->enableGaussianFilter = enableGaussianFilter_ ? 1 : 0;
 	}
 
-	if (ImGui::Checkbox("Apply Radial Blur", &enableRadialBlur_)) {
+	if (drawEffectToggle("Apply Radial Blur", &enableRadialBlur_)) {
 		colorData_->enableRadialBlur = enableRadialBlur_ ? 1 : 0;
 	}
 	if (!enableRadialBlur_) {
@@ -623,7 +645,7 @@ void PostEffect::DrawImGui() {
 		ImGui::EndDisabled();
 	}
 
-	if (ImGui::Checkbox("Apply Random", &enableRandom_)) {
+	if (drawEffectToggle("Apply Random", &enableRandom_)) {
 		colorData_->enableRandom = enableRandom_ ? 1 : 0;
 	}
 	if (!enableRandom_) {
@@ -637,7 +659,7 @@ void PostEffect::DrawImGui() {
 	}
 
 	ImGui::Separator();
-	if (ImGui::Checkbox("Apply Outline", &enableOutline_)) {
+	if (drawEffectToggle("Apply Outline", &enableOutline_)) {
 		colorData_->enableOutline = enableOutline_ ? 1 : 0;
 	}
 	if (!enableOutline_) {
@@ -652,7 +674,7 @@ void PostEffect::DrawImGui() {
 	}
 
 	ImGui::Separator();
-	if (ImGui::Checkbox("Apply Dissolve", &enableDissolve_)) {
+	if (drawEffectToggle("Apply Dissolve", &enableDissolve_)) {
 		colorData_->enableDissolve = enableDissolve_ ? 1 : 0;
 	}
 	if (!enableDissolve_) {
@@ -666,7 +688,7 @@ void PostEffect::DrawImGui() {
 	}
 
 	ImGui::Separator();
-	if (ImGui::Checkbox("Apply Vignetting", &enableVignetting_)) {
+	if (drawEffectToggle("Apply Vignetting", &enableVignetting_)) {
 		colorData_->enableVignetting = enableVignetting_ ? 1 : 0;
 	}
 	if (!enableVignetting_) {

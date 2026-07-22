@@ -1,5 +1,12 @@
 {
     "AttackUp": {
+        "descriptions": {
+            "1": "",
+            "2": "",
+            "3": "",
+            "4": "",
+            "5": ""
+        },
         "levels": {
             "1": 10.0,
             "2": 20.0,
@@ -8,6 +15,13 @@
             "5": 50.0
         },
         "name": "AttackUp",
+        "textures": {
+            "1": "",
+            "2": "",
+            "3": "",
+            "4": "",
+            "5": ""
+        },
         "type": "Attack"
     },
     "DefenceUp": {
@@ -20,6 +34,31 @@
         },
         "name": "DefenceUp",
         "type": "Attack"
+    },
+    "ExperienceBoost": {
+        "descriptions": {
+            "1": "",
+            "2": "",
+            "3": "",
+            "4": "",
+            "5": ""
+        },
+        "levels": {
+            "1": 20.0,
+            "2": 40.0,
+            "3": 60.0,
+            "4": 80.0,
+            "5": 100.0
+        },
+        "name": "ExperienceBoost",
+        "textures": {
+            "1": "",
+            "2": "",
+            "3": "",
+            "4": "",
+            "5": ""
+        },
+        "type": "Experience"
     },
     "HasteUp": {
         "levels": {

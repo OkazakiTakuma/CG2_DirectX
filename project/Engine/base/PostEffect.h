@@ -146,6 +146,7 @@ private:
 		float damageVignetteSoftness;
 		float paddingDamageVignette;
 	};
+	static_assert(sizeof(ColorData) == 160, "ColorData must match the FullScreen.PS.hlsl constant buffer layout");
 
 	ColorData* colorData_ = nullptr;
 
@@ -158,23 +159,23 @@ private:
 	bool enableRandom_ = false;
 	bool enableOutline_ = false;
 	bool enableDissolve_ = false;
-	float vignetteIntensity_ = 0.65f;
-	float vignetteRadius_ = 0.0f;
-	float vignetteSoftness_ = 0.35f;
-	float radialBlurStrength_ = 0.08f;
-	int radialBlurSamples_ = 12;
-	float randomStrength_ = 0.04f;
-	float outlineStrength_ = 1.0f;
-	float outlineThreshold_ = 0.12f;
-	float outlineThickness_ = 1.0f;
+	float vignetteIntensity_ = 0.9f;
+	float vignetteRadius_ = 0.05f;
+	float vignetteSoftness_ = 0.2f;
+	float radialBlurStrength_ = 0.16f;
+	int radialBlurSamples_ = 16;
+	float randomStrength_ = 0.1f;
+	float outlineStrength_ = 1.6f;
+	float outlineThreshold_ = 0.07f;
+	float outlineThickness_ = 2.0f;
 	float outlineColor_[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	float dissolveThreshold_ = 0.5f;
-	float dissolveEdgeWidth_ = 0.08f;
-	float dissolveEdgeColor_[4] = { 1.0f, 0.45f, 0.05f, 1.0f };
+	float dissolveEdgeWidth_ = 0.14f;
+	float dissolveEdgeColor_[4] = { 1.0f, 0.25f, 0.02f, 1.0f };
 	float time_ = 0.0f;
 	float damageVignetteTimer_ = 0.0f;
 	float damageVignetteDuration_ = 0.45f;
-	float damageVignetteMaxIntensity_ = 0.82f;
+	float damageVignetteMaxIntensity_ = 0.95f;
 	float damageVignetteCurrentIntensity_ = 0.0f;
 	float damageVignetteRadius_ = 0.24f;
 	float damageVignetteSoftness_ = 0.24f;
