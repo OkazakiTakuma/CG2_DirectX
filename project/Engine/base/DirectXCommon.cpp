@@ -111,6 +111,11 @@ void DirectXCommon::PostDraw() {
 	assert(SUCCEEDED(hr));
 	ID3D12CommandList* commandLists[] = {commandList.Get()};
 	commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+	screenCapture_.ProcessFrame(
+		commandQueue.Get(),
+		swapChainResources[backBufferIndex].Get(),
+		static_cast<uint32_t>(renderWidth_),
+		static_cast<uint32_t>(renderHeight_));
 	hr = swapChain->Present(1, 0);
 	assert(SUCCEEDED(hr));
 
@@ -556,6 +561,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetGPUDescriptorHandle(const Microsof
 }
 
 void DirectXCommon::Release() {
+	screenCapture_.Finalize();
 	if (commandQueue && fence) {
 		fenceValue++;
 		commandQueue->Signal(fence.Get(), fenceValue);

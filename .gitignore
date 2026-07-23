@@ -344,3 +344,13 @@ FodyWeavers.xsd
 # Generated build outputs
 /generated/
 /project/externals/generated/
+
+# Generated screenshots and screen recordings
+**/CaptureFiles/
+Screenshot_*.png
+Recording_*.mp4
+
+# Generated PDF documents and working files
+*.pdf
+/output/pdf/
+/tmp/pdfs/
