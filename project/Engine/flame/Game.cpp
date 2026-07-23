@@ -53,6 +53,12 @@ void Game::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_F11)) {
 		ToggleFullscreen();
 	}
+	if (Input::GetInstance()->TriggerKey(DIK_F10)) {
+		SpriteCommon::GetInstance()->GetDxCommon()->RequestScreenshot();
+	}
+	if (Input::GetInstance()->TriggerKey(DIK_F9)) {
+		SpriteCommon::GetInstance()->GetDxCommon()->ToggleScreenRecording();
+	}
 	if (camera) {
 		float aspectRatio = GetRenderAspectRatio();
 #ifdef USE_IMGUI

@@ -141,6 +141,9 @@
     <ClCompile Include="Engine\base\DirectXCommon.cpp">
       <Filter>Engine\base</Filter>
     </ClCompile>
+    <ClCompile Include="Engine\base\ScreenCapture.cpp">
+      <Filter>Engine\base</Filter>
+    </ClCompile>
     <ClCompile Include="Engine\base\ImGuiManager.cpp">
       <Filter>Engine\base</Filter>
     </ClCompile>
@@ -315,6 +318,9 @@
       <Filter>Engine\base</Filter>
     </ClInclude>
     <ClInclude Include="Engine\base\DirectXCommon.h">
+      <Filter>Engine\base</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\base\ScreenCapture.h">
       <Filter>Engine\base</Filter>
     </ClInclude>
     <ClInclude Include="Engine\base\GameTime.h">

@@ -175,6 +175,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="Engine\audio\Audio.cpp" />
     <ClCompile Include="Engine\base\D3DResourceLeakChecker.cpp" />
     <ClCompile Include="Engine\base\DirectXCommon.cpp" />
+    <ClCompile Include="Engine\base\ScreenCapture.cpp" />
     <ClCompile Include="Engine\base\Input.cpp" />
     <ClCompile Include="Engine\base\Logger.cpp" />
     <ClCompile Include="Engine\base\ImGuiManager.cpp" />
@@ -322,6 +323,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\base\struct.h" />
     <ClInclude Include="Engine\base\D3DResourceLeakChecker.h" />
     <ClInclude Include="Engine\base\DirectXCommon.h" />
+    <ClInclude Include="Engine\base\ScreenCapture.h" />
 	<ClInclude Include="Engine\base\GameTime.h" />
     <ClInclude Include="Engine\math\Matrix.h" />
     <ClInclude Include="Engine\math\MathConstants.h" />

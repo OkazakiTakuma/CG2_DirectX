@@ -615,6 +615,33 @@ void PostEffect::DrawImGui() {
 	ImGui::TextDisabled("Hotkeys: 1 Master / 2-9 Effects");
 	ImGui::Separator();
 
+	if (ImGui::CollapsingHeader("Outline Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+		if (drawEffectToggle("Apply Outline", &enableOutline_)) {
+			colorData_->enableOutline = enableOutline_ ? 1 : 0;
+		}
+		if (!enableOutline_) {
+			ImGui::BeginDisabled();
+		}
+		ImGui::TextDisabled("Depth-based outline (lower threshold = more edges)");
+		ImGui::ColorEdit4("Outline Color", outlineColor_);
+		ImGui::SliderFloat("Outline Strength", &outlineStrength_, 0.0f, 2.0f);
+		ImGui::SliderFloat("Outline Threshold", &outlineThreshold_, 0.001f, 0.5f, "%.3f");
+		ImGui::SliderFloat("Outline Thickness", &outlineThickness_, 1.0f, 8.0f, "%.1f px");
+		if (ImGui::Button("Reset Outline Settings")) {
+			outlineColor_[0] = 0.0f;
+			outlineColor_[1] = 0.0f;
+			outlineColor_[2] = 0.0f;
+			outlineColor_[3] = 1.0f;
+			outlineStrength_ = 1.0f;
+			outlineThreshold_ = 0.05f;
+			outlineThickness_ = 2.0f;
+		}
+		if (!enableOutline_) {
+			ImGui::EndDisabled();
+		}
+	}
+	ImGui::Separator();
+
 	drawEffectToggle("Apply Grayscale", &enableGrayscale_);
 
 	if (ImGui::ColorEdit4("Tint Color", tintColor_)) {
@@ -659,31 +686,6 @@ void PostEffect::DrawImGui() {
 		colorData_->randomStrength = randomStrength_;
 	}
 	if (!enableRandom_) {
-		ImGui::EndDisabled();
-	}
-
-	ImGui::Separator();
-	if (drawEffectToggle("Apply Outline", &enableOutline_)) {
-		colorData_->enableOutline = enableOutline_ ? 1 : 0;
-	}
-	if (!enableOutline_) {
-		ImGui::BeginDisabled();
-	}
-	ImGui::TextDisabled("Depth-based outline (lower threshold = more edges)");
-	ImGui::ColorEdit4("Outline Color", outlineColor_);
-	ImGui::SliderFloat("Outline Strength", &outlineStrength_, 0.0f, 2.0f);
-	ImGui::SliderFloat("Outline Threshold", &outlineThreshold_, 0.001f, 0.5f, "%.3f");
-	ImGui::SliderFloat("Outline Thickness", &outlineThickness_, 1.0f, 8.0f, "%.1f px");
-	if (ImGui::Button("Reset Outline Settings")) {
-		outlineColor_[0] = 0.0f;
-		outlineColor_[1] = 0.0f;
-		outlineColor_[2] = 0.0f;
-		outlineColor_[3] = 1.0f;
-		outlineStrength_ = 1.0f;
-		outlineThreshold_ = 0.05f;
-		outlineThickness_ = 2.0f;
-	}
-	if (!enableOutline_) {
 		ImGui::EndDisabled();
 	}
 

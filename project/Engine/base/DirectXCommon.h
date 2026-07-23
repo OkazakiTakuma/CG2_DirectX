@@ -1,7 +1,9 @@
 #pragma once
+#include <d3d12.h>
 #include "DirectXTex.h"
 #include "Matrix.h"
 #include "Screen.h"
+#include "ScreenCapture.h"
 #include "Vector.h"
 #include "Logger.h"
 #include "StringUtility.h"
@@ -9,7 +11,6 @@
 #include <array>
 #include <cassert>
 #include <chrono>
-#include <d3d12.h>
 #include <dxcapi.h>
 #include <dxgi1_6.h>
 #include <format>
@@ -49,6 +50,9 @@ public:
 	void BeginFrame();
 	void PreDraw();
 	void PostDraw();
+	void RequestScreenshot() { screenCapture_.RequestScreenshot(); }
+	void ToggleScreenRecording() { screenCapture_.ToggleRecording(static_cast<uint32_t>(renderWidth_), static_cast<uint32_t>(renderHeight_)); }
+	bool IsScreenRecording() const { return screenCapture_.IsRecording(); }
 	void ResizeIfNeeded();
 	int32_t GetRenderWidth() const { return renderWidth_; }
 	int32_t GetRenderHeight() const { return renderHeight_; }
@@ -209,4 +213,5 @@ private:
 
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
 	IXAudio2MasteringVoice* masteringVoice = nullptr;
+	ScreenCapture screenCapture_;
 };
