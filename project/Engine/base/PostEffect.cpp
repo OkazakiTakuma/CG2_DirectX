@@ -5,6 +5,7 @@
 #include "WinApp.h"
 #include "imGuiManager.h"
 #include "GameTime.h"
+#include "object/Object3dCommon.h"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -365,8 +366,11 @@ void PostEffect::ApplySettingsToBuffer() {
 	colorData_->time = time_;
 	colorData_->texelSize[0] = 1.0f / static_cast<float>(renderWidth_);
 	colorData_->texelSize[1] = 1.0f / static_cast<float>(renderHeight_);
-	colorData_->paddingTexel[0] = 0.0f;
-	colorData_->paddingTexel[1] = 0.0f;
+	const Camera* camera = Object3dCommon::GetInstance()->GetDefaultCamera();
+	const float nearClip = camera ? camera->GetNearClip() : 0.1f;
+	const float farClip = camera ? camera->GetFarClip() : 1000.0f;
+	colorData_->cameraNearFar[0] = (std::max)(nearClip, 0.0001f);
+	colorData_->cameraNearFar[1] = (std::max)(farClip, colorData_->cameraNearFar[0] + 0.0001f);
 	colorData_->outlineColor[0] = outlineColor_[0];
 	colorData_->outlineColor[1] = outlineColor_[1];
 	colorData_->outlineColor[2] = outlineColor_[2];
@@ -665,10 +669,20 @@ void PostEffect::DrawImGui() {
 	if (!enableOutline_) {
 		ImGui::BeginDisabled();
 	}
+	ImGui::TextDisabled("Depth-based outline (lower threshold = more edges)");
 	ImGui::ColorEdit4("Outline Color", outlineColor_);
 	ImGui::SliderFloat("Outline Strength", &outlineStrength_, 0.0f, 2.0f);
-	ImGui::SliderFloat("Outline Threshold", &outlineThreshold_, 0.01f, 0.5f);
-	ImGui::SliderFloat("Outline Thickness", &outlineThickness_, 0.5f, 4.0f);
+	ImGui::SliderFloat("Outline Threshold", &outlineThreshold_, 0.001f, 0.5f, "%.3f");
+	ImGui::SliderFloat("Outline Thickness", &outlineThickness_, 1.0f, 8.0f, "%.1f px");
+	if (ImGui::Button("Reset Outline Settings")) {
+		outlineColor_[0] = 0.0f;
+		outlineColor_[1] = 0.0f;
+		outlineColor_[2] = 0.0f;
+		outlineColor_[3] = 1.0f;
+		outlineStrength_ = 1.0f;
+		outlineThreshold_ = 0.05f;
+		outlineThickness_ = 2.0f;
+	}
 	if (!enableOutline_) {
 		ImGui::EndDisabled();
 	}

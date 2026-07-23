@@ -29,7 +29,7 @@ cbuffer ColorInfo : register(b0)
     float dissolveEdgeWidth;
     float time;
     float2 texelSize;
-    float2 paddingTexel;
+    float2 cameraNearFar;
     float4 outlineColor;
     float4 dissolveEdgeColor;
     float damageVignetteIntensity;
@@ -109,9 +109,18 @@ float4 ApplyRadialBlur(float2 uv)
 
 float4 ApplyDepthOutline(float2 uv, float4 sourceColor)
 {
-    const float2 offset = texelSize * outlineThickness;
-    const float centerDepth = gDepthTexture.Sample(gSampler, uv);
-    float maxDepthDifference = 0.0f;
+    uint depthWidth;
+    uint depthHeight;
+    gDepthTexture.GetDimensions(depthWidth, depthHeight);
+    const int2 maxPixel = int2(depthWidth, depthHeight) - 1;
+    const int2 centerPixel = clamp(int2(uv * float2(depthWidth, depthHeight)), int2(0, 0), maxPixel);
+    const int pixelOffset = max((int)round(outlineThickness), 1);
+    const float nearClip = max(cameraNearFar.x, 0.0001f);
+    const float farClip = max(cameraNearFar.y, nearClip + 0.0001f);
+    const float centerDeviceDepth = gDepthTexture.Load(int3(centerPixel, 0));
+    const float centerDepth = (nearClip * farClip) /
+        max(farClip - centerDeviceDepth * (farClip - nearClip), 0.0001f);
+    float maxRelativeDepthDifference = 0.0f;
 
     [unroll]
     for (int y = -1; y <= 1; ++y)
@@ -124,13 +133,24 @@ float4 ApplyDepthOutline(float2 uv, float4 sourceColor)
                 continue;
             }
 
-            const float sampleDepth = gDepthTexture.Sample(gSampler, uv + float2(x, y) * offset);
-            maxDepthDifference = max(maxDepthDifference, abs(centerDepth - sampleDepth));
+            const int2 samplePixel = clamp(centerPixel + int2(x, y) * pixelOffset, int2(0, 0), maxPixel);
+            const float sampleDeviceDepth = gDepthTexture.Load(int3(samplePixel, 0));
+            const float sampleDepth = (nearClip * farClip) /
+                max(farClip - sampleDeviceDepth * (farClip - nearClip), 0.0001f);
+            const float relativeDepthDifference = abs(centerDepth - sampleDepth) /
+                max(min(centerDepth, sampleDepth), nearClip);
+            maxRelativeDepthDifference = max(maxRelativeDepthDifference, relativeDepthDifference);
         }
     }
 
-    const float edge = smoothstep(outlineThreshold, outlineThreshold + 0.002f, maxDepthDifference) * outlineStrength;
-    sourceColor.rgb = lerp(sourceColor.rgb, outlineColor.rgb, saturate(edge));
+    const float transitionWidth = max(outlineThreshold * 0.25f, 0.001f);
+    const float edge = smoothstep(
+        outlineThreshold,
+        outlineThreshold + transitionWidth,
+        maxRelativeDepthDifference
+    );
+    const float blend = saturate(edge * outlineStrength * outlineColor.a);
+    sourceColor.rgb = lerp(sourceColor.rgb, outlineColor.rgb, blend);
     return sourceColor;
 }
 

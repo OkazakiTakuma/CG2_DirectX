@@ -138,7 +138,7 @@ private:
 		float dissolveEdgeWidth;
 		float time;
 		float texelSize[2];
-		float paddingTexel[2];
+		float cameraNearFar[2];
 		float outlineColor[4];
 		float dissolveEdgeColor[4];
 		float damageVignetteIntensity;
@@ -166,7 +166,7 @@ private:
 	int radialBlurSamples_ = 16;
 	float randomStrength_ = 0.1f;
 	float outlineStrength_ = 1.6f;
-	float outlineThreshold_ = 0.07f;
+	float outlineThreshold_ = 0.05f;
 	float outlineThickness_ = 2.0f;
 	float outlineColor_[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	float dissolveThreshold_ = 0.5f;
