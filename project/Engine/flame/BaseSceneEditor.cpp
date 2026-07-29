@@ -2383,6 +2383,7 @@ void BaseScene::DrawEditorGizmo() {
 	ImGuizmo::BeginFrame();
 	ImGuizmo::SetOrthographic(false);
 	ImGuizmo::SetDrawlist(ImGui::GetForegroundDrawList(viewport));
+	ImGuizmo::SetAlternativeWindow(ImGuiManager::GetInstance()->GetGameViewWindow());
 	ImGuizmo::SetRect(viewportPos.x, viewportPos.y, viewportSize.x, viewportSize.y);
 
 	const Matrix4x4& viewMatrix = camera->GetViewMatrix();

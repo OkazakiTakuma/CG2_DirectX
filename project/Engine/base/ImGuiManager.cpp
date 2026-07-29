@@ -321,6 +321,7 @@ void ImGuiManager::DrawUtilityWindows() {
 void ImGuiManager::DrawGameViewWindow() {
 #ifdef USE_IMGUI
 	isGameViewVisible_ = false;
+	gameViewWindow_ = nullptr;
 	const ImGuiWindowFlags windowFlags =
 	    ImGuiWindowFlags_NoBackground |
 	    ImGuiWindowFlags_NoScrollbar |
@@ -333,6 +334,7 @@ void ImGuiManager::DrawGameViewWindow() {
 	ImGui::PushStyleColor(ImGuiCol_DockingEmptyBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
 #endif
 	if (ImGui::Begin("GameView", nullptr, windowFlags)) {
+		gameViewWindow_ = ImGui::GetCurrentWindow();
 		gameViewContentPosition_ = ImGui::GetCursorScreenPos();
 		gameViewContentSize_ = ImGui::GetContentRegionAvail();
 		isGameViewVisible_ = gameViewContentSize_.x > 1.0f && gameViewContentSize_.y > 1.0f;
