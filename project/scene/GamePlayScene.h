@@ -33,6 +33,7 @@ public:
 	/// </summary>
 	void Finalize() override;
 	void SetSceneManager(SceneManager* manager) override { sceneManager = manager; }
+	bool IsParticleRenderingEnabled() const override { return isShowParticles_; }
 
 private:
 	bool isShowSkyBox_ = false;

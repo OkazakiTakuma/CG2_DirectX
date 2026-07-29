@@ -28,6 +28,7 @@ inline const char* BehaviorToString(EnemyBehaviorType behavior) {
 	switch (behavior) {
 	case EnemyBehaviorType::Shooter: return "Shooter";
 	case EnemyBehaviorType::Charger: return "Charger";
+	case EnemyBehaviorType::NightSlashBoss: return "NightSlashBoss";
 	default: return "Chase";
 	}
 }
@@ -35,6 +36,7 @@ inline const char* BehaviorToString(EnemyBehaviorType behavior) {
 inline EnemyBehaviorType BehaviorFromString(const std::string& behavior) {
 	if (behavior == "Shooter") return EnemyBehaviorType::Shooter;
 	if (behavior == "Charger") return EnemyBehaviorType::Charger;
+	if (behavior == "NightSlashBoss") return EnemyBehaviorType::NightSlashBoss;
 	return EnemyBehaviorType::Chase;
 }
 
@@ -59,6 +61,22 @@ inline nlohmann::json ToJson(const EnemyStats& stats) {
 	json["dashSpeed"] = stats.dashSpeed;
 	json["dashDuration"] = stats.dashDuration;
 	json["dashRecovery"] = stats.dashRecovery;
+	json["comboTriggerDistance"] = stats.comboTriggerDistance;
+	json["comboWindup"] = stats.comboWindup;
+	json["comboDashSpeed"] = stats.comboDashSpeed;
+	json["comboDashDuration"] = stats.comboDashDuration;
+	json["comboSlashPause"] = stats.comboSlashPause;
+	json["comboRecovery"] = stats.comboRecovery;
+	json["comboSideOffset"] = stats.comboSideOffset;
+	json["comboDashCount"] = stats.comboDashCount;
+	json["finisherSpeedMultiplier"] = stats.finisherSpeedMultiplier;
+	json["bossRangedWindup"] = stats.bossRangedWindup;
+	json["bossRangedInterval"] = stats.bossRangedInterval;
+	json["bossRangedWaves"] = stats.bossRangedWaves;
+	json["bossRadialShotCount"] = stats.bossRadialShotCount;
+	json["bossAimedShotCount"] = stats.bossAimedShotCount;
+	json["bossAimedSpreadAngle"] = stats.bossAimedSpreadAngle;
+	json["bossProjectileAttackMultiplier"] = stats.bossProjectileAttackMultiplier;
 	json["sizeScale"] = stats.sizeScale;
 	return json;
 }
@@ -89,6 +107,23 @@ inline EnemyStats FromJson(const nlohmann::json& json, const EnemyStats& fallbac
 	stats.dashSpeed = (std::max)(0.0f, json.value("dashSpeed", stats.dashSpeed));
 	stats.dashDuration = (std::max)(0.0f, json.value("dashDuration", stats.dashDuration));
 	stats.dashRecovery = (std::max)(0.0f, json.value("dashRecovery", stats.dashRecovery));
+	stats.comboTriggerDistance = (std::max)(0.0f, json.value("comboTriggerDistance", stats.comboTriggerDistance));
+	stats.comboWindup = (std::max)(0.0f, json.value("comboWindup", stats.comboWindup));
+	stats.comboDashSpeed = (std::max)(0.0f, json.value("comboDashSpeed", stats.comboDashSpeed));
+	stats.comboDashDuration = (std::max)(0.0f, json.value("comboDashDuration", stats.comboDashDuration));
+	stats.comboSlashPause = (std::max)(0.0f, json.value("comboSlashPause", stats.comboSlashPause));
+	stats.comboRecovery = (std::max)(0.0f, json.value("comboRecovery", stats.comboRecovery));
+	stats.comboSideOffset = (std::max)(0.0f, json.value("comboSideOffset", stats.comboSideOffset));
+	stats.comboDashCount = (std::max)(1, json.value("comboDashCount", stats.comboDashCount));
+	stats.finisherSpeedMultiplier = (std::max)(1.0f, json.value("finisherSpeedMultiplier", stats.finisherSpeedMultiplier));
+	stats.bossRangedWindup = (std::max)(0.0f, json.value("bossRangedWindup", stats.bossRangedWindup));
+	stats.bossRangedInterval = (std::max)(0.01f, json.value("bossRangedInterval", stats.bossRangedInterval));
+	stats.bossRangedWaves = std::clamp(json.value("bossRangedWaves", stats.bossRangedWaves), 1, 20);
+	stats.bossRadialShotCount = std::clamp(json.value("bossRadialShotCount", stats.bossRadialShotCount), 1, 64);
+	stats.bossAimedShotCount = std::clamp(json.value("bossAimedShotCount", stats.bossAimedShotCount), 1, 31);
+	stats.bossAimedSpreadAngle = (std::max)(0.0f, json.value("bossAimedSpreadAngle", stats.bossAimedSpreadAngle));
+	stats.bossProjectileAttackMultiplier =
+	    (std::max)(0.0f, json.value("bossProjectileAttackMultiplier", stats.bossProjectileAttackMultiplier));
 	stats.sizeScale = (std::max)(0.1f, json.value("sizeScale", stats.sizeScale));
 	return stats;
 }

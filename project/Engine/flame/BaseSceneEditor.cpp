@@ -1100,6 +1100,9 @@ void BaseScene::DrawEnemySpawnPointInspector(GameObject* selectedObject) {
 					schedule.spawnAmount = std::clamp(schedule.spawnAmount, 1, 64);
 					scheduleChanged = true;
 				}
+				if (ImGui::Checkbox("Spawn Once", &schedule.spawnOnce)) {
+					scheduleChanged = true;
+				}
 				if (ImGui::Button("Remove Schedule")) {
 					removeScheduleIndex = scheduleIndex;
 				}
@@ -1117,6 +1120,42 @@ void BaseScene::DrawEnemySpawnPointInspector(GameObject* selectedObject) {
 				ImGui::TextDisabled("No schedules: legacy enemy Spawns Per Minute is used.");
 			} else {
 				ImGui::TextDisabled("Schedule mode overrides legacy Spawn Enemy Type / Spawns Per Minute.");
+			}
+		}
+
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("Boss Encounter", ImGuiTreeNodeFlags_DefaultOpen)) {
+			auto& bossSettings = enemySpawnPoint->GetBossEncounterSettings();
+			bool bossSettingsChanged = false;
+			bossSettingsChanged |= ImGui::Checkbox("Enable Boss Encounter", &bossSettings.enabled);
+			if (ImGui::DragFloat("Boss Trigger Time (sec)", &bossSettings.triggerTimeSeconds, 0.1f, 0.0f, 36000.0f)) {
+				bossSettings.triggerTimeSeconds = (std::max)(0.0f, bossSettings.triggerTimeSeconds);
+				bossSettingsChanged = true;
+			}
+
+			if (!enemyTypes.empty()) {
+				int bossEnemyTypeIndex = 0;
+				for (int enemyTypeIndex = 0; enemyTypeIndex < static_cast<int>(enemyTypes.size()); ++enemyTypeIndex) {
+					if (enemyTypes[enemyTypeIndex] == bossSettings.enemyTypeName) {
+						bossEnemyTypeIndex = enemyTypeIndex;
+						break;
+					}
+				}
+				std::vector<const char*> bossEnemyTypeLabels = MakeLabelPointers(enemyTypes);
+				if (ImGui::Combo("Boss Enemy Type", &bossEnemyTypeIndex, bossEnemyTypeLabels.data(), static_cast<int>(bossEnemyTypeLabels.size()))) {
+					bossSettings.enemyTypeName = enemyTypes[bossEnemyTypeIndex];
+					bossSettingsChanged = true;
+				}
+			}
+			bossSettingsChanged |= ImGui::DragFloat3("Boss Position", &bossSettings.bossPosition.x, 0.1f);
+			bossSettingsChanged |= ImGui::DragFloat3("Player Warp Position", &bossSettings.playerWarpPosition.x, 0.1f);
+			const char* bossState = enemySpawnPoint->IsBossEncounterActive()
+			    ? "Active (normal spawn timer paused)"
+			    : enemySpawnPoint->IsBossEncounterTriggered() ? "Finished" : "Waiting";
+			ImGui::Text("State: %s", bossState);
+			ImGui::TextDisabled("The player is warped immediately before the boss appears.");
+			if (bossSettingsChanged) {
+				enemySpawnPoint->SetBossEncounterSettings(bossSettings);
 			}
 		}
 
@@ -1243,9 +1282,9 @@ void BaseScene::DrawEnemyInspector() {
 		selectedObject->GetTransform().scale = {enemyScale, enemyScale, enemyScale};
 		statsChanged = true;
 	}
-	const char* behaviorLabels[] = {"Chase", "Shooter", "Charger"};
+	const char* behaviorLabels[] = {"Chase", "Shooter", "Charger", "Night Slash Boss"};
 	int behaviorIndex = static_cast<int>(stats.behavior);
-	if (ImGui::Combo("Behavior", &behaviorIndex, behaviorLabels, 3)) {
+	if (ImGui::Combo("Behavior", &behaviorIndex, behaviorLabels, 4)) {
 		stats.behavior = static_cast<EnemyBehaviorType>(behaviorIndex);
 		stats.shoots = stats.behavior == EnemyBehaviorType::Shooter;
 		statsChanged = true;
@@ -1263,6 +1302,27 @@ void BaseScene::DrawEnemyInspector() {
 		statsChanged |= ImGui::DragFloat("Dash Speed", &stats.dashSpeed, 0.005f, 0.0f, 100.0f);
 		statsChanged |= ImGui::DragFloat("Dash Duration", &stats.dashDuration, 0.05f, 0.0f, 100.0f);
 		statsChanged |= ImGui::DragFloat("Dash Recovery", &stats.dashRecovery, 0.05f, 0.0f, 100.0f);
+	} else if (stats.behavior == EnemyBehaviorType::NightSlashBoss) {
+		statsChanged |= ImGui::DragFloat("Combo Trigger Distance", &stats.comboTriggerDistance, 0.1f, 0.0f, 1000.0f);
+		statsChanged |= ImGui::DragFloat("Combo Warning Time", &stats.comboWindup, 0.05f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Combo Dash Speed", &stats.comboDashSpeed, 0.005f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Combo Dash Duration", &stats.comboDashDuration, 0.01f, 0.01f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Slash Pause", &stats.comboSlashPause, 0.01f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Combo Recovery", &stats.comboRecovery, 0.05f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Side Offset", &stats.comboSideOffset, 0.05f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragInt("Dash Count", &stats.comboDashCount, 1.0f, 1, 12);
+		statsChanged |= ImGui::DragFloat("Finisher Speed Multiplier", &stats.finisherSpeedMultiplier, 0.05f, 1.0f, 5.0f);
+		ImGui::SeparatorText("Ranged Patterns");
+		statsChanged |= ImGui::DragFloat("Ranged Warning Time", &stats.bossRangedWindup, 0.05f, 0.0f, 10.0f);
+		statsChanged |= ImGui::DragFloat("Ranged Wave Interval", &stats.bossRangedInterval, 0.01f, 0.01f, 10.0f);
+		statsChanged |= ImGui::DragInt("Ranged Wave Count", &stats.bossRangedWaves, 1.0f, 1, 20);
+		statsChanged |= ImGui::DragInt("Radial Shot Count", &stats.bossRadialShotCount, 1.0f, 1, 64);
+		statsChanged |= ImGui::DragInt("Aimed Fan Shot Count", &stats.bossAimedShotCount, 1.0f, 1, 31);
+		statsChanged |= ImGui::SliderAngle("Aimed Shot Spacing", &stats.bossAimedSpreadAngle, 0.0f, 45.0f);
+		statsChanged |= ImGui::DragFloat("Projectile Attack Multiplier", &stats.bossProjectileAttackMultiplier, 0.05f, 0.0f, 5.0f);
+		statsChanged |= ImGui::DragFloat("Boss Projectile Speed", &stats.projectileSpeed, 0.005f, 0.0f, 5.0f);
+		statsChanged |= ImGui::DragFloat("Boss Projectile Size", &stats.projectileSize, 0.01f, 0.01f, 5.0f);
+		statsChanged |= ImGui::DragFloat("Boss Projectile Life Time", &stats.projectileLifeTime, 0.1f, 0.0f, 30.0f);
 	}
 	statsChanged |= ImGui::DragFloat("Spawns Per Minute", &stats.spawnsPerMinute, 0.1f, 0.0f, 10000.0f);
 	statsChanged |= ImGui::DragInt("Drop Experience", &stats.experience, 1.0f, 0, 100000);
@@ -1401,7 +1461,7 @@ void BaseScene::DrawPlayerStatsInspector(GameObject* selectedObject, Player* pla
 		std::memcpy(playerTypeNameBuffer_.data(), currentTypeName.data(), copyLength);
 		playerTypeNameBuffer_[copyLength] = '\0';
 	}
-	ImGui::InputText("Status Name", playerTypeNameBuffer_.data(), playerTypeNameBuffer_.size());
+	ImGui::InputText("Player Type Name", playerTypeNameBuffer_.data(), playerTypeNameBuffer_.size());
 	statsChanged |= ImGui::DragFloat("Base Health", &stats.baseHealth, 1.0f, 0.0f, 100000.0f);
 	statsChanged |= ImGui::DragFloat("Health %", &stats.health, 1.0f, 0.0f, 100000.0f);
 	statsChanged |= ImGui::DragFloat("Attack", &stats.attack, 1.0f, 0.0f, 100000.0f);
@@ -1658,13 +1718,87 @@ void BaseScene::DrawPlayerPersistenceInspector(GameObject* selectedObject, Playe
 	if (statusSlotsChanged) {
 		ImGui::Text("Status slots applied to current player only.");
 	}
-	if (ImGui::Button("Save Player Type")) {
-		const std::string saveTypeName = playerTypeNameBuffer_.data();
-		player->SetPlayerTypeName(saveTypeName.empty() ? player->GetPlayerTypeName() : saveTypeName);
-		PlayerStats saveStats = player->GetBaseStats();
-		saveStats.name = player->GetPlayerTypeName();
-		player->ApplyStats(saveStats, ApplyPlayerStatusItems(saveStats));
-		SavePlayerStats(player->GetPlayerTypeName(), saveStats);
+	const std::string currentTypeName = player->GetPlayerTypeName();
+	const std::string editedTypeName = playerTypeNameBuffer_.data();
+	if (ImGui::Button("Save / Rename Player Type")) {
+		if (editedTypeName.empty()) {
+			playerTypeEditMessage_ = "Player type name cannot be empty.";
+		} else {
+			PlayerStats saveStats = player->GetBaseStats();
+			saveStats.name = editedTypeName;
+			player->ApplyStats(saveStats, ApplyPlayerStatusItems(saveStats));
+			if (editedTypeName == currentTypeName) {
+				SavePlayerStats(currentTypeName, saveStats);
+				playerTypeEditMessage_ = "Saved player type: " + currentTypeName;
+			} else if (RenamePlayerStats(currentTypeName, editedTypeName, saveStats)) {
+				for (const auto& object : sceneObjects_) {
+					if (Player* scenePlayer = object->GetComponent<Player>();
+					    scenePlayer && scenePlayer->GetPlayerTypeName() == currentTypeName) {
+						scenePlayer->SetPlayerTypeName(editedTypeName);
+					}
+				}
+				playerTypeEditMessage_ = "Renamed player type to: " + editedTypeName;
+			} else {
+				playerTypeEditMessage_ = "Rename failed. The new name may already exist.";
+			}
+		}
+	}
+	ImGui::SameLine();
+	const bool canDeletePlayerType = currentTypeName != "Default";
+	if (!canDeletePlayerType) {
+		ImGui::BeginDisabled();
+	}
+	if (ImGui::Button("Delete Player Type")) {
+		ImGui::OpenPopup("Delete Player Type?");
+	}
+	if (!canDeletePlayerType) {
+		ImGui::EndDisabled();
+	}
+	if (ImGui::BeginPopupModal("Delete Player Type?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		ImGui::Text("Delete \"%s\"?", currentTypeName.c_str());
+		ImGui::TextDisabled("Players using it will be changed to Default.");
+		if (ImGui::Button("Delete", ImVec2(120.0f, 0.0f))) {
+			if (DeletePlayerStats(currentTypeName)) {
+				const PlayerStats defaultStats = LoadPlayerStats("Default");
+				for (const auto& object : sceneObjects_) {
+					Player* scenePlayer = object->GetComponent<Player>();
+					if (!scenePlayer || scenePlayer->GetPlayerTypeName() != currentTypeName) {
+						continue;
+					}
+					scenePlayer->SetPlayerTypeName("Default");
+					scenePlayer->ApplyStats(defaultStats, ApplyPlayerStatusItems(defaultStats));
+					if (PlayerAttackComponent* attack = object->GetComponent<PlayerAttackComponent>()) {
+						ApplyPlayerAttackSlots(attack, defaultStats);
+					}
+					if (Object3dComponent* object3d = object->GetComponent<Object3dComponent>()) {
+						if (!defaultStats.modelFilePath.empty() &&
+						    !ModelManager::GetInstance()->FindModel(defaultStats.modelFilePath)) {
+							ModelManager::GetInstance()->LoadModel(defaultStats.modelFilePath);
+						}
+						if (Model* model = ModelManager::GetInstance()->FindModel(defaultStats.modelFilePath)) {
+							object3d->SetModel(defaultStats.modelFilePath);
+							object3d->SetDrawSkeleton(model->GetIsAnimation());
+						}
+					}
+				}
+				std::fill(playerTypeNameBuffer_.begin(), playerTypeNameBuffer_.end(), '\0');
+				const std::string defaultTypeName = "Default";
+				std::memcpy(playerTypeNameBuffer_.data(), defaultTypeName.data(), defaultTypeName.size());
+				selectedPlayerTypeIndex_ = 0;
+				playerTypeEditMessage_ = "Deleted player type: " + currentTypeName;
+			} else {
+				playerTypeEditMessage_ = "Delete failed.";
+			}
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel", ImVec2(120.0f, 0.0f))) {
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+	if (!playerTypeEditMessage_.empty()) {
+		ImGui::TextWrapped("%s", playerTypeEditMessage_.c_str());
 	}
 
 #else
@@ -1957,7 +2091,7 @@ void BaseScene::DrawParticleEmitterInspector(GameObject* selectedObject) {
 
 	ParticleEmitParam param = emitter->GetParam();
 	int count = static_cast<int>(param.count);
-	if (ImGui::DragInt("Emit Count", &count, 1.0f, 0, 1000)) {
+	if (ImGui::DragInt("Emit Count", &count, 1.0f, 0, static_cast<int>(ParticleManager::kMaxParticle))) {
 		param.count = static_cast<uint32_t>(count);
 		emitter->SetParam(param);
 	}

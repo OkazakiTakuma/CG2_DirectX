@@ -212,6 +212,77 @@
         "meshType": 0,
         "textureFilePath": "Resources/circle.png"
     },
+    "ParticleEmitter_3": {
+        "blendMode": 2,
+        "count": 9485,
+        "emitParam": {
+            "acceleration": [
+                0.0,
+                0.004000000189989805,
+                0.0
+            ],
+            "baseRotate": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "baseVelocity": [
+                0.0,
+                0.07999999821186066,
+                0.0
+            ],
+            "color": [
+                1.0,
+                0.550000011920929,
+                0.07999999821186066,
+                0.949999988079071
+            ],
+            "count": 9485,
+            "endColor": [
+                0.44999998807907104,
+                0.019999999552965164,
+                0.0,
+                0.0
+            ],
+            "endScale": [
+                0.11999999731779099,
+                0.11999999731779099,
+                0.11999999731779099
+            ],
+            "isBillboard": true,
+            "isRandomRotate": false,
+            "lifeTime": 0.550000011920929,
+            "randomPositionRange": [
+                0.2800000011920929,
+                0.03999999910593033,
+                0.2800000011920929
+            ],
+            "randomRotateRange": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "randomScaleRange": [
+                0.2800000011920929,
+                0.2800000011920929,
+                0.0
+            ],
+            "randomVelocityRange": [
+                0.054999999701976776,
+                0.07000000029802322,
+                0.054999999701976776
+            ],
+            "scale": [
+                0.699999988079071,
+                0.699999988079071,
+                0.699999988079071
+            ]
+        },
+        "frequency": 0.3499999940395355,
+        "isActive": true,
+        "meshType": 0,
+        "textureFilePath": "Resources/circle.png"
+    },
     "Slash": {
         "blendMode": 2,
         "count": 0,

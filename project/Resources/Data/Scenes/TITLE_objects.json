@@ -1,15 +1,38 @@
 {
-    "activeCamera": "Camera_1",
-    "nextObjectId": 2,
+    "activeCamera": "",
+    "nextObjectId": 6,
     "objects": [
         {
             "camera": {
+                "enabled": true,
                 "farClip": 100.0,
+                "followOffset": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
                 "followTarget": "",
                 "fovY": 0.44999998807907104,
-                "nearClip": 0.10000000149011612
+                "gravity": {
+                    "enabled": false,
+                    "strength": 9.800000190734863
+                },
+                "localOffset": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "nearClip": 0.10000000149011612,
+                "overrideRotation": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "overrideRotationEnabled": false
             },
+            "children": [],
             "name": "Camera_1",
+            "parent": "",
             "transform": {
                 "rotate": [
                     0.0,
@@ -28,7 +51,110 @@
                 ]
             },
             "type": "Camera"
+        },
+        {
+            "children": [],
+            "name": "ParticleEmitter_5",
+            "parent": "",
+            "particleEmitter": {
+                "blendMode": 2,
+                "enabled": true,
+                "frequency": 0.03500000014901161,
+                "gravity": {
+                    "enabled": false,
+                    "strength": 9.800000190734863
+                },
+                "groupName": "ParticleEmitter_5",
+                "isActive": true,
+                "meshType": 0,
+                "param": {
+                    "acceleration": [
+                        0.0,
+                        0.004000000189989805,
+                        0.0
+                    ],
+                    "baseRotate": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "baseVelocity": [
+                        0.0,
+                        0.07999999821186066,
+                        0.0
+                    ],
+                    "color": [
+                        1.0,
+                        0.550000011920929,
+                        0.07999999821186066,
+                        0.949999988079071
+                    ],
+                    "count": 10000,
+                    "endColor": [
+                        0.44999998807907104,
+                        0.019999999552965164,
+                        0.0,
+                        0.0
+                    ],
+                    "endScale": [
+                        0.11999999731779099,
+                        0.11999999731779099,
+                        0.11999999731779099
+                    ],
+                    "isBillboard": true,
+                    "isRandomRotate": false,
+                    "lifeTime": 0.550000011920929,
+                    "randomPositionRange": [
+                        0.2800000011920929,
+                        0.03999999910593033,
+                        0.2800000011920929
+                    ],
+                    "randomRotateRange": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "randomScaleRange": [
+                        0.2800000011920929,
+                        0.2800000011920929,
+                        0.0
+                    ],
+                    "randomVelocityRange": [
+                        0.054999999701976776,
+                        0.07000000029802322,
+                        0.054999999701976776
+                    ],
+                    "scale": [
+                        0.699999988079071,
+                        0.699999988079071,
+                        0.699999988079071
+                    ]
+                },
+                "textureFilePath": "Resources/circle.png"
+            },
+            "transform": {
+                "rotate": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "translate": [
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            "type": "ParticleEmitter"
         }
     ],
-    "scene": "TITLE"
+    "scene": "TITLE",
+    "skyBox": {
+        "enabled": false,
+        "textureFilePath": ""
+    }
 }

@@ -621,6 +621,16 @@ nlohmann::json LoadPlayerStatusRoot() {
 	return root;
 }
 
+bool SavePlayerStatusRoot(const nlohmann::json& root) {
+	std::filesystem::create_directories(std::filesystem::path(kPlayerStatusFilePath).parent_path());
+	std::ofstream ofs(kPlayerStatusFilePath);
+	if (!ofs) {
+		return false;
+	}
+	ofs << std::setw(4) << root << std::endl;
+	return static_cast<bool>(ofs);
+}
+
 std::vector<std::string> LoadPlayerTypeNames() {
 	std::vector<std::string> names;
 	const nlohmann::json root = LoadPlayerStatusRoot();
@@ -652,12 +662,42 @@ void SavePlayerStats(const std::string& playerTypeName, const PlayerStats& stats
 	PlayerStats saveStats = stats;
 	saveStats.name = typeName;
 	root[typeName] = PlayerStatsToJson(saveStats);
+	SavePlayerStatusRoot(root);
+}
 
-	std::filesystem::create_directories(std::filesystem::path(kPlayerStatusFilePath).parent_path());
-	std::ofstream ofs(kPlayerStatusFilePath);
-	if (ofs) {
-		ofs << std::setw(4) << root << std::endl;
+bool RenamePlayerStats(const std::string& oldTypeName, const std::string& newTypeName, const PlayerStats& stats) {
+	if (oldTypeName.empty() || newTypeName.empty()) {
+		return false;
 	}
+	if (oldTypeName == newTypeName) {
+		SavePlayerStats(oldTypeName, stats);
+		return true;
+	}
+
+	nlohmann::json root = LoadPlayerStatusRoot();
+	if (!root.contains(oldTypeName) || root.contains(newTypeName)) {
+		return false;
+	}
+
+	PlayerStats saveStats = stats;
+	saveStats.name = newTypeName;
+	root[newTypeName] = PlayerStatsToJson(saveStats);
+	root.erase(oldTypeName);
+	return SavePlayerStatusRoot(root);
+}
+
+bool DeletePlayerStats(const std::string& playerTypeName) {
+	// Default は参照切れ時のフォールバックとして常に残す。
+	if (playerTypeName.empty() || playerTypeName == "Default") {
+		return false;
+	}
+
+	nlohmann::json root = LoadPlayerStatusRoot();
+	if (!root.contains(playerTypeName)) {
+		return false;
+	}
+	root.erase(playerTypeName);
+	return SavePlayerStatusRoot(root);
 }
 
 }

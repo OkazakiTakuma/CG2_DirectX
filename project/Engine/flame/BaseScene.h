@@ -89,6 +89,7 @@ public:
 	virtual ~BaseScene();
 
 	virtual void SetSceneManager(SceneManager* manager) { sceneManager = manager; }
+	virtual bool IsParticleRenderingEnabled() const { return true; }
 /// <summary>
 /// シーン内オブジェクトの更新と当たり判定を行います。
 /// </summary>
@@ -128,7 +129,8 @@ private:
 		AttackSuper,
 		NewAttack,
 		StatusLevelUp,
-		NewStatus
+		NewStatus,
+		Decline
 	};
 	struct LevelUpChoice {
 		LevelUpChoiceType type = LevelUpChoiceType::AttackLevelUp;
@@ -226,6 +228,7 @@ private:
 	void UpdatePlayerAttacks();
 	void UpdatePlayerProjectileHits();
 	void UpdateExperienceCompression();
+	void UpdateBossUpgradeRewards();
 	void CleanupExpiredPlayerProjectiles();
 	void UpdatePlayerHealthHud();
 	void UpdatePlayerExperienceHud();
@@ -256,6 +259,10 @@ private:
 	GameObject* CreateRuntimeEnemy(const std::string& enemyTypeName, const Vector3& position, GameObject* target);
 	GameObject* CreateRuntimeEnemyProjectile(const EnemyShotRequest& request);
 	GameObject* CreateRuntimeExperience(const EnemyStats& enemyStats, const Vector3& position, GameObject* target);
+	void CreateRuntimeBossUpgradeDrop(const Vector3& position, GameObject* target, int upgradeCount);
+	int ApplyRandomBossUpgrades(Player* player, int upgradeCount);
+	void QueueBossAcquisitionOffers(Player* player, int offerCount);
+	bool ShowNextBossAcquisitionOffer();
 	GameObject* CreateRuntimePlayerProjectile(const PlayerAttackShotRequest& request);
 	GameObject* FindNearestEnemy(const Vector3& position) const;
 /// <summary>
@@ -273,6 +280,8 @@ private:
 	std::string sceneName_ = "None";
 	std::string playerTypeOverride_;
 	std::vector<std::unique_ptr<GameObject>> sceneObjects_;
+	/// <summary>生存中のボス戦用ランタイム敵名です。空なら通常スポーンを再開します。</summary>
+	std::string activeBossEncounterObjectName_;
 	int selectedObjectIndex_ = -1;
 	int nextObjectId_ = 1;
 	EditorCreateType createType_ = EditorCreateType::Object3dSphere;
@@ -291,6 +300,7 @@ private:
 	std::array<char, 64> enemyTypeNameBuffer_ = {};
 	std::string enemyInspectorObjectName_;
 	std::array<char, 64> playerTypeNameBuffer_ = {};
+	std::string playerTypeEditMessage_;
 	std::array<char, 64> playerAttackNameBuffer_ = {};
 	std::array<char, 512> textEditBuffer_ = {};
 	std::vector<std::string> cachedPlayerAttackNames_;
@@ -327,6 +337,9 @@ private:
 	Player* levelUpPlayer_ = nullptr;
 	int selectedLevelUpChoiceIndex_ = 0;
 	std::vector<LevelUpChoice> levelUpChoices_;
+	std::vector<LevelUpChoice> bossAcquisitionOfferQueue_;
+	Player* bossAcquisitionPlayer_ = nullptr;
+	bool isBossAcquisitionOfferActive_ = false;
 	std::unique_ptr<Sprite> levelUpOverlaySprite_;
 	std::unique_ptr<Sprite> levelUpPanelSprite_;
 	std::array<std::unique_ptr<Sprite>, 3> levelUpChoiceBorderSprites_;

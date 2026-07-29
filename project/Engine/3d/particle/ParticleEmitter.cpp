@@ -146,10 +146,15 @@ void ParticleEmitter::Update(float deltaTime) {
 	        [](const LightningLine& line) { return line.currentTime >= line.lifeTime; }),
 	    lightningLines_.end());
 
+	if (frequency_ <= 0.0f) {
+		frequencyTimer_ = 0.0f;
+		return;
+	}
+
 	frequencyTimer_ += deltaTime;
-	if (frequency_ > 0.0f && frequencyTimer_ >= frequency_) {
+	if (frequencyTimer_ >= frequency_) {
 		Emit();
-		frequencyTimer_ -= frequency_;
+		frequencyTimer_ = std::fmod(frequencyTimer_, frequency_);
 	}
 }
 

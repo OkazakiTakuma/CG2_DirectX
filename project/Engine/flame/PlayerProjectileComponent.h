@@ -60,7 +60,15 @@ public:
 			toTarget.y = 0.0f;
 			if (Length(toTarget) > MathConstants::kDirectionEpsilon) {
 				const Vector3 targetDirection = NormalizeReturnVector(toTarget);
-				const float accuracy = 1.0f - std::pow(1.0f - (std::clamp)(homingAccuracy_, 0.0f, 1.0f), frameScale);
+				float homingRate = (std::clamp)(homingAccuracy_, 0.0f, 1.0f);
+				if (motionType_ == PlayerProjectileMotionType::ArcHoming) {
+					arcHomingElapsedSeconds_ += deltaTime;
+					// 発射直後からある程度旋回させ、短時間で追尾力を最大にして
+					// 大きな発射角でも画面外へ流れる前に敵へ収束させる。
+					const float turnRamp = (std::clamp)(arcHomingElapsedSeconds_ / 0.45f, 0.32f, 1.0f);
+					homingRate *= turnRamp;
+				}
+				const float accuracy = 1.0f - std::pow(1.0f - homingRate, frameScale);
 				direction_ = NormalizeReturnVector(Leap(direction_, targetDirection, accuracy));
 			}
 		}
@@ -229,6 +237,7 @@ private:
 	bool infinitePierce_ = false;
 	bool homingEnabled_ = false;
 	float homingAccuracy_ = 1.0f;
+	float arcHomingElapsedSeconds_ = 0.0f;
 	PlayerProjectileMotionType motionType_ = PlayerProjectileMotionType::Linear;
 	/// <summary>周回弾などの中心として使用する非所有参照です。</summary>
 	GameObject* motionAnchor_ = nullptr;

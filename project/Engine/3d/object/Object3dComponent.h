@@ -67,6 +67,7 @@ public:
 	}
 	void SetTexture(const std::string& textureFilePath) { object3d_->SetTexture(textureFilePath); }
 	void SetModelTexture(const std::string& textureFilePath) { object3d_->SetModelTexture(textureFilePath); }
+	void SetModelTextureOverride(const std::string& textureFilePath) { object3d_->SetModelTextureOverride(textureFilePath); }
 	std::string GetModelTextureFilePath() const { return object3d_ ? object3d_->GetModelTextureFilePath() : std::string(); }
 
 	const Vector3& GetTranslate() { return GetOwner()->GetTransform().translate; }

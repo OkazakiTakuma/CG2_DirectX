@@ -20,11 +20,13 @@ public:
 			return;
 		}
 		if (distance <= collectDistance_) {
-			// 対象がPlayerを持つ場合だけ経験値を反映し、アイテムを回収済みにする。
+			// ボス強化ドロップはシーン側で装備スロットへ反映するため、ここでは経験値を加算しない。
 			if (Player* player = target_->GetComponent<Player>()) {
-				player->AddExperience(experience_);
+				if (!bossUpgradeReward_) {
+					player->AddExperience(experience_);
+				}
+				collected_ = true;
 			}
-			collected_ = true;
 			return;
 		}
 
@@ -46,6 +48,12 @@ public:
 	void SetAttractSpeed(float speed) { attractSpeed_ = speed < 0.0f ? 0.0f : (speed > 1.0f ? 1.0f : speed); }
 	float GetAttractSpeed() const { return attractSpeed_; }
 	bool IsCollected() const { return collected_; }
+	void SetBossUpgradeReward(bool enabled) { bossUpgradeReward_ = enabled; }
+	bool IsBossUpgradeReward() const { return bossUpgradeReward_; }
+	void SetBossUpgradeCount(int count) { bossUpgradeCount_ = count < 1 ? 1 : count; }
+	int GetBossUpgradeCount() const { return bossUpgradeCount_; }
+	void MarkBossUpgradeApplied() { bossUpgradeApplied_ = true; }
+	bool IsBossUpgradeApplied() const { return bossUpgradeApplied_; }
 	void MarkConsumedByCompression() { consumedByCompression_ = true; }
 	bool IsConsumedByCompression() const { return consumedByCompression_; }
 
@@ -63,6 +71,9 @@ private:
 	GameObject* target_ = nullptr;
 	/// <summary>通常の接触回収が完了したかを表します。</summary>
 	bool collected_ = false;
+	bool bossUpgradeReward_ = false;
+	int bossUpgradeCount_ = 1;
+	bool bossUpgradeApplied_ = false;
 	/// <summary>圧縮攻撃によって消費され、通常回収から除外されたかを表します。</summary>
 	bool consumedByCompression_ = false;
 };

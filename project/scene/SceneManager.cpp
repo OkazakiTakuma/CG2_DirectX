@@ -58,6 +58,7 @@ void SceneManager::Update() {
 		if (shouldAdvanceSceneTime) {
 			scene_->Update();
 			scene_->UpdateSceneObjects();
+			ParticleManager::GetInstance()->Update();
 		} else {
 			scene_->UpdateEditorTools();
 		}
@@ -95,6 +96,10 @@ void SceneManager::Draw3D() {
 		scene_->Draw3D();
 		Object3dCommon::GetInstance()->SetDraw();
 		scene_->DrawSceneObjects3D();
+		Camera* camera = Object3dCommon::GetInstance()->GetDefaultCamera();
+		if (camera && scene_->IsParticleRenderingEnabled()) {
+			ParticleManager::GetInstance()->Draw(camera);
+		}
 	}
 }
 
