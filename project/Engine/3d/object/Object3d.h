@@ -43,6 +43,13 @@ public:
 	bool GetDrawSkeleton() const { return isDrawSkeleton_; }
 	bool HasSkeleton() const { return hasSkeleton && !skeleton.joints.empty(); }
 	bool HasModel() const { return model != nullptr; }
+	bool GetJointSkeletonSpaceMatrix(const std::string& jointName, Matrix4x4& jointMatrix) const;
+	bool GetJointWorldMatrix(const std::string& jointName, Matrix4x4& jointWorldMatrix) const;
+	void SetWorldMatrixOverride(const Matrix4x4& worldMatrix) {
+		worldMatrixOverride_ = worldMatrix;
+		hasWorldMatrixOverride_ = true;
+	}
+	void ClearWorldMatrixOverride() { hasWorldMatrixOverride_ = false; }
 	bool HasAnimation() const;
 	void SetAnimationPlaying(bool isPlaying);
 	bool GetAnimationPlaying() const { return isAnimationPlaying_; }
@@ -67,6 +74,7 @@ public:
 	/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 	void SetTexture(const std::string& textureFilePath);
 	void SetModelTexture(const std::string& textureFilePath);
+	void SetModelTextureOverride(const std::string& textureFilePath);
 	std::string GetModelTextureFilePath() const;
 
 	const Vector3& GetTranslate() { return transform.translate; };
@@ -174,8 +182,11 @@ private:
 	Matrix4x4* skinningPaletteData = nullptr;
 	uint32_t skinningPaletteCapacity_ = 0;
 	std::vector<Matrix4x4> skinningPalette_;
+	Matrix4x4 worldMatrixOverride_ = MakeIdentity4x4();
+	bool hasWorldMatrixOverride_ = false;
 
 	Model* model = nullptr;
+	std::string modelTextureOverridePath_;
 	bool isPointLightSet = true;
 	float environmentMultiplier = 1.0f;
 

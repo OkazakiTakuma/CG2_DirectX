@@ -1,4 +1,4 @@
-﻿#include "BaseScene.h"
+#include "BaseScene.h"
 
 BaseScene::~BaseScene() {}
 
@@ -21,6 +21,7 @@ void BaseScene::Draw3D() {}
 /// </summary>
 void BaseScene::Finalize() {
 	sceneObjects_.clear();
+	activeBossEncounterObjectName_.clear();
 	editorSkyBox_.reset();
 	playerHealthBarBackground_.reset();
 	playerHealthBarFill_.reset();
@@ -46,6 +47,9 @@ void BaseScene::Finalize() {
 	isLevelUpSelectionActive_ = false;
 	levelUpPlayer_ = nullptr;
 	levelUpChoices_.clear();
+	bossAcquisitionOfferQueue_.clear();
+	bossAcquisitionPlayer_ = nullptr;
+	isBossAcquisitionOfferActive_ = false;
 	levelUpOverlaySprite_.reset();
 	levelUpPanelSprite_.reset();
 	for (auto& sprite : levelUpChoiceBorderSprites_) sprite.reset();
@@ -77,6 +81,7 @@ void BaseScene::UpdateSceneObjects() {
 	UpdateEnemyProjectileHits();
 	UpdatePlayerAttacks();
 	UpdatePlayerProjectileHits();
+	UpdateBossUpgradeRewards();
 	UpdateExperienceCompression();
 	UpdateEnemySpawning();
 	CleanupExpiredPlayerProjectiles();

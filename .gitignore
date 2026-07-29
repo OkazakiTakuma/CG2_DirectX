@@ -354,3 +354,7 @@ Recording_*.mp4
 *.pdf
 /output/pdf/
 /tmp/pdfs/
+/output/video/
+/tmp/video/
+/output/slides/
+/tmp/slides_pdf/

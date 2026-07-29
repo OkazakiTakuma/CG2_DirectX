@@ -19,7 +19,7 @@
                 },
                 "localOffset": [
                     0.0,
-                    15.0,
+                    17.0,
                     -6.0
                 ],
                 "nearClip": 0.10000000149011612,
@@ -203,6 +203,21 @@
                 "debugPointSize": 0.5,
                 "drawDebug": true,
                 "enabled": true,
+                "bossEncounter": {
+                    "bossPosition": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "enabled": true,
+                    "enemyTypeName": "MidBoss",
+                    "playerWarpPosition": [
+                        0.0,
+                        0.0,
+                        6.0
+                    ],
+                    "triggerTime": 300.0
+                },
                 "enemyTypeName": "Default",
                 "gravity": {
                     "enabled": false,
@@ -264,10 +279,27 @@
                     },
                     {
                         "endTime": 36000.0,
-                        "enemyTypeName": "MidBoss",
-                        "intervalFrames": 3600,
+                        "enemyTypeName": "ChaserMidBoss",
+                        "intervalFrames": 1,
                         "spawnAmount": 1,
-                        "startTime": 120.0
+                        "spawnOnce": true,
+                        "startTime": 90.0
+                    },
+                    {
+                        "endTime": 36000.0,
+                        "enemyTypeName": "ShooterMidBoss",
+                        "intervalFrames": 1,
+                        "spawnAmount": 1,
+                        "spawnOnce": true,
+                        "startTime": 180.0
+                    },
+                    {
+                        "endTime": 36000.0,
+                        "enemyTypeName": "ChargerMidBoss",
+                        "intervalFrames": 1,
+                        "spawnAmount": 1,
+                        "spawnOnce": true,
+                        "startTime": 240.0
                     }
                 ],
                 "spawnCount": 8,

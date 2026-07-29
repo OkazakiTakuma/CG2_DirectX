@@ -1,4 +1,243 @@
 {
+    "ArcHoming": {
+        "levels": {
+            "1": {
+                "angles": [
+                    42.0
+                ],
+                "attack": 30.0,
+                "attackInterval": 0.8999999761581421,
+                "description": "敵へ向かって弧を描きながら追尾する赤い弾",
+                "homing": true,
+                "homingAccuracy": 0.11999999731779099,
+                "infinitePierce": false,
+                "level": "1",
+                "lifeTime": 5.0,
+                "model": "sphere.obj",
+                "pierceCount": 0,
+                "shotCount": 1,
+                "size": 60.0,
+                "spawnOffsets": [
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ]
+                ],
+                "speed": 0.3400000035762787,
+                "travelDistance": 6.0
+            },
+            "2": {
+                "angles": [
+                    -42.0
+                ],
+                "attack": 40.0,
+                "attackInterval": 0.7200000286102295,
+                "description": "攻撃力と攻撃速度が上昇する",
+                "homing": true,
+                "homingAccuracy": 0.125,
+                "infinitePierce": false,
+                "level": "2",
+                "lifeTime": 5.0,
+                "model": "sphere.obj",
+                "pierceCount": 0,
+                "shotCount": 1,
+                "size": 60.0,
+                "spawnOffsets": [
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ]
+                ],
+                "speed": 0.36000001430511475,
+                "travelDistance": 6.0
+            },
+            "3": {
+                "angles": [
+                    0.0,
+                    120.0,
+                    -120.0
+                ],
+                "attack": 40.0,
+                "attackInterval": 0.7200000286102295,
+                "description": "赤・青・緑の3発が別々の弧を描く",
+                "homing": true,
+                "homingAccuracy": 0.125,
+                "infinitePierce": false,
+                "level": "3",
+                "lifeTime": 5.0,
+                "model": "sphere.obj",
+                "pierceCount": 0,
+                "shotCount": 3,
+                "size": 60.0,
+                "spawnOffsets": [
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ],
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ],
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ]
+                ],
+                "speed": 0.36000001430511475,
+                "travelDistance": 6.0
+            },
+            "4": {
+                "angles": [
+                    0.0,
+                    120.0,
+                    -120.0
+                ],
+                "attack": 55.0,
+                "attackInterval": 0.7200000286102295,
+                "description": "弾が大きくなり、攻撃力が上昇する",
+                "homing": true,
+                "homingAccuracy": 0.12999999523162842,
+                "infinitePierce": false,
+                "level": "4",
+                "lifeTime": 5.0,
+                "model": "sphere.obj",
+                "pierceCount": 0,
+                "shotCount": 3,
+                "size": 82.0,
+                "spawnOffsets": [
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ],
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ],
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ]
+                ],
+                "speed": 0.3700000047683716,
+                "travelDistance": 6.0
+            },
+            "5": {
+                "angles": [
+                    0.0,
+                    90.0,
+                    180.0,
+                    -90.0
+                ],
+                "attack": 55.0,
+                "attackInterval": 0.7200000286102295,
+                "description": "赤・青・緑・黄色の4発を撃ち出す",
+                "homing": true,
+                "homingAccuracy": 0.12999999523162842,
+                "infinitePierce": false,
+                "level": "5",
+                "lifeTime": 5.0,
+                "model": "sphere.obj",
+                "pierceCount": 0,
+                "shotCount": 4,
+                "size": 82.0,
+                "spawnOffsets": [
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ],
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ],
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ],
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ]
+                ],
+                "speed": 0.3700000047683716,
+                "travelDistance": 6.0
+            },
+            "super": {
+                "angles": [
+                    0.0,
+                    60.0,
+                    120.0,
+                    180.0,
+                    -120.0,
+                    -60.0
+                ],
+                "attack": 78.0,
+                "attackInterval": 0.6200000047683716,
+                "description": "6色の巨大な弾が敵へ向かって弧を描く",
+                "homing": true,
+                "homingAccuracy": 0.14499999582767487,
+                "infinitePierce": false,
+                "level": "super",
+                "lifeTime": 5.5,
+                "model": "sphere.obj",
+                "pierceCount": 1,
+                "shotCount": 6,
+                "size": 105.0,
+                "spawnOffsets": [
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ],
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ],
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ],
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ],
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ],
+                    [
+                        0.0,
+                        0.5,
+                        1.2000000476837158
+                    ]
+                ],
+                "speed": 0.4000000059604645,
+                "texture": "",
+                "travelDistance": 6.0
+            }
+        },
+        "name": "ArcHoming",
+        "superCondition": {
+            "level": "5",
+            "status": "DefenceUp"
+        },
+        "texture": "Resources//uvChecker.png"
+    },
     "Boomerang": {
         "levels": {
             "1": {

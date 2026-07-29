@@ -3,7 +3,10 @@
 #include "Vector.h"
 #include <array>
 #include <cmath>
+#include <memory>
 #include <string>
+
+class Object3d;
 
 struct PlayerAttackSlot {
 	bool enabled = false;
@@ -41,10 +44,14 @@ struct PlayerStats {
 
 class Player : public Component {
 public:
+	~Player() override;
+
 	/// <summary>
 	/// 毎フレーム WASD 入力を見て、XZ 平面上でプレイヤーを移動します。
 	/// </summary>
 	void Update() override;
+	void Draw3D() override;
+	void Finalize() override;
 
 	/// <summary>
 	/// 現在位置をスポーンポイントへ戻します。
@@ -112,16 +119,20 @@ public:
 	bool GetIsAnimationModel() const { return isAnimationModel_; }
 
 private:
+	void EnsureBladeEquipment();
 	void UpdateLevelFromExperience();
+	void UpdateHealthRegeneration(float deltaTime);
 	Vector3 spawnPoint_{0.0f, 0.0f, 0.0f};
 	Vector3 currentMoveVelocity_{0.0f, 0.0f, 0.0f};
 	float moveSpeed_ = 0.1f;
 	float currentHealth_ = 100.0f;
 	float damageInvincibilityTimer_ = 0.0f;
+	float healthRegenerationTimer_ = 0.0f;
 	PlayerStats stats_;
 	PlayerStats effectiveStats_;
 	std::string playerTypeName_ = "Default";
 	std::string modelFilePath_;
 	bool isAnimationModel_ = false;
 	int pendingLevelUpCount_ = 0;
+	std::unique_ptr<Object3d> bladeObject_;
 };

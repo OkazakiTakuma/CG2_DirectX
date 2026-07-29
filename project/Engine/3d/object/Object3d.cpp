@@ -311,6 +311,13 @@ void Object3d::SetModelTexture(const std::string& textureFilePath) {
 	}
 }
 
+void Object3d::SetModelTextureOverride(const std::string& textureFilePath) {
+	modelTextureOverridePath_ = textureFilePath;
+	if (!modelTextureOverridePath_.empty()) {
+		TextureManager::GetInstance()->LoadTexture(modelTextureOverridePath_);
+	}
+}
+
 /// <summary>
 /// 設定済みモデルの描画テクスチャパスを取得します。
 /// </summary>
@@ -327,7 +334,9 @@ void Object3d::Update() {
 		return;
 	}
 
-	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+	Matrix4x4 worldMatrix = hasWorldMatrixOverride_
+	                           ? worldMatrixOverride_
+	                           : MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 
 	if (model) {
 		if (HasAnimation()) {
@@ -379,6 +388,32 @@ void Object3d::Update() {
 
 
 	cameraData->environmentMultiplier = environmentMultiplier;
+}
+
+bool Object3d::GetJointSkeletonSpaceMatrix(const std::string& jointName, Matrix4x4& jointMatrix) const {
+	const auto jointIterator = skeleton.jointMap.find(jointName);
+	if (jointIterator == skeleton.jointMap.end()) {
+		return false;
+	}
+
+	const int32_t jointIndex = jointIterator->second;
+	if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(skeleton.joints.size())) {
+		return false;
+	}
+
+	jointMatrix = skeleton.joints[jointIndex].skeletonSpaceMatrix;
+	return true;
+}
+
+bool Object3d::GetJointWorldMatrix(const std::string& jointName, Matrix4x4& jointWorldMatrix) const {
+	Matrix4x4 jointMatrix;
+	if (!GetJointSkeletonSpaceMatrix(jointName, jointMatrix)) {
+		return false;
+	}
+
+	const Matrix4x4 objectWorldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+	jointWorldMatrix = Multiply(jointMatrix, objectWorldMatrix);
+	return true;
 }
 
 bool Object3d::HasAnimation() const {
@@ -472,11 +507,11 @@ void Object3d::Draw() {
 	commandList->SetGraphicsRootDescriptorTable(6, envMapHandle);
 
 	if (model) {
-		model->Draw(materialOverrideResource_.Get());
+		model->Draw(materialOverrideResource_.Get(), modelTextureOverridePath_);
 		if (isShadowEnabled_ && shadowWvpResource && shadowMaterialResource) {
 			Object3dCommon::GetInstance()->SetShadowDraw();
 			commandList->SetGraphicsRootConstantBufferView(1, shadowWvpResource->GetGPUVirtualAddress());
-			model->Draw(shadowMaterialResource.Get());
+			model->Draw(shadowMaterialResource.Get(), modelTextureOverridePath_);
 			Object3dCommon::GetInstance()->SetDraw();
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResorceModel->GetGPUVirtualAddress());
 		}

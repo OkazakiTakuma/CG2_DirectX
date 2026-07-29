@@ -155,6 +155,7 @@ void GamePlayScene::LoadSceneModels() {
 	ModelManager::GetInstance()->LoadModel("axis.obj");
 	ModelManager::GetInstance()->LoadModel("sphere.obj");
 	ModelManager::GetInstance()->LoadModel("terrain.obj", false, "/terrain");
+	ModelManager::GetInstance()->LoadModel("brade.obj", false, "/brade");
 }
 
 /// <summary>
@@ -177,7 +178,6 @@ void GamePlayScene::Update() {
 	for (auto& emitter : emitters_) {
 		emitter->Update(deltaTime);
 	}
-	ParticleManager::GetInstance()->Update();
 	Object3dCommon::GetInstance()->GetDefaultCamera()->Update();
 	if (object3dObject_) {
 		object3dObject_->Update();
@@ -266,9 +266,6 @@ void GamePlayScene::Draw3D() {
 		instancingModel_->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
 	}
 
-	if (isShowParticles_) {
-		ParticleManager::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
-	}
 }
 
 /// <summary>
@@ -516,7 +513,7 @@ void GamePlayScene::ImGuiUpdate() {
 			}
 
 			int count = static_cast<int>(param.count);
-			if (ImGui::DragInt("Emit Count", &count, 1, 0, 1000)) {
+			if (ImGui::DragInt("Emit Count", &count, 1, 0, static_cast<int>(ParticleManager::kMaxParticle))) {
 				param.count = static_cast<uint32_t>(count);
 			}
 

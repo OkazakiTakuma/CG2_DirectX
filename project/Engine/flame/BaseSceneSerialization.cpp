@@ -1,4 +1,4 @@
-﻿#include "BaseScene.h"
+#include "BaseScene.h"
 #include "repositories/EnemyStatusRepository.h"
 #include "MathConstants.h"
 #include "model/ModelManager.h"
@@ -179,6 +179,14 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["enemySpawnPoint"]["pointHeight"] = enemySpawnPoint->GetPointHeight();
 			objectJson["enemySpawnPoint"]["drawDebug"] = enemySpawnPoint->GetDrawDebug();
 			objectJson["enemySpawnPoint"]["debugPointSize"] = enemySpawnPoint->GetDebugPointSize();
+			const EnemySpawnPointComponent::BossEncounterSettings& bossSettings = enemySpawnPoint->GetBossEncounterSettings();
+			objectJson["enemySpawnPoint"]["bossEncounter"] = {
+				{"enabled", bossSettings.enabled},
+				{"triggerTime", bossSettings.triggerTimeSeconds},
+				{"enemyTypeName", bossSettings.enemyTypeName},
+				{"bossPosition", Vector3ToJson(bossSettings.bossPosition)},
+				{"playerWarpPosition", Vector3ToJson(bossSettings.playerWarpPosition)}
+			};
 			objectJson["enemySpawnPoint"]["schedules"] = nlohmann::json::array();
 			for (const EnemySpawnPointComponent::SpawnSchedule& schedule : enemySpawnPoint->GetSpawnSchedules()) {
 				objectJson["enemySpawnPoint"]["schedules"].push_back({
@@ -186,7 +194,8 @@ void BaseScene::SaveEditorObjects() {
 					{"endTime", schedule.endTimeSeconds},
 					{"enemyTypeName", schedule.enemyTypeName},
 					{"intervalFrames", schedule.spawnIntervalFrames},
-					{"spawnAmount", schedule.spawnAmount}
+					{"spawnAmount", schedule.spawnAmount},
+					{"spawnOnce", schedule.spawnOnce}
 				});
 			}
 		}
@@ -246,6 +255,7 @@ void BaseScene::LoadEditorObjects() {
 	}
 
 	sceneObjects_.clear();
+	activeBossEncounterObjectName_.clear();
 	editorSkyBox_.reset();
 	selectedObjectIndex_ = -1;
 	nextObjectId_ = root.value("nextObjectId", 1);
@@ -517,6 +527,18 @@ void BaseScene::LoadEditorObjects() {
 			enemySpawnPoint->SetPointHeight(spawnJson.value("pointHeight", enemySpawnPoint->GetPointHeight()));
 			enemySpawnPoint->SetDrawDebug(spawnJson.value("drawDebug", enemySpawnPoint->GetDrawDebug()));
 			enemySpawnPoint->SetDebugPointSize(spawnJson.value("debugPointSize", enemySpawnPoint->GetDebugPointSize()));
+			if (spawnJson.contains("bossEncounter") && spawnJson["bossEncounter"].is_object()) {
+				const nlohmann::json bossJson = spawnJson["bossEncounter"];
+				EnemySpawnPointComponent::BossEncounterSettings bossSettings = enemySpawnPoint->GetBossEncounterSettings();
+				bossSettings.enabled = bossJson.value("enabled", bossSettings.enabled);
+				bossSettings.triggerTimeSeconds = bossJson.value("triggerTime", bossSettings.triggerTimeSeconds);
+				bossSettings.enemyTypeName = bossJson.value("enemyTypeName", bossSettings.enemyTypeName);
+				bossSettings.bossPosition =
+				    JsonToVector3(bossJson.value("bossPosition", nlohmann::json::array()), bossSettings.bossPosition);
+				bossSettings.playerWarpPosition =
+				    JsonToVector3(bossJson.value("playerWarpPosition", nlohmann::json::array()), bossSettings.playerWarpPosition);
+				enemySpawnPoint->SetBossEncounterSettings(bossSettings);
+			}
 			std::vector<EnemySpawnPointComponent::SpawnSchedule> schedules;
 			const nlohmann::json schedulesJson = spawnJson.value("schedules", nlohmann::json::array());
 			if (schedulesJson.is_array()) {
@@ -530,6 +552,7 @@ void BaseScene::LoadEditorObjects() {
 					schedule.enemyTypeName = scheduleJson.value("enemyTypeName", schedule.enemyTypeName);
 					schedule.spawnIntervalFrames = scheduleJson.value("intervalFrames", schedule.spawnIntervalFrames);
 					schedule.spawnAmount = scheduleJson.value("spawnAmount", schedule.spawnAmount);
+					schedule.spawnOnce = scheduleJson.value("spawnOnce", schedule.spawnOnce);
 					schedules.push_back(schedule);
 				}
 			}

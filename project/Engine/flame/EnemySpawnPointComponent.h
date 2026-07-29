@@ -22,18 +22,28 @@ public:
 		std::string enemyTypeName = "Default";
 		int spawnIntervalFrames = 60;
 		int spawnAmount = 1;
+		bool spawnOnce = false;
 		int frameCounter = 0;
+		bool hasSpawned = false;
 	};
 	/// <summary>シーン側へ渡す、生成位置が確定した敵生成要求です。</summary>
 	struct ScheduledSpawnRequest {
 		std::string enemyTypeName;
 		Vector3 position{};
 	};
+	/// <summary>指定時刻に一度だけ発生するボス戦の設定です。</summary>
+	struct BossEncounterSettings {
+		bool enabled = false;
+		float triggerTimeSeconds = 300.0f;
+		std::string enemyTypeName = "MidBoss";
+		Vector3 bossPosition{0.0f, 0.0f, 0.0f};
+		Vector3 playerWarpPosition{0.0f, 0.0f, 6.0f};
+	};
 
 	void Update() override {
 		// カメラの変化へ追従して候補点を更新し、生成が有効な間だけ経過時間を進める。
 		RecalculateSpawnPoints();
-		if (spawnEnabled_) {
+		if (spawnEnabled_ && !bossEncounterActive_) {
 			elapsedTimeSeconds_ += GameTime::GetDeltaTime();
 		}
 	}
@@ -101,8 +111,10 @@ public:
 		spawnTimerSeconds_ = 0.0f;
 		elapsedTimeSeconds_ = 0.0f;
 		nextSpawnIndex_ = 0;
+		bossEncounterTriggered_ = false;
 		for (SpawnSchedule& schedule : spawnSchedules_) {
 			schedule.frameCounter = 0;
+			schedule.hasSpawned = false;
 		}
 	}
 	float GetElapsedTimeSeconds() const { return elapsedTimeSeconds_; }
@@ -117,9 +129,30 @@ public:
 			schedule.spawnIntervalFrames = std::clamp(schedule.spawnIntervalFrames, 1, 360000);
 			schedule.spawnAmount = std::clamp(schedule.spawnAmount, 1, 64);
 			schedule.frameCounter = 0;
+			schedule.hasSpawned = false;
 		}
 		ResetSpawnTimer();
 	}
+	BossEncounterSettings& GetBossEncounterSettings() { return bossEncounterSettings_; }
+	const BossEncounterSettings& GetBossEncounterSettings() const { return bossEncounterSettings_; }
+	void SetBossEncounterSettings(const BossEncounterSettings& settings) {
+		bossEncounterSettings_ = settings;
+		bossEncounterSettings_.triggerTimeSeconds = (std::max)(0.0f, bossEncounterSettings_.triggerTimeSeconds);
+		bossEncounterSettings_.enemyTypeName =
+		    bossEncounterSettings_.enemyTypeName.empty() ? "MidBoss" : bossEncounterSettings_.enemyTypeName;
+		bossEncounterTriggered_ = false;
+	}
+	bool ConsumeBossEncounterRequest() {
+		if (!spawnEnabled_ || !bossEncounterSettings_.enabled || bossEncounterTriggered_ ||
+		    elapsedTimeSeconds_ < bossEncounterSettings_.triggerTimeSeconds) {
+			return false;
+		}
+		bossEncounterTriggered_ = true;
+		return true;
+	}
+	bool IsBossEncounterTriggered() const { return bossEncounterTriggered_; }
+	void SetBossEncounterActive(bool active) { bossEncounterActive_ = active; }
+	bool IsBossEncounterActive() const { return bossEncounterActive_; }
 
 	std::vector<ScheduledSpawnRequest> ConsumeScheduledSpawnRequests() {
 		// 有効時間帯に達し、指定間隔を満たしたスケジュールだけ要求へ変換する。
@@ -128,6 +161,9 @@ public:
 			return requests;
 		}
 		for (SpawnSchedule& schedule : spawnSchedules_) {
+			if (schedule.spawnOnce && schedule.hasSpawned) {
+				continue;
+			}
 			const bool isActive = elapsedTimeSeconds_ >= schedule.startTimeSeconds && elapsedTimeSeconds_ <= schedule.endTimeSeconds;
 			if (!isActive) {
 				schedule.frameCounter = 0;
@@ -147,6 +183,7 @@ public:
 				});
 				++nextSpawnIndex_;
 			}
+			schedule.hasSpawned = true;
 		}
 		return requests;
 	}
@@ -259,6 +296,9 @@ private:
 	float elapsedTimeSeconds_ = 0.0f;
 	/// <summary>ゲーム時間帯ごとの敵生成設定です。</summary>
 	std::vector<SpawnSchedule> spawnSchedules_;
+	BossEncounterSettings bossEncounterSettings_;
+	bool bossEncounterTriggered_ = false;
+	bool bossEncounterActive_ = false;
 	float outerMargin_ = 5.0f;
 	float minimumRadius_ = 8.0f;
 	float groundY_ = 0.0f;

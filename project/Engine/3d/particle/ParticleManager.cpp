@@ -42,7 +42,7 @@ std::vector<VertexData> GenerateRingVerticesForParticle(uint32_t segments, float
 	return vertices;
 }using namespace Logger;
 
-const uint32_t ParticleManager::kMaxParticle = 512;
+const uint32_t ParticleManager::kMaxParticle = 10000;
 
 /// <summary>
 /// 共有インスタンスを取得します。
@@ -508,10 +508,14 @@ void ParticleManager::Emit(const std::string& groupName, const Vector3& position
 		return;
 
 	ParticleGroup& group = particleGroups_[groupName];
+	const uint32_t currentParticleCount = static_cast<uint32_t>(group.particles.size());
+	const uint32_t availableParticleCount =
+	    currentParticleCount < kMaxParticle ? kMaxParticle - currentParticleCount : 0;
+	const uint32_t emitCount = (std::min)(count, availableParticleCount);
 
 	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-	for (uint32_t i = 0; i < count; ++i) {
+	for (uint32_t i = 0; i < emitCount; ++i) {
 		Particle newParticle;
 
 		newParticle.transform.translate.x = position.x + dist(randomEngine_) * emitParam.randomPositionRange.x;

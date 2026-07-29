@@ -26,7 +26,10 @@ public:
 
 	void SetGroupName(const std::string& name) { groupName_ = name; }
 	void SetTranslate(const Vector3& translate) { transform_.translate = translate; }
-	void SetFrequency(float frequency) { frequency_ = frequency; }
+	void SetFrequency(float frequency) {
+		frequency_ = frequency;
+		frequencyTimer_ = 0.0f;
+	}
 
 	void SetEmitParam(const ParticleEmitParam& param) { emitParam_ = param; }
 	void SetScale(const Vector3& scale) { emitParam_.scale = scale; }

@@ -43,6 +43,7 @@ struct PlayerAttackStats {
 /// <summary>プレイヤー弾の移動パターンです。</summary>
 enum class PlayerProjectileMotionType {
 	Linear,
+	ArcHoming,
 	Orbit,
 	SkyLaser,
 	Boomerang,
@@ -74,6 +75,7 @@ struct PlayerAttackShotRequest {
 	float travelDistance = 6.0f;
 	int clawSlashIndex = 0;
 	int clawSlashCount = 3;
+	int colorIndex = 0;
 };
 
 /// <summary>装備中の攻撃スロットを更新し、発射タイミングごとに弾生成要求を作ります。</summary>
@@ -194,7 +196,7 @@ private:
 		return {0.0f, 0.5f, 1.2f};
 	}
 
-	void QueueShot(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel, float angleDegrees, int shotIndex) {
+	void QueueShot(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel, float angleDegrees, int shotIndex, bool alignSpawnToShotAngle = false) {
 		const float playerAttackRate = player.GetStats().attack / 100.0f;
 		const float playerAttackSizeRate = player.GetStats().attackSize / 100.0f;
 		const Vector3 spawnOffset = GetShotSpawnOffset(levelStats, shotIndex);
@@ -209,15 +211,19 @@ private:
 		    0.0f,
 		    -std::sin(owner->GetTransform().rotate.y)
 		};
+		const Vector3 shotDirection = RotateYaw(forward, angleDegrees);
+		const Vector3 shotRight = {shotDirection.z, 0.0f, -shotDirection.x};
+		const Vector3& spawnForward = alignSpawnToShotAngle ? shotDirection : forward;
+		const Vector3& spawnRight = alignSpawnToShotAngle ? shotRight : right;
 
 		PlayerAttackShotRequest request;
 		request.attackName = slot.stats.name;
 		request.level = currentLevel;
 		request.position = owner->GetTransform().translate +
-		    spawnOffset.x * right +
+		    spawnOffset.x * spawnRight +
 		    Vector3{0.0f, spawnOffset.y, 0.0f} +
-		    spawnOffset.z * forward;
-		request.direction = RotateYaw(forward, angleDegrees);
+		    spawnOffset.z * spawnForward;
+		request.direction = shotDirection;
 		request.attack = levelStats.attack * playerAttackRate;
 		request.speed = levelStats.speed;
 		request.size = (levelStats.size / 100.0f) * playerAttackSizeRate;
@@ -227,6 +233,7 @@ private:
 		request.modelFilePath = levelStats.modelFilePath;
 		request.homing = levelStats.homing;
 		request.homingAccuracy = levelStats.homingAccuracy;
+		request.colorIndex = shotIndex % 6;
 		shotRequests_.push_back(request);
 	}
 
@@ -245,6 +252,17 @@ private:
 	void CreateHomingAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, PlayerAttackLevelStats levelStats, const std::string& currentLevel) {
 		levelStats.homing = true;
 		CreateSpreadAttack(owner, player, slot, levelStats, currentLevel);
+	}
+
+	void CreateArcHomingAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, PlayerAttackLevelStats levelStats, const std::string& currentLevel) {
+		levelStats.homing = true;
+		const int shotCount = (std::max)(1, levelStats.shotCount);
+		for (int index = 0; index < shotCount; ++index) {
+			const float angle = index < static_cast<int>(levelStats.angles.size()) ? levelStats.angles[index] : 0.0f;
+			QueueShot(owner, player, slot, levelStats, currentLevel, angle, index, true);
+			PlayerAttackShotRequest& request = shotRequests_.back();
+			request.motionType = PlayerProjectileMotionType::ArcHoming;
+		}
 	}
 
 	void CreateOrbitAttack(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
@@ -316,6 +334,10 @@ private:
 	}
 
 	void CreateAttackByName(GameObject* owner, const Player& player, const AttackSlotRuntime& slot, const PlayerAttackLevelStats& levelStats, const std::string& currentLevel) {
+		if (slot.stats.name == "ArcHoming") {
+			CreateArcHomingAttack(owner, player, slot, levelStats, currentLevel);
+			return;
+		}
 		if (slot.stats.name == "ClawSlash") {
 			CreateClawSlashAttack(owner, player, slot, levelStats, currentLevel);
 			return;

@@ -4,12 +4,27 @@
 #include "Input.h"
 #include "GameTime.h"
 #include "object/Object3dComponent.h"
+#include "object/Object3dCommon.h"
+#include "object/Object3d.h"
+#include "model/ModelManager.h"
+#include "Matrix.h"
 #include "PostEffect.h"
 #include <cmath>
 #include <limits>
 #include <dinput.h>
 
 namespace {
+constexpr float kHealthRegenerationInterval = 6.0f;
+constexpr float kHealthRegenerationAmount = 1.0f;
+constexpr float kBladeScale = 12.0f;
+constexpr float kBladeGripCenter = 0.007f * kBladeScale;
+
+bool IsKarasuTenguPlayerType(const std::string& playerTypeName) {
+	return playerTypeName == "烏天狗" ||
+	       playerTypeName == "KarasuTengu" ||
+	       playerTypeName == "karasuTengu";
+}
+
 Vector3 MoveTowards(const Vector3& current, const Vector3& target, float maxDelta) {
 	const Vector3 difference = target - current;
 	const float distance = Length(difference);
@@ -20,7 +35,10 @@ Vector3 MoveTowards(const Vector3& current, const Vector3& target, float maxDelt
 	const Vector3 direction = {difference.x / distance, difference.y / distance, difference.z / distance};
 	return current + maxDelta * direction;
 }
+
 }
+
+Player::~Player() = default;
 
 /// <summary>
 /// 毎フレーム WASD 入力を見て、XZ 平面上でプレイヤーを移動します。
@@ -28,6 +46,7 @@ Vector3 MoveTowards(const Vector3& current, const Vector3& target, float maxDelt
 void Player::Update() {
 	const float deltaTime = GameTime::GetDeltaTime();
 	const float frameScale = GameTime::GetFrameScale60();
+	UpdateHealthRegeneration(deltaTime);
 	if (damageInvincibilityTimer_ > 0.0f) {
 		damageInvincibilityTimer_ -= deltaTime;
 		if (damageInvincibilityTimer_ < 0.0f) {
@@ -39,6 +58,8 @@ void Player::Update() {
 	if (!owner) {
 		return;
 	}
+
+	EnsureBladeEquipment();
 
 	Input* input = Input::GetInstance();
 	Vector3 keyboardMove{0.0f, 0.0f, 0.0f};
@@ -95,6 +116,91 @@ void Player::Update() {
 	owner->GetTransform().translate = owner->GetTransform().translate + frameScale * currentMoveVelocity_;
 }
 
+void Player::UpdateHealthRegeneration(float deltaTime) {
+	const float maxHealth = GetMaxHealth();
+	if (currentHealth_ <= 0.0f || currentHealth_ >= maxHealth) {
+		healthRegenerationTimer_ = 0.0f;
+		return;
+	}
+
+	healthRegenerationTimer_ += deltaTime;
+	if (healthRegenerationTimer_ < kHealthRegenerationInterval) {
+		return;
+	}
+
+	const float regenerationCount = std::floor(healthRegenerationTimer_ / kHealthRegenerationInterval);
+	healthRegenerationTimer_ -= regenerationCount * kHealthRegenerationInterval;
+	SetCurrentHealth(currentHealth_ + regenerationCount * kHealthRegenerationAmount);
+}
+
+void Player::Draw3D() {
+	if (!IsKarasuTenguPlayerType(playerTypeName_) || !bladeObject_) {
+		return;
+	}
+
+	GameObject* owner = GetOwner();
+	Object3dComponent* playerObject3d = owner ? owner->GetComponent<Object3dComponent>() : nullptr;
+	if (!playerObject3d || !playerObject3d->GetObject3d()) {
+		return;
+	}
+
+	Matrix4x4 rightHandSkeletonMatrix;
+	if (!playerObject3d->GetObject3d()->GetJointSkeletonSpaceMatrix("mixamorig:RightHand", rightHandSkeletonMatrix)) {
+		return;
+	}
+
+	const EulerTransform& playerTransform = owner->GetTransform();
+	const Matrix4x4 playerWorldMatrix = MakeAffineMatrix(
+	    playerTransform.scale,
+	    playerTransform.rotate,
+	    playerTransform.translate);
+	const Matrix4x4 rightHandWorldMatrix = Multiply(rightHandSkeletonMatrix, playerWorldMatrix);
+	const float playerYaw = playerTransform.rotate.y;
+	const Vector3 playerForward = {
+	    std::sin(playerYaw),
+	    0.0f,
+	    std::cos(playerYaw)
+	};
+	const Vector3 rightHandPosition = {
+	    rightHandWorldMatrix.m[3][0],
+	    rightHandWorldMatrix.m[3][1],
+	    rightHandWorldMatrix.m[3][2]
+	};
+	const Vector3 bladePosition = rightHandPosition - kBladeGripCenter * playerForward;
+	const Matrix4x4 bladeWorldMatrix = MakeAffineMatrix(
+	    {kBladeScale, kBladeScale, kBladeScale},
+	    {MathConstants::kPi * 0.5f, playerYaw, 0.0f},
+	    bladePosition);
+	bladeObject_->SetWorldMatrixOverride(bladeWorldMatrix);
+	bladeObject_->SetCamera(Object3dCommon::GetInstance()->GetDefaultCamera());
+	bladeObject_->Update();
+	Object3dCommon::GetInstance()->SetDraw();
+	bladeObject_->Draw();
+}
+
+void Player::Finalize() {
+	bladeObject_.reset();
+}
+
+void Player::EnsureBladeEquipment() {
+	if (!IsKarasuTenguPlayerType(playerTypeName_) || bladeObject_) {
+		return;
+	}
+
+	ModelManager* modelManager = ModelManager::GetInstance();
+	if (!modelManager->FindModel("brade.obj")) {
+		modelManager->LoadModel("brade.obj", false, "/brade");
+	}
+	if (!modelManager->FindModel("brade.obj")) {
+		return;
+	}
+
+	bladeObject_ = std::make_unique<Object3d>();
+	bladeObject_->Initialize();
+	bladeObject_->SetModel("brade.obj");
+	bladeObject_->SetColor({1.0f, 1.0f, 1.0f, 1.0f});
+}
+
 void Player::ApplyStats(const PlayerStats& stats) {
 	ApplyStats(stats, stats);
 }
@@ -136,7 +242,7 @@ void Player::AddExperience(int experience) {
 	}
 	const float correctionRate = effectiveStats_.experienceCorrection / 100.0f;
 	const double correctedValue = std::ceil(static_cast<double>(experience) * static_cast<double>(correctionRate));
-	const int maxExperience = (std::numeric_limits<int>::max)();
+	constexpr int maxExperience = (std::numeric_limits<int>::max)();
 	const int correctedExperience = correctedValue >= static_cast<double>(maxExperience)
 	                                    ? maxExperience
 	                                    : static_cast<int>(correctedValue);
@@ -152,7 +258,7 @@ void Player::AddExperience(int experience) {
 
 int Player::GetRequiredExperienceForNextLevel(int level) {
 	const int safeLevel = level < 1 ? 1 : level;
-	const long long maxExperience = static_cast<long long>((std::numeric_limits<int>::max)());
+	constexpr long long maxExperience = static_cast<long long>((std::numeric_limits<int>::max)());
 	long long requiredExperience = 0;
 	long long levelExperience = 4;
 	for (int currentLevel = 1; currentLevel <= safeLevel; ++currentLevel) {
@@ -172,7 +278,7 @@ int Player::GetRequiredExperienceForNextLevel(int level) {
 }
 
 void Player::UpdateLevelFromExperience() {
-	const int maxExperience = (std::numeric_limits<int>::max)();
+	constexpr int maxExperience = (std::numeric_limits<int>::max)();
 	const int previousLevel = stats_.level;
 	while (true) {
 		const int requiredExperience = GetRequiredExperienceForNextLevel(stats_.level);

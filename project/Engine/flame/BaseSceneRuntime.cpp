@@ -21,7 +21,13 @@ bool ShouldSkipColliderPair(GameObject* objectA, GameObject* objectB) {
 
 	const bool isEnemyA = objectA->GetComponent<EnemyComponent>() != nullptr;
 	const bool isEnemyB = objectB->GetComponent<EnemyComponent>() != nullptr;
-	return isEnemyA && isEnemyB;
+	const bool isProjectileA =
+	    objectA->GetComponent<EnemyProjectileComponent>() != nullptr ||
+	    objectA->GetComponent<PlayerProjectileComponent>() != nullptr;
+	const bool isProjectileB =
+	    objectB->GetComponent<EnemyProjectileComponent>() != nullptr ||
+	    objectB->GetComponent<PlayerProjectileComponent>() != nullptr;
+	return (isEnemyA && isEnemyB) || isProjectileA || isProjectileB;
 }
 
 struct EnemyPlayerContact {
@@ -39,6 +45,27 @@ Vector4 GetExperienceColor(int denomination) {
 	case 10: return {0.20f, 1.0f, 0.35f, 1.0f};
 	default: return {0.15f, 0.75f, 1.0f, 1.0f};
 	}
+}
+
+Vector4 GetArcHomingProjectileColor(int colorIndex) {
+	static const std::array<Vector4, 6> kColors = {{
+	    {1.0f, 0.08f, 0.04f, 1.0f},
+	    {0.08f, 0.35f, 1.0f, 1.0f},
+	    {0.08f, 1.0f, 0.20f, 1.0f},
+	    {1.0f, 0.90f, 0.05f, 1.0f},
+	    {1.0f, 1.0f, 1.0f, 1.0f},
+	    {0.72f, 0.16f, 1.0f, 1.0f},
+	}};
+	return kColors[static_cast<size_t>((std::max)(0, colorIndex)) % kColors.size()];
+}
+
+Vector4 GetArcHomingTrailTailColor(int colorIndex) {
+	Vector4 color = GetArcHomingProjectileColor(colorIndex);
+	color.x *= 0.42f;
+	color.y *= 0.42f;
+	color.z *= 0.42f;
+	color.w = 0.0f;
+	return color;
 }
 
 float GetExperienceScale(int denomination) {
@@ -65,7 +92,7 @@ bool RegisterEnemyPlayerContact(GameObject* objectA, GameObject* objectB, std::v
 		return false;
 	}
 
-	if (enemy->IsEnabled() && player->IsEnabled() && enemy->GetCurrentHealth() > 0.0f) {
+	if (enemy->IsEnabled() && player->IsEnabled() && enemy->GetCurrentHealth() > 0.0f && enemy->CanDealContactDamage()) {
 		const auto duplicate = std::find_if(contacts.begin(), contacts.end(), [enemy, player](const EnemyPlayerContact& contact) {
 			return contact.enemy == enemy && contact.player == player;
 		});
@@ -292,16 +319,37 @@ void BaseScene::ResolveEnemyLinks() {
 }
 
 void BaseScene::UpdateEnemySpawning() {
+	if (!activeBossEncounterObjectName_.empty()) {
+		GameObject* bossObject = FindObjectByName(activeBossEncounterObjectName_);
+		EnemyComponent* bossEnemy = bossObject ? bossObject->GetComponent<EnemyComponent>() : nullptr;
+		const bool bossIsAlive = bossEnemy && bossEnemy->IsEnabled() && bossEnemy->GetCurrentHealth() > 0.0f;
+		for (const auto& object : sceneObjects_) {
+			if (EnemySpawnPointComponent* spawnPoint = object->GetComponent<EnemySpawnPointComponent>()) {
+				spawnPoint->SetBossEncounterActive(bossIsAlive);
+			}
+		}
+		if (bossIsAlive) {
+			return;
+		}
+		activeBossEncounterObjectName_.clear();
+	}
+
 	struct SpawnRequest {
 		std::string enemyTypeName;
 		Vector3 position;
 		GameObject* target = nullptr;
 	};
 	std::vector<SpawnRequest> spawnRequests;
+	EnemySpawnPointComponent* triggeredBossSpawnPoint = nullptr;
 	for (const auto& object : sceneObjects_) {
 		EnemySpawnPointComponent* spawnPoint = object->GetComponent<EnemySpawnPointComponent>();
 		if (!spawnPoint || !spawnPoint->IsEnabled()) {
 			continue;
+		}
+
+		if (spawnPoint->ConsumeBossEncounterRequest()) {
+			triggeredBossSpawnPoint = spawnPoint;
+			break;
 		}
 
 		if (!spawnPoint->GetSpawnSchedules().empty()) {
@@ -317,6 +365,37 @@ void BaseScene::UpdateEnemySpawning() {
 				spawnRequests.push_back({enemyTypeName, spawnPosition, spawnPoint->GetTarget()});
 			}
 		}
+	}
+
+	if (triggeredBossSpawnPoint) {
+		const EnemySpawnPointComponent::BossEncounterSettings& bossSettings =
+		    triggeredBossSpawnPoint->GetBossEncounterSettings();
+		GameObject* player = triggeredBossSpawnPoint->GetTarget();
+		if (player) {
+			player->GetTransform().translate = bossSettings.playerWarpPosition;
+			if (Player* playerComponent = player->GetComponent<Player>()) {
+				playerComponent->ResetGravityVelocity();
+			}
+		}
+
+		sceneObjects_.erase(
+		    std::remove_if(sceneObjects_.begin(), sceneObjects_.end(), [](const std::unique_ptr<GameObject>& object) {
+			    return object->GetComponent<EnemyComponent>() != nullptr;
+		    }),
+		    sceneObjects_.end()
+		);
+		selectedObjectIndex_ = -1;
+		for (const auto& object : sceneObjects_) {
+			if (EnemySpawnPointComponent* spawnPoint = object->GetComponent<EnemySpawnPointComponent>()) {
+				spawnPoint->SetBossEncounterActive(true);
+			}
+		}
+
+		GameObject* bossObject = CreateRuntimeEnemy(bossSettings.enemyTypeName, bossSettings.bossPosition, player);
+		if (bossObject) {
+			activeBossEncounterObjectName_ = bossObject->GetName();
+		}
+		return;
 	}
 
 	for (const SpawnRequest& request : spawnRequests) {
@@ -386,6 +465,14 @@ GameObject* BaseScene::CreateRuntimeEnemy(const std::string& enemyTypeName, cons
 	OBBColliderComponent* collider = object->AddComponent<OBBColliderComponent>();
 	collider->SetHalfSize({0.4f, 0.4f, 0.4f});
 	collider->SetPushBackEnabled(true);
+	if (stats.behavior == EnemyBehaviorType::NightSlashBoss) {
+		TrailRendererComponent* trail = object->AddComponent<TrailRendererComponent>();
+		trail->SetWidth(1.15f * stats.sizeScale);
+		trail->SetLifeTime(0.32f);
+		trail->SetMinSegmentLength(0.08f);
+		trail->SetHeadColor({0.92f, 0.20f, 1.0f, 0.92f});
+		trail->SetTailColor({0.20f, 0.02f, 0.40f, 0.0f});
+	}
 
 	object->Update();
 	sceneObjects_.push_back(std::move(object));
@@ -456,6 +543,261 @@ GameObject* BaseScene::CreateRuntimeExperience(const EnemyStats& enemyStats, con
 	return firstExperienceObject;
 }
 
+void BaseScene::CreateRuntimeBossUpgradeDrop(const Vector3& position, GameObject* target, int upgradeCount) {
+	if (!target) {
+		for (const auto& object : sceneObjects_) {
+			if (object->GetComponent<Player>()) {
+				target = object.get();
+				break;
+			}
+		}
+	}
+
+	ModelManager::GetInstance()->LoadModel("sphere.obj");
+	auto object = std::make_unique<GameObject>();
+	object->SetName(MakeUniqueObjectName("BossUpgradeReward"));
+	object->SetEditorType("BossUpgradeReward");
+	object->GetTransform().translate = position + Vector3{0.0f, 0.45f, 0.0f};
+	object->GetTransform().scale = {0.65f, 0.65f, 0.65f};
+
+	ExperienceComponent* reward = object->AddComponent<ExperienceComponent>();
+	reward->SetBossUpgradeReward(true);
+	reward->SetBossUpgradeCount(upgradeCount);
+	reward->SetTarget(target);
+	reward->SetAttractDistance(12.0f);
+	reward->SetAttractSpeed(0.06f);
+
+	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
+	object3d->SetModel("sphere.obj");
+	object3d->SetColor({1.0f, 0.72f, 0.08f, 1.0f});
+
+	object->Update();
+	sceneObjects_.push_back(std::move(object));
+	++nextObjectId_;
+}
+
+int BaseScene::ApplyRandomBossUpgrades(Player* player, int upgradeCount) {
+	if (!player || upgradeCount <= 0) {
+		return 0;
+	}
+
+	struct UpgradeCandidate {
+		bool isAttack = false;
+		int slotIndex = -1;
+		bool promoteToSuper = false;
+	};
+	static std::mt19937 rewardRandomEngine(std::random_device{}());
+	PlayerStats upgradedStats = player->GetBaseStats();
+	int appliedCount = 0;
+	for (; appliedCount < upgradeCount; ++appliedCount) {
+		std::vector<UpgradeCandidate> candidates;
+		for (int index = 0; index < static_cast<int>(upgradedStats.attackSlots.size()); ++index) {
+			const PlayerAttackSlot& slot = upgradedStats.attackSlots[index];
+			if (!slot.enabled || slot.attackName.empty() || slot.attackLevel == "super") {
+				continue;
+			}
+			const int level = std::atoi(slot.attackLevel.c_str());
+			if (level >= 1 && level < 5) {
+				candidates.push_back({true, index, false});
+				continue;
+			}
+			if (slot.attackLevel != "5") {
+				continue;
+			}
+			const PlayerAttackStats attackStats = LoadPlayerAttackStats(slot.attackName);
+			bool conditionMet = !attackStats.superConditionStatusName.empty();
+			const int requiredLevel = (std::max)(1, std::atoi(attackStats.superConditionStatusLevel.c_str()));
+			for (const PlayerStatusSlot& statusSlot : upgradedStats.statusSlots) {
+				if (conditionMet && statusSlot.enabled &&
+				    statusSlot.statusName == attackStats.superConditionStatusName &&
+				    std::atoi(statusSlot.level.c_str()) >= requiredLevel) {
+					candidates.push_back({true, index, true});
+					break;
+				}
+			}
+		}
+		for (int index = 0; index < static_cast<int>(upgradedStats.statusSlots.size()); ++index) {
+			const PlayerStatusSlot& slot = upgradedStats.statusSlots[index];
+			const int level = std::atoi(slot.level.c_str());
+			if (slot.enabled && !slot.statusName.empty() && level >= 1 && level < 5) {
+				candidates.push_back({false, index, false});
+			}
+		}
+		if (candidates.empty()) {
+			break;
+		}
+		std::uniform_int_distribution<size_t> candidateDistribution(0, candidates.size() - 1);
+		const UpgradeCandidate& selected = candidates[candidateDistribution(rewardRandomEngine)];
+		if (selected.isAttack) {
+			PlayerAttackSlot& slot = upgradedStats.attackSlots[selected.slotIndex];
+			slot.attackLevel = selected.promoteToSuper
+			    ? "super"
+			    : std::to_string((std::min)(5, std::atoi(slot.attackLevel.c_str()) + 1));
+		} else {
+			PlayerStatusSlot& slot = upgradedStats.statusSlots[selected.slotIndex];
+			slot.level = std::to_string((std::min)(5, std::atoi(slot.level.c_str()) + 1));
+		}
+	}
+
+	if (appliedCount > 0) {
+		player->ApplyStats(upgradedStats, ApplyPlayerStatusItems(upgradedStats));
+		if (GameObject* owner = player->GetOwner()) {
+			ApplyPlayerAttackSlots(owner->GetComponent<PlayerAttackComponent>(), upgradedStats);
+		}
+	}
+	return appliedCount;
+}
+
+void BaseScene::UpdateBossUpgradeRewards() {
+	for (const auto& object : sceneObjects_) {
+		ExperienceComponent* reward = object->GetComponent<ExperienceComponent>();
+		if (!reward || !reward->IsBossUpgradeReward() || !reward->IsCollected() || reward->IsBossUpgradeApplied()) {
+			continue;
+		}
+		Player* player = reward->GetTarget() ? reward->GetTarget()->GetComponent<Player>() : nullptr;
+		const int appliedCount = ApplyRandomBossUpgrades(player, reward->GetBossUpgradeCount());
+		QueueBossAcquisitionOffers(player, reward->GetBossUpgradeCount() - appliedCount);
+		reward->MarkBossUpgradeApplied();
+	}
+}
+
+void BaseScene::QueueBossAcquisitionOffers(Player* player, int offerCount) {
+	if (!player || offerCount <= 0) {
+		return;
+	}
+	const PlayerStats& stats = player->GetBaseStats();
+	const bool hasEmptyAttackSlot = std::any_of(stats.attackSlots.begin(), stats.attackSlots.end(), [](const PlayerAttackSlot& slot) {
+		return slot.attackName.empty();
+	});
+	const bool hasEmptyStatusSlot = std::any_of(stats.statusSlots.begin(), stats.statusSlots.end(), [](const PlayerStatusSlot& slot) {
+		return slot.statusName.empty();
+	});
+
+	std::unordered_set<std::string> ownedAttacks;
+	std::unordered_set<std::string> ownedStatuses;
+	for (const PlayerAttackSlot& slot : stats.attackSlots) {
+		if (!slot.attackName.empty()) {
+			ownedAttacks.insert(slot.attackName);
+		}
+	}
+	for (const PlayerStatusSlot& slot : stats.statusSlots) {
+		if (!slot.statusName.empty()) {
+			ownedStatuses.insert(slot.statusName);
+		}
+	}
+
+	std::vector<LevelUpChoice> offers;
+	if (hasEmptyAttackSlot) {
+		for (const std::string& attackName : LoadPlayerAttackNames()) {
+			if (ownedAttacks.find(attackName) != ownedAttacks.end()) {
+				continue;
+			}
+			const PlayerAttackStats attackStats = LoadPlayerAttackStats(attackName);
+			std::string description = "Acquire this attack at level 1?";
+			std::string texture = attackStats.choiceTextureFilePath;
+			for (const PlayerAttackLevelStats& levelStats : attackStats.levels) {
+				if (levelStats.level == "1") {
+					if (!levelStats.choiceDescription.empty()) {
+						description = levelStats.choiceDescription;
+					}
+					if (texture.empty()) {
+						texture = levelStats.choiceTextureFilePath;
+					}
+					break;
+				}
+			}
+			offers.push_back({LevelUpChoiceType::NewAttack, attackName, "Acquire " + attackName, description, -1, texture});
+		}
+	}
+	if (hasEmptyStatusSlot) {
+		for (const std::string& statusName : LoadPlayerStatusItemNames()) {
+			if (ownedStatuses.find(statusName) != ownedStatuses.end()) {
+				continue;
+			}
+			const PlayerStatusItemStats statusStats = LoadPlayerStatusItemStats(statusName);
+			const std::string description = statusStats.levelDescriptions[0].empty()
+			    ? "Acquire this item at level 1?"
+			    : statusStats.levelDescriptions[0];
+			offers.push_back({
+				LevelUpChoiceType::NewStatus,
+				statusName,
+				"Acquire " + statusName,
+				description,
+				-1,
+				statusStats.levelTextureFilePaths[0]
+			});
+		}
+	}
+	if (offers.empty()) {
+		return;
+	}
+
+	static std::mt19937 offerRandomEngine(std::random_device{}());
+	std::shuffle(offers.begin(), offers.end(), offerRandomEngine);
+	const int queuedCount = (std::min)(offerCount, static_cast<int>(offers.size()));
+	bossAcquisitionOfferQueue_.insert(
+	    bossAcquisitionOfferQueue_.end(),
+	    offers.begin(),
+	    offers.begin() + queuedCount
+	);
+	bossAcquisitionPlayer_ = player;
+	if (!isLevelUpSelectionActive_) {
+		ShowNextBossAcquisitionOffer();
+	}
+}
+
+bool BaseScene::ShowNextBossAcquisitionOffer() {
+	while (bossAcquisitionPlayer_ && !bossAcquisitionOfferQueue_.empty()) {
+		LevelUpChoice offer = bossAcquisitionOfferQueue_.front();
+		bossAcquisitionOfferQueue_.erase(bossAcquisitionOfferQueue_.begin());
+		const PlayerStats& stats = bossAcquisitionPlayer_->GetBaseStats();
+		if (offer.type == LevelUpChoiceType::NewAttack) {
+			const auto owned = std::find_if(stats.attackSlots.begin(), stats.attackSlots.end(), [&offer](const PlayerAttackSlot& slot) {
+				return slot.attackName == offer.name;
+			});
+			const auto empty = std::find_if(stats.attackSlots.begin(), stats.attackSlots.end(), [](const PlayerAttackSlot& slot) {
+				return slot.attackName.empty();
+			});
+			if (owned != stats.attackSlots.end() || empty == stats.attackSlots.end()) {
+				continue;
+			}
+			offer.slotIndex = static_cast<int>(std::distance(stats.attackSlots.begin(), empty));
+		} else if (offer.type == LevelUpChoiceType::NewStatus) {
+			const auto owned = std::find_if(stats.statusSlots.begin(), stats.statusSlots.end(), [&offer](const PlayerStatusSlot& slot) {
+				return slot.statusName == offer.name;
+			});
+			const auto empty = std::find_if(stats.statusSlots.begin(), stats.statusSlots.end(), [](const PlayerStatusSlot& slot) {
+				return slot.statusName.empty();
+			});
+			if (owned != stats.statusSlots.end() || empty == stats.statusSlots.end()) {
+				continue;
+			}
+			offer.slotIndex = static_cast<int>(std::distance(stats.statusSlots.begin(), empty));
+		} else {
+			continue;
+		}
+
+		levelUpPlayer_ = bossAcquisitionPlayer_;
+		levelUpChoices_.clear();
+		levelUpChoices_.push_back(offer);
+		levelUpChoices_.push_back({
+			LevelUpChoiceType::Decline,
+			"",
+			"Do not acquire",
+			"Skip this reward.",
+			-1,
+			""
+		});
+		selectedLevelUpChoiceIndex_ = 0;
+		isBossAcquisitionOfferActive_ = true;
+		isLevelUpSelectionActive_ = true;
+		GameTime::SetPaused(true);
+		return true;
+	}
+	bossAcquisitionPlayer_ = nullptr;
+	return false;
+}
+
 void BaseScene::UpdateEnemyAttacks() {
 	std::vector<EnemyShotRequest> shotRequests;
 	for (const auto& object : sceneObjects_) {
@@ -466,8 +808,25 @@ void BaseScene::UpdateEnemyAttacks() {
 		std::vector<EnemyShotRequest> requests = enemy->ConsumeShotRequests();
 		shotRequests.insert(shotRequests.end(), requests.begin(), requests.end());
 
+		if (TrailRendererComponent* trail = object->GetComponent<TrailRendererComponent>();
+			trail && enemy->GetStats().behavior == EnemyBehaviorType::NightSlashBoss) {
+			trail->SetEmitting(enemy->IsNightSlashAttacking());
+		}
+
 		if (Object3dComponent* object3d = object->GetComponent<Object3dComponent>()) {
-			if (enemy->IsChargeWarningActive()) {
+			if (enemy->IsBossRangedWarningActive()) {
+				const float pulse = 0.45f + 0.55f * std::sin(enemy->GetBossRangedProgress() * 14.0f * MathConstants::kPi);
+				object3d->SetColor({0.05f, 0.35f + 0.35f * pulse, 1.0f, 1.0f});
+			} else if (enemy->IsBossRangedAttacking()) {
+				object3d->SetColor({0.12f, 0.70f, 1.0f, 1.0f});
+			} else if (enemy->IsNightSlashWarningActive()) {
+				const float pulse = 0.45f + 0.55f * std::sin(enemy->GetNightSlashProgress() * 14.0f * MathConstants::kPi);
+				object3d->SetColor({0.62f + 0.28f * pulse, 0.04f, 0.82f + 0.18f * pulse, 1.0f});
+			} else if (enemy->IsNightSlashAttacking()) {
+				object3d->SetColor({0.95f, 0.18f, 1.0f, 1.0f});
+			} else if (enemy->GetStats().behavior == EnemyBehaviorType::NightSlashBoss) {
+				object3d->SetColor({0.42f, 0.06f, 0.62f, 1.0f});
+			} else if (enemy->IsChargeWarningActive()) {
 				const float pulse = 0.45f + 0.55f * std::sin(enemy->GetChargeProgress() * 18.0f * MathConstants::kPi);
 				object3d->SetColor({1.0f, 0.05f + 0.25f * pulse, 0.02f, 1.0f});
 			} else if (enemy->GetStats().behavior == EnemyBehaviorType::Shooter) {
@@ -499,6 +858,11 @@ GameObject* BaseScene::CreateRuntimeEnemyProjectile(const EnemyShotRequest& requ
 	projectile->SetSize(request.size);
 	projectile->SetLifeTime(request.lifeTime);
 
+	SphereColliderComponent* collider = object->AddComponent<SphereColliderComponent>();
+	// Transform の scale が弾サイズなので、半径 1.0 の球を設定すると表示と同じ大きさになる。
+	collider->SetRadius(1.0f);
+	collider->SetPushBackEnabled(false);
+
 	ModelManager::GetInstance()->LoadModel("sphere.obj");
 	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
 	object3d->SetModel("sphere.obj");
@@ -526,8 +890,32 @@ void BaseScene::UpdateEnemyProjectileHits() {
 			if (!player || !player->IsEnabled() || player->GetCurrentHealth() <= 0.0f) {
 				continue;
 			}
-			Vector3 difference = playerObject->GetTransform().translate - projectileObject->GetTransform().translate;
-			if (Length(difference) <= projectile->GetSize() + 0.5f) {
+
+			const SphereColliderComponent* projectileCollider =
+			    projectileObject->GetComponent<SphereColliderComponent>();
+			const SphereColliderShape projectileSphere = projectileCollider
+			    ? projectileCollider->GetWorldSphere()
+			    : SphereColliderShape{projectileObject->GetTransform().translate, projectile->GetSize()};
+
+			bool isHit = false;
+			if (const OBBColliderComponent* playerCollider = playerObject->GetComponent<OBBColliderComponent>();
+			    playerCollider && playerCollider->IsEnabled()) {
+				isHit = IsCollisionOBBToSphere(playerCollider->GetWorldOBB(), projectileSphere);
+			}
+			if (!isHit) {
+				if (const SphereColliderComponent* playerCollider = playerObject->GetComponent<SphereColliderComponent>();
+				    playerCollider && playerCollider->IsEnabled()) {
+					isHit = IsCollisionSphereToSphere(playerCollider->GetWorldSphere(), projectileSphere);
+				}
+			}
+			if (!isHit &&
+			    !playerObject->GetComponent<OBBColliderComponent>() &&
+			    !playerObject->GetComponent<SphereColliderComponent>()) {
+				const SphereColliderShape fallbackPlayerSphere{playerObject->GetTransform().translate, 0.5f};
+				isHit = IsCollisionSphereToSphere(fallbackPlayerSphere, projectileSphere);
+			}
+
+			if (isHit) {
 				player->TakeDamage(projectile->GetAttack());
 				projectile->MarkHit();
 				break;
@@ -547,7 +935,7 @@ void BaseScene::UpdateExperienceCompression() {
 			compressed = false;
 			for (const auto& anchorObject : sceneObjects_) {
 				ExperienceComponent* anchor = anchorObject->GetComponent<ExperienceComponent>();
-				if (!anchor || anchor->IsCollected() || anchor->IsConsumedByCompression() ||
+				if (!anchor || anchor->IsBossUpgradeReward() || anchor->IsCollected() || anchor->IsConsumedByCompression() ||
 				    anchor->GetExperience() != denomination) {
 					continue;
 				}
@@ -561,7 +949,7 @@ void BaseScene::UpdateExperienceCompression() {
 						continue;
 					}
 					ExperienceComponent* candidate = candidateObject->GetComponent<ExperienceComponent>();
-					if (!candidate || candidate->IsCollected() || candidate->IsConsumedByCompression() ||
+					if (!candidate || candidate->IsBossUpgradeReward() || candidate->IsCollected() || candidate->IsConsumedByCompression() ||
 					    candidate->GetExperience() != denomination) {
 						continue;
 					}
@@ -677,7 +1065,10 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 		ModelManager::GetInstance()->LoadModel("sphere.obj");
 		object3d->SetModel("sphere.obj");
 	}
-	if (request.motionType == PlayerProjectileMotionType::Orbit) {
+	if (request.motionType == PlayerProjectileMotionType::ArcHoming) {
+		object3d->SetModelTextureOverride("Resources/human/white.png");
+		object3d->SetColor(GetArcHomingProjectileColor(request.colorIndex));
+	} else if (request.motionType == PlayerProjectileMotionType::Orbit) {
 		object3d->SetColor({0.35f, 0.75f, 1.0f, 1.0f});
 	} else if (request.motionType == PlayerProjectileMotionType::SkyLaser) {
 		object3d->SetColor({0.65f, 0.90f, 1.0f, 1.0f});
@@ -697,7 +1088,12 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 		        ? 0.45f
 		        : request.motionType == PlayerProjectileMotionType::ClawSlash ? 0.20f : 0.32f);
 		trail->SetMinSegmentLength((std::max)(0.025f, request.size * 0.08f));
-		if (request.motionType == PlayerProjectileMotionType::Boomerang) {
+		if (request.motionType == PlayerProjectileMotionType::ArcHoming) {
+			Vector4 headColor = GetArcHomingProjectileColor(request.colorIndex);
+			headColor.w = 0.95f;
+			trail->SetHeadColor(headColor);
+			trail->SetTailColor(GetArcHomingTrailTailColor(request.colorIndex));
+		} else if (request.motionType == PlayerProjectileMotionType::Boomerang) {
 			trail->SetHeadColor({1.0f, 0.72f, 0.20f, 0.95f});
 			trail->SetTailColor({1.0f, 0.12f, 0.02f, 0.0f});
 		} else if (request.motionType == PlayerProjectileMotionType::Orbit) {
@@ -712,6 +1108,44 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 			trail->SetTailColor({1.0f, 0.05f, 0.01f, 0.0f});
 		}
 	}
+	if (request.motionType == PlayerProjectileMotionType::ArcHoming) {
+		constexpr const char* kGlowParticleGroup = "ArcHomingGlow";
+		constexpr const char* kGlowTexture = "Resources/circle.png";
+		if (!ParticleManager::GetInstance()->GetGroup(kGlowParticleGroup)) {
+			ParticleManager::GetInstance()->CreateParticleGroup(kGlowParticleGroup, kGlowTexture, kMeshTypeQuad);
+		}
+
+		ParticleEmitterComponent* glowEmitter = object->AddComponent<ParticleEmitterComponent>();
+		glowEmitter->SetGroupName(kGlowParticleGroup);
+		glowEmitter->SetTexture(kGlowTexture);
+		glowEmitter->SetBlendMode(kBlendModeAdd);
+		glowEmitter->SetFrequency(0.020f);
+
+		Vector4 glowColor = GetArcHomingProjectileColor(request.colorIndex);
+		glowColor.x *= 1.35f;
+		glowColor.y *= 1.35f;
+		glowColor.z *= 1.35f;
+		glowColor.w = 0.55f;
+
+		ParticleEmitParam glowParam;
+		const float glowScale = (std::max)(0.16f, request.size * 0.82f);
+		glowParam.scale = {glowScale, glowScale, glowScale};
+		glowParam.endScale = {glowScale * 0.12f, glowScale * 0.12f, glowScale * 0.12f};
+		glowParam.baseVelocity = {0.0f, 0.008f, 0.0f};
+		glowParam.randomVelocityRange = {0.018f, 0.018f, 0.018f};
+		const float leakRadius = request.size * 0.42f;
+		glowParam.randomPositionRange = {leakRadius, leakRadius, leakRadius};
+		glowParam.lifeTime = 0.36f;
+		glowParam.color = glowColor;
+		glowParam.endColor = {glowColor.x * 0.55f, glowColor.y * 0.55f, glowColor.z * 0.55f, 0.0f};
+		glowParam.randomScaleRange = {glowScale * 0.22f, glowScale * 0.22f, glowScale * 0.22f};
+		glowParam.count = 2;
+		glowParam.isBillboard = true;
+		glowEmitter->SetParam(glowParam);
+		// Component::Update より前に即時発生させるため、初回分も弾の生成位置へ同期しておく。
+		glowEmitter->SetTranslate(request.position);
+		glowEmitter->Emit();
+	}
 
 	object->Update();
 	sceneObjects_.push_back(std::move(object));
@@ -725,7 +1159,13 @@ void BaseScene::UpdatePlayerProjectileHits() {
 		Vector3 position;
 		GameObject* target = nullptr;
 	};
+	struct BossUpgradeDropRequest {
+		Vector3 position;
+		GameObject* target = nullptr;
+		int upgradeCount = 1;
+	};
 	std::vector<ExperienceDropRequest> experienceDropRequests;
+	std::vector<BossUpgradeDropRequest> bossUpgradeDropRequests;
 	Camera* camera = Object3dCommon::GetInstance() ? Object3dCommon::GetInstance()->GetDefaultCamera() : nullptr;
 	for (const auto& projectileObject : sceneObjects_) {
 		PlayerProjectileComponent* projectile = projectileObject->GetComponent<PlayerProjectileComponent>();
@@ -836,6 +1276,23 @@ void BaseScene::UpdatePlayerProjectileHits() {
 				enemy->SetCurrentHealth(enemy->GetCurrentHealth() - projectile->GetAttack());
 				if (enemy->GetCurrentHealth() <= 0.0f) {
 					experienceDropRequests.push_back({enemy->GetStats(), enemyObject->GetTransform().translate, enemy->GetTarget()});
+					const std::string& enemyTypeName = enemy->GetEnemyTypeName();
+					const bool dropsBossUpgradeReward =
+					    enemyTypeName == "MidBoss" ||
+					    enemyTypeName == "ChaserMidBoss" ||
+					    enemyTypeName == "ShooterMidBoss" ||
+					    enemyTypeName == "ChargerMidBoss";
+					if (dropsBossUpgradeReward) {
+						static std::mt19937 bossRewardRandomEngine(std::random_device{}());
+						std::uniform_int_distribution<int> rewardRollDistribution(1, 100);
+						const int rewardRoll = rewardRollDistribution(bossRewardRandomEngine);
+						const int upgradeCount = rewardRoll <= 70 ? 1 : rewardRoll <= 95 ? 3 : 5;
+						bossUpgradeDropRequests.push_back({
+							enemyObject->GetTransform().translate,
+							enemy->GetTarget(),
+							upgradeCount
+						});
+					}
 				}
 				projectile->RegisterHitObject(enemyObject.get());
 				break;
@@ -846,6 +1303,9 @@ void BaseScene::UpdatePlayerProjectileHits() {
 	for (const ExperienceDropRequest& request : experienceDropRequests) {
 		CreateRuntimeExperience(request.stats, request.position, request.target);
 	}
+	for (const BossUpgradeDropRequest& request : bossUpgradeDropRequests) {
+		CreateRuntimeBossUpgradeDrop(request.position, request.target, request.upgradeCount);
+	}
 }
 
 void BaseScene::CleanupExpiredPlayerProjectiles() {
@@ -854,8 +1314,12 @@ void BaseScene::CleanupExpiredPlayerProjectiles() {
 		    PlayerProjectileComponent* projectile = object->GetComponent<PlayerProjectileComponent>();
 		    if (projectile) {
 			    const float viewMargin = 0.05f + projectile->GetSize() * 0.02f;
+			    const PlayerProjectileMotionType motionType = projectile->GetMotionType();
+			    const bool shouldExpireOutsideView =
+			        motionType == PlayerProjectileMotionType::Linear ||
+			        motionType == PlayerProjectileMotionType::ArcHoming;
 			    if (projectile->IsExpired() ||
-				    (projectile->GetMotionType() == PlayerProjectileMotionType::Linear && IsPointOutsideView(object->GetTransform().translate, viewMargin))) {
+				    (shouldExpireOutsideView && IsPointOutsideView(object->GetTransform().translate, viewMargin))) {
 				    return true;
 			    }
 		    }
@@ -1272,9 +1736,9 @@ void BaseScene::UpdateColliderCollisions() {
 			return entry.first == contact.player;
 		});
 		if (total == playerDamageTotals.end()) {
-			playerDamageTotals.push_back({contact.player, contact.enemy->GetStats().attack});
+			playerDamageTotals.push_back({contact.player, contact.enemy->GetContactAttackDamage()});
 		} else {
-			total->second += contact.enemy->GetStats().attack;
+			total->second += contact.enemy->GetContactAttackDamage();
 		}
 	}
 	for (const auto& [player, totalDamage] : playerDamageTotals) {
@@ -1458,6 +1922,10 @@ void BaseScene::UpdateLevelUpSelection() {
 		return;
 	}
 
+	if (ShowNextBossAcquisitionOffer()) {
+		return;
+	}
+
 	for (const auto& object : sceneObjects_) {
 		Player* player = object->GetComponent<Player>();
 		if (!player || !player->ConsumePendingLevelUp()) {
@@ -1603,6 +2071,16 @@ bool BaseScene::BuildLevelUpChoices(Player* player) {
 	}
 	static std::mt19937 randomEngine(std::random_device{}());
 	std::shuffle(candidates.begin(), candidates.end(), randomEngine);
+	auto isEquippedUpgrade = [](const LevelUpChoice& choice) {
+		return choice.type == LevelUpChoiceType::AttackLevelUp ||
+		       choice.type == LevelUpChoiceType::AttackSuper ||
+		       choice.type == LevelUpChoiceType::StatusLevelUp;
+	};
+	const auto equippedUpgrade = std::find_if(candidates.begin(), candidates.end(), isEquippedUpgrade);
+	if (candidates.size() > 3 && equippedUpgrade >= candidates.begin() + 3 && equippedUpgrade != candidates.end()) {
+		std::uniform_int_distribution<int> selectionSlotDistribution(0, 2);
+		std::iter_swap(candidates.begin() + selectionSlotDistribution(randomEngine), equippedUpgrade);
+	}
 	for (int index = 0; index < 3; ++index) {
 		levelUpChoices_.push_back(candidates[index % candidates.size()]);
 	}
@@ -1611,6 +2089,7 @@ bool BaseScene::BuildLevelUpChoices(Player* player) {
 
 void BaseScene::ApplyLevelUpChoice(int choiceIndex) {
 	if (!levelUpPlayer_ || choiceIndex < 0 || choiceIndex >= static_cast<int>(levelUpChoices_.size())) return;
+	const bool wasBossAcquisitionOffer = isBossAcquisitionOfferActive_;
 	const LevelUpChoice choice = levelUpChoices_[choiceIndex];
 	PlayerStats stats = levelUpPlayer_->GetBaseStats();
 	switch (choice.type) {
@@ -1632,12 +2111,22 @@ void BaseScene::ApplyLevelUpChoice(int choiceIndex) {
 	case LevelUpChoiceType::NewStatus:
 		stats.statusSlots[choice.slotIndex] = {true, choice.name, "1"};
 		break;
+	case LevelUpChoiceType::Decline:
+		break;
 	}
-	levelUpPlayer_->ApplyStats(stats, ApplyPlayerStatusItems(stats));
-	if (GameObject* owner = levelUpPlayer_->GetOwner()) {
-		ApplyPlayerAttackSlots(owner->GetComponent<PlayerAttackComponent>(), stats);
+	if (choice.type != LevelUpChoiceType::Decline) {
+		levelUpPlayer_->ApplyStats(stats, ApplyPlayerStatusItems(stats));
+		if (GameObject* owner = levelUpPlayer_->GetOwner()) {
+			ApplyPlayerAttackSlots(owner->GetComponent<PlayerAttackComponent>(), stats);
+		}
 	}
 	levelUpChoices_.clear();
+	if (wasBossAcquisitionOffer) {
+		isBossAcquisitionOfferActive_ = false;
+		if (ShowNextBossAcquisitionOffer()) {
+			return;
+		}
+	}
 	if (levelUpPlayer_->ConsumePendingLevelUp() && BuildLevelUpChoices(levelUpPlayer_)) return;
 	isLevelUpSelectionActive_ = false;
 	levelUpPlayer_ = nullptr;
@@ -1706,6 +2195,7 @@ void BaseScene::DrawLevelUpSelection2D() {
 		case LevelUpChoiceType::NewAttack: return Vector4{0.55f, 0.18f, 0.08f, 0.98f};
 		case LevelUpChoiceType::StatusLevelUp: return Vector4{0.08f, 0.35f, 0.20f, 0.98f};
 		case LevelUpChoiceType::NewStatus: return Vector4{0.06f, 0.32f, 0.38f, 0.98f};
+		case LevelUpChoiceType::Decline: return Vector4{0.22f, 0.22f, 0.25f, 0.98f};
 		case LevelUpChoiceType::AttackLevelUp:
 		default: return Vector4{0.08f, 0.22f, 0.48f, 0.98f};
 		}
@@ -1747,6 +2237,9 @@ void BaseScene::DrawLevelUpSelection2D() {
 		text->SetColor(selected ? Vector4{1.0f, 0.92f, 0.55f, 1.0f} : Vector4{1.0f, 1.0f, 1.0f, 1.0f});
 	}
 
+	if (TextComponent* titleText = levelUpTitleTextObject_->GetComponent<TextComponent>()) {
+		titleText->SetText(isBossAcquisitionOfferActive_ ? "BOSS REWARD!" : "LEVEL UP!");
+	}
 	levelUpTitleTextObject_->GetTransform().translate = {screenWidth * 0.5f, panelY + 35.0f, 0.0f};
 	levelUpInstructionTextObject_->GetTransform().translate = {screenWidth * 0.5f, panelY + panelHeight - 24.0f, 0.0f};
 	levelUpTitleTextObject_->Draw2D();

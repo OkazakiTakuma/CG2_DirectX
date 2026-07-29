@@ -71,79 +71,6 @@
             }
         ]
     },
-    "neko": {
-        "attack": 100.0,
-        "attackSize": 100.0,
-        "attackSlots": [
-            {
-                "attack": "ClawSlash",
-                "enabled": true,
-                "level": "1"
-            },
-            {
-                "attack": "",
-                "enabled": false,
-                "level": "1"
-            },
-            {
-                "attack": "",
-                "enabled": false,
-                "level": "1"
-            },
-            {
-                "attack": "",
-                "enabled": false,
-                "level": "1"
-            },
-            {
-                "attack": "",
-                "enabled": false,
-                "level": "1"
-            }
-        ],
-        "attackSpeed": 130.0,
-        "baseHealth": 110.0,
-        "baseSpeed": 0.12999999523162842,
-        "damageInvincibilityDuration": 1.0,
-        "defense": 0.0,
-        "experience": 0,
-        "experienceCorrection": 100.0,
-        "health": 100.0,
-        "initialAttack": "ClawSlash",
-        "initialAttackLevel": "1",
-        "isAnimationModel": true,
-        "level": 1,
-        "model": "walk.gltf",
-        "name": "neko",
-        "speed": 100.0,
-        "statusSlots": [
-            {
-                "enabled": false,
-                "level": "1",
-                "status": ""
-            },
-            {
-                "enabled": false,
-                "level": "1",
-                "status": ""
-            },
-            {
-                "enabled": false,
-                "level": "1",
-                "status": ""
-            },
-            {
-                "enabled": false,
-                "level": "1",
-                "status": ""
-            },
-            {
-                "enabled": false,
-                "level": "1",
-                "status": ""
-            }
-        ]
-    },
     "walk.gltf": {
         "attack": 100.0,
         "attackSize": 100.0,
@@ -188,6 +115,225 @@
         "level": 1,
         "model": "walk.gltf",
         "name": "walk.gltf",
+        "speed": 100.0,
+        "statusSlots": [
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            }
+        ]
+    },
+    "巫女": {
+        "attack": 100.0,
+        "attackSize": 100.0,
+        "attackSlots": [
+            {
+                "attack": "ArcHoming",
+                "enabled": true,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            }
+        ],
+        "attackSpeed": 100.0,
+        "baseHealth": 100.0,
+        "baseSpeed": 0.10000000149011612,
+        "damageInvincibilityDuration": 1.0,
+        "defense": 0.0,
+        "experience": 0,
+        "experienceCorrection": 100.0,
+        "health": 100.0,
+        "initialAttack": "ArcHoming",
+        "initialAttackLevel": "1",
+        "isAnimationModel": true,
+        "level": 1,
+        "model": "walk.gltf",
+        "name": "巫女",
+        "speed": 100.0,
+        "statusSlots": [
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            }
+        ]
+    },
+    "烏天狗": {
+        "attack": 80.0,
+        "attackSize": 120.0,
+        "attackSlots": [
+            {
+                "attack": "Straight",
+                "enabled": true,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            }
+        ],
+        "attackSpeed": 100.0,
+        "baseHealth": 80.0,
+        "baseSpeed": 0.30000001192092896,
+        "damageInvincibilityDuration": 1.0,
+        "defense": 0.0,
+        "experience": 0,
+        "experienceCorrection": 100.0,
+        "health": 100.0,
+        "initialAttack": "Straight",
+        "initialAttackLevel": "1",
+        "isAnimationModel": true,
+        "level": 1,
+        "model": "walk.gltf",
+        "name": "烏天狗",
+        "speed": 100.0,
+        "statusSlots": [
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            },
+            {
+                "enabled": false,
+                "level": "1",
+                "status": ""
+            }
+        ]
+    },
+    "猫": {
+        "attack": 100.0,
+        "attackSize": 100.0,
+        "attackSlots": [
+            {
+                "attack": "ClawSlash",
+                "enabled": true,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            },
+            {
+                "attack": "",
+                "enabled": false,
+                "level": "1"
+            }
+        ],
+        "attackSpeed": 130.0,
+        "baseHealth": 110.0,
+        "baseSpeed": 0.12999999523162842,
+        "damageInvincibilityDuration": 1.0,
+        "defense": 0.0,
+        "experience": 0,
+        "experienceCorrection": 100.0,
+        "health": 100.0,
+        "initialAttack": "ClawSlash",
+        "initialAttackLevel": "1",
+        "isAnimationModel": true,
+        "level": 1,
+        "model": "walk.gltf",
+        "name": "猫",
         "speed": 100.0,
         "statusSlots": [
             {
