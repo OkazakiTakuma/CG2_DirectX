@@ -14,6 +14,7 @@
 #include "../../../imgui/imgui.h"
 #include "../../../imgui/imgui_impl_dx12.h"
 #include "../../../imgui/imgui_impl_win32.h"
+struct ImGuiWindow;
 #else
 struct ImFont;
 struct ImVec2 {
@@ -68,6 +69,9 @@ public:
 	ImFont* GetFont(const std::string& fontName) const;
 	ImVec2 GetGameViewContentPosition() const { return gameViewContentPosition_; }
 	ImVec2 GetGameViewContentSize() const { return gameViewContentSize_; }
+#ifdef USE_IMGUI
+	ImGuiWindow* GetGameViewWindow() const { return gameViewWindow_; }
+#endif
 	float GetGameViewAspectRatio() const;
 	bool ApplyGameViewRenderArea();
 	void RestoreFullRenderArea();
@@ -101,6 +105,9 @@ private:
 	std::unordered_map<std::string, ImFont*> fonts_;
 	ImVec2 gameViewContentPosition_ = {};
 	ImVec2 gameViewContentSize_ = {};
+#ifdef USE_IMGUI
+	ImGuiWindow* gameViewWindow_ = nullptr;
+#endif
 	bool isGameViewVisible_ = false;
 	bool autoReloadShaders_ = true;
 	bool autoReloadScene_ = true;
