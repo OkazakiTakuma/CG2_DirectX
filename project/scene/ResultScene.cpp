@@ -1,0 +1,135 @@
+#include "ResultScene.h"
+
+#include "SceneManager.h"
+
+#include <algorithm>
+#include <cmath>
+#include <iomanip>
+#include <sstream>
+#include <Xinput.h>
+
+namespace {
+std::unique_ptr<Sprite> CreateColorSprite() {
+	auto sprite = std::make_unique<Sprite>();
+	sprite->Initialize("Resources/human/white.png");
+	return sprite;
+}
+
+std::unique_ptr<GameObject> CreateTextObject(const std::string& text, float fontSize) {
+	auto object = std::make_unique<GameObject>();
+	TextComponent* textComponent = object->AddComponent<TextComponent>();
+	textComponent->SetText(text);
+	textComponent->SetFontSize(fontSize);
+	textComponent->SetAnchor(TextComponent::Anchor::Center);
+	return object;
+}
+
+void DrawColorSprite(Sprite* sprite, float x, float y, float width, float height, const Vector4& color) {
+	EulerTransform transform = sprite->GetTransform();
+	transform.translate = {x, y, 0.0f};
+	sprite->SetTransform(transform);
+	sprite->SetSize({width, height});
+	sprite->SetColor(color);
+	sprite->Update();
+	sprite->Draw();
+}
+}
+
+void ResultScene::Initialize() {
+	backgroundSprite_ = CreateColorSprite();
+	panelSprite_ = CreateColorSprite();
+
+	const std::string playerName = sceneManager_ ? sceneManager_->GetSelectedPlayerTypeName() : "Unknown";
+	const std::string stageName = sceneManager_ ? sceneManager_->GetSelectedGameplayStageId() : "default";
+	const StageResultData resultData = sceneManager_ ? sceneManager_->GetStageResultData() : StageResultData{};
+	isStageClear_ = resultData.stageCleared;
+	clearTextObject_ = CreateTextObject(isStageClear_ ? "STAGE CLEAR" : "GAME OVER", 64.0f);
+	const int totalSeconds = (std::max)(0, static_cast<int>(std::round(resultData.survivalTimeSeconds)));
+	const int minutes = totalSeconds / 60;
+	const int seconds = totalSeconds % 60;
+	std::ostringstream resultStream;
+	resultStream << "プレイヤー: " << playerName << "    ステージ: " << stageName
+	             << "\n撃破数: " << resultData.defeatedEnemyCount << "    生存時間: "
+	             << std::setfill('0') << std::setw(2) << minutes << ':' << std::setw(2) << seconds;
+	resultTextObject_ = CreateTextObject(resultStream.str(), 25.0f);
+
+	auto makeEquipmentText = [](const char* heading, const std::vector<StageResultEquipment>& equipment) {
+		std::ostringstream stream;
+		stream << heading << '\n';
+		if (equipment.empty()) {
+			stream << "なし";
+		} else {
+			for (const StageResultEquipment& item : equipment) {
+				stream << "\n" << item.name << "  "
+				       << (item.level == "super" ? "SUPER" : "Lv." + item.level);
+			}
+		}
+		return stream.str();
+	};
+	attackEquipmentTextObject_ = CreateTextObject(makeEquipmentText("ATTACK EQUIPMENT", resultData.attacks), 23.0f);
+	statusEquipmentTextObject_ = CreateTextObject(makeEquipmentText("STATUS EQUIPMENT", resultData.statuses), 23.0f);
+	instructionTextObject_ = CreateTextObject(
+	    "Space / Enter・Pad A: ステージ選択へ    R・Pad Y: 同じステージを再挑戦    Q・Pad B: タイトルへ",
+	    18.0f);
+}
+
+void ResultScene::Update() {
+	if (!sceneManager_) {
+		return;
+	}
+	Input* input = Input::GetInstance();
+	if (input->TriggerKey(DIK_SPACE) || input->TriggerKey(DIK_RETURN) ||
+	    input->TriggerGamepadButton(XINPUT_GAMEPAD_A)) {
+		sceneManager_->ChangeScene("STAGE_SELECT");
+		return;
+	}
+	if (input->TriggerKey(DIK_R) || input->TriggerGamepadButton(XINPUT_GAMEPAD_Y)) {
+		sceneManager_->ChangeScene("GAMEPLAY");
+		return;
+	}
+	if (input->TriggerKey(DIK_Q) || input->TriggerGamepadButton(XINPUT_GAMEPAD_B)) {
+		sceneManager_->ChangeScene("TITLE");
+	}
+}
+
+void ResultScene::Draw2D() {
+	DirectXCommon* dxCommon = SpriteCommon::GetInstance()->GetDxCommon();
+	if (!dxCommon || !backgroundSprite_ || !panelSprite_) {
+		return;
+	}
+	const float screenWidth = static_cast<float>(dxCommon->GetRenderWidth());
+	const float screenHeight = static_cast<float>(dxCommon->GetRenderHeight());
+	const float panelWidth = (std::min)(720.0f, screenWidth - 80.0f);
+	const float panelHeight = (std::min)(620.0f, screenHeight - 50.0f);
+	const float panelX = (screenWidth - panelWidth) * 0.5f;
+	const float panelY = (screenHeight - panelHeight) * 0.5f;
+
+	SpriteCommon::GetInstance()->SetDraw(kBlendModeNormal);
+	DrawColorSprite(backgroundSprite_.get(), 0.0f, 0.0f, screenWidth, screenHeight, {0.015f, 0.025f, 0.06f, 1.0f});
+	DrawColorSprite(panelSprite_.get(), panelX, panelY, panelWidth, panelHeight, {0.04f, 0.12f, 0.22f, 0.98f});
+
+	clearTextObject_->GetTransform().translate = {screenWidth * 0.5f, panelY + 62.0f, 0.0f};
+	clearTextObject_->GetComponent<TextComponent>()->SetColor(
+	    isStageClear_ ? Vector4{0.35f, 0.95f, 1.0f, 1.0f} : Vector4{1.0f, 0.28f, 0.22f, 1.0f});
+	resultTextObject_->GetTransform().translate = {screenWidth * 0.5f, panelY + 145.0f, 0.0f};
+	attackEquipmentTextObject_->GetTransform().translate = {panelX + panelWidth * 0.27f, panelY + 340.0f, 0.0f};
+	statusEquipmentTextObject_->GetTransform().translate = {panelX + panelWidth * 0.73f, panelY + 340.0f, 0.0f};
+	instructionTextObject_->GetTransform().translate = {screenWidth * 0.5f, panelY + panelHeight - 40.0f, 0.0f};
+	clearTextObject_->Draw2D();
+	resultTextObject_->Draw2D();
+	attackEquipmentTextObject_->Draw2D();
+	statusEquipmentTextObject_->Draw2D();
+	instructionTextObject_->Draw2D();
+}
+
+void ResultScene::Finalize() {
+	isStageClear_ = false;
+	backgroundSprite_.reset();
+	panelSprite_.reset();
+	clearTextObject_.reset();
+	resultTextObject_.reset();
+	attackEquipmentTextObject_.reset();
+	statusEquipmentTextObject_.reset();
+	instructionTextObject_.reset();
+	BaseScene::Finalize();
+}

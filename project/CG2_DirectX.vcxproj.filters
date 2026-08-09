@@ -216,6 +216,12 @@
 	<ClCompile Include="scene\PlayerSelectScene.cpp">
 	  <Filter>Scene</Filter>
 	</ClCompile>
+	<ClCompile Include="scene\StageSelectScene.cpp">
+	  <Filter>Scene</Filter>
+	</ClCompile>
+	<ClCompile Include="scene\ResultScene.cpp">
+	  <Filter>Scene</Filter>
+	</ClCompile>
     <ClCompile Include="scene\SceneFactory.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
@@ -383,13 +389,19 @@
     <ClInclude Include="Engine\flame\repositories\PlayerStatusRepository.h">
       <Filter>Engine\flame\repositories</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\flame\EnemyComponent.h">
-      <Filter>Engine\flame</Filter>
-    </ClInclude>
+	<ClInclude Include="Engine\flame\EnemyComponent.h">
+	  <Filter>Engine\flame</Filter>
+	</ClInclude>
+	<ClInclude Include="Engine\flame\StageResultData.h">
+	  <Filter>Engine\flame</Filter>
+	</ClInclude>
     <ClInclude Include="Engine\flame\EnemySpawnPointComponent.h">
       <Filter>Engine\flame</Filter>
     </ClInclude>
     <ClInclude Include="Engine\flame\ExperienceComponent.h">
+      <Filter>Engine\flame</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\flame\ItemDropComponent.h">
       <Filter>Engine\flame</Filter>
     </ClInclude>
     <ClInclude Include="Engine\flame\PlayerAttackComponent.h">
@@ -441,6 +453,12 @@
       <Filter>Scene</Filter>
     </ClInclude>
 	<ClInclude Include="scene\PlayerSelectScene.h">
+	  <Filter>Scene</Filter>
+	</ClInclude>
+	<ClInclude Include="scene\StageSelectScene.h">
+	  <Filter>Scene</Filter>
+	</ClInclude>
+	<ClInclude Include="scene\ResultScene.h">
 	  <Filter>Scene</Filter>
 	</ClInclude>
     <ClInclude Include="scene\SceneFactory.h">

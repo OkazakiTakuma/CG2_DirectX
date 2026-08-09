@@ -2,6 +2,7 @@
 #include "AbstractSceneFactory.h"
 #include "camera/Camera.h"
 #include "FlameWork.h"
+#include "GameObject.h"
 #include "SceneManager.h"
 #include <memory>
 
@@ -30,5 +31,6 @@ private:
 	bool endRequest = false;
 	std::unique_ptr<AbstractSceneFactory> sceneFactory = nullptr;
 	std::unique_ptr<SceneManager> sceneManager = nullptr;
+	std::unique_ptr<GameObject> recordingIndicator_ = nullptr;
 
 };

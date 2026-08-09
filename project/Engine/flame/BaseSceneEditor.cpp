@@ -1282,9 +1282,9 @@ void BaseScene::DrawEnemyInspector() {
 		selectedObject->GetTransform().scale = {enemyScale, enemyScale, enemyScale};
 		statsChanged = true;
 	}
-	const char* behaviorLabels[] = {"Chase", "Shooter", "Charger", "Night Slash Boss"};
+	const char* behaviorLabels[] = {"Chase", "Shooter", "Charger", "Night Slash Boss", "Self Destruct", "Tornado Boss"};
 	int behaviorIndex = static_cast<int>(stats.behavior);
-	if (ImGui::Combo("Behavior", &behaviorIndex, behaviorLabels, 4)) {
+	if (ImGui::Combo("Behavior", &behaviorIndex, behaviorLabels, 6)) {
 		stats.behavior = static_cast<EnemyBehaviorType>(behaviorIndex);
 		stats.shoots = stats.behavior == EnemyBehaviorType::Shooter;
 		statsChanged = true;
@@ -1302,6 +1302,35 @@ void BaseScene::DrawEnemyInspector() {
 		statsChanged |= ImGui::DragFloat("Dash Speed", &stats.dashSpeed, 0.005f, 0.0f, 100.0f);
 		statsChanged |= ImGui::DragFloat("Dash Duration", &stats.dashDuration, 0.05f, 0.0f, 100.0f);
 		statsChanged |= ImGui::DragFloat("Dash Recovery", &stats.dashRecovery, 0.05f, 0.0f, 100.0f);
+	} else if (stats.behavior == EnemyBehaviorType::SelfDestruct) {
+		statsChanged |= ImGui::DragFloat("Explosion Trigger Distance", &stats.selfDestructTriggerDistance, 0.1f, 0.0f, 1000.0f);
+		statsChanged |= ImGui::DragFloat("Explosion Fuse Time", &stats.selfDestructFuseDuration, 0.05f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Explosion Radius", &stats.selfDestructRadius, 0.1f, 0.0f, 1000.0f);
+	} else if (stats.behavior == EnemyBehaviorType::TornadoBoss) {
+		statsChanged |= ImGui::DragFloat("Tornado Trigger Distance", &stats.bossTornadoTriggerDistance, 0.1f, 0.0f, 1000.0f);
+		statsChanged |= ImGui::DragFloat("Tornado Warning Time", &stats.bossTornadoWindup, 0.05f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Tornado Recovery Time", &stats.bossTornadoRecovery, 0.05f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragInt("Tornado Count", &stats.bossTornadoCount, 1.0f, 1, 16);
+		statsChanged |= ImGui::DragFloat("Tornado Initial Radius", &stats.bossTornadoInitialRadius, 0.1f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Tornado Angular Speed", &stats.bossTornadoAngularSpeed, 0.1f, -20.0f, 20.0f);
+		statsChanged |= ImGui::DragFloat("Tornado Radial Speed", &stats.bossTornadoRadialSpeed, 0.005f, 0.0f, 5.0f);
+		statsChanged |= ImGui::DragFloat("Tornado Size", &stats.bossTornadoSize, 0.05f, 0.01f, 10.0f);
+		statsChanged |= ImGui::DragFloat("Tornado Life Time", &stats.bossTornadoLifeTime, 0.1f, 0.0f, 30.0f);
+		statsChanged |= ImGui::DragFloat("Tornado Attack Multiplier", &stats.bossTornadoAttackMultiplier, 0.05f, 0.0f, 10.0f);
+		ImGui::SeparatorText("Converging Tornado Pattern");
+		statsChanged |= ImGui::DragInt("Converging Tornado Count", &stats.bossConvergingTornadoCount, 1.0f, 1, 24);
+		statsChanged |= ImGui::DragFloat("Converging Initial Radius", &stats.bossConvergingTornadoInitialRadius, 0.1f, 0.0f, 100.0f);
+		statsChanged |= ImGui::DragFloat("Converging Angular Speed", &stats.bossConvergingTornadoAngularSpeed, 0.1f, -20.0f, 20.0f);
+		statsChanged |= ImGui::DragFloat("Converging Radial Speed", &stats.bossConvergingTornadoRadialSpeed, 0.005f, 0.0f, 5.0f);
+		statsChanged |= ImGui::DragFloat("Converging Tornado Size", &stats.bossConvergingTornadoSize, 0.05f, 0.01f, 10.0f);
+		statsChanged |= ImGui::DragFloat("Converging Life Time", &stats.bossConvergingTornadoLifeTime, 0.1f, 0.0f, 30.0f);
+		statsChanged |= ImGui::DragFloat("Converging Attack Multiplier", &stats.bossConvergingTornadoAttackMultiplier, 0.05f, 0.0f, 10.0f);
+		ImGui::SeparatorText("Giant Homing Tornado Pattern");
+		statsChanged |= ImGui::DragFloat("Giant Tornado Speed", &stats.bossGiantTornadoSpeed, 0.005f, 0.0f, 5.0f);
+		statsChanged |= ImGui::DragFloat("Giant Tornado Size", &stats.bossGiantTornadoSize, 0.1f, 0.01f, 20.0f);
+		statsChanged |= ImGui::DragFloat("Giant Tornado Life Time", &stats.bossGiantTornadoLifeTime, 0.1f, 0.0f, 30.0f);
+		statsChanged |= ImGui::DragFloat("Giant Tornado Attack Multiplier", &stats.bossGiantTornadoAttackMultiplier, 0.05f, 0.0f, 10.0f);
+		statsChanged |= ImGui::DragFloat("Giant Tornado Spawn Offset", &stats.bossGiantTornadoSpawnOffset, 0.1f, 0.0f, 100.0f);
 	} else if (stats.behavior == EnemyBehaviorType::NightSlashBoss) {
 		statsChanged |= ImGui::DragFloat("Combo Trigger Distance", &stats.comboTriggerDistance, 0.1f, 0.0f, 1000.0f);
 		statsChanged |= ImGui::DragFloat("Combo Warning Time", &stats.comboWindup, 0.05f, 0.0f, 100.0f);
@@ -1326,6 +1355,9 @@ void BaseScene::DrawEnemyInspector() {
 	}
 	statsChanged |= ImGui::DragFloat("Spawns Per Minute", &stats.spawnsPerMinute, 0.1f, 0.0f, 10000.0f);
 	statsChanged |= ImGui::DragInt("Drop Experience", &stats.experience, 1.0f, 0, 100000);
+	statsChanged |= ImGui::SliderFloat("Health Item Drop Chance", &stats.healthItemDropChance, 0.0f, 1.0f, "%.2f");
+	statsChanged |= ImGui::SliderFloat("EXP Collector Drop Chance", &stats.collectExperienceItemDropChance, 0.0f, 1.0f, "%.2f");
+	statsChanged |= ImGui::DragFloat("Health Item Heal Amount", &stats.healthItemHealAmount, 1.0f, 0.0f, 100000.0f);
 
 	const std::vector<std::string> experienceModels = CollectAllLoadedModelNames();
 	if (!experienceModels.empty()) {

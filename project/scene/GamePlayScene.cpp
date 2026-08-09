@@ -162,6 +162,11 @@ void GamePlayScene::LoadSceneModels() {
 /// 毎フレームの状態更新を行います。
 /// </summary>
 void GamePlayScene::Update() {
+	if (IsStageCleared() || IsPlayerDefeated()) {
+		sceneManager->SetStageResultData(GetStageResultData());
+		sceneManager->ChangeScene("RESULT");
+		return;
+	}
 	if (IsLevelUpSelectionActive()) {
 		ImGuiUpdate();
 		return;

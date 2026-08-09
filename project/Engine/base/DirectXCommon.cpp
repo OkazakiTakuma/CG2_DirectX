@@ -94,6 +94,48 @@ void DirectXCommon::PreDraw() {
 
 }
 
+void DirectXCommon::CaptureFrameBeforeOverlay() {
+	if (!frameStarted_ || !screenCapture_.IsRecording()) {
+		return;
+	}
+
+	const UINT backBufferIndex = currentFrameIndex_;
+	D3D12_RESOURCE_BARRIER toPresent{};
+	toPresent.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	toPresent.Transition.pResource = swapChainResources[backBufferIndex].Get();
+	toPresent.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	toPresent.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	commandList->ResourceBarrier(1, &toPresent);
+
+	HRESULT hr = commandList->Close();
+	assert(SUCCEEDED(hr));
+	ID3D12CommandList* commandLists[] = {commandList.Get()};
+	commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+	screenCapture_.ProcessFrame(
+		commandQueue.Get(),
+		swapChainResources[backBufferIndex].Get(),
+		static_cast<uint32_t>(renderWidth_),
+		static_cast<uint32_t>(renderHeight_));
+	captureProcessedThisFrame_ = true;
+
+	// CaptureTexture は直前までのキュー完了を待つため、同じアロケーターを安全に再利用できます。
+	FrameResource& frameResource = frameResources_[backBufferIndex];
+	hr = frameResource.commandAllocator->Reset();
+	assert(SUCCEEDED(hr));
+	hr = commandList->Reset(frameResource.commandAllocator.Get(), nullptr);
+	assert(SUCCEEDED(hr));
+
+	D3D12_RESOURCE_BARRIER toRenderTarget{};
+	toRenderTarget.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	toRenderTarget.Transition.pResource = swapChainResources[backBufferIndex].Get();
+	toRenderTarget.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	toRenderTarget.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	commandList->ResourceBarrier(1, &toRenderTarget);
+	commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, &dsvHandle);
+	commandList->RSSetViewports(1, &viewport);
+	commandList->RSSetScissorRects(1, &scissorRect);
+}
+
 void DirectXCommon::PostDraw() {
 	assert(frameStarted_);
 	HRESULT hr;
@@ -111,11 +153,13 @@ void DirectXCommon::PostDraw() {
 	assert(SUCCEEDED(hr));
 	ID3D12CommandList* commandLists[] = {commandList.Get()};
 	commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
-	screenCapture_.ProcessFrame(
-		commandQueue.Get(),
-		swapChainResources[backBufferIndex].Get(),
-		static_cast<uint32_t>(renderWidth_),
-		static_cast<uint32_t>(renderHeight_));
+	if (!captureProcessedThisFrame_) {
+		screenCapture_.ProcessFrame(
+			commandQueue.Get(),
+			swapChainResources[backBufferIndex].Get(),
+			static_cast<uint32_t>(renderWidth_),
+			static_cast<uint32_t>(renderHeight_));
+	}
 	hr = swapChain->Present(1, 0);
 	assert(SUCCEEDED(hr));
 
@@ -125,6 +169,7 @@ void DirectXCommon::PostDraw() {
 	frameResources_[backBufferIndex].fenceValue = submittedFenceValue;
 	lastSubmittedFenceValue_ = submittedFenceValue;
 	frameStarted_ = false;
+	captureProcessedThisFrame_ = false;
 	LimitFrameRate();
 }
 

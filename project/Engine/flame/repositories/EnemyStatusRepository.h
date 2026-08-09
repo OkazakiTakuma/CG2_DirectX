@@ -29,6 +29,8 @@ inline const char* BehaviorToString(EnemyBehaviorType behavior) {
 	case EnemyBehaviorType::Shooter: return "Shooter";
 	case EnemyBehaviorType::Charger: return "Charger";
 	case EnemyBehaviorType::NightSlashBoss: return "NightSlashBoss";
+	case EnemyBehaviorType::SelfDestruct: return "SelfDestruct";
+	case EnemyBehaviorType::TornadoBoss: return "TornadoBoss";
 	default: return "Chase";
 	}
 }
@@ -37,6 +39,8 @@ inline EnemyBehaviorType BehaviorFromString(const std::string& behavior) {
 	if (behavior == "Shooter") return EnemyBehaviorType::Shooter;
 	if (behavior == "Charger") return EnemyBehaviorType::Charger;
 	if (behavior == "NightSlashBoss") return EnemyBehaviorType::NightSlashBoss;
+	if (behavior == "SelfDestruct") return EnemyBehaviorType::SelfDestruct;
+	if (behavior == "TornadoBoss") return EnemyBehaviorType::TornadoBoss;
 	return EnemyBehaviorType::Chase;
 }
 
@@ -50,6 +54,9 @@ inline nlohmann::json ToJson(const EnemyStats& stats) {
 	json["spawnsPerMinute"] = stats.spawnsPerMinute;
 	json["experience"] = stats.experience;
 	json["experienceModel"] = stats.experienceModelFilePath;
+	json["healthItemDropChance"] = stats.healthItemDropChance;
+	json["collectExperienceItemDropChance"] = stats.collectExperienceItemDropChance;
+	json["healthItemHealAmount"] = stats.healthItemHealAmount;
 	json["behavior"] = BehaviorToString(stats.behavior);
 	json["preferredDistance"] = stats.preferredDistance;
 	json["distanceTolerance"] = stats.distanceTolerance;
@@ -77,6 +84,31 @@ inline nlohmann::json ToJson(const EnemyStats& stats) {
 	json["bossAimedShotCount"] = stats.bossAimedShotCount;
 	json["bossAimedSpreadAngle"] = stats.bossAimedSpreadAngle;
 	json["bossProjectileAttackMultiplier"] = stats.bossProjectileAttackMultiplier;
+	json["bossTornadoCount"] = stats.bossTornadoCount;
+	json["bossTornadoInitialRadius"] = stats.bossTornadoInitialRadius;
+	json["bossTornadoAngularSpeed"] = stats.bossTornadoAngularSpeed;
+	json["bossTornadoRadialSpeed"] = stats.bossTornadoRadialSpeed;
+	json["bossTornadoSize"] = stats.bossTornadoSize;
+	json["bossTornadoLifeTime"] = stats.bossTornadoLifeTime;
+	json["bossTornadoAttackMultiplier"] = stats.bossTornadoAttackMultiplier;
+	json["bossTornadoTriggerDistance"] = stats.bossTornadoTriggerDistance;
+	json["bossTornadoWindup"] = stats.bossTornadoWindup;
+	json["bossTornadoRecovery"] = stats.bossTornadoRecovery;
+	json["bossConvergingTornadoCount"] = stats.bossConvergingTornadoCount;
+	json["bossConvergingTornadoInitialRadius"] = stats.bossConvergingTornadoInitialRadius;
+	json["bossConvergingTornadoAngularSpeed"] = stats.bossConvergingTornadoAngularSpeed;
+	json["bossConvergingTornadoRadialSpeed"] = stats.bossConvergingTornadoRadialSpeed;
+	json["bossConvergingTornadoSize"] = stats.bossConvergingTornadoSize;
+	json["bossConvergingTornadoLifeTime"] = stats.bossConvergingTornadoLifeTime;
+	json["bossConvergingTornadoAttackMultiplier"] = stats.bossConvergingTornadoAttackMultiplier;
+	json["bossGiantTornadoSpeed"] = stats.bossGiantTornadoSpeed;
+	json["bossGiantTornadoSize"] = stats.bossGiantTornadoSize;
+	json["bossGiantTornadoLifeTime"] = stats.bossGiantTornadoLifeTime;
+	json["bossGiantTornadoAttackMultiplier"] = stats.bossGiantTornadoAttackMultiplier;
+	json["bossGiantTornadoSpawnOffset"] = stats.bossGiantTornadoSpawnOffset;
+	json["selfDestructTriggerDistance"] = stats.selfDestructTriggerDistance;
+	json["selfDestructFuseDuration"] = stats.selfDestructFuseDuration;
+	json["selfDestructRadius"] = stats.selfDestructRadius;
 	json["sizeScale"] = stats.sizeScale;
 	return json;
 }
@@ -95,6 +127,9 @@ inline EnemyStats FromJson(const nlohmann::json& json, const EnemyStats& fallbac
 	stats.spawnsPerMinute = (std::max)(0.0f, json.value("spawnsPerMinute", stats.spawnsPerMinute));
 	stats.experience = (std::max)(0, json.value("experience", stats.experience));
 	stats.experienceModelFilePath = json.value("experienceModel", stats.experienceModelFilePath);
+	stats.healthItemDropChance = (std::clamp)(json.value("healthItemDropChance", stats.healthItemDropChance), 0.0f, 1.0f);
+	stats.collectExperienceItemDropChance = (std::clamp)(json.value("collectExperienceItemDropChance", stats.collectExperienceItemDropChance), 0.0f, 1.0f);
+	stats.healthItemHealAmount = (std::max)(0.0f, json.value("healthItemHealAmount", stats.healthItemHealAmount));
 	stats.behavior = BehaviorFromString(json.value("behavior", std::string(BehaviorToString(stats.behavior))));
 	if (stats.shoots && !json.contains("behavior")) stats.behavior = EnemyBehaviorType::Shooter;
 	stats.preferredDistance = (std::max)(0.0f, json.value("preferredDistance", stats.preferredDistance));
@@ -124,6 +159,49 @@ inline EnemyStats FromJson(const nlohmann::json& json, const EnemyStats& fallbac
 	stats.bossAimedSpreadAngle = (std::max)(0.0f, json.value("bossAimedSpreadAngle", stats.bossAimedSpreadAngle));
 	stats.bossProjectileAttackMultiplier =
 	    (std::max)(0.0f, json.value("bossProjectileAttackMultiplier", stats.bossProjectileAttackMultiplier));
+	stats.bossTornadoCount = std::clamp(json.value("bossTornadoCount", stats.bossTornadoCount), 1, 16);
+	stats.bossTornadoInitialRadius =
+	    (std::max)(0.0f, json.value("bossTornadoInitialRadius", stats.bossTornadoInitialRadius));
+	stats.bossTornadoAngularSpeed = json.value("bossTornadoAngularSpeed", stats.bossTornadoAngularSpeed);
+	stats.bossTornadoRadialSpeed =
+	    (std::max)(0.0f, json.value("bossTornadoRadialSpeed", stats.bossTornadoRadialSpeed));
+	stats.bossTornadoSize = (std::max)(0.01f, json.value("bossTornadoSize", stats.bossTornadoSize));
+	stats.bossTornadoLifeTime = (std::max)(0.0f, json.value("bossTornadoLifeTime", stats.bossTornadoLifeTime));
+	stats.bossTornadoAttackMultiplier =
+	    (std::max)(0.0f, json.value("bossTornadoAttackMultiplier", stats.bossTornadoAttackMultiplier));
+	stats.bossTornadoTriggerDistance =
+	    (std::max)(0.0f, json.value("bossTornadoTriggerDistance", stats.bossTornadoTriggerDistance));
+	stats.bossTornadoWindup = (std::max)(0.0f, json.value("bossTornadoWindup", stats.bossTornadoWindup));
+	stats.bossTornadoRecovery = (std::max)(0.0f, json.value("bossTornadoRecovery", stats.bossTornadoRecovery));
+	stats.bossConvergingTornadoCount =
+	    std::clamp(json.value("bossConvergingTornadoCount", stats.bossConvergingTornadoCount), 1, 24);
+	stats.bossConvergingTornadoInitialRadius = (std::max)(
+	    0.0f, json.value("bossConvergingTornadoInitialRadius", stats.bossConvergingTornadoInitialRadius));
+	stats.bossConvergingTornadoAngularSpeed =
+	    json.value("bossConvergingTornadoAngularSpeed", stats.bossConvergingTornadoAngularSpeed);
+	stats.bossConvergingTornadoRadialSpeed = (std::max)(
+	    0.0f, json.value("bossConvergingTornadoRadialSpeed", stats.bossConvergingTornadoRadialSpeed));
+	stats.bossConvergingTornadoSize =
+	    (std::max)(0.01f, json.value("bossConvergingTornadoSize", stats.bossConvergingTornadoSize));
+	stats.bossConvergingTornadoLifeTime =
+	    (std::max)(0.0f, json.value("bossConvergingTornadoLifeTime", stats.bossConvergingTornadoLifeTime));
+	stats.bossConvergingTornadoAttackMultiplier = (std::max)(
+	    0.0f, json.value("bossConvergingTornadoAttackMultiplier", stats.bossConvergingTornadoAttackMultiplier));
+	stats.bossGiantTornadoSpeed =
+	    (std::max)(0.0f, json.value("bossGiantTornadoSpeed", stats.bossGiantTornadoSpeed));
+	stats.bossGiantTornadoSize =
+	    (std::max)(0.01f, json.value("bossGiantTornadoSize", stats.bossGiantTornadoSize));
+	stats.bossGiantTornadoLifeTime =
+	    (std::max)(0.0f, json.value("bossGiantTornadoLifeTime", stats.bossGiantTornadoLifeTime));
+	stats.bossGiantTornadoAttackMultiplier =
+	    (std::max)(0.0f, json.value("bossGiantTornadoAttackMultiplier", stats.bossGiantTornadoAttackMultiplier));
+	stats.bossGiantTornadoSpawnOffset =
+	    (std::max)(0.0f, json.value("bossGiantTornadoSpawnOffset", stats.bossGiantTornadoSpawnOffset));
+	stats.selfDestructTriggerDistance =
+	    (std::max)(0.0f, json.value("selfDestructTriggerDistance", stats.selfDestructTriggerDistance));
+	stats.selfDestructFuseDuration =
+	    (std::max)(0.0f, json.value("selfDestructFuseDuration", stats.selfDestructFuseDuration));
+	stats.selfDestructRadius = (std::max)(0.0f, json.value("selfDestructRadius", stats.selfDestructRadius));
 	stats.sizeScale = (std::max)(0.1f, json.value("sizeScale", stats.sizeScale));
 	return stats;
 }

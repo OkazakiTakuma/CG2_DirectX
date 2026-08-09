@@ -1,0 +1,22 @@
+{
+    "extends": "GAMEPLAY_objects.json",
+    "objectOverrides": [
+        {
+            "name": "terrain_7",
+            "transform": {
+                "scale": [1.8, 1.0, 1.8]
+            },
+            "obbCollider": {
+                "halfSize": [18.0, 0.05, 18.0]
+            }
+        },
+        {
+            "name": "EnemySpawnPoint_8",
+            "enemySpawnPoint": {
+                "minimumRadius": 14.0,
+                "outerMargin": 7.0,
+                "spawnCount": 12
+            }
+        }
+    ]
+}

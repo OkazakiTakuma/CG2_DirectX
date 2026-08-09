@@ -23,6 +23,32 @@ x86/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+[Bb]uild/
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+[Dd]evelopment/
+[Rr]elWithDebInfo/
+[Mm]inSizeRel/
+
+# Native C/C++ and MSBuild intermediate files
+*.obj
+*.idb
+*.ilk
+*.exp
+*.tlog
+*.lastbuildstate
+*.recipe
+*.FileListAbsolute.txt
+*.cso
+
+# CMake-generated build trees
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+cmake-build-*/
 # Visual Studio 2015/2017 cache/options directory
 .vs/
 # Uncomment if you have tasks that create the project's static files in wwwroot
@@ -352,9 +378,10 @@ Recording_*.mp4
 
 # Generated PDF documents and working files
 *.pdf
-/output/pdf/
-/tmp/pdfs/
-/output/video/
-/tmp/video/
-/output/slides/
-/tmp/slides_pdf/
+/output/
+/tmp/
+
+# Local reports and separate portfolio project
+/portfolio-site/
+/WeeklyReport_*.md
+/*週間報告*.txt

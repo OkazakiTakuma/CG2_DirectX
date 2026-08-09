@@ -3,6 +3,7 @@
 #include "MathConstants.h"
 #include "GameObject.h"
 #include "LineDrawer.h"
+#include "EnemyProjectileComponent.h"
 #include "../base/GameTime.h"
 #include <algorithm>
 #include <cmath>
@@ -14,7 +15,9 @@ enum class EnemyBehaviorType {
 	Chase,
 	Shooter,
 	Charger,
-	NightSlashBoss
+	NightSlashBoss,
+	SelfDestruct,
+	TornadoBoss
 };
 
 /// <summary>シーンへ引き渡す敵弾生成パラメーターです。</summary>
@@ -25,6 +28,14 @@ struct EnemyShotRequest {
 	float attack = 1.0f;
 	float size = 0.22f;
 	float lifeTime = 6.0f;
+	EnemyProjectileMotionType motionType = EnemyProjectileMotionType::Linear;
+	Vector3 orbitCenter{};
+	float orbitAngle = 0.0f;
+	float orbitInitialRadius = 0.0f;
+	float orbitAngularSpeed = 0.0f;
+	float orbitRadialSpeed = 0.0f;
+	float orbitHeight = 0.0f;
+	GameObject* homingTarget = nullptr;
 };
 
 /// <summary>敵タイプごとに読み込む能力・行動設定です。</summary>
@@ -36,6 +47,9 @@ struct EnemyStats {
 	float spawnsPerMinute = 12.0f;
 	int experience = 1;
 	std::string experienceModelFilePath = "sphere.obj";
+	float healthItemDropChance = 0.05f;
+	float collectExperienceItemDropChance = 0.05f;
+	float healthItemHealAmount = 25.0f;
 	bool shoots = false;
 	EnemyBehaviorType behavior = EnemyBehaviorType::Chase;
 	float preferredDistance = 7.0f;
@@ -64,6 +78,31 @@ struct EnemyStats {
 	int bossAimedShotCount = 5;
 	float bossAimedSpreadAngle = 0.22f;
 	float bossProjectileAttackMultiplier = 0.65f;
+	int bossTornadoCount = 4;
+	float bossTornadoInitialRadius = 1.4f;
+	float bossTornadoAngularSpeed = 2.4f;
+	float bossTornadoRadialSpeed = 0.035f;
+	float bossTornadoSize = 0.65f;
+	float bossTornadoLifeTime = 5.0f;
+	float bossTornadoAttackMultiplier = 0.8f;
+	float bossTornadoTriggerDistance = 10.0f;
+	float bossTornadoWindup = 1.0f;
+	float bossTornadoRecovery = 2.0f;
+	int bossConvergingTornadoCount = 8;
+	float bossConvergingTornadoInitialRadius = 9.0f;
+	float bossConvergingTornadoAngularSpeed = -2.0f;
+	float bossConvergingTornadoRadialSpeed = 0.035f;
+	float bossConvergingTornadoSize = 0.55f;
+	float bossConvergingTornadoLifeTime = 4.0f;
+	float bossConvergingTornadoAttackMultiplier = 0.55f;
+	float bossGiantTornadoSpeed = 0.035f;
+	float bossGiantTornadoSize = 2.2f;
+	float bossGiantTornadoLifeTime = 7.0f;
+	float bossGiantTornadoAttackMultiplier = 1.2f;
+	float bossGiantTornadoSpawnOffset = 2.2f;
+	float selfDestructTriggerDistance = 2.2f;
+	float selfDestructFuseDuration = 0.8f;
+	float selfDestructRadius = 3.0f;
 	float sizeScale = 1.0f;
 };
 
@@ -89,8 +128,12 @@ public:
 		const Vector3 normalized = distance > MathConstants::kDirectionEpsilon ? Normalize(direction) : Vector3{0.0f, 0.0f, 1.0f};
 		transform.rotate.y = std::atan2(normalized.x, normalized.z);
 
-		if (stats_.behavior == EnemyBehaviorType::NightSlashBoss) {
+		if (stats_.behavior == EnemyBehaviorType::TornadoBoss) {
+			UpdateTornadoBoss(transform, normalized, distance);
+		} else if (stats_.behavior == EnemyBehaviorType::NightSlashBoss) {
 			UpdateNightSlashBoss(transform, normalized, distance);
+		} else if (stats_.behavior == EnemyBehaviorType::SelfDestruct) {
+			UpdateSelfDestruct(transform, normalized, distance);
 		} else if (stats_.behavior == EnemyBehaviorType::Charger) {
 			UpdateCharger(transform, normalized, distance);
 		} else if (stats_.behavior == EnemyBehaviorType::Shooter || stats_.shoots) {
@@ -101,21 +144,43 @@ public:
 	}
 
 	void Draw3D() override {
-		if ((!IsChargeWarningActive() && !IsNightSlashWarningActive() && !IsNightSlashAttacking() &&
+		if ((!IsChargeWarningActive() && !IsSelfDestructArmed() && !IsTornadoWarningActive() &&
+		     !IsNightSlashWarningActive() && !IsNightSlashAttacking() &&
 		     !IsBossRangedWarningActive() && !IsBossRangedAttacking()) ||
 		    !GetOwner()) {
 			return;
 		}
-		const Vector3 center = GetOwner()->GetTransform().translate + Vector3{0.0f, 0.06f, 0.0f};
+		Vector3 center = GetOwner()->GetTransform().translate + Vector3{0.0f, 0.06f, 0.0f};
 		const bool isNightSlash = stats_.behavior == EnemyBehaviorType::NightSlashBoss;
+		const bool isSelfDestruct = stats_.behavior == EnemyBehaviorType::SelfDestruct;
+		const bool isTornadoBoss = stats_.behavior == EnemyBehaviorType::TornadoBoss;
+		if (isTornadoBoss && tornadoPatternIndex_ == 1 && target_) {
+			center = target_->GetTransform().translate + Vector3{0.0f, 0.06f, 0.0f};
+		}
 		const bool isRangedPattern = IsBossRangedWarningActive() || IsBossRangedAttacking();
 		const float progress = isRangedPattern
 		    ? GetBossRangedProgress()
-		    : isNightSlash ? GetNightSlashProgress() : GetChargeProgress();
-		const float radius = isNightSlash ? 1.35f + 0.45f * progress : 0.9f + 0.35f * progress;
+		    : isNightSlash ? GetNightSlashProgress()
+		    : isSelfDestruct ? GetSelfDestructProgress()
+		    : isTornadoBoss ? GetTornadoWarningProgress() : GetChargeProgress();
+		const float radius = isNightSlash
+		    ? 1.35f + 0.45f * progress
+		    : isSelfDestruct ? stats_.selfDestructRadius * (0.75f + 0.25f * progress)
+		    : isTornadoBoss ? (tornadoPatternIndex_ == 0
+		        ? stats_.bossTornadoInitialRadius + 0.6f * progress
+		        : tornadoPatternIndex_ == 1
+		            ? stats_.bossConvergingTornadoInitialRadius
+		            : stats_.bossGiantTornadoSize * (1.0f + 0.25f * progress))
+		    : 0.9f + 0.35f * progress;
 		const Vector4 color = isRangedPattern
 			? Vector4{0.12f, 0.45f + 0.45f * progress, 1.0f, 1.0f}
 			: isNightSlash ? Vector4{0.82f, 0.08f + 0.30f * progress, 1.0f, 1.0f}
+			: isSelfDestruct ? Vector4{1.0f, 0.85f * (1.0f - progress), 0.02f, 1.0f}
+			: isTornadoBoss ? (tornadoPatternIndex_ == 0
+			    ? Vector4{0.20f, 0.75f + 0.25f * progress, 1.0f, 1.0f}
+			    : tornadoPatternIndex_ == 1
+			        ? Vector4{0.75f + 0.25f * progress, 0.25f, 1.0f, 1.0f}
+			        : Vector4{0.20f, 1.0f, 0.40f + 0.35f * progress, 1.0f})
 			: Vector4{1.0f, 0.05f + 0.25f * progress, 0.02f, 1.0f};
 		constexpr int segmentCount = 24;
 		for (int index = 0; index < segmentCount; ++index) {
@@ -162,9 +227,13 @@ public:
 			stateTimer_ = 0.0f;
 			chargeState_ = ChargeState::Approach;
 			nightSlashState_ = NightSlashState::Approach;
+			tornadoBossState_ = TornadoBossState::Approach;
+			tornadoPatternIndex_ = 0;
 			comboDashIndex_ = 0;
 			bossPatternIndex_ = 0;
 			rangedWaveIndex_ = 0;
+			selfDestructArmed_ = false;
+			selfDestructRequested_ = false;
 			pendingShotRequests_.clear();
 		}
 		if (isFirstStatsApplication || currentHealth_ <= 0.0f || currentHealth_ > stats_.health) {
@@ -193,6 +262,27 @@ public:
 		return stats_.chargeDuration > 0.0f ? (std::min)(1.0f, stateTimer_ / stats_.chargeDuration) : 1.0f;
 	}
 	bool IsNightSlashWarningActive() const { return nightSlashState_ == NightSlashState::Windup; }
+	bool IsSelfDestructArmed() const { return selfDestructArmed_; }
+	float GetSelfDestructProgress() const {
+		return stats_.selfDestructFuseDuration > 0.0f
+		    ? (std::min)(1.0f, stateTimer_ / stats_.selfDestructFuseDuration)
+		    : 1.0f;
+	}
+	bool IsTornadoWarningActive() const { return tornadoBossState_ == TornadoBossState::Windup; }
+	int GetTornadoPatternIndex() const { return tornadoPatternIndex_; }
+	float GetTornadoWarningProgress() const {
+		return stats_.bossTornadoWindup > 0.0f
+		    ? (std::min)(1.0f, stateTimer_ / stats_.bossTornadoWindup)
+		    : 1.0f;
+	}
+	bool ConsumeSelfDestructRequest() {
+		if (!selfDestructRequested_) {
+			return false;
+		}
+		selfDestructRequested_ = false;
+		currentHealth_ = 0.0f;
+		return true;
+	}
 	bool IsBossRangedWarningActive() const { return nightSlashState_ == NightSlashState::RangedWindup; }
 	bool IsBossRangedAttacking() const { return nightSlashState_ == NightSlashState::RangedFiring; }
 	float GetBossRangedProgress() const {
@@ -217,6 +307,9 @@ public:
 			: 1.0f;
 	}
 	bool CanDealContactDamage() const {
+		if (stats_.behavior == EnemyBehaviorType::SelfDestruct || stats_.behavior == EnemyBehaviorType::TornadoBoss) {
+			return false;
+		}
 		return stats_.behavior != EnemyBehaviorType::NightSlashBoss || IsNightSlashAttacking();
 	}
 	float GetContactAttackDamage() const {
@@ -230,6 +323,7 @@ public:
 private:
 	enum class ChargeState { Approach, Charging, Dashing, Recovering };
 	enum class NightSlashState { Approach, Windup, Dashing, Slashing, RangedWindup, RangedFiring, Recovering };
+	enum class TornadoBossState { Approach, Windup, Recovering };
 
 	void UpdateShooter(EulerTransform& transform, const Vector3& direction, float distance) {
 		const float frameScale = GameTime::GetFrameScale60();
@@ -289,6 +383,60 @@ private:
 		case ChargeState::Recovering:
 			if (stateTimer_ >= stats_.dashRecovery) {
 				chargeState_ = ChargeState::Approach;
+				stateTimer_ = 0.0f;
+			}
+			break;
+		}
+	}
+
+	void UpdateSelfDestruct(EulerTransform& transform, const Vector3& direction, float distance) {
+		if (selfDestructRequested_) {
+			return;
+		}
+		if (!selfDestructArmed_) {
+			if (distance <= stats_.selfDestructTriggerDistance) {
+				selfDestructArmed_ = true;
+				stateTimer_ = 0.0f;
+			} else if (distance > MathConstants::kDirectionEpsilon) {
+				transform.translate = transform.translate + (stats_.speed * GameTime::GetFrameScale60()) * direction;
+			}
+			return;
+		}
+
+		stateTimer_ += GameTime::GetDeltaTime();
+		if (stateTimer_ >= stats_.selfDestructFuseDuration) {
+			selfDestructRequested_ = true;
+		}
+	}
+
+	void UpdateTornadoBoss(EulerTransform& transform, const Vector3& direction, float distance) {
+		stateTimer_ += GameTime::GetDeltaTime();
+		switch (tornadoBossState_) {
+		case TornadoBossState::Approach:
+			if (distance <= stats_.bossTornadoTriggerDistance) {
+				tornadoBossState_ = TornadoBossState::Windup;
+				stateTimer_ = 0.0f;
+			} else {
+				transform.translate = transform.translate + (stats_.speed * GameTime::GetFrameScale60()) * direction;
+			}
+			break;
+		case TornadoBossState::Windup:
+			if (stateTimer_ >= stats_.bossTornadoWindup) {
+				if (tornadoPatternIndex_ == 0) {
+					EmitBossTornadoPattern(transform);
+				} else if (tornadoPatternIndex_ == 1) {
+					EmitBossConvergingTornadoPattern(transform);
+				} else {
+					EmitBossGiantTornadoPattern(transform);
+				}
+				tornadoPatternIndex_ = (tornadoPatternIndex_ + 1) % 3;
+				tornadoBossState_ = TornadoBossState::Recovering;
+				stateTimer_ = 0.0f;
+			}
+			break;
+		case TornadoBossState::Recovering:
+			if (stateTimer_ >= stats_.bossTornadoRecovery) {
+				tornadoBossState_ = TornadoBossState::Approach;
 				stateTimer_ = 0.0f;
 			}
 			break;
@@ -410,6 +558,77 @@ private:
 		}
 	}
 
+	void EmitBossTornadoPattern(const EulerTransform& transform) {
+		const int tornadoCount = (std::max)(1, stats_.bossTornadoCount);
+		for (int index = 0; index < tornadoCount; ++index) {
+			const float angle =
+			    (static_cast<float>(index) / static_cast<float>(tornadoCount)) * 2.0f * MathConstants::kPi;
+			EnemyShotRequest request{};
+			request.position = transform.translate + Vector3{
+				std::sin(angle) * stats_.bossTornadoInitialRadius,
+				0.35f,
+				std::cos(angle) * stats_.bossTornadoInitialRadius
+			};
+			request.direction = {std::cos(angle), 0.0f, -std::sin(angle)};
+			request.attack = stats_.attack * stats_.bossTornadoAttackMultiplier;
+			request.size = stats_.bossTornadoSize;
+			request.lifeTime = stats_.bossTornadoLifeTime;
+			request.motionType = EnemyProjectileMotionType::ExpandingOrbit;
+			request.orbitCenter = transform.translate;
+			request.orbitAngle = angle;
+			request.orbitInitialRadius = stats_.bossTornadoInitialRadius;
+			request.orbitAngularSpeed = stats_.bossTornadoAngularSpeed;
+			request.orbitRadialSpeed = stats_.bossTornadoRadialSpeed;
+			request.orbitHeight = 0.35f;
+			pendingShotRequests_.push_back(request);
+		}
+	}
+
+	void EmitBossConvergingTornadoPattern(const EulerTransform& transform) {
+		const Vector3 center = target_ ? target_->GetTransform().translate : transform.translate;
+		const int tornadoCount = (std::max)(1, stats_.bossConvergingTornadoCount);
+		for (int index = 0; index < tornadoCount; ++index) {
+			const float angle =
+			    (static_cast<float>(index) / static_cast<float>(tornadoCount)) * 2.0f * MathConstants::kPi;
+			EnemyShotRequest request{};
+			request.position = center + Vector3{
+				std::sin(angle) * stats_.bossConvergingTornadoInitialRadius,
+				0.35f,
+				std::cos(angle) * stats_.bossConvergingTornadoInitialRadius
+			};
+			request.direction = {-std::cos(angle), 0.0f, std::sin(angle)};
+			request.attack = stats_.attack * stats_.bossConvergingTornadoAttackMultiplier;
+			request.size = stats_.bossConvergingTornadoSize;
+			request.lifeTime = stats_.bossConvergingTornadoLifeTime;
+			request.motionType = EnemyProjectileMotionType::ContractingOrbit;
+			request.orbitCenter = center;
+			request.orbitAngle = angle;
+			request.orbitInitialRadius = stats_.bossConvergingTornadoInitialRadius;
+			request.orbitAngularSpeed = stats_.bossConvergingTornadoAngularSpeed;
+			request.orbitRadialSpeed = stats_.bossConvergingTornadoRadialSpeed;
+			request.orbitHeight = 0.35f;
+			pendingShotRequests_.push_back(request);
+		}
+	}
+
+	void EmitBossGiantTornadoPattern(const EulerTransform& transform) {
+		Vector3 direction = target_ ? target_->GetTransform().translate - transform.translate : Vector3{0.0f, 0.0f, 1.0f};
+		direction.y = 0.0f;
+		direction = Length(direction) > MathConstants::kDirectionEpsilon
+		    ? Normalize(direction)
+		    : Vector3{0.0f, 0.0f, 1.0f};
+		EnemyShotRequest request{};
+		request.position = transform.translate + stats_.bossGiantTornadoSpawnOffset * direction + Vector3{0.0f, 0.5f, 0.0f};
+		request.direction = direction;
+		request.speed = stats_.bossGiantTornadoSpeed;
+		request.attack = stats_.attack * stats_.bossGiantTornadoAttackMultiplier;
+		request.size = stats_.bossGiantTornadoSize;
+		request.lifeTime = stats_.bossGiantTornadoLifeTime;
+		request.motionType = EnemyProjectileMotionType::Homing;
+		request.homingTarget = target_;
+		pendingShotRequests_.push_back(request);
+	}
+
 	void BeginNightSlashDash(const EulerTransform& transform) {
 		Vector3 toTarget = target_->GetTransform().translate - transform.translate;
 		toTarget.y = 0.0f;
@@ -440,9 +659,13 @@ private:
 	Vector3 dashDirection_{0.0f, 0.0f, 1.0f};
 	ChargeState chargeState_ = ChargeState::Approach;
 	NightSlashState nightSlashState_ = NightSlashState::Approach;
+	TornadoBossState tornadoBossState_ = TornadoBossState::Approach;
+	int tornadoPatternIndex_ = 0;
 	int comboDashIndex_ = 0;
 	int bossPatternIndex_ = 0;
 	int rangedWaveIndex_ = 0;
+	bool selfDestructArmed_ = false;
+	bool selfDestructRequested_ = false;
 	/// <summary>シーン側で敵弾へ変換される保留中の射撃要求です。</summary>
 	std::vector<EnemyShotRequest> pendingShotRequests_;
 	bool runtimeSpawned_ = false;

@@ -194,6 +194,8 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClCompile Include="scene\SceneManager.cpp" />
     <ClCompile Include="scene\GamePlayScene.cpp" />
 	<ClCompile Include="scene\PlayerSelectScene.cpp" />
+	<ClCompile Include="scene\StageSelectScene.cpp" />
+	<ClCompile Include="scene\ResultScene.cpp" />
     <ClCompile Include="main.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
@@ -311,10 +313,12 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\flame\helpers\BaseSceneEditorGeometry.h" />
     <ClInclude Include="Engine\flame\repositories\EnemyStatusRepository.h" />
     <ClInclude Include="Engine\flame\repositories\PlayerStatusRepository.h" />
-    <ClInclude Include="Engine\flame\EnemyComponent.h" />
+	<ClInclude Include="Engine\flame\EnemyComponent.h" />
+	<ClInclude Include="Engine\flame\StageResultData.h" />
 	<ClInclude Include="Engine\flame\EnemyProjectileComponent.h" />
     <ClInclude Include="Engine\flame\EnemySpawnPointComponent.h" />
     <ClInclude Include="Engine\flame\ExperienceComponent.h" />
+    <ClInclude Include="Engine\flame\ItemDropComponent.h" />
     <ClInclude Include="Engine\flame\PlayerAttackComponent.h" />
     <ClInclude Include="Engine\flame\PlayerProjectileComponent.h" />
     <ClInclude Include="Engine\flame\repositories\ParticlePresetRepository.h" />
@@ -365,6 +369,8 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="scene\SceneManager.h" />
     <ClInclude Include="scene\GamePlayScene.h" />
 	<ClInclude Include="scene\PlayerSelectScene.h" />
+	<ClInclude Include="scene\StageSelectScene.h" />
+	<ClInclude Include="scene\ResultScene.h" />
     <ClInclude Include="scene\TitleScene.h" />
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)'!='Release'">
