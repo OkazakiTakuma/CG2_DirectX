@@ -5,12 +5,79 @@
 #include "repositories/PlayerStatusRepository.h"
 #include "helpers/SceneJsonUtility.h"
 
+#include <filesystem>
+#include <fstream>
+
 using SceneJsonUtility::JsonToVector3;
 using SceneJsonUtility::JsonToVector4;
 using SceneJsonUtility::Vector3ToJson;
 using SceneJsonUtility::Vector4ToJson;
 
 namespace {
+bool ApplyObjectOverride(nlohmann::json& objects, const nlohmann::json& objectOverride) {
+	if (!objects.is_array() || !objectOverride.is_object()) {
+		return false;
+	}
+	const std::string targetName = objectOverride.value("name", std::string());
+	if (targetName.empty()) {
+		return false;
+	}
+	for (nlohmann::json& object : objects) {
+		if (object.value("name", std::string()) == targetName) {
+			object.merge_patch(objectOverride);
+			return true;
+		}
+		if (object.contains("children") && ApplyObjectOverride(object["children"], objectOverride)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool LoadSceneJsonWithInheritance(const std::filesystem::path& filePath, nlohmann::json& root, int depth = 0) {
+	if (depth > 8) {
+		return false;
+	}
+	std::ifstream input(filePath);
+	if (!input) {
+		return false;
+	}
+	nlohmann::json source;
+	try {
+		input >> source;
+	} catch (const nlohmann::json::exception&) {
+		return false;
+	}
+
+	const std::string extendsFile = source.value("extends", std::string());
+	if (extendsFile.empty()) {
+		root = std::move(source);
+		return true;
+	}
+
+	const std::filesystem::path extendsPath(extendsFile);
+	if (extendsPath.filename() != extendsPath || extendsPath.extension() != ".json") {
+		return false;
+	}
+	if (!LoadSceneJsonWithInheritance(filePath.parent_path() / extendsPath, root, depth + 1)) {
+		return false;
+	}
+
+	nlohmann::json overlay = source;
+	overlay.erase("extends");
+	overlay.erase("objectOverrides");
+	overlay.erase("objectAdditions");
+	root.merge_patch(overlay);
+
+	for (const nlohmann::json& objectOverride : source.value("objectOverrides", nlohmann::json::array())) {
+		ApplyObjectOverride(root["objects"], objectOverride);
+	}
+	for (const nlohmann::json& addition : source.value("objectAdditions", nlohmann::json::array())) {
+		root["objects"].push_back(addition);
+	}
+	return true;
+}
+
 void SaveComponentGravity(nlohmann::json& componentJson, Component* component) {
 	if (!component) {
 		return;
@@ -242,20 +309,16 @@ void BaseScene::SaveEditorObjects() {
 /// </summary>
 void BaseScene::LoadEditorObjects() {
 	const std::string filePath = GetSceneObjectFilePath();
-	std::ifstream ifs(filePath);
-	if (!ifs) {
-		return;
-	}
-
 	nlohmann::json root;
-	try {
-		ifs >> root;
-	} catch (const nlohmann::json::exception&) {
+	if (!LoadSceneJsonWithInheritance(filePath, root)) {
 		return;
 	}
 
 	sceneObjects_.clear();
 	activeBossEncounterObjectName_.clear();
+	isStageCleared_ = false;
+	defeatedEnemyCount_ = 0;
+	survivalTimeSeconds_ = 0.0f;
 	editorSkyBox_.reset();
 	selectedObjectIndex_ = -1;
 	nextObjectId_ = root.value("nextObjectId", 1);
@@ -592,6 +655,9 @@ void BaseScene::LoadEditorObjects() {
 /// 現在のシーンに対応する配置JSONファイルパスを返します。
 /// </summary>
 std::string BaseScene::GetSceneObjectFilePath() const {
+	if (!sceneObjectFilePathOverride_.empty()) {
+		return sceneObjectFilePathOverride_;
+	}
 	return "Resources/Data/Scenes/" + sceneName_ + "_objects.json";
 }
 

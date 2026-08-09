@@ -79,7 +79,7 @@ std::string PlayerSelectScene::MakePlayerDescription(const PlayerStats& stats) c
 }
 
 void PlayerSelectScene::Update() {
-	// 左右入力で候補を循環し、決定時に選択結果を保持してゲームへ遷移する。
+	// 左右入力で候補を循環し、決定時に選択結果を保持してステージ選択へ遷移する。
 	if (playerTypeNames_.empty() || !sceneManager_) {
 		return;
 	}
@@ -93,7 +93,7 @@ void PlayerSelectScene::Update() {
 	}
 	if (input->TriggerKey(DIK_SPACE) || input->TriggerKey(DIK_RETURN) || input->TriggerGamepadButton(XINPUT_GAMEPAD_A)) {
 		sceneManager_->SetSelectedPlayerTypeName(playerTypeNames_[selectedPlayerIndex_]);
-		sceneManager_->ChangeScene("GAMEPLAY");
+		sceneManager_->ChangeScene("STAGE_SELECT");
 		return;
 	}
 	if (input->TriggerKey(DIK_Q) || input->TriggerGamepadButton(XINPUT_GAMEPAD_B)) {

@@ -1,5 +1,6 @@
 #include "TitleScene.h"
 #include"SceneManager.h"
+#include <Xinput.h>
 
 
 void TitleScene::Initialize() {  }
@@ -9,9 +10,11 @@ void TitleScene::Initialize() {  }
 /// 毎フレームの状態更新を行います。
 /// </summary>
 void TitleScene::Update() {
-	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+	Input* input = Input::GetInstance();
+	if (input->TriggerKey(DIK_SPACE) || input->TriggerKey(DIK_RETURN) ||
+		input->TriggerGamepadButton(XINPUT_GAMEPAD_A) ||
+		input->TriggerGamepadButton(XINPUT_GAMEPAD_START)) {
 		sceneManager->ChangeScene("PLAYER_SELECT");
-
 	}
 }
 

@@ -49,6 +49,10 @@ public:
 	/// </summary>
 	void BeginFrame();
 	void PreDraw();
+	/// <summary>
+	/// 録画用フレームを確定し、その後に画面専用オーバーレイを描ける状態へ戻します。
+	/// </summary>
+	void CaptureFrameBeforeOverlay();
 	void PostDraw();
 	void RequestScreenshot() { screenCapture_.RequestScreenshot(); }
 	void ToggleScreenRecording() { screenCapture_.ToggleRecording(static_cast<uint32_t>(renderWidth_), static_cast<uint32_t>(renderHeight_)); }
@@ -182,6 +186,7 @@ private:
 	std::array<FrameResource, kFrameCount> frameResources_{};
 	uint32_t currentFrameIndex_ = 0;
 	bool frameStarted_ = false;
+	bool captureProcessedThisFrame_ = false;
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList = nullptr;
 	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain = nullptr;

@@ -10,8 +10,10 @@
 #include "SceneFactory.h"
 #include "SceneManager.h"
 #include "sky/SkyBoxCommon.h"
+#include "TextComponent.h"
 #include <DbgHelp.h>
 #include <strsafe.h>
+#include <Xinput.h>
 
 /// <summary>
 /// 必要なリソースを準備し、オブジェクトを初期化します。
@@ -30,6 +32,14 @@ void Game::Initialize() {
 	sceneManager->SetSceneFactory(sceneFactory.get());
 	sceneManager->ChangeScene("TITLE");
 	SkyBoxCommon::GetInstance()->SetDefaultCamera(camera.get());
+
+	recordingIndicator_ = std::make_unique<GameObject>();
+	recordingIndicator_->SetName("ScreenRecordingIndicator");
+	TextComponent* recordingText = recordingIndicator_->AddComponent<TextComponent>();
+	recordingText->SetText("● REC");
+	recordingText->SetFontSize(28.0f);
+	recordingText->SetColor({1.0f, 0.08f, 0.08f, 1.0f});
+	recordingText->SetAnchor(TextComponent::Anchor::TopRight);
 }
 
 /// <summary>
@@ -50,7 +60,9 @@ void Game::Update() {
 	}
 	Input::GetInstance()->Update();
 
-	if (Input::GetInstance()->TriggerKey(DIK_F11)) {
+	// キーボードがなくても Pad の BACK（View）ボタンで表示モードを切り替えられる。
+	if (Input::GetInstance()->TriggerKey(DIK_F11) ||
+		Input::GetInstance()->TriggerGamepadButton(XINPUT_GAMEPAD_BACK)) {
 		ToggleFullscreen();
 	}
 	if (Input::GetInstance()->TriggerKey(DIK_F10)) {
@@ -125,6 +137,18 @@ void Game::Draw() {
 	ImGuiManager::GetInstance()->End();
 	ImGuiManager::GetInstance()->Draw();
 
+	DirectXCommon* dxCommon = SpriteCommon::GetInstance()->GetDxCommon();
+	if (dxCommon) {
+		dxCommon->CaptureFrameBeforeOverlay();
+	}
+	if (recordingIndicator_ && dxCommon && dxCommon->IsScreenRecording()) {
+		recordingIndicator_->GetTransform().translate = {
+			static_cast<float>(dxCommon->GetRenderWidth()) - 20.0f,
+			16.0f,
+			0.0f};
+		recordingIndicator_->Draw2D();
+	}
+
 	SpriteCommon::GetInstance()->GetDxCommon()->PostDraw();
 
 #pragma endregion
@@ -134,6 +158,7 @@ void Game::Draw() {
 /// 確保したリソースを解放し、終了処理を行います。
 /// </summary>
 void Game::Finalize() {
+	recordingIndicator_.reset();
 	sceneManager.reset();
 	sceneFactory.reset();
 	camera.reset();

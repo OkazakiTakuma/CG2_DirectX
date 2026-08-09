@@ -6,6 +6,7 @@
 #include "model/ModelManager.h"
 #include "repositories/PlayerStatusRepository.h"
 #include <filesystem>
+#include <limits>
 #include <random>
 #include <unordered_set>
 #include <Xinput.h>
@@ -331,7 +332,10 @@ void BaseScene::UpdateEnemySpawning() {
 		if (bossIsAlive) {
 			return;
 		}
+		// Boss Encounter はステージの最後に一度だけ発生するため、撃破をクリア条件とする。
+		isStageCleared_ = true;
 		activeBossEncounterObjectName_.clear();
+		return;
 	}
 
 	struct SpawnRequest {
@@ -541,6 +545,43 @@ GameObject* BaseScene::CreateRuntimeExperience(const EnemyStats& enemyStats, con
 		}
 	}
 	return firstExperienceObject;
+}
+
+GameObject* BaseScene::CreateRuntimeItemDrop(
+	ItemDropType type, const Vector3& position, GameObject* target, float healAmount) {
+	if (!target) {
+		for (const auto& object : sceneObjects_) {
+			if (object->GetComponent<Player>()) {
+				target = object.get();
+				break;
+			}
+		}
+	}
+
+	ModelManager::GetInstance()->LoadModel("sphere.obj");
+	auto object = std::make_unique<GameObject>();
+	const bool isHealthItem = type == ItemDropType::Health;
+	object->SetName(MakeUniqueObjectName(isHealthItem ? "HealthItem" : "ExperienceCollector"));
+	object->SetEditorType(isHealthItem ? "HealthItem" : "ExperienceCollector");
+	object->GetTransform().translate = position + Vector3{isHealthItem ? -0.35f : 0.35f, 0.35f, 0.0f};
+	const float scale = isHealthItem ? 0.42f : 0.50f;
+	object->GetTransform().scale = {scale, scale, scale};
+
+	ItemDropComponent* item = object->AddComponent<ItemDropComponent>();
+	item->SetType(type);
+	item->SetTarget(target);
+	item->SetHealAmount(healAmount);
+
+	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
+	object3d->SetModel("sphere.obj");
+	object3d->SetColor(isHealthItem
+		? Vector4{0.15f, 1.0f, 0.25f, 1.0f}
+		: Vector4{1.0f, 0.85f, 0.10f, 1.0f});
+
+	object->Update();
+	sceneObjects_.push_back(std::move(object));
+	++nextObjectId_;
+	return sceneObjects_.back().get();
 }
 
 void BaseScene::CreateRuntimeBossUpgradeDrop(const Vector3& position, GameObject* target, int upgradeCount) {
@@ -805,6 +846,18 @@ void BaseScene::UpdateEnemyAttacks() {
 		if (!enemy || !enemy->IsEnabled() || enemy->GetCurrentHealth() <= 0.0f) {
 			continue;
 		}
+		if (enemy->ConsumeSelfDestructRequest()) {
+			GameObject* target = enemy->GetTarget();
+			Player* player = target ? target->GetComponent<Player>() : nullptr;
+			if (player && player->IsEnabled() && player->GetCurrentHealth() > 0.0f) {
+				Vector3 toPlayer = target->GetTransform().translate - object->GetTransform().translate;
+				toPlayer.y = 0.0f;
+				if (Length(toPlayer) <= enemy->GetStats().selfDestructRadius) {
+					player->TakeDamage(enemy->GetStats().attack);
+				}
+			}
+			continue;
+		}
 		std::vector<EnemyShotRequest> requests = enemy->ConsumeShotRequests();
 		shotRequests.insert(shotRequests.end(), requests.begin(), requests.end());
 
@@ -814,7 +867,14 @@ void BaseScene::UpdateEnemyAttacks() {
 		}
 
 		if (Object3dComponent* object3d = object->GetComponent<Object3dComponent>()) {
-			if (enemy->IsBossRangedWarningActive()) {
+			if (enemy->IsTornadoWarningActive()) {
+				const float pulse = 0.45f + 0.55f * std::sin(enemy->GetTornadoWarningProgress() * 16.0f * MathConstants::kPi);
+				object3d->SetColor(enemy->GetTornadoPatternIndex() == 0
+				    ? Vector4{0.08f, 0.60f + 0.35f * pulse, 1.0f, 1.0f}
+				    : enemy->GetTornadoPatternIndex() == 1
+				        ? Vector4{0.65f + 0.30f * pulse, 0.12f, 1.0f, 1.0f}
+				        : Vector4{0.08f, 0.65f + 0.30f * pulse, 0.30f, 1.0f});
+			} else if (enemy->IsBossRangedWarningActive()) {
 				const float pulse = 0.45f + 0.55f * std::sin(enemy->GetBossRangedProgress() * 14.0f * MathConstants::kPi);
 				object3d->SetColor({0.05f, 0.35f + 0.35f * pulse, 1.0f, 1.0f});
 			} else if (enemy->IsBossRangedAttacking()) {
@@ -826,6 +886,8 @@ void BaseScene::UpdateEnemyAttacks() {
 				object3d->SetColor({0.95f, 0.18f, 1.0f, 1.0f});
 			} else if (enemy->GetStats().behavior == EnemyBehaviorType::NightSlashBoss) {
 				object3d->SetColor({0.42f, 0.06f, 0.62f, 1.0f});
+			} else if (enemy->GetStats().behavior == EnemyBehaviorType::TornadoBoss) {
+				object3d->SetColor({0.08f, 0.48f, 0.78f, 1.0f});
 			} else if (enemy->IsChargeWarningActive()) {
 				const float pulse = 0.45f + 0.55f * std::sin(enemy->GetChargeProgress() * 18.0f * MathConstants::kPi);
 				object3d->SetColor({1.0f, 0.05f + 0.25f * pulse, 0.02f, 1.0f});
@@ -833,6 +895,11 @@ void BaseScene::UpdateEnemyAttacks() {
 				object3d->SetColor({0.25f, 0.55f, 1.0f, 1.0f});
 			} else if (enemy->GetStats().behavior == EnemyBehaviorType::Charger) {
 				object3d->SetColor({1.0f, 0.35f, 0.08f, 1.0f});
+			} else if (enemy->GetStats().behavior == EnemyBehaviorType::SelfDestruct) {
+				const float pulse = enemy->IsSelfDestructArmed()
+				    ? 0.45f + 0.55f * std::sin(enemy->GetSelfDestructProgress() * 20.0f * MathConstants::kPi)
+				    : 0.0f;
+				object3d->SetColor({1.0f, 0.72f * (1.0f - pulse), 0.02f, 1.0f});
 			} else if (enemy->GetEnemyTypeName() == "MidBoss") {
 				object3d->SetColor({0.62f, 0.16f, 0.85f, 1.0f});
 			}
@@ -845,7 +912,13 @@ void BaseScene::UpdateEnemyAttacks() {
 
 GameObject* BaseScene::CreateRuntimeEnemyProjectile(const EnemyShotRequest& request) {
 	auto object = std::make_unique<GameObject>();
-	object->SetName(MakeUniqueObjectName("EnemyProjectile"));
+	const bool isContractingTornado = request.motionType == EnemyProjectileMotionType::ContractingOrbit;
+	const bool isGiantTornado = request.motionType == EnemyProjectileMotionType::Homing;
+	const bool isTornado = request.motionType == EnemyProjectileMotionType::ExpandingOrbit ||
+	    request.motionType == EnemyProjectileMotionType::ContractingOrbit || isGiantTornado;
+	object->SetName(MakeUniqueObjectName(
+	    isGiantTornado ? "BossGiantTornado"
+	    : isContractingTornado ? "BossConvergingTornado" : isTornado ? "BossTornado" : "EnemyProjectile"));
 	object->SetEditorType("EnemyProjectile");
 	object->GetTransform().translate = request.position;
 	object->GetTransform().scale = {request.size, request.size, request.size};
@@ -853,6 +926,25 @@ GameObject* BaseScene::CreateRuntimeEnemyProjectile(const EnemyShotRequest& requ
 
 	EnemyProjectileComponent* projectile = object->AddComponent<EnemyProjectileComponent>();
 	projectile->SetDirection(request.direction);
+	if (request.motionType == EnemyProjectileMotionType::ExpandingOrbit) {
+		projectile->SetExpandingOrbit(
+		    request.orbitCenter,
+		    request.orbitAngle,
+		    request.orbitInitialRadius,
+		    request.orbitAngularSpeed,
+		    request.orbitRadialSpeed,
+		    request.orbitHeight);
+	} else if (request.motionType == EnemyProjectileMotionType::ContractingOrbit) {
+		projectile->SetContractingOrbit(
+		    request.orbitCenter,
+		    request.orbitAngle,
+		    request.orbitInitialRadius,
+		    request.orbitAngularSpeed,
+		    request.orbitRadialSpeed,
+		    request.orbitHeight);
+	} else if (isGiantTornado) {
+		projectile->SetHomingTarget(request.homingTarget);
+	}
 	projectile->SetSpeed(request.speed);
 	projectile->SetAttack(request.attack);
 	projectile->SetSize(request.size);
@@ -866,12 +958,24 @@ GameObject* BaseScene::CreateRuntimeEnemyProjectile(const EnemyShotRequest& requ
 	ModelManager::GetInstance()->LoadModel("sphere.obj");
 	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
 	object3d->SetModel("sphere.obj");
-	object3d->SetColor({1.0f, 0.12f, 0.04f, 1.0f});
+	object3d->SetColor(isGiantTornado
+	    ? Vector4{0.20f, 1.0f, 0.48f, 1.0f}
+	    : isContractingTornado
+	    ? Vector4{0.78f, 0.35f, 1.0f, 1.0f}
+	    : isTornado ? Vector4{0.50f, 0.92f, 1.0f, 1.0f} : Vector4{1.0f, 0.12f, 0.04f, 1.0f});
 	TrailRendererComponent* trail = object->AddComponent<TrailRendererComponent>();
-	trail->SetWidth((std::max)(0.10f, request.size * 0.8f));
-	trail->SetLifeTime(0.28f);
-	trail->SetHeadColor({1.0f, 0.35f, 0.05f, 0.95f});
-	trail->SetTailColor({0.70f, 0.02f, 0.01f, 0.0f});
+	trail->SetWidth((std::max)(0.10f, request.size * (isTornado ? 1.6f : 0.8f)));
+	trail->SetLifeTime(isTornado ? 1.15f : 0.28f);
+	trail->SetHeadColor(isGiantTornado
+	    ? Vector4{0.72f, 1.0f, 0.82f, 0.98f}
+	    : isContractingTornado
+	    ? Vector4{0.95f, 0.75f, 1.0f, 0.95f}
+	    : isTornado ? Vector4{0.80f, 1.0f, 1.0f, 0.95f} : Vector4{1.0f, 0.35f, 0.05f, 0.95f});
+	trail->SetTailColor(isGiantTornado
+	    ? Vector4{0.02f, 0.42f, 0.16f, 0.0f}
+	    : isContractingTornado
+	    ? Vector4{0.35f, 0.02f, 0.60f, 0.0f}
+	    : isTornado ? Vector4{0.05f, 0.30f, 0.55f, 0.0f} : Vector4{0.70f, 0.02f, 0.01f, 0.0f});
 
 	object->Update();
 	sceneObjects_.push_back(std::move(object));
@@ -983,6 +1087,28 @@ void BaseScene::UpdateExperienceCompression() {
 				break;
 			}
 		}
+	}
+}
+
+void BaseScene::UpdateItemDrops() {
+	for (const auto& itemObject : sceneObjects_) {
+		ItemDropComponent* item = itemObject->GetComponent<ItemDropComponent>();
+		if (!item || !item->IsCollected() || item->IsEffectApplied()) {
+			continue;
+		}
+
+		if (item->GetType() == ItemDropType::CollectAllExperience) {
+			for (const auto& experienceObject : sceneObjects_) {
+				ExperienceComponent* experience = experienceObject->GetComponent<ExperienceComponent>();
+				if (!experience || experience->IsBossUpgradeReward() || experience->IsCollected() ||
+				    experience->IsConsumedByCompression()) {
+					continue;
+				}
+				experience->SetAttractDistance((std::numeric_limits<float>::max)());
+				experience->SetAttractSpeed(0.16f);
+			}
+		}
+		item->MarkEffectApplied();
 	}
 }
 
@@ -1164,8 +1290,15 @@ void BaseScene::UpdatePlayerProjectileHits() {
 		GameObject* target = nullptr;
 		int upgradeCount = 1;
 	};
+	struct ItemDropRequest {
+		ItemDropType type = ItemDropType::Health;
+		Vector3 position;
+		GameObject* target = nullptr;
+		float healAmount = 0.0f;
+	};
 	std::vector<ExperienceDropRequest> experienceDropRequests;
 	std::vector<BossUpgradeDropRequest> bossUpgradeDropRequests;
+	std::vector<ItemDropRequest> itemDropRequests;
 	Camera* camera = Object3dCommon::GetInstance() ? Object3dCommon::GetInstance()->GetDefaultCamera() : nullptr;
 	for (const auto& projectileObject : sceneObjects_) {
 		PlayerProjectileComponent* projectile = projectileObject->GetComponent<PlayerProjectileComponent>();
@@ -1275,13 +1408,30 @@ void BaseScene::UpdatePlayerProjectileHits() {
 			if (distance <= hitRadius) {
 				enemy->SetCurrentHealth(enemy->GetCurrentHealth() - projectile->GetAttack());
 				if (enemy->GetCurrentHealth() <= 0.0f) {
+					++defeatedEnemyCount_;
 					experienceDropRequests.push_back({enemy->GetStats(), enemyObject->GetTransform().translate, enemy->GetTarget()});
+					static std::mt19937 itemDropRandomEngine(std::random_device{}());
+					std::uniform_real_distribution<float> itemDropDistribution(0.0f, 1.0f);
+					const EnemyStats& enemyStats = enemy->GetStats();
+					if (itemDropDistribution(itemDropRandomEngine) < enemyStats.healthItemDropChance) {
+						itemDropRequests.push_back({
+							ItemDropType::Health, enemyObject->GetTransform().translate,
+							enemy->GetTarget(), enemyStats.healthItemHealAmount
+						});
+					}
+					if (itemDropDistribution(itemDropRandomEngine) < enemyStats.collectExperienceItemDropChance) {
+						itemDropRequests.push_back({
+							ItemDropType::CollectAllExperience, enemyObject->GetTransform().translate,
+							enemy->GetTarget(), 0.0f
+						});
+					}
 					const std::string& enemyTypeName = enemy->GetEnemyTypeName();
 					const bool dropsBossUpgradeReward =
 					    enemyTypeName == "MidBoss" ||
 					    enemyTypeName == "ChaserMidBoss" ||
 					    enemyTypeName == "ShooterMidBoss" ||
-					    enemyTypeName == "ChargerMidBoss";
+					    enemyTypeName == "ChargerMidBoss" ||
+					    enemyTypeName == "Stage2Boss";
 					if (dropsBossUpgradeReward) {
 						static std::mt19937 bossRewardRandomEngine(std::random_device{}());
 						std::uniform_int_distribution<int> rewardRollDistribution(1, 100);
@@ -1305,6 +1455,9 @@ void BaseScene::UpdatePlayerProjectileHits() {
 	}
 	for (const BossUpgradeDropRequest& request : bossUpgradeDropRequests) {
 		CreateRuntimeBossUpgradeDrop(request.position, request.target, request.upgradeCount);
+	}
+	for (const ItemDropRequest& request : itemDropRequests) {
+		CreateRuntimeItemDrop(request.type, request.position, request.target, request.healAmount);
 	}
 }
 
@@ -1332,7 +1485,11 @@ void BaseScene::CleanupExpiredPlayerProjectiles() {
 			    return true;
 		    }
 		    ExperienceComponent* experience = object->GetComponent<ExperienceComponent>();
-		    return experience && (experience->IsCollected() || experience->IsConsumedByCompression());
+		    if (experience && (experience->IsCollected() || experience->IsConsumedByCompression())) {
+			    return true;
+		    }
+		    ItemDropComponent* item = object->GetComponent<ItemDropComponent>();
+		    return item && item->IsCollected() && item->IsEffectApplied();
 	    }),
 	    sceneObjects_.end()
 	);

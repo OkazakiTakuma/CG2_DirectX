@@ -1,0 +1,87 @@
+{
+    "extends": "GAMEPLAY_objects.json",
+    "objectOverrides": [
+        {
+            "name": "terrain_7",
+            "transform": {
+                "scale": [1.25, 1.0, 1.25]
+            },
+            "obbCollider": {
+                "halfSize": [12.5, 0.05, 12.5]
+            }
+        },
+        {
+            "name": "EnemySpawnPoint_8",
+            "enemySpawnPoint": {
+                "minimumRadius": 8.0,
+                "outerMargin": 5.5,
+                "spawnCount": 14,
+                "bossEncounter": {
+                    "enabled": true,
+                    "triggerTime": 300.0,
+                    "enemyTypeName": "Stage2Boss",
+                    "bossPosition": [0.0, 0.0, 0.0],
+                    "playerWarpPosition": [0.0, 0.0, 6.0]
+                },
+                "schedules": [
+                    {
+                        "startTime": 0.0,
+                        "endTime": 59.99,
+                        "enemyTypeName": "Stage2Chaser",
+                        "intervalFrames": 180,
+                        "spawnAmount": 2
+                    },
+                    {
+                        "startTime": 30.0,
+                        "endTime": 179.99,
+                        "enemyTypeName": "Stage2Shooter",
+                        "intervalFrames": 270,
+                        "spawnAmount": 1
+                    },
+                    {
+                        "startTime": 60.0,
+                        "endTime": 299.99,
+                        "enemyTypeName": "SelfDestruct",
+                        "intervalFrames": 300,
+                        "spawnAmount": 1
+                    },
+                    {
+                        "startTime": 60.0,
+                        "endTime": 179.99,
+                        "enemyTypeName": "Stage2Chaser",
+                        "intervalFrames": 140,
+                        "spawnAmount": 2
+                    },
+                    {
+                        "startTime": 120.0,
+                        "endTime": 299.99,
+                        "enemyTypeName": "Stage2Charger",
+                        "intervalFrames": 360,
+                        "spawnAmount": 1
+                    },
+                    {
+                        "startTime": 180.0,
+                        "endTime": 299.99,
+                        "enemyTypeName": "Stage2Chaser",
+                        "intervalFrames": 110,
+                        "spawnAmount": 3
+                    },
+                    {
+                        "startTime": 180.0,
+                        "endTime": 299.99,
+                        "enemyTypeName": "Stage2Shooter",
+                        "intervalFrames": 210,
+                        "spawnAmount": 2
+                    },
+                    {
+                        "startTime": 210.0,
+                        "endTime": 299.99,
+                        "enemyTypeName": "SelfDestruct",
+                        "intervalFrames": 210,
+                        "spawnAmount": 2
+                    }
+                ]
+            }
+        }
+    ]
+}

@@ -6,6 +6,7 @@
 #include "EnemyProjectileComponent.h"
 #include "EnemySpawnPointComponent.h"
 #include "ExperienceComponent.h"
+#include "ItemDropComponent.h"
 #include "GameObject.h"
 #include "ImGuiManager.h"
 #include "Input.h"
@@ -31,6 +32,7 @@
 #include "../../Player/Player.h"
 #include "collision/SphereColliderComponent.h"
 #include "SpriteComponent.h"
+#include "StageResultData.h"
 #include "TextComponent.h"
 #include "instancing/InstancingModel.h"
 #include <array>
@@ -111,9 +113,22 @@ public:
 /// </summary>
 	void DrawEditorImGui();
 	void SetSceneName(const std::string& sceneName) { sceneName_ = sceneName; }
+	/// <summary>
+	/// シーン名から決まる既定の配置JSONではなく、指定した配置JSONを使用します。
+	/// 空文字を指定すると既定パスへ戻ります。
+	/// </summary>
+	void SetSceneObjectFilePathOverride(const std::string& filePath) { sceneObjectFilePathOverride_ = filePath; }
+	/// <summary>現在読み書きする配置JSONファイルパスを返します。</summary>
+	std::string GetSceneObjectFilePath() const;
 	void SetFallbackCamera(Camera* camera) { fallbackCamera_ = camera; }
 	void SetPlayerTypeOverride(const std::string& playerTypeName) { playerTypeOverride_ = playerTypeName; }
 	bool IsLevelUpSelectionActive() const { return isLevelUpSelectionActive_; }
+	/// <summary>最終ボスを倒し、ステージクリア条件を満たしたかを返します。</summary>
+	bool IsStageCleared() const { return isStageCleared_; }
+	/// <summary>プレイヤーの体力が0になったかを返します。</summary>
+	bool IsPlayerDefeated() const;
+	/// <summary>現在の装備とプレイ戦績をリザルト表示用に取得します。</summary>
+	StageResultData GetStageResultData() const;
 /// <summary>
 /// エディタで配置したオブジェクト情報をJSONへ保存します。
 /// </summary>
@@ -228,6 +243,7 @@ private:
 	void UpdatePlayerAttacks();
 	void UpdatePlayerProjectileHits();
 	void UpdateExperienceCompression();
+	void UpdateItemDrops();
 	void UpdateBossUpgradeRewards();
 	void CleanupExpiredPlayerProjectiles();
 	void UpdatePlayerHealthHud();
@@ -259,16 +275,13 @@ private:
 	GameObject* CreateRuntimeEnemy(const std::string& enemyTypeName, const Vector3& position, GameObject* target);
 	GameObject* CreateRuntimeEnemyProjectile(const EnemyShotRequest& request);
 	GameObject* CreateRuntimeExperience(const EnemyStats& enemyStats, const Vector3& position, GameObject* target);
+	GameObject* CreateRuntimeItemDrop(ItemDropType type, const Vector3& position, GameObject* target, float healAmount = 0.0f);
 	void CreateRuntimeBossUpgradeDrop(const Vector3& position, GameObject* target, int upgradeCount);
 	int ApplyRandomBossUpgrades(Player* player, int upgradeCount);
 	void QueueBossAcquisitionOffers(Player* player, int offerCount);
 	bool ShowNextBossAcquisitionOffer();
 	GameObject* CreateRuntimePlayerProjectile(const PlayerAttackShotRequest& request);
 	GameObject* FindNearestEnemy(const Vector3& position) const;
-/// <summary>
-/// 現在のシーンに対応する配置JSONファイルパスを返します。
-/// </summary>
-	std::string GetSceneObjectFilePath() const;
 /// <summary>
 /// 文字列からエディタ生成タイプへ変換します。
 /// </summary>
@@ -278,10 +291,14 @@ private:
 
 	SceneManager* sceneManager = nullptr;
 	std::string sceneName_ = "None";
+	std::string sceneObjectFilePathOverride_;
 	std::string playerTypeOverride_;
 	std::vector<std::unique_ptr<GameObject>> sceneObjects_;
 	/// <summary>生存中のボス戦用ランタイム敵名です。空なら通常スポーンを再開します。</summary>
 	std::string activeBossEncounterObjectName_;
+	bool isStageCleared_ = false;
+	int defeatedEnemyCount_ = 0;
+	float survivalTimeSeconds_ = 0.0f;
 	int selectedObjectIndex_ = -1;
 	int nextObjectId_ = 1;
 	EditorCreateType createType_ = EditorCreateType::Object3dSphere;

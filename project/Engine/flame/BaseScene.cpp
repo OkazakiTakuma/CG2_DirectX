@@ -16,12 +16,51 @@ void BaseScene::Draw2D() {}
 
 void BaseScene::Draw3D() {}
 
+bool BaseScene::IsPlayerDefeated() const {
+	for (const auto& object : sceneObjects_) {
+		const Player* player = object->GetComponent<Player>();
+		if (player) {
+			return player->GetCurrentHealth() <= 0.0f;
+		}
+	}
+	return false;
+}
+
+StageResultData BaseScene::GetStageResultData() const {
+	StageResultData result;
+	result.defeatedEnemyCount = defeatedEnemyCount_;
+	result.survivalTimeSeconds = survivalTimeSeconds_;
+	result.stageCleared = isStageCleared_;
+	for (const auto& object : sceneObjects_) {
+		const Player* player = object->GetComponent<Player>();
+		if (!player) {
+			continue;
+		}
+		const PlayerStats& stats = player->GetBaseStats();
+		for (const PlayerAttackSlot& slot : stats.attackSlots) {
+			if (slot.enabled && !slot.attackName.empty()) {
+				result.attacks.push_back({slot.attackName, slot.attackLevel});
+			}
+		}
+		for (const PlayerStatusSlot& slot : stats.statusSlots) {
+			if (slot.enabled && !slot.statusName.empty()) {
+				result.statuses.push_back({slot.statusName, slot.level});
+			}
+		}
+		break;
+	}
+	return result;
+}
+
 /// <summary>
 /// シーンが保持しているリソースを解放します。
 /// </summary>
 void BaseScene::Finalize() {
 	sceneObjects_.clear();
 	activeBossEncounterObjectName_.clear();
+	isStageCleared_ = false;
+	defeatedEnemyCount_ = 0;
+	survivalTimeSeconds_ = 0.0f;
 	editorSkyBox_.reset();
 	playerHealthBarBackground_.reset();
 	playerHealthBarFill_.reset();
@@ -68,6 +107,7 @@ void BaseScene::Finalize() {
 /// シーン内オブジェクトの更新と当たり判定を行います。
 /// </summary>
 void BaseScene::UpdateSceneObjects() {
+	survivalTimeSeconds_ += GameTime::GetDeltaTime();
 	ResolveCameraLinks();
 	ResolveEnemySpawnPointLinks();
 	ResolveEnemyLinks();
@@ -82,6 +122,7 @@ void BaseScene::UpdateSceneObjects() {
 	UpdatePlayerAttacks();
 	UpdatePlayerProjectileHits();
 	UpdateBossUpgradeRewards();
+	UpdateItemDrops();
 	UpdateExperienceCompression();
 	UpdateEnemySpawning();
 	CleanupExpiredPlayerProjectiles();
