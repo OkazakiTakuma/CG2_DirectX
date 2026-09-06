@@ -42,6 +42,10 @@ public:
 	bool TriggerGamepadButton(WORD buttonMask) const;
 	bool TriggerGamepadLeft() const;
 	bool TriggerGamepadRight() const;
+	/// <summary>十字キー上、または左スティックを上へ倒した瞬間を返します。</summary>
+	bool TriggerGamepadUp() const;
+	/// <summary>十字キー下、または左スティックを下へ倒した瞬間を返します。</summary>
+	bool TriggerGamepadDown() const;
 
 private:
 	Input() = default;

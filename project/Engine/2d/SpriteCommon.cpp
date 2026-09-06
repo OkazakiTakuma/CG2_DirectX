@@ -25,6 +25,7 @@ void SpriteCommon::Initialize(DirectXCommon* dxCommon) {
 
 /// <param name="blendMode">描画時に使用するブレンドモードを指定します。</param>
 void SpriteCommon::SetDraw(uint32_t blendMode) {
+	// 3D描画が存在しないUI専用シーンでも、Spriteが参照するSRVヒープを必ず有効にする。
 	SrvManager::GetInstance()->PreDraw();
 	dxCommon_->GetCommandList()->SetPipelineState(graphicsPipelineStates[blendMode].Get());
 	dxCommon_->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());

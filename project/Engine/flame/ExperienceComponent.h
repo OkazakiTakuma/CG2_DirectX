@@ -48,12 +48,15 @@ public:
 	void SetAttractSpeed(float speed) { attractSpeed_ = speed < 0.0f ? 0.0f : (speed > 1.0f ? 1.0f : speed); }
 	float GetAttractSpeed() const { return attractSpeed_; }
 	bool IsCollected() const { return collected_; }
+	/// <summary>通常経験値ではなく、ボス撃破時の装備強化報酬として扱うかを設定します。</summary>
 	void SetBossUpgradeReward(bool enabled) { bossUpgradeReward_ = enabled; }
 	bool IsBossUpgradeReward() const { return bossUpgradeReward_; }
+	/// <summary>1個の報酬を拾った際に行う強化抽選回数を設定します。</summary>
 	void SetBossUpgradeCount(int count) { bossUpgradeCount_ = count < 1 ? 1 : count; }
 	int GetBossUpgradeCount() const { return bossUpgradeCount_; }
 	void MarkBossUpgradeApplied() { bossUpgradeApplied_ = true; }
 	bool IsBossUpgradeApplied() const { return bossUpgradeApplied_; }
+	/// <summary>別の経験値へ集約済みとして、回収対象から除外し削除処理へ渡します。</summary>
 	void MarkConsumedByCompression() { consumedByCompression_ = true; }
 	bool IsConsumedByCompression() const { return consumedByCompression_; }
 
@@ -71,9 +74,12 @@ private:
 	GameObject* target_ = nullptr;
 	/// <summary>通常の接触回収が完了したかを表します。</summary>
 	bool collected_ = false;
+	/// <summary>経験値加算を行わず、シーン側のボス報酬処理へ渡すための識別フラグです。</summary>
 	bool bossUpgradeReward_ = false;
+	/// <summary>報酬オブジェクトの個数ではなく、この1個に内包される強化回数です。</summary>
 	int bossUpgradeCount_ = 1;
+	/// <summary>回収後に同じ報酬を複数フレーム適用しないための完了フラグです。</summary>
 	bool bossUpgradeApplied_ = false;
-	/// <summary>圧縮攻撃によって消費され、通常回収から除外されたかを表します。</summary>
+	/// <summary>圧縮処理によって消費され、通常回収から除外されたかを表します。</summary>
 	bool consumedByCompression_ = false;
 };

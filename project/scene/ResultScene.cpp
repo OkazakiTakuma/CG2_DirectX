@@ -9,12 +9,14 @@
 #include <Xinput.h>
 
 namespace {
+/// <summary>単色背景・パネル用の白テクスチャスプライトを生成します。</summary>
 std::unique_ptr<Sprite> CreateColorSprite() {
 	auto sprite = std::make_unique<Sprite>();
 	sprite->Initialize("Resources/human/white.png");
 	return sprite;
 }
 
+/// <summary>中央揃えのリザルト用テキストオブジェクトを生成します。</summary>
 std::unique_ptr<GameObject> CreateTextObject(const std::string& text, float fontSize) {
 	auto object = std::make_unique<GameObject>();
 	TextComponent* textComponent = object->AddComponent<TextComponent>();
@@ -24,6 +26,7 @@ std::unique_ptr<GameObject> CreateTextObject(const std::string& text, float font
 	return object;
 }
 
+/// <summary>白テクスチャへ位置・サイズ・色を設定して矩形として描画します。</summary>
 void DrawColorSprite(Sprite* sprite, float x, float y, float width, float height, const Vector4& color) {
 	EulerTransform transform = sprite->GetTransform();
 	transform.translate = {x, y, 0.0f};
@@ -35,24 +38,35 @@ void DrawColorSprite(Sprite* sprite, float x, float y, float width, float height
 }
 }
 
+/// <summary>
+/// SceneManagerに保存された最終戦績から、固定表示するリザルトUIを構築します。
+/// </summary>
 void ResultScene::Initialize() {
 	backgroundSprite_ = CreateColorSprite();
 	panelSprite_ = CreateColorSprite();
 
 	const std::string playerName = sceneManager_ ? sceneManager_->GetSelectedPlayerTypeName() : "Unknown";
-	const std::string stageName = sceneManager_ ? sceneManager_->GetSelectedGameplayStageId() : "default";
+	const std::string stageName = sceneManager_
+	    ? sceneManager_->GetGameplayStageDisplayName(sceneManager_->GetSelectedGameplayStageId())
+	    : "平原";
+	// SceneManagerが保持したスナップショットを読み、ゲームプレイシーンへ再アクセスせず表示を構築する。
 	const StageResultData resultData = sceneManager_ ? sceneManager_->GetStageResultData() : StageResultData{};
 	isStageClear_ = resultData.stageCleared;
 	clearTextObject_ = CreateTextObject(isStageClear_ ? "STAGE CLEAR" : "GAME OVER", 64.0f);
+	// 秒数は画面上で読みやすい「分:秒」形式へ丸めて変換する。
 	const int totalSeconds = (std::max)(0, static_cast<int>(std::round(resultData.survivalTimeSeconds)));
 	const int minutes = totalSeconds / 60;
 	const int seconds = totalSeconds % 60;
 	std::ostringstream resultStream;
+	// 今回の獲得額と、加算後のゲーム全体の所持金を並べて表示する。
 	resultStream << "プレイヤー: " << playerName << "    ステージ: " << stageName
+	             << "\n今回の獲得金: " << resultData.moneyEarned << " G    所持金: "
+	             << (sceneManager_ ? sceneManager_->GetMoney() : resultData.moneyEarned) << " G"
 	             << "\n撃破数: " << resultData.defeatedEnemyCount << "    生存時間: "
 	             << std::setfill('0') << std::setw(2) << minutes << ':' << std::setw(2) << seconds;
 	resultTextObject_ = CreateTextObject(resultStream.str(), 25.0f);
 
+	// 装備欄を共通形式へ整形し、特殊レベルsuperだけはSUPER表記にする。
 	auto makeEquipmentText = [](const char* heading, const std::vector<StageResultEquipment>& equipment) {
 		std::ostringstream stream;
 		stream << heading << '\n';
@@ -73,11 +87,15 @@ void ResultScene::Initialize() {
 	    18.0f);
 }
 
+/// <summary>
+/// リザルト画面から選べる各遷移先への入力を処理します。
+/// </summary>
 void ResultScene::Update() {
 	if (!sceneManager_) {
 		return;
 	}
 	Input* input = Input::GetInstance();
+	// A系入力はステージ再選択、Y/Rは同条件で再挑戦、B/Qはタイトルへ戻る。
 	if (input->TriggerKey(DIK_SPACE) || input->TriggerKey(DIK_RETURN) ||
 	    input->TriggerGamepadButton(XINPUT_GAMEPAD_A)) {
 		sceneManager_->ChangeScene("STAGE_SELECT");
@@ -92,6 +110,9 @@ void ResultScene::Update() {
 	}
 }
 
+/// <summary>
+/// 解像度に合わせて中央パネルを配置し、戦績と装備を描画します。
+/// </summary>
 void ResultScene::Draw2D() {
 	DirectXCommon* dxCommon = SpriteCommon::GetInstance()->GetDxCommon();
 	if (!dxCommon || !backgroundSprite_ || !panelSprite_) {
@@ -105,10 +126,12 @@ void ResultScene::Draw2D() {
 	const float panelY = (screenHeight - panelHeight) * 0.5f;
 
 	SpriteCommon::GetInstance()->SetDraw(kBlendModeNormal);
+	// 背景の上へ中央パネルを重ね、その中を概要・装備2列・操作説明に分ける。
 	DrawColorSprite(backgroundSprite_.get(), 0.0f, 0.0f, screenWidth, screenHeight, {0.015f, 0.025f, 0.06f, 1.0f});
 	DrawColorSprite(panelSprite_.get(), panelX, panelY, panelWidth, panelHeight, {0.04f, 0.12f, 0.22f, 0.98f});
 
 	clearTextObject_->GetTransform().translate = {screenWidth * 0.5f, panelY + 62.0f, 0.0f};
+	// クリアはシアン、死亡は赤にして終了理由を視覚的にも区別する。
 	clearTextObject_->GetComponent<TextComponent>()->SetColor(
 	    isStageClear_ ? Vector4{0.35f, 0.95f, 1.0f, 1.0f} : Vector4{1.0f, 0.28f, 0.22f, 1.0f});
 	resultTextObject_->GetTransform().translate = {screenWidth * 0.5f, panelY + 145.0f, 0.0f};
@@ -122,6 +145,9 @@ void ResultScene::Draw2D() {
 	instructionTextObject_->Draw2D();
 }
 
+/// <summary>
+/// リザルト専用の表示リソースと終了状態を初期化します。
+/// </summary>
 void ResultScene::Finalize() {
 	isStageClear_ = false;
 	backgroundSprite_.reset();

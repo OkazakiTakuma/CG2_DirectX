@@ -16,16 +16,21 @@ struct TrailRenderPoint {
 /// <summary>各コンポーネントから集めた軌跡をカメラ向きの帯として一括描画します。</summary>
 class TrailRenderer {
 public:
+	/// <summary>フレーム内で共有するトレイル描画インスタンスを取得します。</summary>
 	static TrailRenderer* GetInstance();
 
+	/// <summary>動的頂点バッファとトレイル専用描画パイプラインを生成します。</summary>
 	void Initialize(DirectXCommon* dxCommon);
+	/// <summary>保留中の描画要求とGPUリソースを解放します。</summary>
 	void Finalize();
+	/// <summary>1本分の軌跡を現在フレームの描画待ちキューへ登録します。</summary>
 	void Submit(
 	    const std::vector<TrailRenderPoint>& points,
 	    float width,
 	    const Vector4& headColor,
 	    const Vector4& tailColor
 	);
+	/// <summary>登録済みの全軌跡をカメラ向きの帯へ変換し、一括描画します。</summary>
 	void Draw(Camera* camera);
 
 private:
@@ -54,6 +59,7 @@ private:
 
 	void CreateRootSignature();
 	void CreatePipelineState();
+	/// <summary>履歴点の各区間を2枚の三角形で構成される帯へ展開します。</summary>
 	void AppendRequestVertices(const Request& request, const Vector3& cameraPosition);
 
 	/// <summary>描画コマンドとGPUリソース作成に使用する共通処理です。</summary>

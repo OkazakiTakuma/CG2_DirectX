@@ -31,8 +31,9 @@
         ],
         "attackSpeed": 100.0,
         "baseHealth": 100.0,
-        "baseSpeed": 0.1,
-        "defense": 0.0,
+        "baseSpeed": 0.10000000149011612,
+        "damageInvincibilityDuration": 1.0,
+        "defense": 2.0,
         "experience": 0,
         "experienceCorrection": 100.0,
         "health": 100.0,
@@ -71,81 +72,8 @@
             }
         ]
     },
-    "walk.gltf": {
-        "attack": 100.0,
-        "attackSize": 100.0,
-        "attackSlots": [
-            {
-                "attack": "Straight",
-                "enabled": true,
-                "level": "1"
-            },
-            {
-                "attack": "",
-                "enabled": false,
-                "level": "1"
-            },
-            {
-                "attack": "",
-                "enabled": false,
-                "level": "1"
-            },
-            {
-                "attack": "",
-                "enabled": false,
-                "level": "1"
-            },
-            {
-                "attack": "",
-                "enabled": false,
-                "level": "1"
-            }
-        ],
-        "attackSpeed": 100.0,
-        "baseHealth": 100.0,
-        "baseSpeed": 0.10000000149011612,
-        "damageInvincibilityDuration": 1.0,
-        "defense": 0.0,
-        "experience": 0,
-        "experienceCorrection": 100.0,
-        "health": 100.0,
-        "initialAttack": "Straight",
-        "initialAttackLevel": "1",
-        "isAnimationModel": true,
-        "level": 1,
-        "model": "walk.gltf",
-        "name": "walk.gltf",
-        "speed": 100.0,
-        "statusSlots": [
-            {
-                "enabled": false,
-                "level": "1",
-                "status": ""
-            },
-            {
-                "enabled": false,
-                "level": "1",
-                "status": ""
-            },
-            {
-                "enabled": false,
-                "level": "1",
-                "status": ""
-            },
-            {
-                "enabled": false,
-                "level": "1",
-                "status": ""
-            },
-            {
-                "enabled": false,
-                "level": "1",
-                "status": ""
-            }
-        ]
-    },
     "巫女": {
-        "attack": 100.0,
+        "attack": 140.0,
         "attackSize": 100.0,
         "attackSlots": [
             {
@@ -175,10 +103,10 @@
             }
         ],
         "attackSpeed": 100.0,
-        "baseHealth": 100.0,
-        "baseSpeed": 0.10000000149011612,
+        "baseHealth": 150.0,
+        "baseSpeed": 0.15000000596046448,
         "damageInvincibilityDuration": 1.0,
-        "defense": 0.0,
+        "defense": 10.0,
         "experience": 0,
         "experienceCorrection": 100.0,
         "health": 100.0,
@@ -218,7 +146,7 @@
         ]
     },
     "烏天狗": {
-        "attack": 80.0,
+        "attack": 105.0,
         "attackSize": 120.0,
         "attackSlots": [
             {
@@ -248,10 +176,10 @@
             }
         ],
         "attackSpeed": 100.0,
-        "baseHealth": 80.0,
-        "baseSpeed": 0.30000001192092896,
+        "baseHealth": 130.0,
+        "baseSpeed": 0.3100000023841858,
         "damageInvincibilityDuration": 1.0,
-        "defense": 0.0,
+        "defense": 8.0,
         "experience": 0,
         "experienceCorrection": 100.0,
         "health": 100.0,
@@ -291,7 +219,7 @@
         ]
     },
     "猫": {
-        "attack": 100.0,
+        "attack": 140.0,
         "attackSize": 100.0,
         "attackSlots": [
             {
@@ -321,10 +249,10 @@
             }
         ],
         "attackSpeed": 130.0,
-        "baseHealth": 110.0,
-        "baseSpeed": 0.12999999523162842,
+        "baseHealth": 140.0,
+        "baseSpeed": 0.23000004887580872,
         "damageInvincibilityDuration": 1.0,
-        "defense": 0.0,
+        "defense": 6.0,
         "experience": 0,
         "experienceCorrection": 100.0,
         "health": 100.0,

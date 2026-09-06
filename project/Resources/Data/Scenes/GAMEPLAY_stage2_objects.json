@@ -7,7 +7,7 @@
                 "scale": [1.25, 1.0, 1.25]
             },
             "obbCollider": {
-                "halfSize": [12.5, 0.05, 12.5]
+                "halfSize": [24.0, 0.05, 12.5]
             }
         },
         {
@@ -60,6 +60,14 @@
                         "spawnAmount": 1
                     },
                     {
+                        "startTime": 150.0,
+                        "endTime": 299.99,
+                        "enemyTypeName": "Stage2GaleMidBoss",
+                        "intervalFrames": 1,
+                        "spawnAmount": 1,
+                        "spawnOnce": true
+                    },
+                    {
                         "startTime": 180.0,
                         "endTime": 299.99,
                         "enemyTypeName": "Stage2Chaser",
@@ -82,6 +90,28 @@
                     }
                 ]
             }
+        }
+    ],
+    "objectAdditions": [
+        {
+            "children": [],
+            "model": "terrain.obj",
+            "name": "stage2_wall_north",
+            "object3d": {"enabled": true, "modelTextureFilePath": "Resources/terrain/grass.png"},
+            "obbCollider": {"centerOffset": [0.0, 0.0, 0.0], "drawDebug": false, "enabled": true, "halfSize": [10.0, 0.5, 10.0], "pushBack": false},
+            "parent": "",
+            "transform": {"rotate": [1.57079632679, 0.0, 0.0], "scale": [3.0, 1.0, 0.2], "translate": [0.0, 1.0, 10.0]},
+            "type": "LoadedModel"
+        },
+        {
+            "children": [],
+            "model": "terrain.obj",
+            "name": "stage2_wall_south",
+            "object3d": {"enabled": true, "modelTextureFilePath": "Resources/terrain/grass.png"},
+            "obbCollider": {"centerOffset": [0.0, 0.0, 0.0], "drawDebug": false, "enabled": true, "halfSize": [10.0, 0.5, 10.0], "pushBack": false},
+            "parent": "",
+            "transform": {"rotate": [-1.57079632679, 0.0, 0.0], "scale": [3.0, 1.0, 0.2], "translate": [0.0, 1.0, -10.0]},
+            "type": "LoadedModel"
         }
     ]
 }

@@ -57,6 +57,14 @@ public:
 	}
 
 	void Clear() { points_.clear(); }
+	/// <summary>座標系の折り返し時に、保存済みの軌跡点を同じ移動量だけ平行移動します。</summary>
+	void TranslateHistory(const Vector3& translation) {
+		// 点を消去せず平行移動することで、ループ前後でも軌跡の長さと残り寿命を維持する。
+		for (Point& point : points_) {
+			point.position = point.position + translation;
+		}
+	}
+	/// <summary>falseの場合、既存の履歴は減衰させながら新しい点の追加だけを停止します。</summary>
 	void SetEmitting(bool emitting) { emitting_ = emitting; }
 	bool IsEmitting() const { return emitting_; }
 	void SetWidth(float width) { width_ = (std::max)(0.0f, width); }
@@ -68,7 +76,9 @@ public:
 	void SetMaxPointCount(size_t count) { maxPointCount_ = (std::max)(size_t{2}, count); }
 	void SetHeadColor(const Vector4& color) { headColor_ = color; }
 	void SetTailColor(const Vector4& color) { tailColor_ = color; }
+	/// <summary>所有オブジェクトの中心から履歴を記録する位置をずらします。</summary>
 	void SetOffset(const Vector3& offset) { offset_ = offset; }
+	/// <summary>履歴を指定オブジェクト基準の相対座標で保持し、基準の移動へ追従させます。</summary>
 	void SetPositionReference(GameObject* referenceObject) {
 		// 基準を切り替えてもワールド上の軌跡位置が飛ばないよう、保存座標を補正する。
 		const Vector3 oldOrigin = GetReferenceOrigin();
@@ -88,6 +98,7 @@ private:
 	};
 
 	Vector3 GetReferenceOrigin() const {
+		// 基準なしの場合は原点を返し、通常のワールド座標履歴として扱う。
 		return referenceObject_ ? referenceObject_->GetTransform().translate : Vector3{};
 	}
 

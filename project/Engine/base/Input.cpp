@@ -170,6 +170,18 @@ bool Input::TriggerGamepadRight() const {
 	return TriggerGamepadButton(XINPUT_GAMEPAD_DPAD_RIGHT) || (gamepadLeftStick_.x > 0.5f && previousGamepadLeftStick_.x <= 0.5f);
 }
 
+bool Input::TriggerGamepadUp() const {
+	// ニュートラル側からしきい値を跨いだフレームだけtrueにし、倒しっぱなしの連続入力を防ぐ。
+	return TriggerGamepadButton(XINPUT_GAMEPAD_DPAD_UP) ||
+	       (gamepadLeftStick_.z > 0.5f && previousGamepadLeftStick_.z <= 0.5f);
+}
+
+bool Input::TriggerGamepadDown() const {
+	// XInputの左スティックYは下方向が負値になる。
+	return TriggerGamepadButton(XINPUT_GAMEPAD_DPAD_DOWN) ||
+	       (gamepadLeftStick_.z < -0.5f && previousGamepadLeftStick_.z >= -0.5f);
+}
+
 bool Input::PushMouseButton(int buttonIndex) const {
 	if (buttonIndex < 0 || buttonIndex >= 8) {
 		return false;

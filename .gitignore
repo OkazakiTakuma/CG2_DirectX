@@ -376,6 +376,9 @@ FodyWeavers.xsd
 Screenshot_*.png
 Recording_*.mp4
 
+# Per-user game progress
+/project/Resources/Data/game_progress.json
+
 # Generated PDF documents and working files
 *.pdf
 /output/

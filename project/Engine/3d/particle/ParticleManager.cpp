@@ -42,6 +42,7 @@ std::vector<VertexData> GenerateRingVerticesForParticle(uint32_t segments, float
 	return vertices;
 }using namespace Logger;
 
+// 1グループあたりに保持・描画できるパーティクルの最大数です。
 const uint32_t ParticleManager::kMaxParticle = 10000;
 
 /// <summary>
@@ -194,6 +195,7 @@ void ParticleManager::CreateParticleGroup(const std::string& groupName, const st
 	group.vbView.StrideInBytes = sizeof(VertexData);
 	// =========================================================
 
+	// CPU側の上限と同じ件数をGPUへ転送できるよう、インスタンスバッファを確保します。
 	const uint32_t maxInstance = kMaxParticle;
 	uint32_t bufferSize = sizeof(ParticleForGPU) * maxInstance;
 
@@ -466,13 +468,31 @@ void ParticleManager::Update() {
 			const float deltaTime = GameTime::GetDeltaTime();
 			const float frameScale = GameTime::GetFrameScale60();
 
-			p.transform.translate.x += p.velocity.x * frameScale;
+			// 渦運動では後段でXZ座標を円軌道から求め直すため、通常の水平速度加算は行わない。
+			if (!p.isVortex) {
+				p.transform.translate.x += p.velocity.x * frameScale;
+				p.transform.translate.z += p.velocity.z * frameScale;
+			}
+			// 上昇速度と加速度は渦運動でも共通して適用し、螺旋状の流れを作る。
 			p.transform.translate.y += p.velocity.y * frameScale;
-			p.transform.translate.z += p.velocity.z * frameScale;
 
 			p.velocity.x += p.acceleration.x * frameScale;
 			p.velocity.y += p.acceleration.y * frameScale;
 			p.velocity.z += p.acceleration.z * frameScale;
+
+			if (p.isVortex) {
+				// 角速度は秒単位で更新し、フレームレートが変化しても回転速度を一定に保つ。
+				p.vortexAngle += p.vortexAngularSpeed * deltaTime;
+				// 現在高度を0～1へ正規化し、上へ進むほど半径が広がる円錐形状にする。
+				const float height = p.transform.translate.y - p.vortexCenter.y;
+				const float heightRatio = std::clamp(height / p.vortexHeight, 0.0f, 1.0f);
+				const float radius =
+					(p.vortexBaseRadius + (p.vortexTopRadius - p.vortexBaseRadius) * heightRatio) *
+					p.vortexRadiusScale;
+				// 極座標からXZ座標へ変換し、Y軸周りの円運動として反映する。
+				p.transform.translate.x = p.vortexCenter.x + std::cos(p.vortexAngle) * radius;
+				p.transform.translate.z = p.vortexCenter.z + std::sin(p.vortexAngle) * radius;
+			}
 
 			float t = p.currentTime / p.lifeTime;
 			if (t < 0.0f) {
@@ -508,6 +528,7 @@ void ParticleManager::Emit(const std::string& groupName, const Vector3& position
 		return;
 
 	ParticleGroup& group = particleGroups_[groupName];
+	// JSONや外部コードから上限を超える生成要求が来ても、GPUバッファの容量を超えないよう制限します。
 	const uint32_t currentParticleCount = static_cast<uint32_t>(group.particles.size());
 	const uint32_t availableParticleCount =
 	    currentParticleCount < kMaxParticle ? kMaxParticle - currentParticleCount : 0;
@@ -518,9 +539,37 @@ void ParticleManager::Emit(const std::string& groupName, const Vector3& position
 	for (uint32_t i = 0; i < emitCount; ++i) {
 		Particle newParticle;
 
-		newParticle.transform.translate.x = position.x + dist(randomEngine_) * emitParam.randomPositionRange.x;
-		newParticle.transform.translate.y = position.y + dist(randomEngine_) * emitParam.randomPositionRange.y;
-		newParticle.transform.translate.z = position.z + dist(randomEngine_) * emitParam.randomPositionRange.z;
+		if (emitParam.isVortex) {
+			// 初期角度を全周へ分散し、生成直後から竜巻全体が埋まって見えるようにする。
+			const float random01 = (dist(randomEngine_) + 1.0f) * 0.5f;
+			newParticle.isVortex = true;
+			newParticle.vortexCenter = position;
+			newParticle.vortexAngle = random01 * 2.0f * std::numbers::pi_v<float>;
+			newParticle.vortexAngularSpeed = emitParam.vortexAngularSpeed;
+			// 半径を82～118%へ散らし、薄い一枚の円錐面になるのを防ぐ。
+			newParticle.vortexRadiusScale = 0.82f + (dist(randomEngine_) + 1.0f) * 0.18f;
+			// 不正な半径や高さが渡されても除算ゼロや上下反転が起きないよう補正する。
+			newParticle.vortexBaseRadius = (std::max)(0.0f, emitParam.vortexBaseRadius);
+			newParticle.vortexTopRadius = (std::max)(newParticle.vortexBaseRadius, emitParam.vortexTopRadius);
+			newParticle.vortexHeight = (std::max)(0.01f, emitParam.vortexHeight);
+
+			// 高さも全域へランダム配置し、エフェクト開始時に下端から埋まる待ち時間をなくす。
+			const float initialHeight = (dist(randomEngine_) + 1.0f) * 0.5f * newParticle.vortexHeight;
+			const float heightRatio = initialHeight / newParticle.vortexHeight;
+			const float radius =
+				(newParticle.vortexBaseRadius +
+				 (newParticle.vortexTopRadius - newParticle.vortexBaseRadius) * heightRatio) *
+				newParticle.vortexRadiusScale;
+			newParticle.transform.translate = {
+				position.x + std::cos(newParticle.vortexAngle) * radius,
+				position.y + initialHeight,
+				position.z + std::sin(newParticle.vortexAngle) * radius};
+		} else {
+			// 通常パーティクルは従来どおり、直方体範囲内へランダム配置する。
+			newParticle.transform.translate.x = position.x + dist(randomEngine_) * emitParam.randomPositionRange.x;
+			newParticle.transform.translate.y = position.y + dist(randomEngine_) * emitParam.randomPositionRange.y;
+			newParticle.transform.translate.z = position.z + dist(randomEngine_) * emitParam.randomPositionRange.z;
+		}
 
 		newParticle.transform.scale.x = emitParam.scale.x + dist(randomEngine_) * emitParam.randomScaleRange.x;
 		newParticle.transform.scale.y = emitParam.scale.y + dist(randomEngine_) * emitParam.randomScaleRange.y;

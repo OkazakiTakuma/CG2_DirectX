@@ -18,6 +18,7 @@
 #pragma comment(lib, "windowscodecs.lib")
 
 namespace {
+// 出力動画はゲームのフレーム上限と同じ 60 fps、H.264 12 Mbps とする。
 constexpr uint32_t kRecordingFrameRate = 60;
 constexpr uint32_t kRecordingBitRate = 12'000'000;
 constexpr LONGLONG kHundredNanosecondsPerSecond = 10'000'000;
@@ -49,10 +50,12 @@ void ScreenCapture::ProcessFrame(
 	}
 
 	if (recording_ && (width != recordingWidth_ || height != recordingHeight_)) {
+		// MP4 ストリーム途中では解像度を変更できないため、現在のファイルを正常に確定する。
 		Logger::Log("Screen recording stopped because the render size changed.\n");
 		StopRecording();
 	}
 
+	// CaptureTexture は GPU の描画完了を待ち、PRESENT 状態を維持したまま CPU 読み取り画像を作る。
 	DirectX::ScratchImage capturedImage;
 	const HRESULT captureResult = DirectX::CaptureTexture(
 		commandQueue,
@@ -75,6 +78,7 @@ void ScreenCapture::ProcessFrame(
 	}
 
 	if (screenshotRequested_) {
+		// WIC 経由で PNG を保存し、同じ要求を次フレームへ持ち越さない。
 		const std::filesystem::path path = MakeCapturePath(L"Screenshot", L".png");
 		const HRESULT saveResult = DirectX::SaveToWICFile(
 			*image,
@@ -125,6 +129,7 @@ bool ScreenCapture::StartRecording(uint32_t width, uint32_t height) {
 		return false;
 	}
 
+	// Sink Writer の出力側を、一般的なプレイヤーで再生できる H.264 に設定する。
 	Microsoft::WRL::ComPtr<IMFMediaType> outputType;
 	hr = MFCreateMediaType(&outputType);
 	if (SUCCEEDED(hr)) hr = outputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
@@ -136,6 +141,7 @@ bool ScreenCapture::StartRecording(uint32_t width, uint32_t height) {
 	if (SUCCEEDED(hr)) hr = MFSetAttributeRatio(outputType.Get(), MF_MT_PIXEL_ASPECT_RATIO, 1, 1);
 	if (SUCCEEDED(hr)) hr = sinkWriter_->AddStream(outputType.Get(), &videoStreamIndex_);
 
+	// 入力側は DirectXTex から変換しやすい 32 bit BGRA（MFVideoFormat_RGB32）を使用する。
 	Microsoft::WRL::ComPtr<IMFMediaType> inputType;
 	if (SUCCEEDED(hr)) hr = MFCreateMediaType(&inputType);
 	if (SUCCEEDED(hr)) hr = inputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
@@ -164,6 +170,7 @@ bool ScreenCapture::StartRecording(uint32_t width, uint32_t height) {
 
 void ScreenCapture::StopRecording() {
 	if (sinkWriter_) {
+		// Finalize で MP4 の索引情報を書き終えてからファイルを解放する。
 		const HRESULT hr = sinkWriter_->Finalize();
 		if (FAILED(hr)) {
 			Logger::Log(std::format("Screen recording finalization failed: 0x{:08X}\n", static_cast<uint32_t>(hr)));
@@ -187,6 +194,7 @@ bool ScreenCapture::WriteVideoFrame(const DirectX::Image& image) {
 
 	DirectX::ScratchImage convertedImage;
 	const DirectX::Image* source = &image;
+	// スワップチェーンの RGBA を Media Foundation が受け取る BGRA へ並べ替える。
 	if (image.format != DXGI_FORMAT_B8G8R8A8_UNORM) {
 		const HRESULT convertResult = DirectX::Convert(
 			image,
@@ -233,6 +241,7 @@ bool ScreenCapture::WriteVideoFrame(const DirectX::Image& image) {
 	hr = MFCreateSample(&sample);
 	if (SUCCEEDED(hr)) hr = sample->AddBuffer(mediaBuffer.Get());
 
+	// 実時間を 100 ns 単位へ変換し、処理落ち時も再生速度が実際の録画時間と一致するようにする。
 	const auto elapsed = std::chrono::steady_clock::now() - recordingStartTime_;
 	LONGLONG sampleTime = std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count() / 100;
 	const LONGLONG minimumTime = (lastSampleTime_ < 0) ? 0 : lastSampleTime_ + 1;
@@ -251,6 +260,7 @@ bool ScreenCapture::WriteVideoFrame(const DirectX::Image& image) {
 }
 
 std::filesystem::path ScreenCapture::MakeCapturePath(const wchar_t* prefix, const wchar_t* extension) const {
+	// 作業ディレクトリではなく実行ファイルを基準にし、起動方法にかかわらず保存先を一定にする。
 	wchar_t executablePath[MAX_PATH]{};
 	const DWORD executablePathLength = GetModuleFileNameW(nullptr, executablePath, MAX_PATH);
 	const std::filesystem::path executableDirectory =

@@ -366,6 +366,9 @@ void PostEffect::ApplySettingsToBuffer() {
 	colorData_->time = time_;
 	colorData_->texelSize[0] = 1.0f / static_cast<float>(renderWidth_);
 	colorData_->texelSize[1] = 1.0f / static_cast<float>(renderHeight_);
+
+	// デバイス深度は非線形なので、シェーダーへ現在のカメラの Near / Far を渡して線形化します。
+	// カメラ未設定時もアウトライン処理を継続できるよう、安全な既定値を使用します。
 	const Camera* camera = Object3dCommon::GetInstance()->GetDefaultCamera();
 	const float nearClip = camera ? camera->GetNearClip() : 0.1f;
 	const float farClip = camera ? camera->GetFarClip() : 1000.0f;
@@ -426,6 +429,7 @@ void PostEffect::UpdateHotkeys() {
 		const float normalizedTime = damageVignetteDuration_ > 0.0f
 			? damageVignetteTimer_ / damageVignetteDuration_
 			: 0.0f;
+		// 二次減衰により、被弾直後を強く見せつつ後半の赤みを素早く消す。
 		damageVignetteCurrentIntensity_ = damageVignetteMaxIntensity_ * normalizedTime * normalizedTime;
 	} else {
 		damageVignetteCurrentIntensity_ = 0.0f;
@@ -468,6 +472,7 @@ void PostEffect::UpdateHotkeys() {
 }
 
 void PostEffect::TriggerDamageVignette() {
+	// 連続被弾時も現在値へ加算せず、常に同じ最大強度から再生する。
 	damageVignetteTimer_ = damageVignetteDuration_;
 	damageVignetteCurrentIntensity_ = damageVignetteMaxIntensity_;
 	ApplySettingsToBuffer();
@@ -615,6 +620,7 @@ void PostEffect::DrawImGui() {
 	ImGui::TextDisabled("Hotkeys: 1 Master / 2-9 Effects");
 	ImGui::Separator();
 
+	// 小さいウィンドウでも見つけやすいよう、アウトライン設定を先頭の展開セクションに配置します。
 	if (ImGui::CollapsingHeader("Outline Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
 		if (drawEffectToggle("Apply Outline", &enableOutline_)) {
 			colorData_->enableOutline = enableOutline_ ? 1 : 0;
@@ -627,6 +633,7 @@ void PostEffect::DrawImGui() {
 		ImGui::SliderFloat("Outline Strength", &outlineStrength_, 0.0f, 2.0f);
 		ImGui::SliderFloat("Outline Threshold", &outlineThreshold_, 0.001f, 0.5f, "%.3f");
 		ImGui::SliderFloat("Outline Thickness", &outlineThickness_, 1.0f, 8.0f, "%.1f px");
+		// 調整中に基準値へすぐ戻せるよう、アウトライン項目だけを初期化します。
 		if (ImGui::Button("Reset Outline Settings")) {
 			outlineColor_[0] = 0.0f;
 			outlineColor_[1] = 0.0f;

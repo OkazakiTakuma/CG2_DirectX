@@ -20,6 +20,7 @@ public:
 	/// 確保したリソースを解放し、終了処理を行います。
 	/// </summary>
 	void Finalize();
+	/// <summary>変更されたHLSLを反映するため、スカイボックス用PSOを再生成します。</summary>
 	void ReloadPipelineState() { CreatePipelineState(); }
 
 	DirectXCommon* GetDxCommon() const { return dxCommon_; }

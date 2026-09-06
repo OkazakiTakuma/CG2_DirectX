@@ -533,6 +533,7 @@ bool ImGuiManager::DetectFileChanges(
 			return;
 		}
 		const std::string key = path.lexically_normal().generic_string();
+		// 初回発見時は監視開始時点の基準値として登録し、起動直後の一斉リロードを防ぐ。
 		auto [it, inserted] = timestamps.emplace(key, writeTime);
 		if (!inserted && it->second != writeTime) {
 			it->second = writeTime;
@@ -573,6 +574,7 @@ bool ImGuiManager::ReloadShaders() {
 	hotReloadError_.clear();
 	const std::filesystem::path shaderDirectory = "Resources/Shader";
 	std::error_code error;
+	// PSOを触る前に全HLSLを検証する。1つでも失敗した場合は現在の正常なPSOを維持する。
 	for (const auto& entry : std::filesystem::recursive_directory_iterator(shaderDirectory, error)) {
 		if (error || !entry.is_regular_file() || entry.path().extension() != ".hlsl") {
 			continue;
@@ -587,7 +589,9 @@ bool ImGuiManager::ReloadShaders() {
 		}
 	}
 
+	// GPUが古いPSOを参照している間にComPtrを差し替えないよう、先に完了を待つ。
 	dxcommon->FlushGPU();
+	// 共通HLSLを複数の描画系が共有しているため、関連するPSOをまとめて再生成する。
 	SpriteCommon::GetInstance()->ReloadPipelineState();
 	LineCommon::GetInstance()->ReloadPipelineState();
 	Object3dCommon::GetInstance()->ReloadPipelineState();
@@ -607,6 +611,7 @@ bool ImGuiManager::ReloadTextures() {
 	if (!dxcommon) {
 		return false;
 	}
+	// 既存SRVが参照する旧リソースを破棄する前に、GPU側の利用完了を保証する。
 	dxcommon->FlushGPU();
 	const size_t count = TextureManager::GetInstance()->ReloadAllTextures();
 	hotReloadStatus_ = "Textures reloaded: " + std::to_string(count);
@@ -623,6 +628,7 @@ void ImGuiManager::StartCppBuild() {
 		return;
 	}
 	const std::filesystem::path solutionPath = std::filesystem::absolute("CG2_DirectX.sln");
+	// 実行中EXEはWindowsにロックされるため、プロセスごとの別フォルダーへ出力する。
 	const std::filesystem::path outputDirectory = std::filesystem::absolute(std::filesystem::path("../generated/HotReload") / std::to_string(GetCurrentProcessId()));
 	std::error_code error;
 	std::filesystem::create_directories(outputDirectory, error);
@@ -630,7 +636,9 @@ void ImGuiManager::StartCppBuild() {
 	hotReloadStatus_ = "Building C++ (Development)...";
 	hotReloadError_.clear();
 	cppBuildRunning_ = true;
+	// MSBuild中もゲームループとImGuiを止めないよう、ビルドはワーカースレッドで実行する。
 	cppBuildFuture_ = std::async(std::launch::async, [solutionPath, outputDirectory]() {
+		// vswhere経由でVisual Studioの配置に依存せずMSBuildを解決する。
 		const std::wstring script =
 			L"$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'; "
 			L"if (!(Test-Path $vswhere)) { exit 2 }; "
@@ -652,6 +660,7 @@ bool ImGuiManager::LaunchRebuiltExecutable() {
 	std::wstring commandLine = L"\"" + rebuiltExecutablePath_.wstring() + L"\"";
 	std::vector<wchar_t> mutableCommandLine(commandLine.begin(), commandLine.end());
 	mutableCommandLine.push_back(L'\0');
+	// Resources/... の相対パスを従来どおり解決できるよう、作業ディレクトリは引き継ぐ。
 	const std::wstring workingDirectory = std::filesystem::current_path().wstring();
 	STARTUPINFOW startupInfo{};
 	startupInfo.cb = sizeof(startupInfo);
@@ -688,6 +697,7 @@ bool ImGuiManager::PollCppBuild() {
 		return false;
 	}
 	hotReloadStatus_ = "Restarting rebuilt application...";
+	// 新プロセスの起動成功後だけ旧プロセスへ通常終了を要求する。
 	restartRequested_ = true;
 	return true;
 #else
@@ -697,8 +707,10 @@ bool ImGuiManager::PollCppBuild() {
 
 bool ImGuiManager::UpdateHotReload(const std::string& sceneJsonPath, const std::function<bool()>& reloadScene) {
 #ifdef USE_IMGUI
+	// futureをブロックせず確認し、ビルド中も毎フレームUIを更新する。
 	PollCppBuild();
 
+	// 種別ごとに監視表を分離し、自動リロード設定を独立して切り替えられるようにする。
 	const bool shaderChanged = DetectFileChanges("Resources/Shader", {".hlsl", ".hlsli"}, shaderTimestamps_);
 	const bool sceneChanged = !sceneJsonPath.empty() && DetectFileChanges(sceneJsonPath, {".json"}, sceneTimestamps_);
 	const bool textureChanged = DetectFileChanges("Resources", {".png", ".jpg", ".jpeg", ".bmp", ".tga", ".dds"}, textureTimestamps_);
@@ -708,6 +720,7 @@ bool ImGuiManager::UpdateHotReload(const std::string& sceneJsonPath, const std::
 	cppChanged |= DetectFileChanges("scene", {".h", ".hpp", ".cpp"}, cppTimestamps_);
 	cppChanged |= DetectFileChanges("main.cpp", {".cpp"}, cppTimestamps_);
 
+	// ファイル変更による自動実行と、下のImGuiボタンによる手動実行は同じ処理へ集約する。
 	if (autoReloadShaders_ && shaderChanged) {
 		ReloadShaders();
 	}
