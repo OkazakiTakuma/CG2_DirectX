@@ -4,6 +4,7 @@
 #include "repositories/PlayerStatusRepository.h"
 
 #include <algorithm>
+#include <cctype>
 #include <iomanip>
 #include <sstream>
 #include <Xinput.h>
@@ -27,6 +28,7 @@ std::unique_ptr<GameObject> CreateTextObject(const std::string& text, float font
 }
 
 void DrawColorSprite(Sprite* sprite, float x, float y, float width, float height, const Vector4& color) {
+	// 共有白テクスチャを指定矩形へ拡大し、乗算色だけで単色UIとして描画する。
 	EulerTransform transform = sprite->GetTransform();
 	transform.translate = {x, y, 0.0f};
 	sprite->SetTransform(transform);
@@ -38,20 +40,32 @@ void DrawColorSprite(Sprite* sprite, float x, float y, float width, float height
 }
 
 void PlayerSelectScene::Initialize() {
-	// リポジトリから選択候補を読み、背景とカードUIを構築する。
+	// リポジトリの一覧には設定欠損時のフォールバック用Defaultも含まれる。
+	// エディターなどではDefaultが必要なため一覧取得側は変更せず、プレイヤー選択画面だけで除外する。
 	playerTypeNames_ = LoadPlayerTypeNames();
+	playerTypeNames_.erase(
+	    std::remove(playerTypeNames_.begin(), playerTypeNames_.end(), "Default"),
+	    playerTypeNames_.end());
+	// 一覧にはロック中のキャラクターも残し、存在と開放状態をカード上で確認できるようにする。
 	selectedPlayerIndex_ = 0;
 	if (sceneManager_) {
 		const std::string& currentType = sceneManager_->GetSelectedPlayerTypeName();
 		const auto found = std::find(playerTypeNames_.begin(), playerTypeNames_.end(), currentType);
-		if (found != playerTypeNames_.end()) {
+		if (found != playerTypeNames_.end() && sceneManager_->IsPlayerTypeUnlocked(currentType)) {
 			selectedPlayerIndex_ = static_cast<int>(std::distance(playerTypeNames_.begin(), found));
+		} else {
+			// 前回選択が未開放なら、新規ゲームで必ず使用できる巫女へフォーカスを戻す。
+			const auto initialPlayer = std::find(playerTypeNames_.begin(), playerTypeNames_.end(), "巫女");
+			if (initialPlayer != playerTypeNames_.end()) {
+				selectedPlayerIndex_ = static_cast<int>(std::distance(playerTypeNames_.begin(), initialPlayer));
+			}
 		}
 	}
 	CreateUi();
 }
 
 void PlayerSelectScene::CreateUi() {
+	// 候補数はデータファイルに応じて変わるため、カードと説明文を同じ順序で動的生成する。
 	backgroundSprite_ = CreateColorSprite();
 	cardBorderSprites_.clear();
 	cardSprites_.clear();
@@ -63,15 +77,30 @@ void PlayerSelectScene::CreateUi() {
 	for (const std::string& playerTypeName : playerTypeNames_) {
 		cardBorderSprites_.push_back(CreateColorSprite());
 		cardSprites_.push_back(CreateColorSprite());
+		// 説明生成時に開放状態を判定し、ロック中なら能力値の代わりに案内文を設定する。
 		playerTextObjects_.push_back(CreateTextObject(MakePlayerDescription(LoadPlayerStats(playerTypeName)), 22.0f));
 	}
 }
 
 std::string PlayerSelectScene::MakePlayerDescription(const PlayerStats& stats) const {
+	if (sceneManager_ && !sceneManager_->IsPlayerTypeUnlocked(stats.name)) {
+		// 能力値は開放後まで伏せ、代わりにクリアが必要なステージを案内する。
+		std::string prerequisiteStage = sceneManager_->GetPlayerUnlockPrerequisiteStage(stats.name);
+		const std::string prerequisiteStageId = prerequisiteStage;
+		prerequisiteStage = sceneManager_->GetGameplayStageDisplayName(prerequisiteStage);
+		if (prerequisiteStageId != "default") {
+			std::transform(prerequisiteStage.begin(), prerequisiteStage.end(), prerequisiteStage.begin(), [](unsigned char character) {
+				return static_cast<char>(std::toupper(character));
+			});
+		}
+		return stats.name + "\n\nLOCKED\n" + prerequisiteStage + "クリアで開放";
+	}
+	// 実際にゲーム内で使われる補正後のHP・移動速度を表示値として計算する。
 	std::ostringstream stream;
 	stream << stats.name
 	       << "\n\nHP: " << static_cast<int>(stats.baseHealth * stats.health / 100.0f)
 	       << "\n攻撃: " << static_cast<int>(stats.attack)
+	       << "\n防御: " << static_cast<int>(stats.defense)
 	       << "\n移動速度: " << std::fixed << std::setprecision(2) << stats.baseSpeed * stats.speed / 100.0f
 	       << "\n攻撃速度: " << static_cast<int>(stats.attackSpeed)
 	       << "\n初期攻撃: " << stats.initialAttackName;
@@ -86,14 +115,19 @@ void PlayerSelectScene::Update() {
 	Input* input = Input::GetInstance();
 	const int playerCount = static_cast<int>(playerTypeNames_.size());
 	if (input->TriggerKey(DIK_A) || input->TriggerKey(DIK_LEFT) || input->TriggerGamepadLeft()) {
+		// ロック状態に関係なく移動できるため、プレイヤーは未開放キャラクターの存在を確認できる。
 		selectedPlayerIndex_ = (selectedPlayerIndex_ + playerCount - 1) % playerCount;
 	}
 	if (input->TriggerKey(DIK_D) || input->TriggerKey(DIK_RIGHT) || input->TriggerGamepadRight()) {
 		selectedPlayerIndex_ = (selectedPlayerIndex_ + 1) % playerCount;
 	}
 	if (input->TriggerKey(DIK_SPACE) || input->TriggerKey(DIK_RETURN) || input->TriggerGamepadButton(XINPUT_GAMEPAD_A)) {
-		sceneManager_->SetSelectedPlayerTypeName(playerTypeNames_[selectedPlayerIndex_]);
-		sceneManager_->ChangeScene("STAGE_SELECT");
+		const std::string& selectedPlayerType = playerTypeNames_[selectedPlayerIndex_];
+		// ロック中カードは確認と移動だけを許可し、ゲーム開始キャラクターには設定しない。
+		if (sceneManager_->IsPlayerTypeUnlocked(selectedPlayerType)) {
+			sceneManager_->SetSelectedPlayerTypeName(selectedPlayerType);
+			sceneManager_->ChangeScene("STAGE_SELECT");
+		}
 		return;
 	}
 	if (input->TriggerKey(DIK_Q) || input->TriggerGamepadButton(XINPUT_GAMEPAD_B)) {
@@ -113,6 +147,7 @@ void PlayerSelectScene::Draw2D() {
 	const float sideMargin = 48.0f;
 	const float gap = 22.0f;
 	const float availableWidth = screenWidth - sideMargin * 2.0f;
+	// 候補が増えても左右余白とカード間隔を保ち、可能な範囲で全カードを1画面へ収める。
 	const float cardWidth = (std::min)(300.0f, (availableWidth - gap * static_cast<float>((std::max)(0, playerCount - 1))) / (std::max)(1, playerCount));
 	const float cardHeight = (std::min)(390.0f, screenHeight - 220.0f);
 	const float totalWidth = cardWidth * playerCount + gap * (std::max)(0, playerCount - 1);
@@ -124,13 +159,18 @@ void PlayerSelectScene::Draw2D() {
 	for (int index = 0; index < playerCount; ++index) {
 		const float cardX = startX + static_cast<float>(index) * (cardWidth + gap);
 		const bool selected = index == selectedPlayerIndex_;
+		const bool unlocked = !sceneManager_ || sceneManager_->IsPlayerTypeUnlocked(playerTypeNames_[index]);
+		// ロック色を選択色より優先し、フォーカス中でも使用不能であることを視覚的に維持する。
 		DrawColorSprite(cardBorderSprites_[index].get(), cardX - 5.0f, cardY - 5.0f, cardWidth + 10.0f, cardHeight + 10.0f,
+		    !unlocked ? Vector4{0.20f, 0.21f, 0.24f, 1.0f} :
 		    selected ? Vector4{1.0f, 0.78f, 0.12f, 1.0f} : Vector4{0.22f, 0.25f, 0.32f, 1.0f});
 		DrawColorSprite(cardSprites_[index].get(), cardX, cardY, cardWidth, cardHeight,
+		    !unlocked ? Vector4{0.055f, 0.06f, 0.075f, 0.98f} :
 		    selected ? Vector4{0.10f, 0.30f, 0.56f, 0.98f} : Vector4{0.07f, 0.11f, 0.20f, 0.98f});
 		GameObject* textObject = playerTextObjects_[index].get();
 		textObject->GetTransform().translate = {cardX + cardWidth * 0.5f, cardY + cardHeight * 0.5f, 0.0f};
 		textObject->GetComponent<TextComponent>()->SetColor(
+		    !unlocked ? Vector4{0.48f, 0.50f, 0.56f, 1.0f} :
 		    selected ? Vector4{1.0f, 0.93f, 0.58f, 1.0f} : Vector4{0.92f, 0.94f, 1.0f, 1.0f});
 		textObject->Draw2D();
 	}

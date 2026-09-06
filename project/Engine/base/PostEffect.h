@@ -33,6 +33,7 @@ public:
 	/// 確保したリソースを解放し、終了処理を行います。
 	/// </summary>
 	void Finalize();
+	/// <summary>変更されたHLSLを反映するため、ポストエフェクト用PSOを再生成します。</summary>
 	void ReloadPipelineState() { CreatePipelineState(); }
 
 	/// <summary>
@@ -138,9 +139,11 @@ private:
 		float dissolveEdgeWidth;
 		float time;
 		float texelSize[2];
+		// 深度値をビュー空間の距離へ戻すための Near / Far クリップ距離です。
 		float cameraNearFar[2];
 		float outlineColor[4];
 		float dissolveEdgeColor[4];
+		// 通常ビネットと独立して合成する、被弾専用の赤い画面端エフェクト設定。
 		float damageVignetteIntensity;
 		float damageVignetteRadius;
 		float damageVignetteSoftness;
@@ -165,6 +168,7 @@ private:
 	float radialBlurStrength_ = 0.16f;
 	int radialBlurSamples_ = 16;
 	float randomStrength_ = 0.1f;
+	// 深度差アウトラインの描画濃度、検出感度、サンプリング間隔です。
 	float outlineStrength_ = 1.6f;
 	float outlineThreshold_ = 0.05f;
 	float outlineThickness_ = 2.0f;
@@ -173,6 +177,7 @@ private:
 	float dissolveEdgeWidth_ = 0.14f;
 	float dissolveEdgeColor_[4] = { 1.0f, 0.25f, 0.02f, 1.0f };
 	float time_ = 0.0f;
+	// TriggerDamageVignetteでタイマーを戻し、二次曲線で素早く減衰させる。
 	float damageVignetteTimer_ = 0.0f;
 	float damageVignetteDuration_ = 0.45f;
 	float damageVignetteMaxIntensity_ = 0.95f;

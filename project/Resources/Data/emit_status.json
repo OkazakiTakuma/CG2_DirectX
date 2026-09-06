@@ -283,6 +283,82 @@
         "meshType": 0,
         "textureFilePath": "Resources/circle.png"
     },
+    "Tornado": {
+        "blendMode": 1,
+        "count": 0,
+        "emitParam": {
+            "acceleration": [
+                0.0,
+                0.0015,
+                0.0
+            ],
+            "baseRotate": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "baseVelocity": [
+                0.0,
+                0.035,
+                0.0
+            ],
+            "color": [
+                0.72,
+                0.75,
+                0.78,
+                0.72
+            ],
+            "count": 10,
+            "endColor": [
+                0.9,
+                0.92,
+                0.95,
+                0.0
+            ],
+            "endScale": [
+                0.18,
+                0.18,
+                0.18
+            ],
+            "isBillboard": true,
+            "isRandomRotate": true,
+            "isVortex": true,
+            "lifeTime": 2.4,
+            "randomPositionRange": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "randomRotateRange": [
+                0.0,
+                0.0,
+                6.283185
+            ],
+            "randomScaleRange": [
+                0.14,
+                0.14,
+                0.0
+            ],
+            "randomVelocityRange": [
+                0.0,
+                0.012,
+                0.0
+            ],
+            "scale": [
+                0.48,
+                0.48,
+                0.48
+            ],
+            "vortexAngularSpeed": 8.5,
+            "vortexBaseRadius": 0.18,
+            "vortexHeight": 6.0,
+            "vortexTopRadius": 3.0
+        },
+        "frequency": 0.035,
+        "isActive": true,
+        "meshType": 0,
+        "textureFilePath": "Resources/circle.png"
+    },
     "Slash": {
         "blendMode": 2,
         "count": 0,

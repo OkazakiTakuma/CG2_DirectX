@@ -22,8 +22,11 @@ public:
 		std::string enemyTypeName = "Default";
 		int spawnIntervalFrames = 60;
 		int spawnAmount = 1;
+		/// <summary>trueの場合、時間帯内で最初の生成要求だけを発行します。</summary>
 		bool spawnOnce = false;
+		/// <summary>実行中だけ使用する生成間隔カウンターです。JSONには保存しません。</summary>
 		int frameCounter = 0;
+		/// <summary>spawnOnceスケジュールが生成済みかを表す実行時フラグです。</summary>
 		bool hasSpawned = false;
 	};
 	/// <summary>シーン側へ渡す、生成位置が確定した敵生成要求です。</summary>
@@ -43,6 +46,7 @@ public:
 	void Update() override {
 		// カメラの変化へ追従して候補点を更新し、生成が有効な間だけ経過時間を進める。
 		RecalculateSpawnPoints();
+		// ボス戦中は通常敵の出現時刻とフレーム間隔を停止地点のまま維持する。
 		if (spawnEnabled_ && !bossEncounterActive_) {
 			elapsedTimeSeconds_ += GameTime::GetDeltaTime();
 		}
@@ -108,6 +112,7 @@ public:
 	void SetSpawnEnabled(bool spawnEnabled) { spawnEnabled_ = spawnEnabled; }
 	bool GetSpawnEnabled() const { return spawnEnabled_; }
 	void ResetSpawnTimer() {
+		// エディタの再生し直しや設定変更後に、一度限定イベントも含めて最初から再実行できる状態へ戻す。
 		spawnTimerSeconds_ = 0.0f;
 		elapsedTimeSeconds_ = 0.0f;
 		nextSpawnIndex_ = 0;
@@ -121,6 +126,7 @@ public:
 	std::vector<SpawnSchedule>& GetSpawnSchedules() { return spawnSchedules_; }
 	const std::vector<SpawnSchedule>& GetSpawnSchedules() const { return spawnSchedules_; }
 	void SetSpawnSchedules(const std::vector<SpawnSchedule>& schedules) {
+		// 保存データやインスペクターから受け取った値を正規化し、全スケジュールを先頭から再生する。
 		spawnSchedules_ = schedules;
 		for (SpawnSchedule& schedule : spawnSchedules_) {
 			schedule.startTimeSeconds = (std::max)(0.0f, schedule.startTimeSeconds);
@@ -136,6 +142,7 @@ public:
 	BossEncounterSettings& GetBossEncounterSettings() { return bossEncounterSettings_; }
 	const BossEncounterSettings& GetBossEncounterSettings() const { return bossEncounterSettings_; }
 	void SetBossEncounterSettings(const BossEncounterSettings& settings) {
+		// JSONやImGuiから渡された値を安全な範囲へ補正し、変更後は再度発火可能にする。
 		bossEncounterSettings_ = settings;
 		bossEncounterSettings_.triggerTimeSeconds = (std::max)(0.0f, bossEncounterSettings_.triggerTimeSeconds);
 		bossEncounterSettings_.enemyTypeName =
@@ -143,6 +150,7 @@ public:
 		bossEncounterTriggered_ = false;
 	}
 	bool ConsumeBossEncounterRequest() {
+		// 時刻到達後の最初の呼び出しだけtrueを返し、毎フレームのボス多重生成を防ぐ。
 		if (!spawnEnabled_ || !bossEncounterSettings_.enabled || bossEncounterTriggered_ ||
 		    elapsedTimeSeconds_ < bossEncounterSettings_.triggerTimeSeconds) {
 			return false;
@@ -161,6 +169,7 @@ public:
 			return requests;
 		}
 		for (SpawnSchedule& schedule : spawnSchedules_) {
+			// 中ボスなどの一度限定スケジュールは、時間帯が続いていても再生成しない。
 			if (schedule.spawnOnce && schedule.hasSpawned) {
 				continue;
 			}
@@ -183,12 +192,14 @@ public:
 				});
 				++nextSpawnIndex_;
 			}
+			// 通常スケジュールでも値を保持してよいが、spawnOnceがtrueのときだけ次回判定に使用する。
 			schedule.hasSpawned = true;
 		}
 		return requests;
 	}
 
 	bool ConsumeSpawnRequest(float spawnsPerMinute, Vector3& outPosition) {
+		// スケジュール未設定シーンとの互換用。毎分生成数を秒間隔へ変換して1体ずつ要求する。
 		if (!spawnEnabled_ || spawnPoints_.empty() || spawnsPerMinute <= 0.0f) {
 			return false;
 		}
@@ -217,6 +228,7 @@ private:
 			return false;
 		}
 
+		// NDCの手前・奥をワールド座標へ戻し、その2点から地面へ向かうカメラレイを作る。
 		const Matrix4x4 inverseViewProjection = Inverse(camera->GetViewProjectionMatrix());
 		const Vector3 nearPoint = TransformCoord({ndc.x, ndc.y, 0.0f}, inverseViewProjection);
 		const Vector3 farPoint = TransformCoord({ndc.x, ndc.y, 1.0f}, inverseViewProjection);
@@ -225,6 +237,7 @@ private:
 			return false;
 		}
 
+		// ray(t) = near + direction * t と水平面 y = groundY_ の交点を求める。
 		const float t = (groundY_ - nearPoint.y) / direction.y;
 		if (t < 0.0f) {
 			return false;
@@ -263,6 +276,7 @@ private:
 		}
 
 		for (int index = 0; index < spawnCount_; ++index) {
+			// 各方向に対して視錐台の最遠点を投影し、さらに外側マージンを足して画面外へ配置する。
 			const float angle = (static_cast<float>(index) / static_cast<float>(spawnCount_)) * MathConstants::kPi * 2.0f;
 			const Vector3 direction{std::cos(angle), 0.0f, std::sin(angle)};
 			float visibleRadiusInDirection = minimumRadius_;

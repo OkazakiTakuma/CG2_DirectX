@@ -4,6 +4,7 @@
 #include "model/ModelManager.h"
 #include "repositories/PlayerStatusRepository.h"
 #include "helpers/SceneJsonUtility.h"
+#include "SceneManager.h"
 
 #include <filesystem>
 #include <fstream>
@@ -181,6 +182,7 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["obbCollider"]["centerOffset"] = Vector3ToJson(collider->GetCenterOffset());
 			objectJson["obbCollider"]["halfSize"] = Vector3ToJson(collider->GetHalfSize());
 			objectJson["obbCollider"]["drawDebug"] = collider->GetDrawDebug();
+			// 衝突時に位置補正を行うかをシーン単位で保存します。
 			objectJson["obbCollider"]["pushBack"] = collider->GetPushBackEnabled();
 		}
 		if (SphereColliderComponent* collider = object->GetComponent<SphereColliderComponent>()) {
@@ -189,6 +191,7 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["sphereCollider"]["centerOffset"] = Vector3ToJson(collider->GetCenterOffset());
 			objectJson["sphereCollider"]["radius"] = collider->GetRadius();
 			objectJson["sphereCollider"]["drawDebug"] = collider->GetDrawDebug();
+			// 衝突時に位置補正を行うかをシーン単位で保存します。
 			objectJson["sphereCollider"]["pushBack"] = collider->GetPushBackEnabled();
 		}
 		if (Object3dComponent* object3dComponent = object->GetComponent<Object3dComponent>()) {
@@ -197,6 +200,7 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["object3d"]["modelTextureFilePath"] = object3dComponent->GetModelTextureFilePath();
 			objectJson["object3d"]["drawSkeleton"] = object3dComponent->GetDrawSkeleton();
 			objectJson["object3d"]["animationPlaying"] = object3dComponent->GetAnimationPlaying();
+			// 同じモデルを使うオブジェクトごとに、選択中のアニメーションクリップ名を保存する。
 			objectJson["object3d"]["animationName"] = object3dComponent->GetAnimationName();
 			objectJson["object3d"]["isPointLight"] = object3dComponent->GetIsPointLightSet();
 			objectJson["object3d"]["pointLight"]["color"] = Vector4ToJson(object3dComponent->GetPointLightColor());
@@ -230,6 +234,11 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["particleEmitter"]["param"]["endColor"] = Vector4ToJson(param.endColor);
 			objectJson["particleEmitter"]["param"]["randomScaleRange"] = Vector3ToJson(param.randomScaleRange);
 			objectJson["particleEmitter"]["param"]["isBillboard"] = param.isBillboard;
+			objectJson["particleEmitter"]["param"]["isVortex"] = param.isVortex;
+			objectJson["particleEmitter"]["param"]["vortexAngularSpeed"] = param.vortexAngularSpeed;
+			objectJson["particleEmitter"]["param"]["vortexBaseRadius"] = param.vortexBaseRadius;
+			objectJson["particleEmitter"]["param"]["vortexTopRadius"] = param.vortexTopRadius;
+			objectJson["particleEmitter"]["param"]["vortexHeight"] = param.vortexHeight;
 		}
 		if (EnemySpawnPointComponent* enemySpawnPoint = object->GetComponent<EnemySpawnPointComponent>()) {
 			objectJson["type"] = "EnemySpawnPoint";
@@ -246,6 +255,7 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["enemySpawnPoint"]["pointHeight"] = enemySpawnPoint->GetPointHeight();
 			objectJson["enemySpawnPoint"]["drawDebug"] = enemySpawnPoint->GetDrawDebug();
 			objectJson["enemySpawnPoint"]["debugPointSize"] = enemySpawnPoint->GetDebugPointSize();
+			// ボス戦の時刻・敵種・双方の座標をシーン固有設定として保存する。
 			const EnemySpawnPointComponent::BossEncounterSettings& bossSettings = enemySpawnPoint->GetBossEncounterSettings();
 			objectJson["enemySpawnPoint"]["bossEncounter"] = {
 				{"enabled", bossSettings.enabled},
@@ -256,6 +266,7 @@ void BaseScene::SaveEditorObjects() {
 			};
 			objectJson["enemySpawnPoint"]["schedules"] = nlohmann::json::array();
 			for (const EnemySpawnPointComponent::SpawnSchedule& schedule : enemySpawnPoint->GetSpawnSchedules()) {
+				// frameCounterとhasSpawnedは実行時状態なので保存せず、spawnOnceの設定値だけを永続化する。
 				objectJson["enemySpawnPoint"]["schedules"].push_back({
 					{"startTime", schedule.startTimeSeconds},
 					{"endTime", schedule.endTimeSeconds},
@@ -316,8 +327,11 @@ void BaseScene::LoadEditorObjects() {
 
 	sceneObjects_.clear();
 	activeBossEncounterObjectName_.clear();
+	// ステージ再読み込みを新しい挑戦として扱い、前回の戦績をすべて破棄する。
 	isStageCleared_ = false;
 	defeatedEnemyCount_ = 0;
+	// シーン再読み込み時に前回挑戦の獲得額が引き継がれないよう初期化する。
+	challengeMoneyEarned_ = 0;
 	survivalTimeSeconds_ = 0.0f;
 	editorSkyBox_.reset();
 	selectedObjectIndex_ = -1;
@@ -355,6 +369,7 @@ void BaseScene::LoadEditorObjects() {
 		std::string modelFilePath = objectJson.value("model", "");
 		if (typeName == "Player") {
 			const nlohmann::json playerJson = objectJson.value("player", nlohmann::json::object());
+			// 選択タイプをCreateEditorObjectへ渡し、生成直後から対応するモデルとComponent設定を作る。
 			modelFilePath = playerTypeOverride_.empty()
 			    ? playerJson.value("typeName", playerJson.value("model", modelFilePath))
 			    : playerTypeOverride_;
@@ -387,11 +402,15 @@ void BaseScene::LoadEditorObjects() {
 			const nlohmann::json playerJson = objectJson.value("player", nlohmann::json::object());
 			player->SetEnabled(playerJson.value("enabled", player->IsEnabled()));
 			LoadComponentGravity(playerJson, player);
+			// 通常のエディタ読み込みではJSONを尊重し、ゲーム開始時だけ選択タイプで差し替える。
 			const std::string playerTypeName = playerTypeOverride_.empty()
 			    ? playerJson.value("typeName", player->GetPlayerTypeName())
 			    : playerTypeOverride_;
 			player->SetPlayerTypeName(playerTypeName);
 			PlayerStats playerStats = LoadPlayerStats(playerTypeName);
+			// 全体経験値強化はキャラクター能力JSONへ混ぜず、実行時のPlayerへ独立して設定する。
+			player->SetGlobalExperienceBonusPercent(
+			    sceneManager ? sceneManager->GetGlobalExperienceBonusPercent() : 0.0f);
 			player->ApplyStats(playerStats, ApplyPlayerStatusItems(playerStats));
 			PlayerAttackComponent* attack = object->GetComponent<PlayerAttackComponent>();
 			if (!attack) {
@@ -403,6 +422,7 @@ void BaseScene::LoadEditorObjects() {
 			LoadComponentGravity(attackJson, attack);
 			const Vector3 spawnPoint = JsonToVector3(playerJson.value("spawnPoint", nlohmann::json::array()), transform.translate);
 			player->SetSpawnPoint(spawnPoint);
+			// タイプ固有モデルを使う場合は、配置時に保存された旧モデル情報を引き継がない。
 			const std::string playerModelFilePath = playerTypeOverride_.empty()
 			    ? playerJson.value("model", player->GetModelFilePath())
 			    : playerStats.modelFilePath;
@@ -419,6 +439,7 @@ void BaseScene::LoadEditorObjects() {
 			}
 			player->ResetToSpawnPoint();
 			player->SetCurrentHealth(player->GetMaxHealth());
+			// 選択タイプで開始する新規プレイでは、保存された配置用レベル・経験値ではなく初期値へ戻す。
 			player->SetLevel(playerTypeOverride_.empty() ? playerJson.value("level", player->GetStats().level) : playerStats.level);
 			player->SetExperience(playerTypeOverride_.empty() ? playerJson.value("experience", player->GetStats().experience) : playerStats.experience);
 			CameraComponent* playerCamera = object->GetComponent<CameraComponent>();
@@ -480,6 +501,7 @@ void BaseScene::LoadEditorObjects() {
 				object3dComponent->SetModelTexture(textureFilePath);
 			}
 			object3dComponent->SetDrawSkeleton(object3dJson.value("drawSkeleton", object3dComponent->GetDrawSkeleton()));
+			// 旧シーンにanimationNameがない場合は、モデル設定時に選ばれた先頭クリップを維持する。
 			const std::string animationName = object3dJson.value("animationName", object3dComponent->GetAnimationName());
 			if (!animationName.empty()) {
 				object3dComponent->SetAnimation(animationName, false);
@@ -519,6 +541,7 @@ void BaseScene::LoadEditorObjects() {
 			collider->SetCenterOffset(JsonToVector3(colliderJson.value("centerOffset", nlohmann::json::array()), collider->GetCenterOffset()));
 			collider->SetHalfSize(JsonToVector3(colliderJson.value("halfSize", nlohmann::json::array()), collider->GetHalfSize()));
 			collider->SetDrawDebug(colliderJson.value("drawDebug", collider->GetDrawDebug()));
+			// 古い保存データに pushBack が無い場合は現在値を維持します。
 			collider->SetPushBackEnabled(colliderJson.value("pushBack", collider->GetPushBackEnabled()));
 		}
 		if (objectJson.contains("sphereCollider")) {
@@ -532,6 +555,7 @@ void BaseScene::LoadEditorObjects() {
 			collider->SetCenterOffset(JsonToVector3(colliderJson.value("centerOffset", nlohmann::json::array()), collider->GetCenterOffset()));
 			collider->SetRadius(colliderJson.value("radius", collider->GetRadius()));
 			collider->SetDrawDebug(colliderJson.value("drawDebug", collider->GetDrawDebug()));
+			// 古い保存データに pushBack が無い場合は現在値を維持します。
 			collider->SetPushBackEnabled(colliderJson.value("pushBack", collider->GetPushBackEnabled()));
 		}
 		if (ParticleEmitterComponent* emitter = object->GetComponent<ParticleEmitterComponent>()) {
@@ -569,6 +593,11 @@ void BaseScene::LoadEditorObjects() {
 			param.endColor = JsonToVector4(paramJson.value("endColor", nlohmann::json::array()), param.endColor);
 			param.randomScaleRange = JsonToVector3(paramJson.value("randomScaleRange", nlohmann::json::array()), param.randomScaleRange);
 			param.isBillboard = paramJson.value("isBillboard", param.isBillboard);
+			param.isVortex = paramJson.value("isVortex", param.isVortex);
+			param.vortexAngularSpeed = paramJson.value("vortexAngularSpeed", param.vortexAngularSpeed);
+			param.vortexBaseRadius = paramJson.value("vortexBaseRadius", param.vortexBaseRadius);
+			param.vortexTopRadius = paramJson.value("vortexTopRadius", param.vortexTopRadius);
+			param.vortexHeight = paramJson.value("vortexHeight", param.vortexHeight);
 			emitter->SetParam(param);
 		}
 		if (objectJson.contains("enemySpawnPoint")) {
@@ -590,6 +619,7 @@ void BaseScene::LoadEditorObjects() {
 			enemySpawnPoint->SetPointHeight(spawnJson.value("pointHeight", enemySpawnPoint->GetPointHeight()));
 			enemySpawnPoint->SetDrawDebug(spawnJson.value("drawDebug", enemySpawnPoint->GetDrawDebug()));
 			enemySpawnPoint->SetDebugPointSize(spawnJson.value("debugPointSize", enemySpawnPoint->GetDebugPointSize()));
+			// 古いシーンJSONとの互換性を保つため、bossEncounterが存在する場合だけ復元する。
 			if (spawnJson.contains("bossEncounter") && spawnJson["bossEncounter"].is_object()) {
 				const nlohmann::json bossJson = spawnJson["bossEncounter"];
 				EnemySpawnPointComponent::BossEncounterSettings bossSettings = enemySpawnPoint->GetBossEncounterSettings();
@@ -615,6 +645,7 @@ void BaseScene::LoadEditorObjects() {
 					schedule.enemyTypeName = scheduleJson.value("enemyTypeName", schedule.enemyTypeName);
 					schedule.spawnIntervalFrames = scheduleJson.value("intervalFrames", schedule.spawnIntervalFrames);
 					schedule.spawnAmount = scheduleJson.value("spawnAmount", schedule.spawnAmount);
+					// spawnOnceがない旧データはfalseとなり、従来どおり繰り返し生成される。
 					schedule.spawnOnce = scheduleJson.value("spawnOnce", schedule.spawnOnce);
 					schedules.push_back(schedule);
 				}

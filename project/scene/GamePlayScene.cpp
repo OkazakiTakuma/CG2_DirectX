@@ -4,6 +4,7 @@
 #include <model/ModelManager.h>
 #include "instancing/InstancingModelCommon.h"
 #include "GameTime.h"
+#include <Xinput.h>
 
 namespace {
 #ifdef USE_IMGUI
@@ -109,6 +110,31 @@ bool BeginEditorPanel(const char* name, const ImVec2& pos, const ImVec2& size) {
 #endif
 }
 #endif
+
+std::unique_ptr<Sprite> CreatePauseColorSprite() {
+	auto sprite = std::make_unique<Sprite>();
+	sprite->Initialize("Resources/human/white.png");
+	return sprite;
+}
+
+std::unique_ptr<GameObject> CreatePauseTextObject(const std::string& text, float fontSize) {
+	auto object = std::make_unique<GameObject>();
+	TextComponent* textComponent = object->AddComponent<TextComponent>();
+	textComponent->SetText(text);
+	textComponent->SetFontSize(fontSize);
+	textComponent->SetAnchor(TextComponent::Anchor::Center);
+	return object;
+}
+
+void DrawPauseColorSprite(Sprite* sprite, float x, float y, float width, float height, const Vector4& color) {
+	EulerTransform transform = sprite->GetTransform();
+	transform.translate = {x, y, 0.0f};
+	sprite->SetTransform(transform);
+	sprite->SetSize({width, height});
+	sprite->SetColor(color);
+	sprite->Update();
+	sprite->Draw();
+}
 }
 
 /// <summary>
@@ -116,6 +142,7 @@ bool BeginEditorPanel(const char* name, const ImVec2& pos, const ImVec2& size) {
 /// </summary>
 void GamePlayScene::Initialize() {
 	LoadSceneModels();
+	InitializePauseMenu();
 
 	std::vector<std::string> allTextures = {
 			"Resources/circle.png",
@@ -155,6 +182,7 @@ void GamePlayScene::LoadSceneModels() {
 	ModelManager::GetInstance()->LoadModel("axis.obj");
 	ModelManager::GetInstance()->LoadModel("sphere.obj");
 	ModelManager::GetInstance()->LoadModel("terrain.obj", false, "/terrain");
+	// 烏天狗の右手へ装備する刀を専用フォルダから事前読み込みする。
 	ModelManager::GetInstance()->LoadModel("brade.obj", false, "/brade");
 }
 
@@ -162,8 +190,16 @@ void GamePlayScene::LoadSceneModels() {
 /// 毎フレームの状態更新を行います。
 /// </summary>
 void GamePlayScene::Update() {
+	// クリアと死亡のどちらでも、シーン破棄前に最終戦績を確定してリザルトへ渡す。
 	if (IsStageCleared() || IsPlayerDefeated()) {
-		sceneManager->SetStageResultData(GetStageResultData());
+		const StageResultData resultData = GetStageResultData();
+		if (resultData.stageCleared) {
+			// クリア時だけ履歴と新規開放を記録する。死亡終了はクリア条件を満たさない。
+			sceneManager->RecordGameplayStageClear(sceneManager->GetSelectedGameplayStageId());
+		}
+		// Gは取得時点で所持金へ保存済みなので、ここではリザルト表示用の戦績だけを渡す。
+		// 終了時にAddMoneyを呼ばないことで、取得時と終了時の二重加算を防止する。
+		sceneManager->SetStageResultData(resultData);
 		sceneManager->ChangeScene("RESULT");
 		return;
 	}
@@ -171,8 +207,16 @@ void GamePlayScene::Update() {
 		ImGuiUpdate();
 		return;
 	}
-	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
-		sceneManager->ChangeScene("TITLE");
+	Input* input = Input::GetInstance();
+	if (isPauseMenuOpen_) {
+		UpdatePauseMenu();
+		ImGuiUpdate();
+		return;
+	}
+	if (input->TriggerKey(DIK_ESCAPE) || input->TriggerGamepadButton(XINPUT_GAMEPAD_START)) {
+		SetPauseMenuOpen(true);
+		ImGuiUpdate();
+		return;
 	}
 	if (skyBox) {
 		skyBox->Update();
@@ -224,6 +268,65 @@ void GamePlayScene::Update() {
 	ImGuiUpdate();
 }
 
+void GamePlayScene::InitializePauseMenu() {
+	isPauseMenuOpen_ = false;
+	selectedPauseMenuItem_ = static_cast<int>(PauseMenuItem::Resume);
+	pauseOverlaySprite_ = CreatePauseColorSprite();
+	pausePanelSprite_ = CreatePauseColorSprite();
+	pauseSelectionSprite_ = CreatePauseColorSprite();
+	pauseTitleTextObject_ = CreatePauseTextObject("PAUSE", 52.0f);
+	pauseMenuTextObjects_.clear();
+	pauseMenuTextObjects_.push_back(CreatePauseTextObject("ゲームに戻る", 29.0f));
+	pauseMenuTextObjects_.push_back(CreatePauseTextObject("ステージをやり直す", 29.0f));
+	pauseMenuTextObjects_.push_back(CreatePauseTextObject("ステージ選択へ戻る", 29.0f));
+	pauseInstructionTextObject_ = CreatePauseTextObject(
+	    "W / S・上下キー・Pad上下: 選択    Space / Enter・Pad A: 決定    Esc・Pad Start / B: 戻る", 17.0f);
+}
+
+void GamePlayScene::SetPauseMenuOpen(bool isOpen) {
+	isPauseMenuOpen_ = isOpen;
+	if (isOpen) {
+		selectedPauseMenuItem_ = static_cast<int>(PauseMenuItem::Resume);
+	}
+	GameTime::SetPaused(isOpen);
+}
+
+void GamePlayScene::UpdatePauseMenu() {
+	Input* input = Input::GetInstance();
+	const int itemCount = static_cast<int>(PauseMenuItem::Count);
+	if (input->TriggerKey(DIK_W) || input->TriggerKey(DIK_UP) || input->TriggerGamepadUp()) {
+		selectedPauseMenuItem_ = (selectedPauseMenuItem_ + itemCount - 1) % itemCount;
+	}
+	if (input->TriggerKey(DIK_S) || input->TriggerKey(DIK_DOWN) || input->TriggerGamepadDown()) {
+		selectedPauseMenuItem_ = (selectedPauseMenuItem_ + 1) % itemCount;
+	}
+	if (input->TriggerKey(DIK_ESCAPE) || input->TriggerGamepadButton(XINPUT_GAMEPAD_START) ||
+	    input->TriggerGamepadButton(XINPUT_GAMEPAD_B)) {
+		SetPauseMenuOpen(false);
+		return;
+	}
+	if (!input->TriggerKey(DIK_SPACE) && !input->TriggerKey(DIK_RETURN) &&
+	    !input->TriggerGamepadButton(XINPUT_GAMEPAD_A)) {
+		return;
+	}
+
+	switch (static_cast<PauseMenuItem>(selectedPauseMenuItem_)) {
+	case PauseMenuItem::Resume:
+		SetPauseMenuOpen(false);
+		break;
+	case PauseMenuItem::Retry:
+		SetPauseMenuOpen(false);
+		if (sceneManager) sceneManager->ChangeScene("GAMEPLAY");
+		break;
+	case PauseMenuItem::StageSelect:
+		SetPauseMenuOpen(false);
+		if (sceneManager) sceneManager->ChangeScene("STAGE_SELECT");
+		break;
+	case PauseMenuItem::Count:
+		break;
+	}
+}
+
 /// <summary>
 /// スカイボックスの描画処理を行います。
 /// </summary>
@@ -247,6 +350,45 @@ void GamePlayScene::Draw2D() {
 			spriteObject->Draw();
 		}
 	}
+}
+
+void GamePlayScene::DrawOverlay2D() {
+	if (!isPauseMenuOpen_ || !pauseOverlaySprite_ || !pausePanelSprite_ || !pauseSelectionSprite_) {
+		return;
+	}
+	DirectXCommon* dxCommon = SpriteCommon::GetInstance()->GetDxCommon();
+	if (!dxCommon) return;
+	const float screenWidth = static_cast<float>(dxCommon->GetRenderWidth());
+	const float screenHeight = static_cast<float>(dxCommon->GetRenderHeight());
+	const float panelWidth = (std::min)(520.0f, screenWidth - 50.0f);
+	const float panelHeight = (std::min)(500.0f, screenHeight - 40.0f);
+	const float panelX = (screenWidth - panelWidth) * 0.5f;
+	const float panelY = (screenHeight - panelHeight) * 0.5f;
+	const float itemWidth = panelWidth - 80.0f;
+	const float itemHeight = 62.0f;
+	const float firstItemY = panelY + 145.0f;
+	const float itemGap = 18.0f;
+
+	SpriteCommon::GetInstance()->SetDraw(kBlendModeNormal);
+	DrawPauseColorSprite(pauseOverlaySprite_.get(), 0.0f, 0.0f, screenWidth, screenHeight, {0.0f, 0.0f, 0.0f, 0.68f});
+	DrawPauseColorSprite(pausePanelSprite_.get(), panelX, panelY, panelWidth, panelHeight, {0.025f, 0.08f, 0.15f, 0.98f});
+	const float selectedY = firstItemY + selectedPauseMenuItem_ * (itemHeight + itemGap);
+	DrawPauseColorSprite(pauseSelectionSprite_.get(), panelX + 40.0f, selectedY, itemWidth, itemHeight,
+	    {0.08f, 0.48f, 0.62f, 0.98f});
+
+	pauseTitleTextObject_->GetTransform().translate = {screenWidth * 0.5f, panelY + 72.0f, 0.0f};
+	pauseTitleTextObject_->GetComponent<TextComponent>()->SetColor({0.55f, 0.95f, 1.0f, 1.0f});
+	pauseTitleTextObject_->Draw2D();
+	for (int index = 0; index < static_cast<int>(pauseMenuTextObjects_.size()); ++index) {
+		GameObject* textObject = pauseMenuTextObjects_[index].get();
+		textObject->GetTransform().translate = {
+		    screenWidth * 0.5f, firstItemY + index * (itemHeight + itemGap) + itemHeight * 0.5f, 0.0f};
+		textObject->GetComponent<TextComponent>()->SetColor(
+		    index == selectedPauseMenuItem_ ? Vector4{0.95f, 1.0f, 1.0f, 1.0f} : Vector4{0.72f, 0.79f, 0.88f, 1.0f});
+		textObject->Draw2D();
+	}
+	pauseInstructionTextObject_->GetTransform().translate = {screenWidth * 0.5f, panelY + panelHeight - 35.0f, 0.0f};
+	pauseInstructionTextObject_->Draw2D();
 }
 
 /// <summary>
@@ -277,6 +419,13 @@ void GamePlayScene::Draw3D() {
 /// 確保したリソースを解放し、終了処理を行います。
 /// </summary>
 void GamePlayScene::Finalize() {
+	SetPauseMenuOpen(false);
+	pauseOverlaySprite_.reset();
+	pausePanelSprite_.reset();
+	pauseSelectionSprite_.reset();
+	pauseTitleTextObject_.reset();
+	pauseMenuTextObjects_.clear();
+	pauseInstructionTextObject_.reset();
 	BaseScene::Finalize();
 	if (audio_) {
 		audio_->Finalize();

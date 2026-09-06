@@ -109,6 +109,8 @@ float4 ApplyRadialBlur(float2 uv)
 
 float4 ApplyDepthOutline(float2 uv, float4 sourceColor)
 {
+    // UVを深度テクスチャ上の整数座標へ変換し、Loadで補間せずに深度を取得します。
+    // 線形サンプリングによる境界のぼけを避け、Thicknessをピクセル単位で扱います。
     uint depthWidth;
     uint depthHeight;
     gDepthTexture.GetDimensions(depthWidth, depthHeight);
@@ -118,6 +120,8 @@ float4 ApplyDepthOutline(float2 uv, float4 sourceColor)
     const float nearClip = max(cameraNearFar.x, 0.0001f);
     const float farClip = max(cameraNearFar.y, nearClip + 0.0001f);
     const float centerDeviceDepth = gDepthTexture.Load(int3(centerPixel, 0));
+
+    // DirectXの0～1の非線形深度を、カメラからの実距離に近い線形深度へ戻します。
     const float centerDepth = (nearClip * farClip) /
         max(farClip - centerDeviceDepth * (farClip - nearClip), 0.0001f);
     float maxRelativeDepthDifference = 0.0f;
@@ -137,18 +141,22 @@ float4 ApplyDepthOutline(float2 uv, float4 sourceColor)
             const float sampleDeviceDepth = gDepthTexture.Load(int3(samplePixel, 0));
             const float sampleDepth = (nearClip * farClip) /
                 max(farClip - sampleDeviceDepth * (farClip - nearClip), 0.0001f);
+
+            // 絶対差では遠距離ほど反応しにくいため、近い側の深度に対する相対差で比較します。
             const float relativeDepthDifference = abs(centerDepth - sampleDepth) /
                 max(min(centerDepth, sampleDepth), nearClip);
             maxRelativeDepthDifference = max(maxRelativeDepthDifference, relativeDepthDifference);
         }
     }
 
+    // 閾値付近をsmoothstepで補間し、輪郭の点滅や極端なギザつきを抑えます。
     const float transitionWidth = max(outlineThreshold * 0.25f, 0.001f);
     const float edge = smoothstep(
         outlineThreshold,
         outlineThreshold + transitionWidth,
         maxRelativeDepthDifference
     );
+    // 色のアルファを輪郭の不透明度として扱い、強度と合わせて元画像へ合成します。
     const float blend = saturate(edge * outlineStrength * outlineColor.a);
     sourceColor.rgb = lerp(sourceColor.rgb, outlineColor.rgb, blend);
     return sourceColor;
@@ -222,6 +230,7 @@ PixelShaderOutPut main(VertexShaderOutput input)
 
     if (damageVignetteIntensity > 0.0f)
     {
+        // 円形距離ではなく最大軸距離を使い、四隅だけでなく画面の四辺全体を赤くする。
         const float2 centeredUv = abs(input.uv - float2(0.5f, 0.5f));
         const float rectangularDistance = max(centeredUv.x, centeredUv.y);
         const float damageEdge = smoothstep(

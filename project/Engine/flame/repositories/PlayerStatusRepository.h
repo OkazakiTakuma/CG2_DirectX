@@ -37,15 +37,19 @@ struct PlayerStatusItemStats {
 	std::string name = "AttackUp";
 	PlayerStatusItemType type = PlayerStatusItemType::Attack;
 	std::array<float, 5> levelAmounts{10.0f, 20.0f, 30.0f, 40.0f, 50.0f};
+	/// レベルアップ選択カードへ表示するLv1～Lv5の説明文です。
 	std::array<std::string, 5> levelDescriptions{};
+	/// レベルアップ選択カードと右上スロットHUDで使うLv1～Lv5の画像パスです。
 	std::array<std::string, 5> levelTextureFilePaths{};
 };
 
 std::vector<std::string> GetPlayerStatusItemLevels() {
+	// ステータスアップアイテムは固定でLv1～Lv5を扱う。
 	return {"1", "2", "3", "4", "5"};
 }
 
 const char* PlayerStatusItemTypeToName(PlayerStatusItemType type) {
+	// JSONへ保存する文字列は、インスペクター表示名と同じ英語名に統一する。
 	switch (type) {
 	case PlayerStatusItemType::Attack:
 		return "Attack";
@@ -66,6 +70,7 @@ const char* PlayerStatusItemTypeToName(PlayerStatusItemType type) {
 }
 
 PlayerStatusItemType PlayerStatusItemTypeFromName(const std::string& typeName) {
+	// 旧データ互換のため、HPとHealthは同じ体力補正として扱う。
 	if (typeName == "HP" || typeName == "Health") {
 		return PlayerStatusItemType::Health;
 	}
@@ -95,6 +100,7 @@ nlohmann::json PlayerStatusItemStatsToJson(const PlayerStatusItemStats& stats) {
 	nlohmann::json json;
 	json["name"] = stats.name;
 	json["type"] = PlayerStatusItemTypeToName(stats.type);
+	// 効果量・説明・画像を同じレベル文字列で保存し、配列番号との対応を明確にする。
 	for (int index = 0; index < static_cast<int>(stats.levelAmounts.size()); ++index) {
 		const std::string levelName = std::to_string(index + 1);
 		json["levels"][levelName] = stats.levelAmounts[index];
@@ -111,6 +117,7 @@ PlayerStatusItemStats JsonToPlayerStatusItemStats(const nlohmann::json& json, co
 	}
 	stats.name = json.value("name", stats.name);
 	stats.type = PlayerStatusItemTypeFromName(json.value("type", std::string(PlayerStatusItemTypeToName(stats.type))));
+	// descriptions/texturesがない旧JSONも、空の既定値で互換性を保って読み込む。
 	const nlohmann::json levelsJson = json.value("levels", nlohmann::json::object());
 	const nlohmann::json descriptionsJson = json.value("descriptions", nlohmann::json::object());
 	const nlohmann::json texturesJson = json.value("textures", nlohmann::json::object());
@@ -125,6 +132,7 @@ PlayerStatusItemStats JsonToPlayerStatusItemStats(const nlohmann::json& json, co
 }
 
 nlohmann::json LoadPlayerStatusItemRoot() {
+	// ファイルが存在しない場合でも、最低限のAttackUpを返してインスペクターを空にしない。
 	std::ifstream ifs(kPlayerStatusItemFilePath);
 	if (!ifs) {
 		nlohmann::json root;
@@ -144,6 +152,7 @@ nlohmann::json LoadPlayerStatusItemRoot() {
 }
 
 std::vector<std::string> LoadPlayerStatusItemNames() {
+	// コンボボックスで安定して表示するため、JSONキーをソートして返す。
 	std::vector<std::string> names;
 	const nlohmann::json root = LoadPlayerStatusItemRoot();
 	for (auto it = root.begin(); it != root.end(); ++it) {
@@ -157,6 +166,7 @@ std::vector<std::string> LoadPlayerStatusItemNames() {
 }
 
 PlayerStatusItemStats LoadPlayerStatusItemStats(const std::string& itemName) {
+	// 未指定時はDefault相当のAttackUpを読み、存在しない名前でも安全な既定値を返す。
 	const std::string name = itemName.empty() ? "AttackUp" : itemName;
 	const nlohmann::json root = LoadPlayerStatusItemRoot();
 	const PlayerStatusItemStats fallback = MakeDefaultPlayerStatusItemStats();
@@ -169,6 +179,7 @@ PlayerStatusItemStats LoadPlayerStatusItemStats(const std::string& itemName) {
 }
 
 void SavePlayerStatusItemStats(const std::string& itemName, const PlayerStatusItemStats& stats) {
+	// 既存JSONを読み込んだうえで対象アイテムだけ更新し、他アイテムを消さない。
 	const std::string name = itemName.empty() ? "AttackUp" : itemName;
 	nlohmann::json root = LoadPlayerStatusItemRoot();
 	PlayerStatusItemStats saveStats = stats;
@@ -183,6 +194,7 @@ void SavePlayerStatusItemStats(const std::string& itemName, const PlayerStatusIt
 }
 
 int PlayerStatusSlotLevelToIndex(const std::string& level) {
+	// 文字列レベルを0始まりの配列添字へ変換し、範囲外はLv1～Lv5へ丸める。
 	const int parsedLevel = (std::max)(1, std::atoi(level.c_str()));
 	return (std::min)(4, parsedLevel - 1);
 }
@@ -224,6 +236,7 @@ PlayerStats ApplyPlayerStatusItems(const PlayerStats& baseStats) {
 }
 
 PlayerStats MakeDefaultPlayerStats() {
+	// 新規プレイヤータイプは球モデルと1枠目のStraight攻撃を持つ状態から始める。
 	PlayerStats stats;
 	stats.modelFilePath = "sphere.obj";
 	stats.attackSlots[0].enabled = true;
@@ -233,10 +246,12 @@ PlayerStats MakeDefaultPlayerStats() {
 }
 
 std::vector<std::string> GetPlayerAttackLevels() {
+	// 通常Lv1～Lv5に加え、条件達成時だけ使うsuperを同じ配列で扱う。
 	return {"1", "2", "3", "4", "5", "super"};
 }
 
 PlayerAttackLevelStats MakeDefaultPlayerAttackLevelStats(const std::string& level) {
+	// 攻撃JSONが存在しない場合でも各Lvが操作可能になるよう、レベルに応じた仮値を作る。
 	PlayerAttackLevelStats stats;
 	stats.level = level;
 	const float levelScale = level == "super" ? 6.0f : static_cast<float>((std::max)(1, std::atoi(level.c_str())));
@@ -278,6 +293,7 @@ nlohmann::json PlayerAttackLevelStatsToJson(const PlayerAttackLevelStats& stats)
 	json["size"] = stats.size;
 	json["shotCount"] = stats.shotCount;
 	json["angles"] = stats.angles;
+	// 発射順を保持するため、弾番号と同じ順序のVector3配列として保存する。
 	json["spawnOffsets"] = nlohmann::json::array();
 	for (const Vector3& spawnOffset : stats.spawnOffsets) {
 		json["spawnOffsets"].push_back(SceneJsonUtility::Vector3ToJson(spawnOffset));
@@ -305,6 +321,7 @@ PlayerAttackLevelStats JsonToPlayerAttackLevelStats(const nlohmann::json& json, 
 	stats.speed = (std::max)(0.0f, json.value("speed", stats.speed));
 	stats.size = (std::max)(0.0f, json.value("size", stats.size));
 	stats.shotCount = (std::max)(1, json.value("shotCount", stats.shotCount));
+	// 現行の複数形配列を優先し、旧データの単一spawnOffsetも移行元として受け付ける。
 	if (json.contains("spawnOffsets") && json.at("spawnOffsets").is_array()) {
 		stats.spawnOffsets.clear();
 		for (const nlohmann::json& spawnOffsetJson : json.at("spawnOffsets")) {
@@ -316,6 +333,7 @@ PlayerAttackLevelStats JsonToPlayerAttackLevelStats(const nlohmann::json& json, 
 	if (stats.spawnOffsets.empty()) {
 		stats.spawnOffsets.push_back({0.0f, 0.5f, 1.2f});
 	}
+	// shotCountと配列数を必ず一致させ、発射側が弾番号で安全に参照できる状態にする。
 	while (static_cast<int>(stats.spawnOffsets.size()) < stats.shotCount) {
 		stats.spawnOffsets.push_back(stats.spawnOffsets.back());
 	}
@@ -381,6 +399,7 @@ PlayerAttackStats JsonToPlayerAttackStats(const nlohmann::json& json, const Play
 		const nlohmann::json levelJson = levelsJson.value(level, nlohmann::json::object());
 		stats.levels.push_back(JsonToPlayerAttackLevelStats(levelJson, fallbackLevel));
 		stats.levels.back().level = level;
+		// 旧周回弾は1点しか保存していないため、その半径と高さを保ったまま円周上へ等間隔展開する。
 		if (stats.name == "Orbit" && !levelJson.contains("spawnOffsets") && !stats.levels.back().spawnOffsets.empty()) {
 			const Vector3 baseOffset = stats.levels.back().spawnOffsets.front();
 			const int shotCount = stats.levels.back().shotCount;
@@ -410,6 +429,7 @@ PlayerAttackStats JsonToPlayerAttackStats(const nlohmann::json& json, const Play
 }
 
 nlohmann::json LoadPlayerAttackStatusRoot() {
+	// 攻撃設定ファイルがない場合はStraightのみを持つ仮JSONを返す。
 	std::ifstream ifs(kPlayerAttackStatusFilePath);
 	if (!ifs) {
 		nlohmann::json root;
@@ -429,6 +449,7 @@ nlohmann::json LoadPlayerAttackStatusRoot() {
 }
 
 std::vector<std::string> LoadPlayerAttackNames() {
+	// 攻撃タイプの選択UIで順序が毎回変わらないよう、JSONキーをソートする。
 	std::vector<std::string> names;
 	const nlohmann::json root = LoadPlayerAttackStatusRoot();
 	for (auto it = root.begin(); it != root.end(); ++it) {
@@ -442,6 +463,7 @@ std::vector<std::string> LoadPlayerAttackNames() {
 }
 
 PlayerAttackStats LoadPlayerAttackStats(const std::string& attackName) {
+	// 未登録の攻撃名を参照してもクラッシュさせず、Straight相当の既定値で復帰する。
 	const std::string name = attackName.empty() ? "Straight" : attackName;
 	const nlohmann::json root = LoadPlayerAttackStatusRoot();
 	const PlayerAttackStats fallback = MakeDefaultPlayerAttackStats();
@@ -468,6 +490,7 @@ void ApplyPlayerAttackSlots(PlayerAttackComponent* attack, const PlayerStats& pl
 }
 
 void SavePlayerAttackStats(const std::string& attackName, const PlayerAttackStats& stats) {
+	// 攻撃タイプ単位でJSONを更新し、他の攻撃タイプ設定は維持する。
 	const std::string name = attackName.empty() ? "Straight" : attackName;
 	nlohmann::json root = LoadPlayerAttackStatusRoot();
 	PlayerAttackStats saveStats = stats;
@@ -482,6 +505,7 @@ void SavePlayerAttackStats(const std::string& attackName, const PlayerAttackStat
 }
 
 nlohmann::json PlayerStatsToJson(const PlayerStats& stats) {
+	// PlayerStatsの保存対象だけをJSONへ変換する。実効ステータスではなく基礎値を保存する。
 	nlohmann::json json;
 	json["name"] = stats.name;
 	json["baseHealth"] = stats.baseHealth;
@@ -520,6 +544,7 @@ nlohmann::json PlayerStatsToJson(const PlayerStats& stats) {
 }
 
 PlayerStats JsonToPlayerStats(const nlohmann::json& json, const PlayerStats& fallback) {
+	// 欠けている項目はfallbackで補い、古いセーブデータも読み込めるようにする。
 	PlayerStats stats = fallback;
 	if (!json.is_object()) {
 		return stats;
@@ -603,6 +628,7 @@ PlayerStats JsonToPlayerStats(const nlohmann::json& json, const PlayerStats& fal
 }
 
 nlohmann::json LoadPlayerStatusRoot() {
+	// プレイヤーステータスファイルがない場合はDefaultを含む仮JSONを返す。
 	std::ifstream ifs(kPlayerStatusFilePath);
 	if (!ifs) {
 		nlohmann::json root;
@@ -621,6 +647,10 @@ nlohmann::json LoadPlayerStatusRoot() {
 	return root;
 }
 
+/// <summary>
+/// プレイヤータイプ一覧をJSONファイルへ書き込みます。
+/// 名前変更と削除でも同じ保存処理を利用し、書き込み結果を呼び出し元へ返します。
+/// </summary>
 bool SavePlayerStatusRoot(const nlohmann::json& root) {
 	std::filesystem::create_directories(std::filesystem::path(kPlayerStatusFilePath).parent_path());
 	std::ofstream ofs(kPlayerStatusFilePath);
@@ -632,6 +662,7 @@ bool SavePlayerStatusRoot(const nlohmann::json& root) {
 }
 
 std::vector<std::string> LoadPlayerTypeNames() {
+	// プレイヤー選択UIで使うタイプ名をJSONキーから収集する。
 	std::vector<std::string> names;
 	const nlohmann::json root = LoadPlayerStatusRoot();
 	for (auto it = root.begin(); it != root.end(); ++it) {
@@ -645,6 +676,7 @@ std::vector<std::string> LoadPlayerTypeNames() {
 }
 
 PlayerStats LoadPlayerStats(const std::string& playerTypeName) {
+	// 存在しないタイプ名が指定された場合はDefault相当のプレイヤー設定を返す。
 	const std::string typeName = playerTypeName.empty() ? "Default" : playerTypeName;
 	const nlohmann::json root = LoadPlayerStatusRoot();
 	const PlayerStats fallback = MakeDefaultPlayerStats();
@@ -657,6 +689,7 @@ PlayerStats LoadPlayerStats(const std::string& playerTypeName) {
 }
 
 void SavePlayerStats(const std::string& playerTypeName, const PlayerStats& stats) {
+	// プレイヤータイプ単位で上書きし、他タイプの設定は保持する。
 	const std::string typeName = playerTypeName.empty() ? "Default" : playerTypeName;
 	nlohmann::json root = LoadPlayerStatusRoot();
 	PlayerStats saveStats = stats;
@@ -665,6 +698,10 @@ void SavePlayerStats(const std::string& playerTypeName, const PlayerStats& stats
 	SavePlayerStatusRoot(root);
 }
 
+/// <summary>
+/// プレイヤータイプのキーと内部の名前を同時に変更します。
+/// 変更先が既に存在する場合は、既存タイプを上書きしないため失敗とします。
+/// </summary>
 bool RenamePlayerStats(const std::string& oldTypeName, const std::string& newTypeName, const PlayerStats& stats) {
 	if (oldTypeName.empty() || newTypeName.empty()) {
 		return false;
@@ -686,6 +723,9 @@ bool RenamePlayerStats(const std::string& oldTypeName, const std::string& newTyp
 	return SavePlayerStatusRoot(root);
 }
 
+/// <summary>
+/// 指定したプレイヤータイプをJSONから削除します。
+/// </summary>
 bool DeletePlayerStats(const std::string& playerTypeName) {
 	// Default は参照切れ時のフォールバックとして常に残す。
 	if (playerTypeName.empty() || playerTypeName == "Default") {

@@ -52,7 +52,15 @@ public:
 	float GetRadius() const { return radius_; }
 	void SetDrawDebug(bool isDrawDebug) { isDrawDebug_ = isDrawDebug; }
 	bool GetDrawDebug() const { return isDrawDebug_; }
+	/// <summary>
+	/// 衝突時にこのコライダーを押し戻し対象にするかを設定します。
+	/// </summary>
+	/// <param name="isPushBackEnabled">true の場合、衝突時に位置補正を受けます。</param>
 	void SetPushBackEnabled(bool isPushBackEnabled) { isPushBackEnabled_ = isPushBackEnabled; }
+	/// <summary>
+	/// 衝突時の押し戻し処理が有効かを取得します。
+	/// </summary>
+	/// <returns>押し戻し処理が有効な場合 true を返します。</returns>
 	bool GetPushBackEnabled() const { return isPushBackEnabled_; }
 	void SetColliding(bool isColliding) { isColliding_ = isColliding; }
 	bool IsColliding() const { return isColliding_; }
@@ -94,9 +102,14 @@ private:
 		}
 	}
 
+	// オーナーの位置から見た球中心のローカルオフセットです。
 	Vector3 centerOffset_{0.0f, 0.0f, 0.0f};
+	// 球コライダーのローカル半径です。実際の判定ではオーナーの最大 scale を反映します。
 	float radius_ = 0.5f;
+	// Debug / Development でコライダー線を描画するかを保持します。
 	bool isDrawDebug_ = true;
+	// 衝突時にオーナーの位置を押し戻すかを保持します。保存データにも書き出します。
 	bool isPushBackEnabled_ = false;
+	// 現在フレームで他コライダーと衝突しているかを保持します。
 	bool isColliding_ = false;
 };

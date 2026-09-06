@@ -13,6 +13,7 @@
 using namespace Logger;
 
 namespace {
+// OBJの四角形・多角形も既存の三角形描画処理で扱えるよう、読み込み時に三角形化する。
 constexpr unsigned int kAssimpModelImportFlags =
     aiProcess_Triangulate |
     aiProcess_FlipWindingOrder |
@@ -175,6 +176,7 @@ void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPat
 	this->isAnimation_ = isAnimation;
 	modelData = LoadModelFile(directoryPath, filename);
 	if (isAnimation) {
+		// 1ファイル内の全クリップを読み込み、従来API向けの既定クリップには先頭を使用する。
 		animations_ = LoadAnimations(directoryPath, filename);
 		if (!animationNames_.empty()) {
 			animation = animations_.at(animationNames_.front());
@@ -347,6 +349,7 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 }
 
 std::map<std::string, Animation> Model::LoadAnimations(const std::string& directoryPath, const std::string& filename) {
+	// 名前検索用mapと、ファイル内の並び順を維持する名前配列を同時に構築する。
 	std::map<std::string, Animation> loadedAnimations;
 	animationNames_.clear();
 	Assimp::Importer importer;
@@ -357,6 +360,7 @@ std::map<std::string, Animation> Model::LoadAnimations(const std::string& direct
 	assert(scene != nullptr && scene->mNumAnimations != 0);
 
 	for (uint32_t animationIndex = 0; animationIndex < scene->mNumAnimations; ++animationIndex) {
+		// Assimpが保持する各クリップを個別のAnimationへ変換する。
 		aiAnimation* animationAssimp = scene->mAnimations[animationIndex];
 		Animation loadedAnimation;
 		const double ticksPerSecond = animationAssimp->mTicksPerSecond != 0.0 ? animationAssimp->mTicksPerSecond : 1.0;
@@ -393,6 +397,7 @@ std::map<std::string, Animation> Model::LoadAnimations(const std::string& direct
 			}
 		}
 
+		// 無名クリップと重複名を補正し、インスペクターと保存データで安定して参照できる名前にする。
 		std::string animationName = animationAssimp->mName.length > 0
 		                                ? animationAssimp->mName.C_Str()
 		                                : "Animation_" + std::to_string(animationIndex + 1);
@@ -414,6 +419,7 @@ Animation Model::LoadAnimation(const std::string& directoryPath, const std::stri
 }
 
 const Animation* Model::FindAnimation(const std::string& animationName) const {
+	// 呼び出し側へ所有権を渡さず、Modelが保持するクリップを読み取り専用で返す。
 	const auto animationIterator = animations_.find(animationName);
 	return animationIterator != animations_.end() ? &animationIterator->second : nullptr;
 }

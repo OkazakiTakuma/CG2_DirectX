@@ -94,6 +94,20 @@ struct Particle {
 	Vector4 endColor;
 	Vector3 startScale;
 	Vector3 endScale;
+
+	// 渦パーティクル用の実行時軌道情報。isVortex=false の場合は使用しない。
+	bool isVortex = false;
+	// 発生時点のエミッター位置。XZ平面上の回転中心と高さの基準にする。
+	Vector3 vortexCenter = { 0.0f, 0.0f, 0.0f };
+	// 現在の周回角度と1秒あたりの角速度。角速度を負にすると逆回転する。
+	float vortexAngle = 0.0f;
+	float vortexAngularSpeed = 0.0f;
+	// 同じ円周上に粒が揃いすぎないよう、個体ごとに半径へ掛けるばらつき。
+	float vortexRadiusScale = 1.0f;
+	// 下端半径から上端半径まで、高さに応じて線形補間する。
+	float vortexBaseRadius = 0.0f;
+	float vortexTopRadius = 0.0f;
+	float vortexHeight = 1.0f;
 };
 
 struct Emitter {
@@ -148,6 +162,15 @@ struct ParticleEmitParam {
 	Vector3 randomScaleRange = { 0.0f, 0.0f, 0.0f };
 	uint32_t count = 1;
 	bool isBillboard = false;
+
+	// Y軸を中心に螺旋運動させる。falseなら従来の速度・加速度移動を使用する。
+	bool isVortex = false;
+	// 1秒あたりの回転量（rad）。正数は上から見て反時計回り、負数は時計回り。
+	float vortexAngularSpeed = 6.0f;
+	// 竜巻の下端半径、上端半径、下端から上端までの高さ。
+	float vortexBaseRadius = 0.2f;
+	float vortexTopRadius = 3.0f;
+	float vortexHeight = 6.0f;
 };
 
 enum ParticleMeshType {

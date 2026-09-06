@@ -43,8 +43,11 @@ public:
 	bool GetDrawSkeleton() const { return isDrawSkeleton_; }
 	bool HasSkeleton() const { return hasSkeleton && !skeleton.joints.empty(); }
 	bool HasModel() const { return model != nullptr; }
+	/// <summary>指定ボーンのモデル内（スケルトン空間）行列を取得します。</summary>
 	bool GetJointSkeletonSpaceMatrix(const std::string& jointName, Matrix4x4& jointMatrix) const;
+	/// <summary>指定ボーンへObject3d自身の変換を合成したワールド行列を取得します。</summary>
 	bool GetJointWorldMatrix(const std::string& jointName, Matrix4x4& jointWorldMatrix) const;
+	/// <summary>通常のTransform計算を使わず、外部で合成したワールド行列を描画へ使用します。</summary>
 	void SetWorldMatrixOverride(const Matrix4x4& worldMatrix) {
 		worldMatrixOverride_ = worldMatrix;
 		hasWorldMatrixOverride_ = true;
@@ -74,6 +77,7 @@ public:
 	/// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 	void SetTexture(const std::string& textureFilePath);
 	void SetModelTexture(const std::string& textureFilePath);
+	/// <summary>共有Modelへ影響させず、このObject3dの描画時だけ使用するテクスチャを設定します。</summary>
 	void SetModelTextureOverride(const std::string& textureFilePath);
 	std::string GetModelTextureFilePath() const;
 
@@ -182,10 +186,12 @@ private:
 	Matrix4x4* skinningPaletteData = nullptr;
 	uint32_t skinningPaletteCapacity_ = 0;
 	std::vector<Matrix4x4> skinningPalette_;
+	// ボーンへ装備を接続する場合など、親子変換を外部で合成した結果を保持する。
 	Matrix4x4 worldMatrixOverride_ = MakeIdentity4x4();
 	bool hasWorldMatrixOverride_ = false;
 
 	Model* model = nullptr;
+	// 同じModelを使う別オブジェクトの見た目を変えずに、個別の色表現を行うための上書きパス。
 	std::string modelTextureOverridePath_;
 	bool isPointLightSet = true;
 	float environmentMultiplier = 1.0f;

@@ -1,4 +1,23 @@
 {
+    "Stage2GaleMidBoss": {
+        "attack": 18.0,
+        "behavior": "BurstShooter",
+        "burstShotCount": 5,
+        "burstSpreadAngle": 0.2,
+        "distanceTolerance": 1.0,
+        "experience": 35,
+        "experienceModel": "sphere.obj",
+        "health": 1300.0,
+        "preferredDistance": 8.5,
+        "projectileLifeTime": 7.0,
+        "projectileSize": 0.34,
+        "projectileSpeed": 0.14,
+        "shootingInterval": 1.35,
+        "shoots": false,
+        "sizeScale": 1.85,
+        "spawnsPerMinute": 0.0,
+        "speed": 0.045
+    },
     "Stage2Chaser": {
         "attack": 11.0,
         "behavior": "Chase",

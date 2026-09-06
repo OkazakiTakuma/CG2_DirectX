@@ -54,8 +54,11 @@ public:
 	/// </summary>
 	void CaptureFrameBeforeOverlay();
 	void PostDraw();
+	/// <summary>次の完成フレームを PNG として保存するよう要求します。</summary>
 	void RequestScreenshot() { screenCapture_.RequestScreenshot(); }
+	/// <summary>現在の描画サイズで画面録画の開始と停止を切り替えます。</summary>
 	void ToggleScreenRecording() { screenCapture_.ToggleRecording(static_cast<uint32_t>(renderWidth_), static_cast<uint32_t>(renderHeight_)); }
+	/// <summary>画面録画中かどうかを返します。</summary>
 	bool IsScreenRecording() const { return screenCapture_.IsRecording(); }
 	void ResizeIfNeeded();
 	int32_t GetRenderWidth() const { return renderWidth_; }
@@ -64,7 +67,12 @@ public:
 	/// 指定された HLSL シェーダーをコンパイルします。
 	/// </summary>
 	Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(const std::wstring& filepath, const wchar_t* profile);
+	/// <summary>
+	/// アプリケーションを停止させずにHLSLをコンパイルします。
+	/// ホットリロード時の編集途中エラーはerrorMessageへ返し、失敗時はnullptrを返します。
+	/// </summary>
 	Microsoft::WRL::ComPtr<IDxcBlob> TryCompileShader(const std::wstring& filepath, const wchar_t* profile, std::string& errorMessage);
+	/// <summary>実行中のGPU処理が完了するまで待機し、リソース交換を安全にします。</summary>
 	void FlushGPU() { WaitForGPU(); }
 	/// <summary>
 	/// BufferResource を作成し、利用できる状態にします。
@@ -186,6 +194,7 @@ private:
 	std::array<FrameResource, kFrameCount> frameResources_{};
 	uint32_t currentFrameIndex_ = 0;
 	bool frameStarted_ = false;
+	// オーバーレイ前に録画済みなら PostDraw で同一フレームを二重保存しない。
 	bool captureProcessedThisFrame_ = false;
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList = nullptr;
@@ -218,5 +227,6 @@ private:
 
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
 	IXAudio2MasteringVoice* masteringVoice = nullptr;
+	// バックバッファの読み戻しと PNG／MP4 のファイル出力を担当する。
 	ScreenCapture screenCapture_;
 };

@@ -118,6 +118,11 @@ ParticleEmitter::ParticleEmitter() : groupName_(""), count_(0), frequency_(0.0f)
 	emitParam_.randomScaleRange = { 0.0f, 0.0f, 0.0f };
 	emitParam_.count = 1;
 	emitParam_.isBillboard = true;
+	emitParam_.isVortex = false;
+	emitParam_.vortexAngularSpeed = 6.0f;
+	emitParam_.vortexBaseRadius = 0.2f;
+	emitParam_.vortexTopRadius = 3.0f;
+	emitParam_.vortexHeight = 6.0f;
 }
 
 /// <summary>
@@ -146,6 +151,7 @@ void ParticleEmitter::Update(float deltaTime) {
 	        [](const LightningLine& line) { return line.currentTime >= line.lifeTime; }),
 	    lightningLines_.end());
 
+	// 自動発生が無効な間の経過時間を蓄積すると、再有効化時にパーティクルが塊で発生するため破棄します。
 	if (frequency_ <= 0.0f) {
 		frequencyTimer_ = 0.0f;
 		return;
@@ -154,6 +160,7 @@ void ParticleEmitter::Update(float deltaTime) {
 	frequencyTimer_ += deltaTime;
 	if (frequencyTimer_ >= frequency_) {
 		Emit();
+		// フレーム超過分だけを次回へ持ち越し、古い周期が複数フレームにわたって消化されるのを防ぎます。
 		frequencyTimer_ = std::fmod(frequencyTimer_, frequency_);
 	}
 }
@@ -241,6 +248,11 @@ void ParticleEmitter::SaveToJson(const std::string& filePath) {
 	param["randomScaleRange"] = { emitParam_.randomScaleRange.x, emitParam_.randomScaleRange.y, emitParam_.randomScaleRange.z };
 	param["count"] = emitParam_.count;
 	param["isBillboard"] = emitParam_.isBillboard;
+	param["isVortex"] = emitParam_.isVortex;
+	param["vortexAngularSpeed"] = emitParam_.vortexAngularSpeed;
+	param["vortexBaseRadius"] = emitParam_.vortexBaseRadius;
+	param["vortexTopRadius"] = emitParam_.vortexTopRadius;
+	param["vortexHeight"] = emitParam_.vortexHeight;
 
 	groupJson["emitParam"] = param;
 
@@ -281,6 +293,11 @@ void ParticleEmitter::LoadFromJson(const std::string& filePath) {
 	emitParam_.randomScaleRange = { 0.0f, 0.0f, 0.0f };
 	emitParam_.count = 1;
 	emitParam_.isBillboard = true;
+	emitParam_.isVortex = false;
+	emitParam_.vortexAngularSpeed = 6.0f;
+	emitParam_.vortexBaseRadius = 0.2f;
+	emitParam_.vortexTopRadius = 3.0f;
+	emitParam_.vortexHeight = 6.0f;
 
 	std::ifstream ifs(filePath);
 	if (!ifs.is_open()) {
@@ -351,6 +368,21 @@ void ParticleEmitter::LoadFromJson(const std::string& filePath) {
 		}
 		if (param.contains("isBillboard")) {
 			emitParam_.isBillboard = param["isBillboard"];
+		}
+		if (param.contains("isVortex")) {
+			emitParam_.isVortex = param["isVortex"];
+		}
+		if (param.contains("vortexAngularSpeed")) {
+			emitParam_.vortexAngularSpeed = param["vortexAngularSpeed"];
+		}
+		if (param.contains("vortexBaseRadius")) {
+			emitParam_.vortexBaseRadius = param["vortexBaseRadius"];
+		}
+		if (param.contains("vortexTopRadius")) {
+			emitParam_.vortexTopRadius = param["vortexTopRadius"];
+		}
+		if (param.contains("vortexHeight")) {
+			emitParam_.vortexHeight = param["vortexHeight"];
 		}
 	}
 }

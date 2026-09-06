@@ -31,6 +31,7 @@ inline const char* BehaviorToString(EnemyBehaviorType behavior) {
 	case EnemyBehaviorType::NightSlashBoss: return "NightSlashBoss";
 	case EnemyBehaviorType::SelfDestruct: return "SelfDestruct";
 	case EnemyBehaviorType::TornadoBoss: return "TornadoBoss";
+	case EnemyBehaviorType::BurstShooter: return "BurstShooter";
 	default: return "Chase";
 	}
 }
@@ -41,6 +42,7 @@ inline EnemyBehaviorType BehaviorFromString(const std::string& behavior) {
 	if (behavior == "NightSlashBoss") return EnemyBehaviorType::NightSlashBoss;
 	if (behavior == "SelfDestruct") return EnemyBehaviorType::SelfDestruct;
 	if (behavior == "TornadoBoss") return EnemyBehaviorType::TornadoBoss;
+	if (behavior == "BurstShooter") return EnemyBehaviorType::BurstShooter;
 	return EnemyBehaviorType::Chase;
 }
 
@@ -54,6 +56,7 @@ inline nlohmann::json ToJson(const EnemyStats& stats) {
 	json["spawnsPerMinute"] = stats.spawnsPerMinute;
 	json["experience"] = stats.experience;
 	json["experienceModel"] = stats.experienceModelFilePath;
+	// アイテム調整値も敵タイプ別に保存し、エディタで設定した値を次回起動時に復元する。
 	json["healthItemDropChance"] = stats.healthItemDropChance;
 	json["collectExperienceItemDropChance"] = stats.collectExperienceItemDropChance;
 	json["healthItemHealAmount"] = stats.healthItemHealAmount;
@@ -63,11 +66,14 @@ inline nlohmann::json ToJson(const EnemyStats& stats) {
 	json["projectileSpeed"] = stats.projectileSpeed;
 	json["projectileSize"] = stats.projectileSize;
 	json["projectileLifeTime"] = stats.projectileLifeTime;
+	json["burstShotCount"] = stats.burstShotCount;
+	json["burstSpreadAngle"] = stats.burstSpreadAngle;
 	json["chargeTriggerDistance"] = stats.chargeTriggerDistance;
 	json["chargeDuration"] = stats.chargeDuration;
 	json["dashSpeed"] = stats.dashSpeed;
 	json["dashDuration"] = stats.dashDuration;
 	json["dashRecovery"] = stats.dashRecovery;
+	// つじぎりボスの連続斬り設定。JSON側の値をエディター調整後も保持する。
 	json["comboTriggerDistance"] = stats.comboTriggerDistance;
 	json["comboWindup"] = stats.comboWindup;
 	json["comboDashSpeed"] = stats.comboDashSpeed;
@@ -77,6 +83,7 @@ inline nlohmann::json ToJson(const EnemyStats& stats) {
 	json["comboSideOffset"] = stats.comboSideOffset;
 	json["comboDashCount"] = stats.comboDashCount;
 	json["finisherSpeedMultiplier"] = stats.finisherSpeedMultiplier;
+	// 同じボスが交互に使用する全方位弾幕・扇状弾幕の設定。
 	json["bossRangedWindup"] = stats.bossRangedWindup;
 	json["bossRangedInterval"] = stats.bossRangedInterval;
 	json["bossRangedWaves"] = stats.bossRangedWaves;
@@ -127,21 +134,26 @@ inline EnemyStats FromJson(const nlohmann::json& json, const EnemyStats& fallbac
 	stats.spawnsPerMinute = (std::max)(0.0f, json.value("spawnsPerMinute", stats.spawnsPerMinute));
 	stats.experience = (std::max)(0, json.value("experience", stats.experience));
 	stats.experienceModelFilePath = json.value("experienceModel", stats.experienceModelFilePath);
+	// 不正なJSON値で抽選確率や回復量が範囲外にならないよう、読み込み時に補正する。
 	stats.healthItemDropChance = (std::clamp)(json.value("healthItemDropChance", stats.healthItemDropChance), 0.0f, 1.0f);
 	stats.collectExperienceItemDropChance = (std::clamp)(json.value("collectExperienceItemDropChance", stats.collectExperienceItemDropChance), 0.0f, 1.0f);
 	stats.healthItemHealAmount = (std::max)(0.0f, json.value("healthItemHealAmount", stats.healthItemHealAmount));
 	stats.behavior = BehaviorFromString(json.value("behavior", std::string(BehaviorToString(stats.behavior))));
+	// behavior導入前のデータではshootsだけが保存されていたため、旧データをShooterとして引き継ぐ。
 	if (stats.shoots && !json.contains("behavior")) stats.behavior = EnemyBehaviorType::Shooter;
 	stats.preferredDistance = (std::max)(0.0f, json.value("preferredDistance", stats.preferredDistance));
 	stats.distanceTolerance = (std::max)(0.0f, json.value("distanceTolerance", stats.distanceTolerance));
 	stats.projectileSpeed = (std::max)(0.0f, json.value("projectileSpeed", stats.projectileSpeed));
 	stats.projectileSize = (std::max)(0.01f, json.value("projectileSize", stats.projectileSize));
 	stats.projectileLifeTime = (std::max)(0.0f, json.value("projectileLifeTime", stats.projectileLifeTime));
+	stats.burstShotCount = std::clamp(json.value("burstShotCount", stats.burstShotCount), 1, 31);
+	stats.burstSpreadAngle = (std::max)(0.0f, json.value("burstSpreadAngle", stats.burstSpreadAngle));
 	stats.chargeTriggerDistance = (std::max)(0.0f, json.value("chargeTriggerDistance", stats.chargeTriggerDistance));
 	stats.chargeDuration = (std::max)(0.0f, json.value("chargeDuration", stats.chargeDuration));
 	stats.dashSpeed = (std::max)(0.0f, json.value("dashSpeed", stats.dashSpeed));
 	stats.dashDuration = (std::max)(0.0f, json.value("dashDuration", stats.dashDuration));
 	stats.dashRecovery = (std::max)(0.0f, json.value("dashRecovery", stats.dashRecovery));
+	// 時間・距離・速度は負数を禁止し、回数は最低1回、最終速度倍率は最低1倍へ補正する。
 	stats.comboTriggerDistance = (std::max)(0.0f, json.value("comboTriggerDistance", stats.comboTriggerDistance));
 	stats.comboWindup = (std::max)(0.0f, json.value("comboWindup", stats.comboWindup));
 	stats.comboDashSpeed = (std::max)(0.0f, json.value("comboDashSpeed", stats.comboDashSpeed));
@@ -202,6 +214,7 @@ inline EnemyStats FromJson(const nlohmann::json& json, const EnemyStats& fallbac
 	stats.selfDestructFuseDuration =
 	    (std::max)(0.0f, json.value("selfDestructFuseDuration", stats.selfDestructFuseDuration));
 	stats.selfDestructRadius = (std::max)(0.0f, json.value("selfDestructRadius", stats.selfDestructRadius));
+	// 0以下の倍率でモデルやコライダーが消失しないよう、最小サイズを保証する。
 	stats.sizeScale = (std::max)(0.1f, json.value("sizeScale", stats.sizeScale));
 	return stats;
 }

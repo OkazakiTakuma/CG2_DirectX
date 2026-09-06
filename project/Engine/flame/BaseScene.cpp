@@ -17,6 +17,7 @@ void BaseScene::Draw2D() {}
 void BaseScene::Draw3D() {}
 
 bool BaseScene::IsPlayerDefeated() const {
+	// プレイヤーはシーン内に1体という前提で、最初に見つかったプレイヤーのHPを判定する。
 	for (const auto& object : sceneObjects_) {
 		const Player* player = object->GetComponent<Player>();
 		if (player) {
@@ -27,8 +28,11 @@ bool BaseScene::IsPlayerDefeated() const {
 }
 
 StageResultData BaseScene::GetStageResultData() const {
+	// シーン破棄後も表示できるよう、終了時点の値を所有型へコピーして返す。
 	StageResultData result;
 	result.defeatedEnemyCount = defeatedEnemyCount_;
+	// 挑戦中に回収した金額をリザルト表示と全体所持金への加算処理へ引き渡す。
+	result.moneyEarned = challengeMoneyEarned_;
 	result.survivalTimeSeconds = survivalTimeSeconds_;
 	result.stageCleared = isStageCleared_;
 	for (const auto& object : sceneObjects_) {
@@ -37,6 +41,7 @@ StageResultData BaseScene::GetStageResultData() const {
 			continue;
 		}
 		const PlayerStats& stats = player->GetBaseStats();
+		// 空スロットや無効化されたスロットはリザルトへ表示しない。
 		for (const PlayerAttackSlot& slot : stats.attackSlots) {
 			if (slot.enabled && !slot.attackName.empty()) {
 				result.attacks.push_back({slot.attackName, slot.attackLevel});
@@ -65,6 +70,9 @@ void BaseScene::Finalize() {
 	playerHealthBarBackground_.reset();
 	playerHealthBarFill_.reset();
 	isPlayerHealthHudVisible_ = false;
+	// TextComponentが内部生成した文字テクスチャもGameObjectの破棄と同時に解放する。
+	challengeMoneyTextObject_.reset();
+	isChallengeMoneyHudVisible_ = false;
 	playerExperienceBarBackground_.reset();
 	playerExperienceBarFill_.reset();
 	playerExperienceTextObject_.reset();
@@ -107,6 +115,7 @@ void BaseScene::Finalize() {
 /// シーン内オブジェクトの更新と当たり判定を行います。
 /// </summary>
 void BaseScene::UpdateSceneObjects() {
+	// GameTimeが一時停止中はDeltaTimeが0になるため、レベルアップ選択時間は含まれない。
 	survivalTimeSeconds_ += GameTime::GetDeltaTime();
 	ResolveCameraLinks();
 	ResolveEnemySpawnPointLinks();
@@ -127,10 +136,13 @@ void BaseScene::UpdateSceneObjects() {
 	UpdateEnemySpawning();
 	CleanupExpiredPlayerProjectiles();
 	UpdatePlayerHealthHud();
+	// G取得処理より後で更新し、このフレームに拾った金額を即座にHUDへ表示する。
+	UpdateChallengeMoneyHud();
 	UpdatePlayerExperienceHud();
 	UpdatePlayerSlotHud();
 	UpdateEditorObjectPicking();
 	UpdateEditorCameraControl();
+	UpdateStageBoundaryWrapping();
 	UpdateColliderCollisions();
 	ApplyActiveCamera();
 }
@@ -146,6 +158,7 @@ void BaseScene::UpdateEditorTools() {
 		editorSkyBox_->Update();
 	}
 	UpdatePlayerHealthHud();
+	UpdateChallengeMoneyHud();
 	UpdatePlayerExperienceHud();
 	UpdatePlayerSlotHud();
 	UpdateEditorObjectPicking();
@@ -164,6 +177,8 @@ void BaseScene::DrawSceneObjects2D() {
 		playerHealthBarBackground_->Draw();
 		playerHealthBarFill_->Draw();
 	}
+	// シーンオブジェクトより後に描画し、3Dステージや配置物に隠れないHUDとして重ねる。
+	DrawChallengeMoneyHud();
 	DrawPlayerExperienceHud();
 	DrawPlayerSlotHud();
 	DrawLevelUpSelection2D();

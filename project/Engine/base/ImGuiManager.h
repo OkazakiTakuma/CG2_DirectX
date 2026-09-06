@@ -71,6 +71,12 @@ public:
 	float GetGameViewAspectRatio() const;
 	bool ApplyGameViewRenderArea();
 	void RestoreFullRenderArea();
+	/// <summary>
+	/// 対象ファイルの変更監視、必要な再読み込み、Hot Reloadウィンドウの描画を行います。
+	/// C++の再ビルド後に旧プロセスを終了する必要がある場合はtrueを返します。
+	/// </summary>
+	/// <param name="sceneJsonPath">現在のシーンが使用しているJSONファイルのパスです。</param>
+	/// <param name="reloadScene">シーンJSONを実データへ反映するコールバックです。</param>
 	bool UpdateHotReload(const std::string& sceneJsonPath, const std::function<bool()>& reloadScene);
 
 private:
@@ -81,11 +87,17 @@ private:
 	void DrawEditorBackgroundMask(const ImVec2& gameViewPosition, const ImVec2& gameViewSize);
 	bool CalculateGameViewRenderRect(float& left, float& top, float& width, float& height) const;
 	void LoadGameFonts();
+	/// <summary>全HLSLを検証し、成功した場合だけ各描画機能のPSOを再生成します。</summary>
 	bool ReloadShaders();
+	/// <summary>読み込み済みのファイル由来テクスチャをGPU上へ再転送します。</summary>
 	bool ReloadTextures();
+	/// <summary>Development構成のソリューションビルドを別スレッドで開始します。</summary>
 	void StartCppBuild();
+	/// <summary>非同期ビルドの完了を確認し、成功時は新しい実行ファイルを起動します。</summary>
 	bool PollCppBuild();
+	/// <summary>再ビルドした実行ファイルを、現在と同じ作業ディレクトリで起動します。</summary>
 	bool LaunchRebuiltExecutable();
+	/// <summary>拡張子で絞り込んだファイルの更新日時を比較し、変更の有無を返します。</summary>
 	bool DetectFileChanges(const std::filesystem::path& root, const std::vector<std::string>& extensions, std::unordered_map<std::string, std::filesystem::file_time_type>& timestamps, bool recursive = true);
 
 	ImGuiManager(const ImGuiManager&) = delete;
@@ -105,6 +117,7 @@ private:
 	bool autoReloadShaders_ = true;
 	bool autoReloadScene_ = true;
 	bool autoReloadTextures_ = true;
+	// C++は保存のたびにビルドと再起動が発生するため、初期状態では手動実行にする。
 	bool autoReloadCpp_ = false;
 	bool cppBuildRunning_ = false;
 	bool restartRequested_ = false;
@@ -112,6 +125,7 @@ private:
 	std::filesystem::path rebuiltExecutablePath_;
 	std::string hotReloadStatus_ = "Ready";
 	std::string hotReloadError_;
+	// 初回走査では現在時刻を基準値として登録し、2回目以降の差分だけを変更とみなす。
 	std::unordered_map<std::string, std::filesystem::file_time_type> shaderTimestamps_;
 	std::unordered_map<std::string, std::filesystem::file_time_type> sceneTimestamps_;
 	std::unordered_map<std::string, std::filesystem::file_time_type> textureTimestamps_;

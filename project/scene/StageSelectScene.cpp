@@ -47,6 +47,10 @@ void StageSelectScene::Initialize() {
 		if (found != stageIds_.end()) {
 			selectedStageIndex_ = static_cast<int>(std::distance(stageIds_.begin(), found));
 		}
+		// 前回選択したステージが現在ロック中なら、安全な初期選択であるdefaultへ戻す。
+		if (!stageIds_.empty() && !sceneManager_->IsGameplayStageUnlocked(stageIds_[selectedStageIndex_])) {
+			selectedStageIndex_ = 0;
+		}
 	}
 	CreateUi();
 }
@@ -70,12 +74,26 @@ void StageSelectScene::CreateUi() {
 }
 
 std::string StageSelectScene::MakeStageDescription(const std::string& stageId) const {
-	std::string displayName = stageId;
-	std::transform(displayName.begin(), displayName.end(), displayName.begin(), [](unsigned char character) {
-		return static_cast<char>(std::toupper(character));
-	});
+	std::string displayName = sceneManager_ ? sceneManager_->GetGameplayStageDisplayName(stageId) : stageId;
+	if (stageId != "default") {
+		std::transform(displayName.begin(), displayName.end(), displayName.begin(), [](unsigned char character) {
+			return static_cast<char>(std::toupper(character));
+		});
+	}
+	if (sceneManager_ && !sceneManager_->IsGameplayStageUnlocked(stageId)) {
+		// ImGuiで設定した前提ステージ名をカードへ表示し、開放方法をプレイヤーへ伝える。
+		std::string prerequisite = sceneManager_->GetGameplayStageUnlockPrerequisite(stageId);
+		const std::string prerequisiteId = prerequisite;
+		prerequisite = sceneManager_->GetGameplayStageDisplayName(prerequisite);
+		if (prerequisiteId != "default") {
+			std::transform(prerequisite.begin(), prerequisite.end(), prerequisite.begin(), [](unsigned char character) {
+				return static_cast<char>(std::toupper(character));
+			});
+		}
+		return displayName + "\n\nLOCKED\n" + prerequisite + "クリアで開放";
+	}
 	if (stageId == "default") {
-		return displayName + "\n\n標準ステージ\nバランスのよい基本配置";
+		return displayName + "\n\n無限平原\n全方向へループする広いフィールド";
 	}
 	if (stageId == "wide") {
 		return displayName + "\n\n広域ステージ\n広いフィールドで戦う配置";
@@ -84,7 +102,7 @@ std::string StageSelectScene::MakeStageDescription(const std::string& stageId) c
 		return displayName + "\n\nラッシュステージ\n敵が高密度で出現する配置";
 	}
 	if (stageId == "stage2") {
-		return displayName + "\n\n第二ステージ\n強化された敵と自爆敵が出現";
+		return displayName + "\n\n横長回廊\n上下は壁、左右は無限にループ";
 	}
 	return displayName + "\n\nカスタムステージ\n配置パターン: " + stageId;
 }
@@ -102,8 +120,12 @@ void StageSelectScene::Update() {
 		selectedStageIndex_ = (selectedStageIndex_ + 1) % stageCount;
 	}
 	if (input->TriggerKey(DIK_SPACE) || input->TriggerKey(DIK_RETURN) || input->TriggerGamepadButton(XINPUT_GAMEPAD_A)) {
-		sceneManager_->SetSelectedGameplayStageId(stageIds_[selectedStageIndex_]);
-		sceneManager_->ChangeScene("GAMEPLAY");
+		const std::string& selectedStageId = stageIds_[selectedStageIndex_];
+		// ロック中カードも内容確認のため選択はできるが、ゲームプレイへの決定だけを拒否する。
+		if (sceneManager_->IsGameplayStageUnlocked(selectedStageId)) {
+			sceneManager_->SetSelectedGameplayStageId(selectedStageId);
+			sceneManager_->ChangeScene("GAMEPLAY");
+		}
 		return;
 	}
 	if (input->TriggerKey(DIK_Q) || input->TriggerGamepadButton(XINPUT_GAMEPAD_B)) {
@@ -147,13 +169,18 @@ void StageSelectScene::Draw2D() {
 			const int index = rowStart + column;
 			const float cardX = startX + column * (cardWidth + horizontalGap);
 			const bool selected = index == selectedStageIndex_;
+			const bool unlocked = !sceneManager_ || sceneManager_->IsGameplayStageUnlocked(stageIds_[index]);
+			// ロック中は選択色より暗色を優先し、操作不能であることをカード全体で表現する。
 			DrawColorSprite(cardBorderSprites_[index].get(), cardX - 5.0f, cardY - 5.0f, cardWidth + 10.0f, cardHeight + 10.0f,
+			    !unlocked ? Vector4{0.20f, 0.21f, 0.24f, 1.0f} :
 			    selected ? Vector4{0.24f, 0.92f, 1.0f, 1.0f} : Vector4{0.20f, 0.25f, 0.34f, 1.0f});
 			DrawColorSprite(cardSprites_[index].get(), cardX, cardY, cardWidth, cardHeight,
+			    !unlocked ? Vector4{0.055f, 0.06f, 0.075f, 0.98f} :
 			    selected ? Vector4{0.08f, 0.36f, 0.50f, 0.98f} : Vector4{0.06f, 0.12f, 0.22f, 0.98f});
 			GameObject* textObject = stageTextObjects_[index].get();
 			textObject->GetTransform().translate = {cardX + cardWidth * 0.5f, cardY + cardHeight * 0.5f, 0.0f};
 			textObject->GetComponent<TextComponent>()->SetColor(
+			    !unlocked ? Vector4{0.48f, 0.50f, 0.56f, 1.0f} :
 			    selected ? Vector4{0.72f, 0.97f, 1.0f, 1.0f} : Vector4{0.90f, 0.93f, 1.0f, 1.0f});
 			textObject->Draw2D();
 		}

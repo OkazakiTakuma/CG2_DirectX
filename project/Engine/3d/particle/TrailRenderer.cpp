@@ -115,7 +115,9 @@ void TrailRenderer::AppendRequestVertices(const Request& request, const Vector3&
 		}
 		tangent = NormalizeReturnVector(tangent);
 		Vector3 viewDirection = cameraPosition - request.points[i].position;
+		// 進行方向と視線方向の両方に直交する向きを帯の横方向として使う。
 		Vector3 side = Cross(tangent, viewDirection);
+		// カメラが軌跡の延長線上にある場合は外積が0になるため、固定軸で退避方向を作る。
 		if (Length(side) <= kEpsilon) {
 			side = Cross(tangent, {0.0f, 1.0f, 0.0f});
 		}
@@ -130,6 +132,7 @@ void TrailRenderer::AppendRequestVertices(const Request& request, const Vector3&
 			sides[i] = i > 0 ? sides[i - 1] : Vector3{1.0f, 0.0f, 0.0f};
 		}
 		const float lifeRate = (std::clamp)(request.points[i].lifeRate, 0.0f, 1.0f);
+		// 古い点ほど幅とアルファを小さくし、末端が細く消える形状にする。
 		const float halfWidth = request.width * 0.5f * lifeRate;
 		Vector4 color = LerpColor(request.tailColor, request.headColor, lifeRate);
 		color.w *= lifeRate;
@@ -138,6 +141,7 @@ void TrailRenderer::AppendRequestVertices(const Request& request, const Vector3&
 	}
 
 	for (size_t i = 0; i + 1 < pointCount; ++i) {
+		// 1区間は left/right の4点を共有する2三角形（6頂点）として出力する。
 		if (vertexCount_ + 6 > kMaxVertexCount) {
 			return;
 		}

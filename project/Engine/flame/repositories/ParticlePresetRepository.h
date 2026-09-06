@@ -78,6 +78,11 @@ inline void ApplyJson(const nlohmann::json& preset, ParticleEmitterComponent* em
 	param.endColor = SceneJsonUtility::JsonToVector4(paramJson.value("endColor", nlohmann::json::array()), param.endColor);
 	param.randomScaleRange = SceneJsonUtility::JsonToVector3(paramJson.value("randomScaleRange", nlohmann::json::array()), param.randomScaleRange);
 	param.isBillboard = paramJson.value("isBillboard", param.isBillboard);
+	param.isVortex = paramJson.value("isVortex", param.isVortex);
+	param.vortexAngularSpeed = paramJson.value("vortexAngularSpeed", param.vortexAngularSpeed);
+	param.vortexBaseRadius = paramJson.value("vortexBaseRadius", param.vortexBaseRadius);
+	param.vortexTopRadius = paramJson.value("vortexTopRadius", param.vortexTopRadius);
+	param.vortexHeight = paramJson.value("vortexHeight", param.vortexHeight);
 	emitter->SetParam(param);
 }
 
@@ -110,6 +115,11 @@ inline void Save(const std::string& presetName, ParticleEmitterComponent* emitte
 	preset["emitParam"]["endColor"] = SceneJsonUtility::Vector4ToJson(param.endColor);
 	preset["emitParam"]["endScale"] = SceneJsonUtility::Vector3ToJson(param.endScale);
 	preset["emitParam"]["isBillboard"] = param.isBillboard;
+	preset["emitParam"]["isVortex"] = param.isVortex;
+	preset["emitParam"]["vortexAngularSpeed"] = param.vortexAngularSpeed;
+	preset["emitParam"]["vortexBaseRadius"] = param.vortexBaseRadius;
+	preset["emitParam"]["vortexTopRadius"] = param.vortexTopRadius;
+	preset["emitParam"]["vortexHeight"] = param.vortexHeight;
 	preset["emitParam"]["isRandomRotate"] = param.isRandomRotate;
 	preset["emitParam"]["lifeTime"] = param.lifeTime;
 	preset["emitParam"]["randomPositionRange"] = SceneJsonUtility::Vector3ToJson(param.randomPositionRange);

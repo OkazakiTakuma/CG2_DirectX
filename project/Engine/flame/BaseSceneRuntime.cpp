@@ -2,9 +2,13 @@
 #include "helpers/BaseSceneCollisionHelpers.h"
 #include "helpers/BaseSceneEditorGeometry.h"
 #include "repositories/EnemyStatusRepository.h"
+#include "repositories/ParticlePresetRepository.h"
 #include "MathConstants.h"
 #include "model/ModelManager.h"
 #include "repositories/PlayerStatusRepository.h"
+#include "SceneManager.h"
+#include "../3d/particle/TrailRenderer.h"
+#include <cmath>
 #include <filesystem>
 #include <limits>
 #include <random>
@@ -15,6 +19,196 @@
 #endif
 
 namespace {
+// 新規取得の除外条件を通常レベルアップとボス報酬で共有する。装備済み武器の強化には使用しない。
+std::unordered_set<std::string> GetOtherPlayerInitialAttacks(const Player& player) {
+	std::unordered_set<std::string> excludedAttacks;
+	for (const std::string& playerTypeName : LoadPlayerTypeNames()) {
+		if (playerTypeName == player.GetPlayerTypeName()) {
+			continue;
+		}
+		const PlayerStats otherPlayerStats = LoadPlayerStats(playerTypeName);
+		for (const PlayerAttackSlot& slot : otherPlayerStats.attackSlots) {
+			if (slot.enabled && !slot.attackName.empty()) {
+				excludedAttacks.insert(slot.attackName);
+			}
+		}
+	}
+	return excludedAttacks;
+}
+
+// Straight専用の描画。移動・当たり判定には触れず、弾の現在位置に光の円弧を重ねる。
+class StraightSlashVisualComponent final : public Component {
+public:
+	/// <summary>弾と同じ寿命で残光を減衰させる描画専用コンポーネントを生成します。</summary>
+	explicit StraightSlashVisualComponent(float lifeTime) : remainingLifeTime_(lifeTime) {}
+
+	/// <summary>フェード用の残り時間を更新します。弾の移動・消滅判定は変更しません。</summary>
+	void Update() override {
+		remainingLifeTime_ -= GameTime::GetDeltaTime();
+	}
+
+	/// <summary>弾の向きに合わせた三日月状の帯を重ね、斬撃と残光を描画します。</summary>
+	void Draw3D() override {
+		GameObject* owner = GetOwner();
+		if (!owner) {
+			return;
+		}
+		const auto* projectile = owner->GetComponent<PlayerProjectileComponent>();
+		// 命中などで弾が終了した場合は、フェード用の時間が残っていても描画しない。
+		if (!projectile || !projectile->IsEnabled() || projectile->IsExpired()) {
+			return;
+		}
+
+		const auto& transform = owner->GetTransform();
+		const float size = projectile->GetSize();
+		const float yaw = transform.rotate.y;
+		// 弾のY軸回転から前方・右方向を求め、発射方向が変わっても刃先を前へ向ける。
+		const Vector3 forward{std::sin(yaw), 0.0f, std::cos(yaw)};
+		const Vector3 right{std::cos(yaw), 0.0f, -std::sin(yaw)};
+		// 寿命の最後0.18秒だけ透明度を落とす。形状のサイズや当たり判定は縮めない。
+		const float fade = (std::clamp)(remainingLifeTime_ / 0.18f, 0.0f, 1.0f);
+
+		// lifeRateを円弧の両端で0にし、中央は太く、切っ先は鋭く絞る。
+		// 帯自体はカメラを向くため、水平に飛んでも刃の厚みを視認できる。
+		constexpr int kSegments = 24;
+		std::vector<TrailRenderPoint> points;
+		points.reserve(kSegments + 1);
+		// behindは後方へのずれ、spanは横の広がり、widthは帯の太さ（いずれも弾サイズ基準）。
+		// 同じ点配列を各レイヤーで再利用する。Submit側が点列をコピーして保持する。
+		auto submitArc = [&](float behind, float span, float width, Vector4 color) {
+			points.clear();
+			for (int i = 0; i <= kSegments; ++i) {
+				const float t = static_cast<float>(i) / kSegments;
+				// -1.25～+1.25ラジアンの円弧を使い、中央が前へ張り出す形状にする。
+				const float angle = (t - 0.5f) * 2.5f;
+				const float lateral = std::sin(angle) * span;
+				const float depth = (std::cos(angle) - 0.60f) * 0.85f - behind;
+				// ローカルの横・奥行きをワールド座標へ変換し、左右に高低差を付けて刃を少し傾ける。
+				const Vector3 position = transform.translate + (size * lateral) * right +
+				    (size * depth) * forward + Vector3{0.0f, size * lateral * 0.20f, 0.0f};
+				// 中央で1、両端で0となる係数を帯幅と透明度に使う。端点は誤差を避けて明示的に0にする。
+				const float taper = (i == 0 || i == kSegments) ? 0.0f : std::sin(MathConstants::kPi * t);
+				points.push_back({position, taper});
+			}
+			color.w *= fade;
+			TrailRenderer::GetInstance()->Submit(points, size * width, color, {color.x, color.y, color.z, 0.0f});
+		};
+
+		// 後方の薄い残光、青い外光、白熱した刃先の順に加算合成する。
+		// 残光は移動履歴ではなく後方へずらした円弧なので、発射直後から形が完成している。
+		submitArc(0.42f, 0.90f, 0.22f, {0.10f, 0.48f, 1.0f, 0.20f});
+		submitArc(0.22f, 1.00f, 0.32f, {0.12f, 0.72f, 1.0f, 0.32f});
+		submitArc(0.00f, 1.10f, 0.48f, {0.18f, 0.80f, 1.0f, 0.52f});
+		// 細い白色の帯だけ少し前へ出し、青い外光の中でも刃先を識別できるようにする。
+		submitArc(-0.035f, 1.10f, 0.12f, {0.85f, 1.0f, 1.0f, 1.0f});
+	}
+
+private:
+	/// <summary>透明度の減衰にだけ使用する残り秒数です。弾の寿命はPlayerProjectileComponentが管理します。</summary>
+	float remainingLifeTime_ = 0.0f;
+};
+
+// SkyLaser専用の描画。既存の投射物寿命と当たり判定を保ったまま、複数の加算帯で光柱を構成する。
+class SkyLaserVisualComponent final : public Component {
+public:
+	SkyLaserVisualComponent(float lifeTime, float size)
+	    : initialLifeTime_((std::max)(0.01f, lifeTime)), remainingLifeTime_(initialLifeTime_), size_((std::max)(0.05f, size)) {}
+
+	void Update() override {
+		remainingLifeTime_ -= GameTime::GetDeltaTime();
+		elapsedSeconds_ += GameTime::GetDeltaTime();
+	}
+
+	void Draw3D() override {
+		GameObject* owner = GetOwner();
+		const auto* projectile = owner ? owner->GetComponent<PlayerProjectileComponent>() : nullptr;
+		if (!owner || !projectile || projectile->IsExpired()) {
+			return;
+		}
+
+		const float lifeRate = (std::clamp)(remainingLifeTime_ / initialLifeTime_, 0.0f, 1.0f);
+		const float appear = SmoothStep((std::clamp)(elapsedSeconds_ / 0.075f, 0.0f, 1.0f));
+		const float fade = SmoothStep((std::clamp)(lifeRate / 0.32f, 0.0f, 1.0f));
+		const float envelope = appear * fade;
+		const float pulse = 0.90f + 0.10f * std::sin(elapsedSeconds_ * 52.0f);
+		const Vector3 center = owner->GetTransform().translate;
+		// BaseSceneは標的の3m上を弾の中心としているため、着地点を元の敵の高さへ戻す。
+		const Vector3 impact{center.x, center.y - 3.0f, center.z};
+		const Vector3 sky{center.x, center.y + 8.0f + size_ * 2.0f, center.z};
+
+		auto submitBeam = [&](float width, const Vector4& color) {
+			std::vector<TrailRenderPoint> points = {{impact, envelope}, {sky, envelope}};
+			Vector4 head = color;
+			head.w *= envelope;
+			TrailRenderer::GetInstance()->Submit(points, size_ * width * pulse, head, head);
+		};
+
+		// 太い低輝度の外光から細い白熱コアへ重ね、輪郭を潰さず強い発光に見せる。
+		submitBeam(2.90f, {0.03f, 0.30f, 1.00f, 0.11f});
+		submitBeam(1.85f, {0.05f, 0.70f, 1.00f, 0.24f});
+		submitBeam(0.92f, {0.32f, 0.92f, 1.00f, 0.56f});
+		submitBeam(0.30f, {0.92f, 1.00f, 1.00f, 0.96f});
+
+		// 光柱の周囲を上昇する二本の螺旋で、静止した円柱ではなく流動するエネルギーを表現する。
+		constexpr int kHelixSegments = 28;
+		constexpr float kTwoPi = 6.28318530717958647692f;
+		for (int strand = 0; strand < 2; ++strand) {
+			std::vector<TrailRenderPoint> helix;
+			helix.reserve(kHelixSegments + 1);
+			for (int index = 0; index <= kHelixSegments; ++index) {
+				const float t = static_cast<float>(index) / kHelixSegments;
+				const float angle = t * kTwoPi * 2.5f + elapsedSeconds_ * 8.0f + strand * MathConstants::kPi;
+				const float radius = size_ * (0.80f + 0.10f * std::sin(t * kTwoPi));
+				helix.push_back({
+				    impact + Vector3{std::cos(angle) * radius, (sky.y - impact.y) * t, std::sin(angle) * radius},
+				    envelope * std::sin(MathConstants::kPi * t)
+				});
+			}
+			TrailRenderer::GetInstance()->Submit(
+			    helix, size_ * 0.12f, {0.60f, 0.96f, 1.00f, 0.62f * envelope}, {0.05f, 0.28f, 1.00f, 0.0f});
+		}
+
+		// 着地点ではリングを高速に広げ、レーザーの接地位置と攻撃範囲を読み取りやすくする。
+		const float progress = (std::clamp)(elapsedSeconds_ / initialLifeTime_, 0.0f, 1.0f);
+		const float ringRadius = size_ * (0.55f + progress * 1.35f);
+		constexpr int kRingSegments = 36;
+		std::vector<TrailRenderPoint> ring;
+		ring.reserve(kRingSegments + 1);
+		for (int index = 0; index <= kRingSegments; ++index) {
+			const float angle = kTwoPi * static_cast<float>(index) / kRingSegments;
+			ring.push_back({impact + Vector3{std::cos(angle) * ringRadius, 0.06f, std::sin(angle) * ringRadius}, envelope});
+		}
+		TrailRenderer::GetInstance()->Submit(
+		    ring, size_ * 0.16f, {0.48f, 0.94f, 1.00f, 0.75f * envelope}, {0.02f, 0.24f, 1.00f, 0.0f});
+
+		// 放射状の短い火花を回転させ、着弾時の瞬間的な圧力を補強する。
+		constexpr int kSparkCount = 8;
+		for (int index = 0; index < kSparkCount; ++index) {
+			const float angle = kTwoPi * static_cast<float>(index) / kSparkCount + elapsedSeconds_ * 2.5f;
+			const Vector3 direction{std::cos(angle), 0.10f, std::sin(angle)};
+			const float inner = ringRadius * 0.45f;
+			const float outer = ringRadius * (0.85f + 0.18f * std::sin(elapsedSeconds_ * 35.0f + index));
+			std::vector<TrailRenderPoint> spark = {
+			    {impact + inner * direction, envelope},
+			    {impact + outer * direction, 0.0f}
+			};
+			TrailRenderer::GetInstance()->Submit(
+			    spark, size_ * 0.10f, {0.82f, 1.00f, 1.00f, 0.80f * envelope}, {0.04f, 0.35f, 1.00f, 0.0f});
+		}
+	}
+
+private:
+	static float SmoothStep(float value) {
+		return value * value * (3.0f - 2.0f * value);
+	}
+
+	float initialLifeTime_ = 0.01f;
+	float remainingLifeTime_ = 0.01f;
+	float elapsedSeconds_ = 0.0f;
+	float size_ = 1.0f;
+};
+
+// 投射物の命中は専用処理で解決するため、汎用コライダー処理による押し戻しや二重判定を行わない。
 bool ShouldSkipColliderPair(GameObject* objectA, GameObject* objectB) {
 	if (!objectA || !objectB || objectA == objectB) {
 		return true;
@@ -36,9 +230,12 @@ struct EnemyPlayerContact {
 	Player* player = nullptr;
 };
 
+// 通常経験値の表示単位です。隣り合う値の比が、その段階を1個上へ圧縮するための必要個数になります。
 constexpr std::array<int, 4> kExperienceDenominations = {1, 10, 50, 100};
+// 同じ経験値単位をまとめる際、基準オブジェクトから候補として扱う最大距離です。
 constexpr float kExperienceCompressionDistance = 1.5f;
 
+// 圧縮後も経験値の段階を見た目で判別できるよう、単位ごとの表示色を返します。
 Vector4 GetExperienceColor(int denomination) {
 	switch (denomination) {
 	case 100: return {1.0f, 0.65f, 0.08f, 1.0f};
@@ -48,6 +245,7 @@ Vector4 GetExperienceColor(int denomination) {
 	}
 }
 
+// 発射順に赤・青・緑・黄・白・紫を循環させる。
 Vector4 GetArcHomingProjectileColor(int colorIndex) {
 	static const std::array<Vector4, 6> kColors = {{
 	    {1.0f, 0.08f, 0.04f, 1.0f},
@@ -69,6 +267,7 @@ Vector4 GetArcHomingTrailTailColor(int colorIndex) {
 	return color;
 }
 
+// 高い経験値ほど大きく表示するため、単位ごとのモデル倍率を返します。
 float GetExperienceScale(int denomination) {
 	switch (denomination) {
 	case 100: return 0.55f;
@@ -93,6 +292,7 @@ bool RegisterEnemyPlayerContact(GameObject* objectA, GameObject* objectB, std::v
 		return false;
 	}
 
+	// つじぎりボスなど、現在の状態によって接触攻撃が無効な敵はダメージ集計へ加えない。
 	if (enemy->IsEnabled() && player->IsEnabled() && enemy->GetCurrentHealth() > 0.0f && enemy->CanDealContactDamage()) {
 		const auto duplicate = std::find_if(contacts.begin(), contacts.end(), [enemy, player](const EnemyPlayerContact& contact) {
 			return contact.enemy == enemy && contact.player == player;
@@ -320,6 +520,7 @@ void BaseScene::ResolveEnemyLinks() {
 }
 
 void BaseScene::UpdateEnemySpawning() {
+	// ボス名を保持している間は通常スポーンを完全停止し、撃破後も報酬処理が終わるまでクリアを確定しない。
 	if (!activeBossEncounterObjectName_.empty()) {
 		GameObject* bossObject = FindObjectByName(activeBossEncounterObjectName_);
 		EnemyComponent* bossEnemy = bossObject ? bossObject->GetComponent<EnemyComponent>() : nullptr;
@@ -330,6 +531,17 @@ void BaseScene::UpdateEnemySpawning() {
 			}
 		}
 		if (bossIsAlive) {
+			return;
+		}
+		// 最終ボスの金色報酬を拾い、強化選択を終えるまではリザルトへ移動しない。
+		for (const auto& object : sceneObjects_) {
+			ExperienceComponent* reward = object->GetComponent<ExperienceComponent>();
+			if (reward && reward->IsBossUpgradeReward() &&
+			    (!reward->IsCollected() || !reward->IsBossUpgradeApplied())) {
+				return;
+			}
+		}
+		if (isLevelUpSelectionActive_ || !bossAcquisitionOfferQueue_.empty()) {
 			return;
 		}
 		// Boss Encounter はステージの最後に一度だけ発生するため、撃破をクリア条件とする。
@@ -376,12 +588,14 @@ void BaseScene::UpdateEnemySpawning() {
 		    triggeredBossSpawnPoint->GetBossEncounterSettings();
 		GameObject* player = triggeredBossSpawnPoint->GetTarget();
 		if (player) {
+			// ボス生成より先にプレイヤーを戦闘位置へ移し、落下速度を残さない。
 			player->GetTransform().translate = bossSettings.playerWarpPosition;
 			if (Player* playerComponent = player->GetComponent<Player>()) {
 				playerComponent->ResetGravityVelocity();
 			}
 		}
 
+		// ボス戦へ通常敵や途中の中ボスを持ち越さないよう、全EnemyComponentを即時除去する。
 		sceneObjects_.erase(
 		    std::remove_if(sceneObjects_.begin(), sceneObjects_.end(), [](const std::unique_ptr<GameObject>& object) {
 			    return object->GetComponent<EnemyComponent>() != nullptr;
@@ -403,7 +617,84 @@ void BaseScene::UpdateEnemySpawning() {
 	}
 
 	for (const SpawnRequest& request : spawnRequests) {
-		CreateRuntimeEnemy(request.enemyTypeName, request.position, request.target);
+		Vector3 spawnPosition = request.position;
+		// ステージ2では画面外の生成候補も上下の壁より内側へ収める。
+		if (sceneManager && sceneManager->GetSelectedGameplayStageId() == "stage2") {
+			constexpr float kStage2SpawnLimitZ = 8.5f;
+			spawnPosition.z = std::clamp(spawnPosition.z, -kStage2SpawnLimitZ, kStage2SpawnLimitZ);
+		}
+		CreateRuntimeEnemy(request.enemyTypeName, spawnPosition, request.target);
+	}
+}
+
+void BaseScene::UpdateStageBoundaryWrapping() {
+	if (!sceneManager) {
+		return;
+	}
+
+	const std::string& stageId = sceneManager->GetSelectedGameplayStageId();
+	// 平原はX/Zの両方向、ステージ2は壁と平行なX方向だけをループ対象にする。
+	const bool wrapsBothAxes = stageId == "default";
+	const bool wrapsHorizontally = stageId == "stage2";
+	if (!wrapsBothAxes && !wrapsHorizontally) {
+		return;
+	}
+
+	GameObject* playerObject = nullptr;
+	for (const auto& object : sceneObjects_) {
+		if (object->GetComponent<Player>()) {
+			playerObject = object.get();
+			break;
+		}
+	}
+	if (!playerObject) {
+		return;
+	}
+
+	// 平原は中央タイルの端、ステージ2は横長フィールドの端を折り返し位置として扱う。
+	// ステージ2の床判定は配置JSONでX方向±30（halfSize 24 × scale 1.25）を確保し、±20の折り返し前後を支える。
+	const float halfWidth = wrapsBothAxes ? 10.0f : 20.0f;
+	const float width = halfWidth * 2.0f;
+	const Vector3 playerPosition = playerObject->GetTransform().translate;
+	Vector3 shift{};
+	// 1フレームで境界幅以上を移動しても正しい範囲へ戻せるよう、条件を満たすまで繰り返す。
+	while (playerPosition.x + shift.x > halfWidth) shift.x -= width;
+	while (playerPosition.x + shift.x < -halfWidth) shift.x += width;
+	if (wrapsBothAxes) {
+		constexpr float kHalfDepth = 10.0f;
+		constexpr float kDepth = kHalfDepth * 2.0f;
+		while (playerPosition.z + shift.z > kHalfDepth) shift.z -= kDepth;
+		while (playerPosition.z + shift.z < -kHalfDepth) shift.z += kDepth;
+	}
+
+	if (shift.x == 0.0f && shift.z == 0.0f) {
+		return;
+	}
+
+	// プレイヤーだけを移すと敵やドロップとの距離が不連続になるため、ゲーム進行に関わる動的物体をまとめて移す。
+	auto movesWithStage = [](GameObject* target) {
+		return target && (
+		    target->GetComponent<Player>() ||
+		    target->GetComponent<EnemyComponent>() ||
+		    target->GetComponent<EnemyProjectileComponent>() ||
+		    target->GetComponent<PlayerProjectileComponent>() ||
+		    target->GetComponent<ExperienceComponent>() ||
+		    target->GetComponent<ItemDropComponent>() ||
+		    target->GetComponent<EnemySpawnPointComponent>());
+	};
+
+	for (const auto& object : sceneObjects_) {
+		GameObject* target = object.get();
+		if (movesWithStage(target)) {
+			if (TrailRendererComponent* trail = target->GetComponent<TrailRendererComponent>()) {
+				// 相対トレイルは参照元の移動だけで履歴全体が追従するため、保存点まで動かすと二重移動になる。
+				// 参照元がないワールド座標履歴と、ループ対象外を参照する履歴だけを直接補正する。
+				if (!movesWithStage(trail->GetPositionReference())) {
+					trail->TranslateHistory(shift);
+				}
+			}
+			target->GetTransform().translate = target->GetTransform().translate + shift;
+		}
 	}
 }
 
@@ -419,6 +710,7 @@ void BaseScene::UpdatePlayerAttacks() {
 		shotRequests.insert(shotRequests.end(), requests.begin(), requests.end());
 	}
 
+	// SkyLaserは画面外の敵を対象にしない。候補をシャッフルして同一発射内では別々の敵へ割り当てる。
 	std::vector<GameObject*> laserTargets;
 	for (const auto& object : sceneObjects_) {
 		EnemyComponent* enemy = object->GetComponent<EnemyComponent>();
@@ -433,6 +725,7 @@ void BaseScene::UpdatePlayerAttacks() {
 
 	for (PlayerAttackShotRequest& request : shotRequests) {
 		if (request.motionType == PlayerProjectileMotionType::SkyLaser) {
+			// 画面内に標的が残っていない分のレーザーは生成しない。
 			if (nextLaserTargetIndex >= laserTargets.size()) {
 				continue;
 			}
@@ -450,6 +743,8 @@ GameObject* BaseScene::CreateRuntimeEnemy(const std::string& enemyTypeName, cons
 	object->SetName(MakeUniqueObjectName(resolvedTypeName));
 	object->SetEditorType("Enemy");
 	object->GetTransform().translate = position;
+	// 0.75を通常敵の基準サイズとし、MidBossなどはデータ側の倍率で大型化する。
+	// OBBはTransform.scaleを参照するため、見た目と接触判定が同じ倍率で拡大される。
 	const float scale = 0.75f * stats.sizeScale;
 	object->GetTransform().scale = {scale, scale, scale};
 
@@ -470,6 +765,7 @@ GameObject* BaseScene::CreateRuntimeEnemy(const std::string& enemyTypeName, cons
 	collider->SetHalfSize({0.4f, 0.4f, 0.4f});
 	collider->SetPushBackEnabled(true);
 	if (stats.behavior == EnemyBehaviorType::NightSlashBoss) {
+		// 高速移動した経路を紫色の帯として残し、切り返し方向を視覚化する。
 		TrailRendererComponent* trail = object->AddComponent<TrailRendererComponent>();
 		trail->SetWidth(1.15f * stats.sizeScale);
 		trail->SetLifeTime(0.32f);
@@ -547,9 +843,15 @@ GameObject* BaseScene::CreateRuntimeExperience(const EnemyStats& enemyStats, con
 	return firstExperienceObject;
 }
 
+/// <summary>
+/// 敵の撃破位置へ回復、経験値回収、または所持金用のドロップオブジェクトを生成します。
+/// MoneyタイプではmoneyAmountを保持し、プレイヤーが接触した時に今回の獲得額へ加算します。
+/// </summary>
 GameObject* BaseScene::CreateRuntimeItemDrop(
-	ItemDropType type, const Vector3& position, GameObject* target, float healAmount) {
+	ItemDropType type, const Vector3& position, GameObject* target, float healAmount, int moneyAmount) {
+	// 撃破した敵にターゲットが設定されていない場合も回収できるよう、シーン内のプレイヤーを補完する。
 	if (!target) {
+		// 全スポーンポイントへ停止状態を伝え、経過秒数とスケジュールカウンターを凍結する。
 		for (const auto& object : sceneObjects_) {
 			if (object->GetComponent<Player>()) {
 				target = object.get();
@@ -561,21 +863,25 @@ GameObject* BaseScene::CreateRuntimeItemDrop(
 	ModelManager::GetInstance()->LoadModel("sphere.obj");
 	auto object = std::make_unique<GameObject>();
 	const bool isHealthItem = type == ItemDropType::Health;
-	object->SetName(MakeUniqueObjectName(isHealthItem ? "HealthItem" : "ExperienceCollector"));
-	object->SetEditorType(isHealthItem ? "HealthItem" : "ExperienceCollector");
+	const bool isMoneyItem = type == ItemDropType::Money;
+	// 種類ごとに名前、表示サイズ、色を変え、プレイ中に効果を判別できるようにする。
+	object->SetName(MakeUniqueObjectName(isHealthItem ? "HealthItem" : isMoneyItem ? "Money" : "ExperienceCollector"));
+	object->SetEditorType(isHealthItem ? "HealthItem" : isMoneyItem ? "Money" : "ExperienceCollector");
 	object->GetTransform().translate = position + Vector3{isHealthItem ? -0.35f : 0.35f, 0.35f, 0.0f};
-	const float scale = isHealthItem ? 0.42f : 0.50f;
+	const float scale = isHealthItem ? 0.42f : isMoneyItem ? 0.30f : 0.50f;
 	object->GetTransform().scale = {scale, scale, scale};
 
 	ItemDropComponent* item = object->AddComponent<ItemDropComponent>();
 	item->SetType(type);
 	item->SetTarget(target);
 	item->SetHealAmount(healAmount);
+	item->SetMoneyAmount(moneyAmount);
 
 	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
 	object3d->SetModel("sphere.obj");
 	object3d->SetColor(isHealthItem
 		? Vector4{0.15f, 1.0f, 0.25f, 1.0f}
+		: isMoneyItem ? Vector4{1.0f, 0.55f, 0.05f, 1.0f}
 		: Vector4{1.0f, 0.85f, 0.10f, 1.0f});
 
 	object->Update();
@@ -584,6 +890,10 @@ GameObject* BaseScene::CreateRuntimeItemDrop(
 	return sceneObjects_.back().get();
 }
 
+/// <summary>
+/// ボス撃破位置へ金色の強化報酬を1個生成します。
+/// upgradeCountはドロップ数ではなく、回収時に実行する強化抽選の回数です。
+/// </summary>
 void BaseScene::CreateRuntimeBossUpgradeDrop(const Vector3& position, GameObject* target, int upgradeCount) {
 	if (!target) {
 		for (const auto& object : sceneObjects_) {
@@ -601,6 +911,7 @@ void BaseScene::CreateRuntimeBossUpgradeDrop(const Vector3& position, GameObject
 	object->GetTransform().translate = position + Vector3{0.0f, 0.45f, 0.0f};
 	object->GetTransform().scale = {0.65f, 0.65f, 0.65f};
 
+	// 経験値と同じ吸着挙動を再利用し、識別フラグによって経験値加算だけを抑止する。
 	ExperienceComponent* reward = object->AddComponent<ExperienceComponent>();
 	reward->SetBossUpgradeReward(true);
 	reward->SetBossUpgradeCount(upgradeCount);
@@ -617,6 +928,10 @@ void BaseScene::CreateRuntimeBossUpgradeDrop(const Vector3& position, GameObject
 	++nextObjectId_;
 }
 
+/// <summary>
+/// 装備中の強化可能な攻撃・アイテムを、指定回数だけ独立に抽選して1レベルずつ上げます。
+/// 同じ装備の再選出を許可し、途中で上限へ達した装備は次の抽選から除外します。
+/// </summary>
 int BaseScene::ApplyRandomBossUpgrades(Player* player, int upgradeCount) {
 	if (!player || upgradeCount <= 0) {
 		return 0;
@@ -631,6 +946,7 @@ int BaseScene::ApplyRandomBossUpgrades(Player* player, int upgradeCount) {
 	PlayerStats upgradedStats = player->GetBaseStats();
 	int appliedCount = 0;
 	for (; appliedCount < upgradeCount; ++appliedCount) {
+		// 直前の強化結果を反映した状態から候補を作り直すことで、重複選出と上限除外を両立する。
 		std::vector<UpgradeCandidate> candidates;
 		for (int index = 0; index < static_cast<int>(upgradedStats.attackSlots.size()); ++index) {
 			const PlayerAttackSlot& slot = upgradedStats.attackSlots[index];
@@ -645,6 +961,7 @@ int BaseScene::ApplyRandomBossUpgrades(Player* player, int upgradeCount) {
 			if (slot.attackLevel != "5") {
 				continue;
 			}
+			// レベル5攻撃は、対応アイテムと必要レベルを満たす場合だけスーパー化候補へ加える。
 			const PlayerAttackStats attackStats = LoadPlayerAttackStats(slot.attackName);
 			bool conditionMet = !attackStats.superConditionStatusName.empty();
 			const int requiredLevel = (std::max)(1, std::atoi(attackStats.superConditionStatusLevel.c_str()));
@@ -665,6 +982,7 @@ int BaseScene::ApplyRandomBossUpgrades(Player* player, int upgradeCount) {
 			}
 		}
 		if (candidates.empty()) {
+			// 適用できなかった残り回数は、呼び出し側で未所持装備の取得確認へ変換する。
 			break;
 		}
 		std::uniform_int_distribution<size_t> candidateDistribution(0, candidates.size() - 1);
@@ -689,6 +1007,9 @@ int BaseScene::ApplyRandomBossUpgrades(Player* player, int upgradeCount) {
 	return appliedCount;
 }
 
+/// <summary>
+/// 回収済みの金色ボス報酬へ強化効果を適用し、強化アイテム数に比例したお金を付与します。
+/// </summary>
 void BaseScene::UpdateBossUpgradeRewards() {
 	for (const auto& object : sceneObjects_) {
 		ExperienceComponent* reward = object->GetComponent<ExperienceComponent>();
@@ -696,12 +1017,22 @@ void BaseScene::UpdateBossUpgradeRewards() {
 			continue;
 		}
 		Player* player = reward->GetTarget() ? reward->GetTarget()->GetComponent<Player>() : nullptr;
+		// 金色報酬を拾った瞬間に全体G強化を適用し、所持金と今回獲得額の両方へ反映する。
+		const int baseMoney = reward->GetBossUpgradeCount() * 100;
+		const int gainedMoney = sceneManager ? sceneManager->ApplyGlobalGoldBonus(baseMoney) : baseMoney;
+		// challengeMoneyEarned_はリザルト表示用、AddMoneyは所持金更新とJSON即時保存を担当する。
+		challengeMoneyEarned_ += gainedMoney;
+		if (sceneManager) sceneManager->AddMoney(gainedMoney);
 		const int appliedCount = ApplyRandomBossUpgrades(player, reward->GetBossUpgradeCount());
 		QueueBossAcquisitionOffers(player, reward->GetBossUpgradeCount() - appliedCount);
 		reward->MarkBossUpgradeApplied();
 	}
 }
 
+/// <summary>
+/// 強化対象が存在しなかった回数分、空きスロットへ追加できる未所持装備をランダムに予約します。
+/// 同じ候補は1つの予約列へ重複登録せず、候補数が不足する場合は存在する分だけ提示します。
+/// </summary>
 void BaseScene::QueueBossAcquisitionOffers(Player* player, int offerCount) {
 	if (!player || offerCount <= 0) {
 		return;
@@ -714,6 +1045,7 @@ void BaseScene::QueueBossAcquisitionOffers(Player* player, int offerCount) {
 		return slot.statusName.empty();
 	});
 
+	const auto otherPlayerInitialAttacks = GetOtherPlayerInitialAttacks(*player);
 	std::unordered_set<std::string> ownedAttacks;
 	std::unordered_set<std::string> ownedStatuses;
 	for (const PlayerAttackSlot& slot : stats.attackSlots) {
@@ -727,10 +1059,13 @@ void BaseScene::QueueBossAcquisitionOffers(Player* player, int offerCount) {
 		}
 	}
 
+	// 攻撃とステータスアイテムを同じ候補配列へ集約し、種類をまたいで公平にシャッフルする。
 	std::vector<LevelUpChoice> offers;
 	if (hasEmptyAttackSlot) {
 		for (const std::string& attackName : LoadPlayerAttackNames()) {
-			if (ownedAttacks.find(attackName) != ownedAttacks.end()) {
+			// 通常レベルアップで抽選されない他タイプの初期武器は、ボス報酬でも除外する。
+			if (ownedAttacks.find(attackName) != ownedAttacks.end() ||
+			    otherPlayerInitialAttacks.contains(attackName)) {
 				continue;
 			}
 			const PlayerAttackStats attackStats = LoadPlayerAttackStats(attackName);
@@ -787,11 +1122,17 @@ void BaseScene::QueueBossAcquisitionOffers(Player* player, int offerCount) {
 	}
 }
 
+/// <summary>予約候補を再検証し、「取得する／見送る」の2択としてレベルアップUIへ表示します。</summary>
 bool BaseScene::ShowNextBossAcquisitionOffer() {
+	// 予約後にプレイヤー設定が変更されても、表示時点の新規取得条件で再検証する。
+	const auto otherPlayerInitialAttacks = bossAcquisitionPlayer_
+	    ? GetOtherPlayerInitialAttacks(*bossAcquisitionPlayer_)
+	    : std::unordered_set<std::string>{};
 	while (bossAcquisitionPlayer_ && !bossAcquisitionOfferQueue_.empty()) {
 		LevelUpChoice offer = bossAcquisitionOfferQueue_.front();
 		bossAcquisitionOfferQueue_.erase(bossAcquisitionOfferQueue_.begin());
 		const PlayerStats& stats = bossAcquisitionPlayer_->GetBaseStats();
+		// 前の確認中にスロット状態が変わる可能性があるため、表示直前に所有状態と空き位置を再確認する。
 		if (offer.type == LevelUpChoiceType::NewAttack) {
 			const auto owned = std::find_if(stats.attackSlots.begin(), stats.attackSlots.end(), [&offer](const PlayerAttackSlot& slot) {
 				return slot.attackName == offer.name;
@@ -799,7 +1140,8 @@ bool BaseScene::ShowNextBossAcquisitionOffer() {
 			const auto empty = std::find_if(stats.attackSlots.begin(), stats.attackSlots.end(), [](const PlayerAttackSlot& slot) {
 				return slot.attackName.empty();
 			});
-			if (owned != stats.attackSlots.end() || empty == stats.attackSlots.end()) {
+			if (owned != stats.attackSlots.end() || empty == stats.attackSlots.end() ||
+			    otherPlayerInitialAttacks.contains(offer.name)) {
 				continue;
 			}
 			offer.slotIndex = static_cast<int>(std::distance(stats.attackSlots.begin(), empty));
@@ -818,6 +1160,7 @@ bool BaseScene::ShowNextBossAcquisitionOffer() {
 			continue;
 		}
 
+		// 既存のレベルアップUIを再利用し、候補カードと見送りカードだけを表示する。
 		levelUpPlayer_ = bossAcquisitionPlayer_;
 		levelUpChoices_.clear();
 		levelUpChoices_.push_back(offer);
@@ -847,6 +1190,7 @@ void BaseScene::UpdateEnemyAttacks() {
 			continue;
 		}
 		if (enemy->ConsumeSelfDestructRequest()) {
+			// 爆発要求はこのフレームで一度だけ処理し、EnemyComponent側で体力0にして後続の掃除対象にする。
 			GameObject* target = enemy->GetTarget();
 			Player* player = target ? target->GetComponent<Player>() : nullptr;
 			if (player && player->IsEnabled() && player->GetCurrentHealth() > 0.0f) {
@@ -863,6 +1207,7 @@ void BaseScene::UpdateEnemyAttacks() {
 
 		if (TrailRendererComponent* trail = object->GetComponent<TrailRendererComponent>();
 			trail && enemy->GetStats().behavior == EnemyBehaviorType::NightSlashBoss) {
+			// 待機中の不要な軌跡を防ぎ、斬撃判定が有効な期間だけ新しい点を記録する。
 			trail->SetEmitting(enemy->IsNightSlashAttacking());
 		}
 
@@ -880,14 +1225,19 @@ void BaseScene::UpdateEnemyAttacks() {
 			} else if (enemy->IsBossRangedAttacking()) {
 				object3d->SetColor({0.12f, 0.70f, 1.0f, 1.0f});
 			} else if (enemy->IsNightSlashWarningActive()) {
+				// 予兆中は進行度に応じて紫色を点滅させ、攻撃開始が近いことを知らせる。
 				const float pulse = 0.45f + 0.55f * std::sin(enemy->GetNightSlashProgress() * 14.0f * MathConstants::kPi);
 				object3d->SetColor({0.62f + 0.28f * pulse, 0.04f, 0.82f + 0.18f * pulse, 1.0f});
 			} else if (enemy->IsNightSlashAttacking()) {
+				// 斬撃中は明るい紫へ固定し、接触ダメージが有効な状態を判別しやすくする。
 				object3d->SetColor({0.95f, 0.18f, 1.0f, 1.0f});
 			} else if (enemy->GetStats().behavior == EnemyBehaviorType::NightSlashBoss) {
 				object3d->SetColor({0.42f, 0.06f, 0.62f, 1.0f});
 			} else if (enemy->GetStats().behavior == EnemyBehaviorType::TornadoBoss) {
 				object3d->SetColor({0.08f, 0.48f, 0.78f, 1.0f});
+			} else if (enemy->GetStats().behavior == EnemyBehaviorType::BurstShooter) {
+				// ステージ2中ボスは通常射撃敵と見分けられるよう、風を連想する青緑色にする。
+				object3d->SetColor({0.08f, 0.86f, 0.62f, 1.0f});
 			} else if (enemy->IsChargeWarningActive()) {
 				const float pulse = 0.45f + 0.55f * std::sin(enemy->GetChargeProgress() * 18.0f * MathConstants::kPi);
 				object3d->SetColor({1.0f, 0.05f + 0.25f * pulse, 0.02f, 1.0f});
@@ -901,6 +1251,7 @@ void BaseScene::UpdateEnemyAttacks() {
 				    : 0.0f;
 				object3d->SetColor({1.0f, 0.72f * (1.0f - pulse), 0.02f, 1.0f});
 			} else if (enemy->GetEnemyTypeName() == "MidBoss") {
+				// 行動は通常追跡のまま、紫色と大型シルエットで中ボスだと識別できるようにする。
 				object3d->SetColor({0.62f, 0.16f, 0.85f, 1.0f});
 			}
 		}
@@ -910,8 +1261,10 @@ void BaseScene::UpdateEnemyAttacks() {
 	}
 }
 
+/// <summary>敵の発射要求から、移動・描画・当たり判定を持つ敵弾を生成します。</summary>
 GameObject* BaseScene::CreateRuntimeEnemyProjectile(const EnemyShotRequest& request) {
 	auto object = std::make_unique<GameObject>();
+	// 軌道タイプは移動だけでなく、竜巻ごとの名前・色・軌跡表現の選択にも使用する。
 	const bool isContractingTornado = request.motionType == EnemyProjectileMotionType::ContractingOrbit;
 	const bool isGiantTornado = request.motionType == EnemyProjectileMotionType::Homing;
 	const bool isTornado = request.motionType == EnemyProjectileMotionType::ExpandingOrbit ||
@@ -950,8 +1303,9 @@ GameObject* BaseScene::CreateRuntimeEnemyProjectile(const EnemyShotRequest& requ
 	projectile->SetSize(request.size);
 	projectile->SetLifeTime(request.lifeTime);
 
+	// 敵弾の見た目と同じ範囲を命中判定に使用する。
 	SphereColliderComponent* collider = object->AddComponent<SphereColliderComponent>();
-	// Transform の scale が弾サイズなので、半径 1.0 の球を設定すると表示と同じ大きさになる。
+	// Transform の scale が弾サイズなので、ローカル半径 1.0 でワールド半径が request.size になる。
 	collider->SetRadius(1.0f);
 	collider->SetPushBackEnabled(false);
 
@@ -963,6 +1317,38 @@ GameObject* BaseScene::CreateRuntimeEnemyProjectile(const EnemyShotRequest& requ
 	    : isContractingTornado
 	    ? Vector4{0.78f, 0.35f, 1.0f, 1.0f}
 	    : isTornado ? Vector4{0.50f, 0.92f, 1.0f, 1.0f} : Vector4{1.0f, 0.12f, 0.04f, 1.0f});
+	// 竜巻弾は球モデルではなく、上方へ広がる渦パーティクルを本体表示として使う。
+	object3d->SetEnabled(!isTornado);
+	if (isTornado) {
+		// 全竜巻で同じ描画グループを共有し、竜巻ごとのGPUバッファ生成を避ける。
+		constexpr const char* kTornadoParticleGroup = "RuntimeTornadoParticle";
+		if (!ParticleManager::GetInstance()->GetGroup(kTornadoParticleGroup)) {
+			ParticleManager::GetInstance()->CreateParticleGroup(
+			    kTornadoParticleGroup, "Resources/circle.png", kMeshTypeQuad);
+		}
+
+		ParticleEmitterComponent* tornadoEmitter = object->AddComponent<ParticleEmitterComponent>();
+		tornadoEmitter->SetGroupName(kTornadoParticleGroup);
+		// 色や生成周期などの共通値をプリセットから読み、攻撃サイズ依存値だけ下で上書きする。
+		ParticlePresetRepository::Apply("Tornado", tornadoEmitter);
+
+		ParticleEmitParam tornadoParam = tornadoEmitter->GetParam();
+		// 当たり判定サイズに比例させ、通常・収束・巨大竜巻でシルエットの比率を統一する。
+		tornadoParam.vortexBaseRadius = (std::max)(0.10f, request.size * 0.16f);
+		tornadoParam.vortexTopRadius = (std::max)(0.65f, request.size * 1.45f);
+		tornadoParam.vortexHeight = (std::max)(1.8f, request.size * 3.6f);
+		tornadoParam.scale = {request.size * 0.24f, request.size * 0.24f, request.size * 0.24f};
+		tornadoParam.randomScaleRange = {
+		    request.size * 0.08f, request.size * 0.08f, 0.0f};
+		// 攻撃パターンを見分けられるよう、巨大は緑、収束は紫、通常は水色にする。
+		tornadoParam.color = isGiantTornado
+		    ? Vector4{0.38f, 1.0f, 0.58f, 0.78f}
+		    : isContractingTornado
+		    ? Vector4{0.82f, 0.48f, 1.0f, 0.78f}
+		    : Vector4{0.58f, 0.92f, 1.0f, 0.78f};
+		tornadoParam.endColor = {tornadoParam.color.x, tornadoParam.color.y, tornadoParam.color.z, 0.0f};
+		tornadoEmitter->SetParam(tornadoParam);
+	}
 	TrailRendererComponent* trail = object->AddComponent<TrailRendererComponent>();
 	trail->SetWidth((std::max)(0.10f, request.size * (isTornado ? 1.6f : 0.8f)));
 	trail->SetLifeTime(isTornado ? 1.15f : 0.28f);
@@ -983,6 +1369,7 @@ GameObject* BaseScene::CreateRuntimeEnemyProjectile(const EnemyShotRequest& requ
 	return sceneObjects_.back().get();
 }
 
+/// <summary>有効な敵弾とプレイヤーのコライダーを判定し、命中時にダメージと弾の消滅を処理します。</summary>
 void BaseScene::UpdateEnemyProjectileHits() {
 	for (const auto& projectileObject : sceneObjects_) {
 		EnemyProjectileComponent* projectile = projectileObject->GetComponent<EnemyProjectileComponent>();
@@ -995,6 +1382,7 @@ void BaseScene::UpdateEnemyProjectileHits() {
 				continue;
 			}
 
+			// 通常は生成時に追加した球コライダーを使い、旧データなど未設定の場合は弾サイズから補完する。
 			const SphereColliderComponent* projectileCollider =
 			    projectileObject->GetComponent<SphereColliderComponent>();
 			const SphereColliderShape projectileSphere = projectileCollider
@@ -1002,6 +1390,7 @@ void BaseScene::UpdateEnemyProjectileHits() {
 			    : SphereColliderShape{projectileObject->GetTransform().translate, projectile->GetSize()};
 
 			bool isHit = false;
+			// プレイヤーの実形状を優先し、OBB と球のどちらの構成にも対応する。
 			if (const OBBColliderComponent* playerCollider = playerObject->GetComponent<OBBColliderComponent>();
 			    playerCollider && playerCollider->IsEnabled()) {
 				isHit = IsCollisionOBBToSphere(playerCollider->GetWorldOBB(), projectileSphere);
@@ -1012,6 +1401,7 @@ void BaseScene::UpdateEnemyProjectileHits() {
 					isHit = IsCollisionSphereToSphere(playerCollider->GetWorldSphere(), projectileSphere);
 				}
 			}
+			// コライダーを持たないプレイヤーでも従来どおり最低限の命中判定を行う。
 			if (!isHit &&
 			    !playerObject->GetComponent<OBBColliderComponent>() &&
 			    !playerObject->GetComponent<SphereColliderComponent>()) {
@@ -1020,6 +1410,7 @@ void BaseScene::UpdateEnemyProjectileHits() {
 			}
 
 			if (isHit) {
+				// 1発で複数回ダメージを与えないよう、命中済みにして後段の削除処理へ渡す。
 				player->TakeDamage(projectile->GetAttack());
 				projectile->MarkHit();
 				break;
@@ -1028,22 +1419,30 @@ void BaseScene::UpdateEnemyProjectileHits() {
 	}
 }
 
+/// <summary>
+/// 近くにある同じ単位の通常経験値を、合計値を維持したまま次の単位へ圧縮します。
+/// </summary>
 void BaseScene::UpdateExperienceCompression() {
+	// 小さい単位から順に処理することで、1→10→50→100の連鎖圧縮を同じフレーム内で成立させる。
 	for (size_t denominationIndex = 0; denominationIndex + 1 < kExperienceDenominations.size(); ++denominationIndex) {
 		const int denomination = kExperienceDenominations[denominationIndex];
 		const int nextDenomination = kExperienceDenominations[denominationIndex + 1];
+		// 例: 1→10は10個、10→50は5個、50→100は2個必要になる。
 		const int requiredCount = nextDenomination / denomination;
 
+		// 同じ段階で複数組を圧縮できるよう、候補がなくなるまで検索を繰り返す。
 		bool compressed = true;
 		while (compressed) {
 			compressed = false;
 			for (const auto& anchorObject : sceneObjects_) {
 				ExperienceComponent* anchor = anchorObject->GetComponent<ExperienceComponent>();
+				// ボス強化報酬や、すでに回収・圧縮されたオブジェクトは通常経験値としてまとめない。
 				if (!anchor || anchor->IsBossUpgradeReward() || anchor->IsCollected() || anchor->IsConsumedByCompression() ||
 				    anchor->GetExperience() != denomination) {
 					continue;
 				}
 
+				// 基準位置の周囲から、同じ単位の経験値を必要数だけ集める。
 				std::vector<GameObject*> nearbyObjects;
 				nearbyObjects.reserve(requiredCount);
 				nearbyObjects.push_back(anchorObject.get());
@@ -1068,6 +1467,7 @@ void BaseScene::UpdateExperienceCompression() {
 					continue;
 				}
 
+				// まとめた経験値の中心へ残存オブジェクトを移し、次の単位の見た目と値へ更新する。
 				Vector3 mergedPosition{};
 				for (GameObject* object : nearbyObjects) {
 					mergedPosition = mergedPosition + object->GetTransform().translate;
@@ -1080,6 +1480,7 @@ void BaseScene::UpdateExperienceCompression() {
 				if (Object3dComponent* object3d = anchorObject->GetComponent<Object3dComponent>()) {
 					object3d->SetColor(GetExperienceColor(nextDenomination));
 				}
+				// 基準以外は削除処理へ渡す。経験値は基準側へ集約済みなので、プレイヤーには加算しない。
 				for (size_t index = 1; index < nearbyObjects.size(); ++index) {
 					nearbyObjects[index]->GetComponent<ExperienceComponent>()->MarkConsumedByCompression();
 				}
@@ -1091,6 +1492,7 @@ void BaseScene::UpdateExperienceCompression() {
 }
 
 void BaseScene::UpdateItemDrops() {
+	// 接触判定はItemDropComponentが行い、シーン内の他オブジェクトが必要な効果だけをここで適用する。
 	for (const auto& itemObject : sceneObjects_) {
 		ItemDropComponent* item = itemObject->GetComponent<ItemDropComponent>();
 		if (!item || !item->IsCollected() || item->IsEffectApplied()) {
@@ -1098,15 +1500,24 @@ void BaseScene::UpdateItemDrops() {
 		}
 
 		if (item->GetType() == ItemDropType::CollectAllExperience) {
+			// ボス強化報酬や取得・圧縮済みの経験値は通常経験値ではないため対象外とする。
 			for (const auto& experienceObject : sceneObjects_) {
 				ExperienceComponent* experience = experienceObject->GetComponent<ExperienceComponent>();
 				if (!experience || experience->IsBossUpgradeReward() || experience->IsCollected() ||
 				    experience->IsConsumedByCompression()) {
 					continue;
 				}
+				// 距離制限を実質解除し、フィールド上の経験値を一斉にプレイヤーへ向かわせる。
 				experience->SetAttractDistance((std::numeric_limits<float>::max)());
 				experience->SetAttractSpeed(0.16f);
 			}
+		} else if (item->GetType() == ItemDropType::Money) {
+			// Gドロップを拾った瞬間に倍率を掛け、ゲームを途中終了しても獲得分が残るよう即時保存する。
+			const int baseMoney = item->GetMoneyAmount();
+			const int gainedMoney = sceneManager ? sceneManager->ApplyGlobalGoldBonus(baseMoney) : baseMoney;
+			// リザルト集計と永続所持金へ同じ補正後金額を渡し、画面表示との差を作らない。
+			challengeMoneyEarned_ += gainedMoney;
+			if (sceneManager) sceneManager->AddMoney(gainedMoney);
 		}
 		item->MarkEffectApplied();
 	}
@@ -1175,6 +1586,16 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 		}
 	}
 
+	if (request.attackName == "Straight" && request.motionType == PlayerProjectileMotionType::Linear) {
+		// 共通の弾パラメーター設定後に描画だけを差し替え、他の攻撃のモデル・軌跡には影響させない。
+		// 球モデルと直線のトレイルを使わず、初フレームから完成した斬撃を表示する。
+		object->AddComponent<StraightSlashVisualComponent>(request.lifeTime);
+		object->Update();
+		sceneObjects_.push_back(std::move(object));
+		++nextObjectId_;
+		return sceneObjects_.back().get();
+	}
+
 	const std::string modelFilePath = request.modelFilePath.empty() ? "sphere.obj" : request.modelFilePath;
 	if (!ModelManager::GetInstance()->FindModel(modelFilePath)) {
 		ModelManager::GetInstance()->LoadModel(modelFilePath);
@@ -1192,27 +1613,33 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 		object3d->SetModel("sphere.obj");
 	}
 	if (request.motionType == PlayerProjectileMotionType::ArcHoming) {
+		// sphere.obj本来の絵柄を白テクスチャで置き換え、頂点色を6色そのまま表示する。
+		// 共有Modelのテクスチャ自体は変更せず、この弾の描画時だけ上書きする。
 		object3d->SetModelTextureOverride("Resources/human/white.png");
 		object3d->SetColor(GetArcHomingProjectileColor(request.colorIndex));
 	} else if (request.motionType == PlayerProjectileMotionType::Orbit) {
 		object3d->SetColor({0.35f, 0.75f, 1.0f, 1.0f});
 	} else if (request.motionType == PlayerProjectileMotionType::SkyLaser) {
-		object3d->SetColor({0.65f, 0.90f, 1.0f, 1.0f});
+		// 球を引き伸ばした旧表示は隠し、加算合成の専用エフェクトでレーザーを描画する。
+		object3d->SetEnabled(false);
+		object->AddComponent<SkyLaserVisualComponent>(request.lifeTime, request.size);
 	} else if (request.motionType == PlayerProjectileMotionType::Boomerang) {
 		object3d->SetColor({1.0f, 0.65f, 0.20f, 1.0f});
 	} else if (request.motionType == PlayerProjectileMotionType::Ricochet) {
 		object3d->SetColor({0.45f, 1.0f, 0.30f, 1.0f});
 	} else if (request.motionType == PlayerProjectileMotionType::ClawSlash) {
 		object3d->SetColor({1.0f, 0.22f, 0.10f, 1.0f});
+		// 爪は球モデルではなく、二層の発光トレイル自体を攻撃のシルエットとして見せる。
+		object3d->SetEnabled(false);
 	}
 	if (request.motionType != PlayerProjectileMotionType::SkyLaser) {
 		TrailRendererComponent* trail = object->AddComponent<TrailRendererComponent>();
 		trail->SetWidth(request.motionType == PlayerProjectileMotionType::ClawSlash
-		        ? (std::max)(0.10f, request.size * 0.22f)
+		        ? (std::max)(0.14f, request.size * 0.30f)
 		        : (std::max)(0.12f, request.size * 0.8f));
 		trail->SetLifeTime(request.motionType == PlayerProjectileMotionType::Orbit
 		        ? 0.45f
-		        : request.motionType == PlayerProjectileMotionType::ClawSlash ? 0.20f : 0.32f);
+		        : request.motionType == PlayerProjectileMotionType::ClawSlash ? 0.24f : 0.32f);
 		trail->SetMinSegmentLength((std::max)(0.025f, request.size * 0.08f));
 		if (request.motionType == PlayerProjectileMotionType::ArcHoming) {
 			Vector4 headColor = GetArcHomingProjectileColor(request.colorIndex);
@@ -1223,6 +1650,7 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 			trail->SetHeadColor({1.0f, 0.72f, 0.20f, 0.95f});
 			trail->SetTailColor({1.0f, 0.12f, 0.02f, 0.0f});
 		} else if (request.motionType == PlayerProjectileMotionType::Orbit) {
+			// 履歴をプレイヤー相対で保持し、プレイヤー移動時に過去の円弧だけが置き去りになるのを防ぐ。
 			trail->SetPositionReference(request.motionAnchor);
 			trail->SetHeadColor({0.45f, 0.90f, 1.0f, 0.9f});
 			trail->SetTailColor({0.10f, 0.30f, 1.0f, 0.0f});
@@ -1230,11 +1658,23 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 			trail->SetHeadColor({0.65f, 1.0f, 0.30f, 0.95f});
 			trail->SetTailColor({0.05f, 0.80f, 0.15f, 0.0f});
 		} else if (request.motionType == PlayerProjectileMotionType::ClawSlash) {
-			trail->SetHeadColor({1.0f, 0.95f, 0.72f, 1.0f});
-			trail->SetTailColor({1.0f, 0.05f, 0.01f, 0.0f});
+			// プレイヤー相対で履歴を持ち、移動しながら発動しても爪痕の形を崩さない。
+			trail->SetPositionReference(request.motionAnchor);
+			trail->SetHeadColor({1.0f, 0.30f, 0.04f, 0.92f});
+			trail->SetTailColor({0.70f, 0.01f, 0.00f, 0.0f});
+
+			// 細い白熱線を外光へ重ね、一本ごとの切っ先を読み取りやすくする。
+			TrailRendererComponent* coreTrail = object->AddComponent<TrailRendererComponent>();
+			coreTrail->SetWidth((std::max)(0.045f, request.size * 0.085f));
+			coreTrail->SetLifeTime(0.16f);
+			coreTrail->SetMinSegmentLength((std::max)(0.018f, request.size * 0.055f));
+			coreTrail->SetPositionReference(request.motionAnchor);
+			coreTrail->SetHeadColor({1.0f, 1.0f, 0.86f, 1.0f});
+			coreTrail->SetTailColor({1.0f, 0.28f, 0.02f, 0.0f});
 		}
 	}
 	if (request.motionType == PlayerProjectileMotionType::ArcHoming) {
+		// 環境反射ではなく、加算合成パーティクルを弾から漏れ出す光として連続発生させる。
 		constexpr const char* kGlowParticleGroup = "ArcHomingGlow";
 		constexpr const char* kGlowTexture = "Resources/circle.png";
 		if (!ParticleManager::GetInstance()->GetGroup(kGlowParticleGroup)) {
@@ -1286,6 +1726,7 @@ void BaseScene::UpdatePlayerProjectileHits() {
 		GameObject* target = nullptr;
 	};
 	struct BossUpgradeDropRequest {
+		// 生成する報酬は常に1個で、upgradeCountだけが70%/25%/5%の抽選結果に応じて変化する。
 		Vector3 position;
 		GameObject* target = nullptr;
 		int upgradeCount = 1;
@@ -1295,9 +1736,11 @@ void BaseScene::UpdatePlayerProjectileHits() {
 		Vector3 position;
 		GameObject* target = nullptr;
 		float healAmount = 0.0f;
+		int moneyAmount = 0;
 	};
 	std::vector<ExperienceDropRequest> experienceDropRequests;
 	std::vector<BossUpgradeDropRequest> bossUpgradeDropRequests;
+	// sceneObjects_の走査中に要素を追加すると反復子が無効になるため、生成要求を一旦蓄積する。
 	std::vector<ItemDropRequest> itemDropRequests;
 	Camera* camera = Object3dCommon::GetInstance() ? Object3dCommon::GetInstance()->GetDefaultCamera() : nullptr;
 	for (const auto& projectileObject : sceneObjects_) {
@@ -1310,6 +1753,7 @@ void BaseScene::UpdatePlayerProjectileHits() {
 		Vector3& position = projectileObject->GetTransform().translate;
 		Vector3 currentNdc{};
 		Vector3 aheadNdc{};
+		// ワールド座標を画面座標へ投影し、左右端・上下端に応じて画面上の進行成分を反転する。
 		if (camera && ProjectToNdc(camera, position, currentNdc) &&
 		    ProjectToNdc(camera, position + projectile->GetDirection(), aheadNdc)) {
 			const float edgeInset = (std::clamp)(0.025f + projectile->GetSize() * 0.02f, 0.025f, 0.20f);
@@ -1339,6 +1783,7 @@ void BaseScene::UpdatePlayerProjectileHits() {
 			}
 		}
 
+		// 障害物との反射は弾を球として扱い、衝突面の法線から反射ベクトルを求める。
 		SphereColliderShape projectileSphere{position, projectile->GetSize()};
 		for (const auto& obstacleObject : sceneObjects_) {
 			if (obstacleObject.get() == projectileObject.get() ||
@@ -1376,6 +1821,7 @@ void BaseScene::UpdatePlayerProjectileHits() {
 			if (incomingAmount >= 0.0f) {
 				continue;
 			}
+			// めり込みを解消してから反射させ、同じ面へ連続衝突することを防ぐ。
 			position = position + (penetration + 0.01f) * surfaceNormal;
 			projectile->SetDirection(projectile->GetDirection() - (2.0f * incomingAmount) * surfaceNormal);
 			projectileObject->GetTransform().rotate.y = std::atan2(projectile->GetDirection().x, projectile->GetDirection().z);
@@ -1408,11 +1854,13 @@ void BaseScene::UpdatePlayerProjectileHits() {
 			if (distance <= hitRadius) {
 				enemy->SetCurrentHealth(enemy->GetCurrentHealth() - projectile->GetAttack());
 				if (enemy->GetCurrentHealth() <= 0.0f) {
+					// 生存中の敵だけがこの分岐へ入るため、1体につき一度だけ加算される。
 					++defeatedEnemyCount_;
 					experienceDropRequests.push_back({enemy->GetStats(), enemyObject->GetTransform().translate, enemy->GetTarget()});
 					static std::mt19937 itemDropRandomEngine(std::random_device{}());
 					std::uniform_real_distribution<float> itemDropDistribution(0.0f, 1.0f);
 					const EnemyStats& enemyStats = enemy->GetStats();
+					// 各アイテムを独立して抽選するため、同じ敵から複数種類が同時に落ちる場合がある。
 					if (itemDropDistribution(itemDropRandomEngine) < enemyStats.healthItemDropChance) {
 						itemDropRequests.push_back({
 							ItemDropType::Health, enemyObject->GetTransform().translate,
@@ -1425,17 +1873,28 @@ void BaseScene::UpdatePlayerProjectileHits() {
 							enemy->GetTarget(), 0.0f
 						});
 					}
+					// 通常敵は20%でコインを落とす。1個あたり5～15G。
+					if (itemDropDistribution(itemDropRandomEngine) < 0.20f) {
+						std::uniform_int_distribution<int> moneyDistribution(5, 15);
+						itemDropRequests.push_back({
+							ItemDropType::Money, enemyObject->GetTransform().translate,
+							enemy->GetTarget(), 0.0f, moneyDistribution(itemDropRandomEngine)
+						});
+					}
 					const std::string& enemyTypeName = enemy->GetEnemyTypeName();
+					// 通常敵を除外し、途中の中ボスと各ステージの最終ボスだけを強化報酬の対象にする。
 					const bool dropsBossUpgradeReward =
 					    enemyTypeName == "MidBoss" ||
 					    enemyTypeName == "ChaserMidBoss" ||
 					    enemyTypeName == "ShooterMidBoss" ||
 					    enemyTypeName == "ChargerMidBoss" ||
+					    enemyTypeName == "Stage2GaleMidBoss" ||
 					    enemyTypeName == "Stage2Boss";
 					if (dropsBossUpgradeReward) {
 						static std::mt19937 bossRewardRandomEngine(std::random_device{}());
 						std::uniform_int_distribution<int> rewardRollDistribution(1, 100);
 						const int rewardRoll = rewardRollDistribution(bossRewardRandomEngine);
+						// 1～70=1回、71～95=3回、96～100=5回（70% / 25% / 5%）。
 						const int upgradeCount = rewardRoll <= 70 ? 1 : rewardRoll <= 95 ? 3 : 5;
 						bossUpgradeDropRequests.push_back({
 							enemyObject->GetTransform().translate,
@@ -1457,7 +1916,7 @@ void BaseScene::UpdatePlayerProjectileHits() {
 		CreateRuntimeBossUpgradeDrop(request.position, request.target, request.upgradeCount);
 	}
 	for (const ItemDropRequest& request : itemDropRequests) {
-		CreateRuntimeItemDrop(request.type, request.position, request.target, request.healAmount);
+		CreateRuntimeItemDrop(request.type, request.position, request.target, request.healAmount, request.moneyAmount);
 	}
 }
 
@@ -1466,8 +1925,10 @@ void BaseScene::CleanupExpiredPlayerProjectiles() {
 	    std::remove_if(sceneObjects_.begin(), sceneObjects_.end(), [](const std::unique_ptr<GameObject>& object) {
 		    PlayerProjectileComponent* projectile = object->GetComponent<PlayerProjectileComponent>();
 		    if (projectile) {
+			    // 弾全体が画面端を抜けてから消えるよう、表示サイズを余白へ反映する。
 			    const float viewMargin = 0.05f + projectile->GetSize() * 0.02f;
 			    const PlayerProjectileMotionType motionType = projectile->GetMotionType();
+			    // 周回弾や反射弾は専用挙動を維持し、画面外へ飛び去る弾だけを破棄する。
 			    const bool shouldExpireOutsideView =
 			        motionType == PlayerProjectileMotionType::Linear ||
 			        motionType == PlayerProjectileMotionType::ArcHoming;
@@ -1549,7 +2010,36 @@ void BaseScene::UpdatePlayerHealthHud() {
 	playerHealthBarFill_->Update();
 }
 
+void BaseScene::UpdateChallengeMoneyHud() {
+	// GAMEPLAY以外のプレイヤー編集画面などには、ステージ戦績HUDを表示しない。
+	isChallengeMoneyHudVisible_ = sceneName_ == "GAMEPLAY";
+	if (!isChallengeMoneyHudVisible_) return;
+
+	if (!challengeMoneyTextObject_) {
+		// 初回表示時だけ文字オブジェクトを生成し、以降は表示文字列だけを差し替える。
+		challengeMoneyTextObject_ = std::make_unique<GameObject>();
+		TextComponent* text = challengeMoneyTextObject_->AddComponent<TextComponent>();
+		text->SetFontSize(26.0f);
+		text->SetAnchor(TextComponent::Anchor::TopLeft);
+		text->SetColor({1.0f, 0.82f, 0.18f, 1.0f});
+	}
+
+	// challengeMoneyEarned_は全体G強化適用後の値なので、リザルトと同じ累計を表示できる。
+	// 左上基準で固定し、右上のHP・装備HUDや画面下部の経験値バーとの重なりを避ける。
+	challengeMoneyTextObject_->GetTransform().translate = {24.0f, 24.0f, 0.0f};
+	challengeMoneyTextObject_->GetComponent<TextComponent>()->SetText(
+	    "G: " + std::to_string(challengeMoneyEarned_));
+}
+
+void BaseScene::DrawChallengeMoneyHud() {
+	// 更新側がGAMEPLAY以外で非表示にした場合は、保持中の古い文字オブジェクトを描画しない。
+	if (isChallengeMoneyHudVisible_ && challengeMoneyTextObject_) {
+		challengeMoneyTextObject_->Draw2D();
+	}
+}
+
 void BaseScene::UpdatePlayerExperienceHud() {
+	// HUDはシーン内で最初に見つかった有効なプレイヤーの経験値を表示する。
 	Player* player = nullptr;
 	for (const auto& object : sceneObjects_) {
 		Player* candidate = object->GetComponent<Player>();
@@ -1565,6 +2055,7 @@ void BaseScene::UpdatePlayerExperienceHud() {
 		return;
 	}
 
+	// HUDリソースは初回表示時だけ生成し、以降のフレームでは再利用する。
 	if (!playerExperienceBarBackground_) {
 		playerExperienceBarBackground_ = std::make_unique<Sprite>();
 		playerExperienceBarBackground_->Initialize("Resources/human/white.png");
@@ -1583,6 +2074,7 @@ void BaseScene::UpdatePlayerExperienceHud() {
 
 	const PlayerStats& stats = player->GetBaseStats();
 	const int level = (std::max)(1, stats.level);
+	// experienceはゲーム全体の累積値なので、現在レベルの開始値を引いてレベル内の進捗へ変換する。
 	const int previousLevelExperience = level > 1 ? Player::GetRequiredExperienceForNextLevel(level - 1) : 0;
 	const int nextLevelExperience = Player::GetRequiredExperienceForNextLevel(level);
 	const long long requiredExperience = (std::max)(1LL, static_cast<long long>(nextLevelExperience) - previousLevelExperience);
@@ -1596,6 +2088,7 @@ void BaseScene::UpdatePlayerExperienceHud() {
 	constexpr float kBottomMargin = 18.0f;
 	constexpr float kBarHeight = 18.0f;
 	constexpr float kBorderSize = 3.0f;
+	// 左右に一定の余白を確保し、解像度が変わっても画面最下部の中央へ配置する。
 	const float barWidth = (std::max)(160.0f, screenWidth - kHorizontalMargin * 2.0f);
 	const float left = (screenWidth - barWidth) * 0.5f;
 	const float top = (std::max)(0.0f, screenHeight - kBottomMargin - kBarHeight);
@@ -1623,11 +2116,13 @@ void BaseScene::DrawPlayerExperienceHud() {
 	if (!isPlayerExperienceHudVisible_ || !playerExperienceBarBackground_ || !playerExperienceBarFill_) return;
 	SpriteCommon::GetInstance()->SetDraw(kBlendModeNormal);
 	playerExperienceBarBackground_->Draw();
+	// 幅0のスプライト描画を避けるため、経験値がある場合だけ進捗部分を描画する。
 	if (playerExperienceRate_ > 0.0f) playerExperienceBarFill_->Draw();
 	if (playerExperienceTextObject_) playerExperienceTextObject_->Draw2D();
 }
 
 void BaseScene::UpdatePlayerSlotHud() {
+	// HUDはシーン内で最初に見つかった有効なプレイヤーの基礎スロット設定を表示する。
 	Player* player = nullptr;
 	for (const auto& object : sceneObjects_) {
 		Player* candidate = object->GetComponent<Player>();
@@ -1644,6 +2139,7 @@ void BaseScene::UpdatePlayerSlotHud() {
 		return;
 	}
 
+	// 初回だけ白画像のSpriteを用意し、背景色または装備画像へ差し替えて再利用する。
 	auto createSprite = []() {
 		auto sprite = std::make_unique<Sprite>();
 		sprite->Initialize("Resources/human/white.png");
@@ -1667,6 +2163,7 @@ void BaseScene::UpdatePlayerSlotHud() {
 	if (!playerAttackSlotLabelObject_) playerAttackSlotLabelObject_ = createLabel("ATTACK");
 	if (!playerStatusSlotLabelObject_) playerStatusSlotLabelObject_ = createLabel("STATUS");
 
+	// HPバー直下を起点に、5枠全体が画面右端へ揃うよう左端座標を逆算する。
 	const float screenWidth = static_cast<float>(Input::GetInstance()->GetClientWidth());
 	constexpr float kRightMargin = 24.0f;
 	constexpr float kTop = 68.0f;
@@ -1699,6 +2196,7 @@ void BaseScene::UpdatePlayerSlotHud() {
 			sprite->SetColor(color);
 			sprite->Update();
 		};
+		// 装備中は種類別の色、無効化中は灰色、未装備は暗い空枠として表示する。
 		updateBackground(playerAttackSlotBackgroundSprites_[index].get(), attackY,
 		    hasAttack ? (attackSlot.enabled ? Vector4{0.12f, 0.28f, 0.52f, 0.95f} : Vector4{0.18f, 0.20f, 0.24f, 0.75f})
 		              : Vector4{0.05f, 0.06f, 0.08f, 0.82f});
@@ -1706,6 +2204,7 @@ void BaseScene::UpdatePlayerSlotHud() {
 		    hasStatus ? (statusSlot.enabled ? Vector4{0.10f, 0.42f, 0.25f, 0.95f} : Vector4{0.18f, 0.20f, 0.24f, 0.75f})
 		              : Vector4{0.05f, 0.06f, 0.08f, 0.82f});
 
+		// 名前とレベルの組み合わせをキーにし、毎フレームJSONを読み直さない。
 		const std::string attackTextureKey = hasAttack ? attackSlot.attackName + "#" + attackSlot.attackLevel : std::string{};
 		const bool attackTextureChanged = playerAttackSlotTextureKeys_[index] != attackTextureKey;
 		if (attackTextureChanged) {
@@ -1714,6 +2213,7 @@ void BaseScene::UpdatePlayerSlotHud() {
 			if (hasAttack) {
 				const PlayerAttackStats attackStats = LoadPlayerAttackStats(attackSlot.attackName);
 				playerAttackSlotTexturePaths_[index] = attackStats.choiceTextureFilePath;
+				// 通常Lv1～5は攻撃共通画像、Superだけはレベル専用画像を使用する。
 				if (attackSlot.attackLevel == "super") {
 					for (const PlayerAttackLevelStats& levelStats : attackStats.levels) {
 						if (levelStats.level == "super") {
@@ -1724,6 +2224,7 @@ void BaseScene::UpdatePlayerSlotHud() {
 				}
 			}
 		}
+		// ステータス画像は現在レベルごとに異なるため、レベルもキャッシュキーへ含める。
 		const std::string statusTextureKey = hasStatus ? statusSlot.statusName + "#" + statusSlot.level : std::string{};
 		const bool statusTextureChanged = playerStatusSlotTextureKeys_[index] != statusTextureKey;
 		if (statusTextureChanged) {
@@ -1746,6 +2247,7 @@ void BaseScene::UpdatePlayerSlotHud() {
 			sprite->SetColor(enabled ? Vector4{1.0f, 1.0f, 1.0f, 1.0f} : Vector4{0.55f, 0.55f, 0.55f, 0.55f});
 			sprite->Update();
 		};
+		// 未設定または存在しない画像は描画せず、背景だけでスロット状態を示す。
 		playerAttackSlotIconVisible_[index] = hasAttack && !attackTexture.empty() && std::filesystem::exists(attackTexture);
 		playerStatusSlotIconVisible_[index] = hasStatus && !statusTexture.empty() && std::filesystem::exists(statusTexture);
 		if (playerAttackSlotIconVisible_[index]) updateIcon(playerAttackSlotIconSprites_[index].get(), attackY, attackTexture, attackSlot.enabled);
@@ -1756,6 +2258,7 @@ void BaseScene::UpdatePlayerSlotHud() {
 void BaseScene::DrawPlayerSlotHud() {
 	if (!isPlayerSlotHudVisible_) return;
 	SpriteCommon::GetInstance()->SetDraw(kBlendModeNormal);
+	// 背景を先、アイコンを後に描画し、最後に行ラベルを重ねる。
 	for (int index = 0; index < 5; ++index) {
 		playerAttackSlotBackgroundSprites_[index]->Draw();
 		if (playerAttackSlotIconVisible_[index]) playerAttackSlotIconSprites_[index]->Draw();
@@ -1888,6 +2391,7 @@ void BaseScene::UpdateColliderCollisions() {
 	}
 
 	std::vector<std::pair<Player*, float>> playerDamageTotals;
+	// 同じフレームで複数の敵へ触れた場合はプレイヤー単位で合算し、TakeDamageを一度だけ呼ぶ。
 	for (const EnemyPlayerContact& contact : enemyPlayerContacts) {
 		auto total = std::find_if(playerDamageTotals.begin(), playerDamageTotals.end(), [&contact](const std::pair<Player*, float>& entry) {
 			return entry.first == contact.player;
@@ -2109,20 +2613,10 @@ bool BaseScene::BuildLevelUpChoices(Player* player) {
 	std::vector<LevelUpChoice> candidates;
 	std::vector<std::string> equippedAttacks;
 	std::vector<std::string> equippedStatuses;
-	std::unordered_set<std::string> otherPlayerInitialAttacks;
+	const auto otherPlayerInitialAttacks = GetOtherPlayerInitialAttacks(*player);
 	int emptyAttackSlot = -1;
 	int emptyStatusSlot = -1;
-	for (const std::string& playerTypeName : LoadPlayerTypeNames()) {
-		if (playerTypeName == player->GetPlayerTypeName()) {
-			continue;
-		}
-		const PlayerStats otherPlayerStats = LoadPlayerStats(playerTypeName);
-		for (const PlayerAttackSlot& slot : otherPlayerStats.attackSlots) {
-			if (slot.enabled && !slot.attackName.empty()) {
-				otherPlayerInitialAttacks.insert(slot.attackName);
-			}
-		}
-	}
+	// 選択後のレベルに設定された文章を優先し、空欄なら従来の自動説明へ戻す。
 	auto getAttackDescription = [](const std::string& attackName, const std::string& targetLevel, const std::string& fallback) {
 		const PlayerAttackStats attackStats = LoadPlayerAttackStats(attackName);
 		for (const PlayerAttackLevelStats& levelStats : attackStats.levels) {
@@ -2140,6 +2634,7 @@ bool BaseScene::BuildLevelUpChoices(Player* player) {
 		}
 		return fallback;
 	};
+	// 攻撃画像は通常Lv1～5で共通、Superだけレベル設定内の専用画像を参照する。
 	auto getAttackTexture = [](const std::string& attackName, const std::string& targetLevel) {
 		const PlayerAttackStats attackStats = LoadPlayerAttackStats(attackName);
 		if (targetLevel != "super") {
@@ -2152,6 +2647,7 @@ bool BaseScene::BuildLevelUpChoices(Player* player) {
 		}
 		return std::string{};
 	};
+	// ステータスは取得・強化後のレベル番号に対応する画像を参照する。
 	auto getStatusTexture = [](const std::string& statusName, int targetLevelIndex) {
 		const PlayerStatusItemStats statusStats = LoadPlayerStatusItemStats(statusName);
 		if (targetLevelIndex >= 0 && targetLevelIndex < static_cast<int>(statusStats.levelTextureFilePaths.size())) {
@@ -2209,6 +2705,7 @@ bool BaseScene::BuildLevelUpChoices(Player* player) {
 
 	if (emptyAttackSlot >= 0) {
 		for (const std::string& attackName : LoadPlayerAttackNames()) {
+			// 装備済み武器と他タイプ専用の初期武器を除き、空きスロットへ追加可能な武器だけを残す。
 			if (std::find(equippedAttacks.begin(), equippedAttacks.end(), attackName) == equippedAttacks.end() &&
 			    !otherPlayerInitialAttacks.contains(attackName)) {
 				candidates.push_back({LevelUpChoiceType::NewAttack, attackName, attackName, getAttackDescription(attackName, "1", "Add a new attack at level 1"), emptyAttackSlot, getAttackTexture(attackName, "1")});

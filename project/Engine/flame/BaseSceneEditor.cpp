@@ -798,6 +798,7 @@ void BaseScene::DrawSelectedComponentInspector(GameObject* selectedObject, const
 					ImGui::Text("Skeleton: None");
 				}
 				if (object3dComponent->HasAnimation()) {
+					// モデル内の全クリップを列挙し、オブジェクト単位で再生クリップを切り替える。
 					const std::vector<std::string>& animationNames = object3dComponent->GetAnimationNames();
 					if (!animationNames.empty()) {
 						int currentAnimationIndex = 0;
@@ -1100,6 +1101,7 @@ void BaseScene::DrawEnemySpawnPointInspector(GameObject* selectedObject) {
 					schedule.spawnAmount = std::clamp(schedule.spawnAmount, 1, 64);
 					scheduleChanged = true;
 				}
+				// 中ボスのような時刻イベントは、一度だけ生成する設定にできる。
 				if (ImGui::Checkbox("Spawn Once", &schedule.spawnOnce)) {
 					scheduleChanged = true;
 				}
@@ -1124,6 +1126,7 @@ void BaseScene::DrawEnemySpawnPointInspector(GameObject* selectedObject) {
 		}
 
 		ImGui::Separator();
+		// 最終ボス専用イベントの時刻、種類、出現座標、プレイヤーワープ座標を編集する。
 		if (ImGui::CollapsingHeader("Boss Encounter", ImGuiTreeNodeFlags_DefaultOpen)) {
 			auto& bossSettings = enemySpawnPoint->GetBossEncounterSettings();
 			bool bossSettingsChanged = false;
@@ -1282,20 +1285,25 @@ void BaseScene::DrawEnemyInspector() {
 		selectedObject->GetTransform().scale = {enemyScale, enemyScale, enemyScale};
 		statsChanged = true;
 	}
-	const char* behaviorLabels[] = {"Chase", "Shooter", "Charger", "Night Slash Boss", "Self Destruct", "Tornado Boss"};
+	const char* behaviorLabels[] = {
+		"Chase", "Shooter", "Charger", "Night Slash Boss", "Self Destruct", "Tornado Boss", "Burst Shooter"};
 	int behaviorIndex = static_cast<int>(stats.behavior);
-	if (ImGui::Combo("Behavior", &behaviorIndex, behaviorLabels, 6)) {
+	if (ImGui::Combo("Behavior", &behaviorIndex, behaviorLabels, 7)) {
 		stats.behavior = static_cast<EnemyBehaviorType>(behaviorIndex);
 		stats.shoots = stats.behavior == EnemyBehaviorType::Shooter;
 		statsChanged = true;
 	}
-	if (stats.behavior == EnemyBehaviorType::Shooter) {
+	if (stats.behavior == EnemyBehaviorType::Shooter || stats.behavior == EnemyBehaviorType::BurstShooter) {
 		statsChanged |= ImGui::DragFloat("Shoot Interval", &stats.shootingInterval, 0.01f, 0.05f, 1000.0f);
 		statsChanged |= ImGui::DragFloat("Preferred Distance", &stats.preferredDistance, 0.1f, 0.0f, 1000.0f);
 		statsChanged |= ImGui::DragFloat("Distance Tolerance", &stats.distanceTolerance, 0.1f, 0.0f, 1000.0f);
 		statsChanged |= ImGui::DragFloat("Projectile Speed", &stats.projectileSpeed, 0.005f, 0.0f, 100.0f);
 		statsChanged |= ImGui::DragFloat("Projectile Size", &stats.projectileSize, 0.01f, 0.01f, 100.0f);
 		statsChanged |= ImGui::DragFloat("Projectile Life", &stats.projectileLifeTime, 0.1f, 0.0f, 1000.0f);
+		if (stats.behavior == EnemyBehaviorType::BurstShooter) {
+			statsChanged |= ImGui::DragInt("Burst Shot Count", &stats.burstShotCount, 1.0f, 1, 31);
+			statsChanged |= ImGui::SliderAngle("Burst Shot Spacing", &stats.burstSpreadAngle, 0.0f, 45.0f);
+		}
 	} else if (stats.behavior == EnemyBehaviorType::Charger) {
 		statsChanged |= ImGui::DragFloat("Charge Trigger Distance", &stats.chargeTriggerDistance, 0.1f, 0.0f, 1000.0f);
 		statsChanged |= ImGui::DragFloat("Charge Warning Time", &stats.chargeDuration, 0.05f, 0.0f, 100.0f);
@@ -1332,6 +1340,7 @@ void BaseScene::DrawEnemyInspector() {
 		statsChanged |= ImGui::DragFloat("Giant Tornado Attack Multiplier", &stats.bossGiantTornadoAttackMultiplier, 0.05f, 0.0f, 10.0f);
 		statsChanged |= ImGui::DragFloat("Giant Tornado Spawn Offset", &stats.bossGiantTornadoSpawnOffset, 0.1f, 0.0f, 100.0f);
 	} else if (stats.behavior == EnemyBehaviorType::NightSlashBoss) {
+		// 連続斬りの開始距離、予兆、移動、切り返し、フィニッシュを個別に調整する。
 		statsChanged |= ImGui::DragFloat("Combo Trigger Distance", &stats.comboTriggerDistance, 0.1f, 0.0f, 1000.0f);
 		statsChanged |= ImGui::DragFloat("Combo Warning Time", &stats.comboWindup, 0.05f, 0.0f, 100.0f);
 		statsChanged |= ImGui::DragFloat("Combo Dash Speed", &stats.comboDashSpeed, 0.005f, 0.0f, 100.0f);
@@ -1341,6 +1350,7 @@ void BaseScene::DrawEnemyInspector() {
 		statsChanged |= ImGui::DragFloat("Side Offset", &stats.comboSideOffset, 0.05f, 0.0f, 100.0f);
 		statsChanged |= ImGui::DragInt("Dash Count", &stats.comboDashCount, 1.0f, 1, 12);
 		statsChanged |= ImGui::DragFloat("Finisher Speed Multiplier", &stats.finisherSpeedMultiplier, 0.05f, 1.0f, 5.0f);
+		// 連続斬り後に循環する全方位弾幕と扇状弾幕の共通パラメーター。
 		ImGui::SeparatorText("Ranged Patterns");
 		statsChanged |= ImGui::DragFloat("Ranged Warning Time", &stats.bossRangedWindup, 0.05f, 0.0f, 10.0f);
 		statsChanged |= ImGui::DragFloat("Ranged Wave Interval", &stats.bossRangedInterval, 0.01f, 0.01f, 10.0f);
@@ -1686,6 +1696,7 @@ void BaseScene::DrawPlayerPersistenceInspector(GameObject* selectedObject, Playe
 			editingStatusItemStats.type = static_cast<PlayerStatusItemType>(typeIndex);
 		}
 		for (int levelIndex = 0; levelIndex < static_cast<int>(editingStatusItemStats.levelAmounts.size()); ++levelIndex) {
+			// 効果量と同じレベル単位で、選択カードの文章・画像も編集する。
 			ImGui::PushID(2000 + levelIndex);
 			ImGui::DragFloat(("Lv" + std::to_string(levelIndex + 1) + " Amount").c_str(), &editingStatusItemStats.levelAmounts[levelIndex], 1.0f, 0.0f, 100000.0f);
 			InputTextMultilineString(("Lv" + std::to_string(levelIndex + 1) + " Selection Text").c_str(), editingStatusItemStats.levelDescriptions[levelIndex]);
@@ -1696,6 +1707,7 @@ void BaseScene::DrawPlayerPersistenceInspector(GameObject* selectedObject, Playe
 			const std::string saveItemName = statusItemNameBuffer.data();
 			editingStatusItemStats.name = saveItemName.empty() ? selectedItemName : saveItemName;
 			SavePlayerStatusItemStats(editingStatusItemStats.name, editingStatusItemStats);
+			// 保存直後の画像を右上HUDへ反映するため、ステータス画像キャッシュを破棄する。
 			playerStatusSlotTextureKeys_.fill({});
 			playerStatusSlotTexturePaths_.fill({});
 			player->ApplyStats(stats, ApplyPlayerStatusItems(stats));
@@ -1706,6 +1718,7 @@ void BaseScene::DrawPlayerPersistenceInspector(GameObject* selectedObject, Playe
 
 	const std::vector<std::string> loadedModels = CollectAllLoadedModelNames();
 	if (!loadedModels.empty()) {
+		// 登録済みモデルから選択し、設定値とシーン上の表示モデルを同時に更新する。
 		int modelIndex = 0;
 		for (int index = 0; index < static_cast<int>(loadedModels.size()); index++) {
 			if (loadedModels[index] == stats.modelFilePath) {
@@ -1760,9 +1773,11 @@ void BaseScene::DrawPlayerPersistenceInspector(GameObject* selectedObject, Playe
 			saveStats.name = editedTypeName;
 			player->ApplyStats(saveStats, ApplyPlayerStatusItems(saveStats));
 			if (editedTypeName == currentTypeName) {
+				// 名前が同じ場合は能力値や使用モデルなどの編集内容だけを保存する。
 				SavePlayerStats(currentTypeName, saveStats);
 				playerTypeEditMessage_ = "Saved player type: " + currentTypeName;
 			} else if (RenamePlayerStats(currentTypeName, editedTypeName, saveStats)) {
+				// シーン内にある同タイプのプレイヤー参照も新しい名前へ揃える。
 				for (const auto& object : sceneObjects_) {
 					if (Player* scenePlayer = object->GetComponent<Player>();
 					    scenePlayer && scenePlayer->GetPlayerTypeName() == currentTypeName) {
@@ -1776,6 +1791,7 @@ void BaseScene::DrawPlayerPersistenceInspector(GameObject* selectedObject, Playe
 		}
 	}
 	ImGui::SameLine();
+	// Default は設定ファイル欠損時にも使う基準タイプなので削除させない。
 	const bool canDeletePlayerType = currentTypeName != "Default";
 	if (!canDeletePlayerType) {
 		ImGui::BeginDisabled();
@@ -1791,6 +1807,7 @@ void BaseScene::DrawPlayerPersistenceInspector(GameObject* selectedObject, Playe
 		ImGui::TextDisabled("Players using it will be changed to Default.");
 		if (ImGui::Button("Delete", ImVec2(120.0f, 0.0f))) {
 			if (DeletePlayerStats(currentTypeName)) {
+				// 削除したタイプへの参照を残さないよう、対象プレイヤーへDefault設定を適用する。
 				const PlayerStats defaultStats = LoadPlayerStats("Default");
 				for (const auto& object : sceneObjects_) {
 					Player* scenePlayer = object->GetComponent<Player>();
@@ -1971,8 +1988,10 @@ void BaseScene::DrawPlayerAttackInspector() {
 	ImGui::Separator();
 	changed |= InputTextMultilineString("Selection Text", selectedLevel->choiceDescription);
 	if (selectedLevel->level == "super") {
+		// Superは見た目を区別できるよう、通常レベルとは別の画像を保持する。
 		changed |= SelectionTextureCombo("Super Selection Texture", selectedLevel->choiceTextureFilePath);
 	} else {
+		// Lv1～5は攻撃ごとの共通画像を編集し、レベル変更による画像差を作らない。
 		changed |= SelectionTextureCombo("Selection Texture (Lv1-5)", attackStats->choiceTextureFilePath);
 	}
 	ImGui::TextDisabled("Shown when this level is offered. Empty text uses the default description.");
@@ -1980,6 +1999,7 @@ void BaseScene::DrawPlayerAttackInspector() {
 	changed |= ImGui::DragFloat("Speed", &selectedLevel->speed, 0.01f, 0.0f, 100.0f);
 	changed |= ImGui::DragFloat("Size %", &selectedLevel->size, 1.0f, 0.0f, 100000.0f);
 	changed |= ImGui::DragInt("Shot Count", &selectedLevel->shotCount, 1.0f, 1, 32);
+	// 弾数を変更した直後も、角度と発射位置を同じ弾番号で編集できるよう配列数を同期する。
 	while (static_cast<int>(selectedLevel->angles.size()) < selectedLevel->shotCount) {
 		selectedLevel->angles.push_back(0.0f);
 	}
@@ -1994,6 +2014,7 @@ void BaseScene::DrawPlayerAttackInspector() {
 		selectedLevel->spawnOffsets.pop_back();
 	}
 	for (int index = 0; index < selectedLevel->shotCount; ++index) {
+		// 角度と位置を弾ごとに隣接表示し、同じ番号の設定であることを分かりやすくする。
 		std::string label = "Shot Angle " + std::to_string(index + 1);
 		changed |= ImGui::DragFloat(label.c_str(), &selectedLevel->angles[index], 1.0f, -180.0f, 180.0f);
 		label = "Shot " + std::to_string(index + 1) + " Spawn Offset";
@@ -2163,6 +2184,24 @@ void BaseScene::DrawParticleEmitterInspector(GameObject* selectedObject) {
 	if (ImGui::Checkbox("Billboard", &param.isBillboard)) {
 		emitter->SetParam(param);
 	}
+	if (ImGui::Checkbox("Vortex Motion", &param.isVortex)) {
+		emitter->SetParam(param);
+	}
+	// 渦運動を使わないエミッターでは専用項目を隠し、通常パーティクルの編集を簡潔に保つ。
+	if (param.isVortex) {
+		if (ImGui::DragFloat("Vortex Angular Speed", &param.vortexAngularSpeed, 0.1f, -30.0f, 30.0f)) {
+			emitter->SetParam(param);
+		}
+		if (ImGui::DragFloat("Vortex Base Radius", &param.vortexBaseRadius, 0.05f, 0.0f, 100.0f)) {
+			emitter->SetParam(param);
+		}
+		if (ImGui::DragFloat("Vortex Top Radius", &param.vortexTopRadius, 0.05f, 0.0f, 100.0f)) {
+			emitter->SetParam(param);
+		}
+		if (ImGui::DragFloat("Vortex Height", &param.vortexHeight, 0.05f, 0.01f, 100.0f)) {
+			emitter->SetParam(param);
+		}
+	}
 	if (ImGui::ColorEdit4("Start Color", &param.color.x)) {
 		emitter->SetParam(param);
 	}
@@ -2252,6 +2291,7 @@ void BaseScene::DrawOBBColliderInspector(GameObject* selectedObject) {
 		if (ImGui::Checkbox("Draw OBB Collider", &isDrawDebug)) {
 			collider->SetDrawDebug(isDrawDebug);
 		}
+		// 有効にすると、衝突時にこの OBB のオーナーを重なり分だけ押し戻します。
 		bool isPushBackEnabled = collider->GetPushBackEnabled();
 		if (ImGui::Checkbox("OBB Push Back", &isPushBackEnabled)) {
 			collider->SetPushBackEnabled(isPushBackEnabled);
@@ -2276,6 +2316,7 @@ void BaseScene::DrawOBBColliderInspector(GameObject* selectedObject) {
 		if (ImGui::Checkbox("Draw Sphere Collider", &isDrawDebug)) {
 			sphereCollider->SetDrawDebug(isDrawDebug);
 		}
+		// 有効にすると、衝突時にこの Sphere のオーナーを重なり分だけ押し戻します。
 		bool isPushBackEnabled = sphereCollider->GetPushBackEnabled();
 		if (ImGui::Checkbox("Sphere Push Back", &isPushBackEnabled)) {
 			sphereCollider->SetPushBackEnabled(isPushBackEnabled);
@@ -2394,6 +2435,8 @@ void BaseScene::DrawEditorGizmo() {
 	GameObject* selectedObject = sceneObjects_[selectedObjectIndex_].get();
 	EulerTransform& transform = selectedObject->GetTransform();
 
+	// ギズモの描画・入力範囲を、ドッキングされた GameView の表示領域に合わせます。
+	// GameView がまだ初期化されていない場合は、メインビューポート全体を代替領域として使用します。
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
 	ImVec2 viewportPos = ImGuiManager::GetInstance()->GetGameViewContentPosition();
 	ImVec2 viewportSize = ImGuiManager::GetInstance()->GetGameViewContentSize();
@@ -2402,6 +2445,8 @@ void BaseScene::DrawEditorGizmo() {
 		viewportSize = viewport ? viewport->Size : ImGui::GetIO().DisplaySize;
 	}
 
+	// ImGuizmo は行列を受け取るため、オブジェクトの各変換要素を操作用行列へ合成します。
+	// 回転角はエンジン側ではラジアン、ImGuizmo 側では度数法として扱います。
 	Matrix4x4 objectMatrix{};
 	float translation[3] = {transform.translate.x, transform.translate.y, transform.translate.z};
 	float rotation[3] = {
@@ -2417,6 +2462,8 @@ void BaseScene::DrawEditorGizmo() {
 	ImGuizmo::SetDrawlist(ImGui::GetForegroundDrawList(viewport));
 	ImGuizmo::SetRect(viewportPos.x, viewportPos.y, viewportSize.x, viewportSize.y);
 
+	// インスペクターで選択された操作を ImGuizmo の操作種別へ対応付けます。
+	// スケールはワールド軸で操作すると行列が歪むため、ローカル座標系に固定します。
 	const Matrix4x4& viewMatrix = camera->GetViewMatrix();
 	const Matrix4x4& projectionMatrix = camera->GetProjectionMatrix();
 	const ImGuizmo::OPERATION gizmoOperations[] = {
@@ -2427,6 +2474,7 @@ void BaseScene::DrawEditorGizmo() {
 	const int operationIndex = gizmoOperationIndex_ >= 0 && gizmoOperationIndex_ < _countof(gizmoOperations) ? gizmoOperationIndex_ : 0;
 	const ImGuizmo::MODE gizmoMode = gizmoOperations[operationIndex] == ImGuizmo::SCALE ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
 
+	// 操作中に更新された行列を再分解し、選択中オブジェクトの Transform へ反映します。
 	if (ImGuizmo::Manipulate(&viewMatrix.m[0][0], &projectionMatrix.m[0][0], gizmoOperations[operationIndex], gizmoMode, &objectMatrix.m[0][0])) {
 		ImGuizmo::DecomposeMatrixToComponents(&objectMatrix.m[0][0], translation, rotation, scale);
 		transform.translate = {translation[0], translation[1], translation[2]};

@@ -1,0 +1,5 @@
+{
+    "stageUnlockPrerequisites": {
+        "stage2": "default"
+    }
+}

@@ -24,6 +24,8 @@ public:
 	/// 2D 要素の描画処理を行います。
 	/// </summary>
 	void Draw2D() override;
+	/// <summary>ゲームHUDより手前へポーズメニューを描画します。</summary>
+	void DrawOverlay2D() override;
 	/// <summary>
 	/// 3D 要素の描画処理を行います。
 	/// </summary>
@@ -32,7 +34,12 @@ public:
 	/// 確保したリソースを解放し、終了処理を行います。
 	/// </summary>
 	void Finalize() override;
-	void SetSceneManager(SceneManager* manager) override { sceneManager = manager; }
+	/// <summary>ゲームプレイ固有処理とBaseScene共通処理の両方へSceneManagerを設定します。</summary>
+	void SetSceneManager(SceneManager* manager) override {
+		BaseScene::SetSceneManager(manager);
+		sceneManager = manager;
+	}
+	/// ゲームプレイ画面の「Show Particles」設定を共通描画処理へ反映します。
 	bool IsParticleRenderingEnabled() const override { return isShowParticles_; }
 
 private:
@@ -44,6 +51,15 @@ private:
 	bool isShowSphere_ = true;
 	bool isShowCylinder_ = true;
 	bool isShowParticles_ = true;
+	enum class PauseMenuItem { Resume, Retry, StageSelect, Count };
+	bool isPauseMenuOpen_ = false;
+	int selectedPauseMenuItem_ = static_cast<int>(PauseMenuItem::Resume);
+	std::unique_ptr<Sprite> pauseOverlaySprite_;
+	std::unique_ptr<Sprite> pausePanelSprite_;
+	std::unique_ptr<Sprite> pauseSelectionSprite_;
+	std::unique_ptr<GameObject> pauseTitleTextObject_;
+	std::vector<std::unique_ptr<GameObject>> pauseMenuTextObjects_;
+	std::unique_ptr<GameObject> pauseInstructionTextObject_;
 	std::unique_ptr<Audio> audio_ = nullptr;
 	std::unique_ptr<GameObject> spriteObject_ = nullptr;
 	SpriteComponent* sprite = nullptr;
@@ -80,6 +96,12 @@ private:
 	/// SceneModels を読み込み、内部データへ反映します。
 	/// </summary>
 	void LoadSceneModels();
+	/// <summary>ポーズメニューの描画リソースを生成します。</summary>
+	void InitializePauseMenu();
+	/// <summary>ポーズ中の項目選択と決定入力を処理します。</summary>
+	void UpdatePauseMenu();
+	/// <summary>ポーズ状態を切り替え、ゲーム時間へ反映します。</summary>
+	void SetPauseMenuOpen(bool isOpen);
 	/// <summary>
 	/// ImGui によるデバッグ用 UI の表示と編集処理を行います。
 	/// </summary>

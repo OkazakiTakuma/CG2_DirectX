@@ -95,10 +95,13 @@ void DirectXCommon::PreDraw() {
 }
 
 void DirectXCommon::CaptureFrameBeforeOverlay() {
+	// 録画していない通常フレームは従来の PostDraw だけで完結させる。
 	if (!frameStarted_ || !screenCapture_.IsRecording()) {
 		return;
 	}
 
+	// ゲーム画面と ImGui までを PRESENT 状態にして録画へ渡す。
+	// この時点では、画面確認用の「REC」表示はまだ描画されていない。
 	const UINT backBufferIndex = currentFrameIndex_;
 	D3D12_RESOURCE_BARRIER toPresent{};
 	toPresent.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -118,7 +121,8 @@ void DirectXCommon::CaptureFrameBeforeOverlay() {
 		static_cast<uint32_t>(renderHeight_));
 	captureProcessedThisFrame_ = true;
 
-	// CaptureTexture は直前までのキュー完了を待つため、同じアロケーターを安全に再利用できます。
+	// CaptureTexture は直前までのキュー完了を待つため、同じアロケーターを安全に再利用できる。
+	// バックバッファを再び描画可能にし、この後の画面専用オーバーレイだけを追加する。
 	FrameResource& frameResource = frameResources_[backBufferIndex];
 	hr = frameResource.commandAllocator->Reset();
 	assert(SUCCEEDED(hr));
@@ -153,6 +157,7 @@ void DirectXCommon::PostDraw() {
 	assert(SUCCEEDED(hr));
 	ID3D12CommandList* commandLists[] = {commandList.Get()};
 	commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+	// 録画はオーバーレイ前に処理済み。通常時のスクリーンショットだけここで完成画面を取得する。
 	if (!captureProcessedThisFrame_) {
 		screenCapture_.ProcessFrame(
 			commandQueue.Get(),
@@ -272,12 +277,16 @@ Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(const std::wstring
 	std::string errorMessage;
 	auto shaderBlob = TryCompileShader(filepath, profile, errorMessage);
 	if (!shaderBlob) {
+		// 起動時の必須シェーダー失敗は従来どおり致命的な構成エラーとして扱う。
 		Log(errorMessage);
 		assert(false);
 	}
 	return shaderBlob;
 }
 
+/// <summary>
+/// 編集途中のHLSLエラーでアプリを停止させず、診断文字列と失敗結果を呼び出し元へ返します。
+/// </summary>
 Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::TryCompileShader(const std::wstring& filepath, const wchar_t* profile, std::string& errorMessage) {
 	errorMessage.clear();
 	Log(ConvertString(std::format(L"Bigin CompileShader, path:{},profile:{}\n", filepath, profile)));
@@ -321,6 +330,7 @@ Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::TryCompileShader(const std::wstr
 	Microsoft::WRL::ComPtr<IDxcBlobWide> dummyName = nullptr;
 	shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), &dummyName);
 	if (shaderError != nullptr && shaderError->GetStringLength() != 0) {
+		// 警告もUIへ提示できるよう保存するが、最終的な成功判定はDXCのStatusで行う。
 		errorMessage.assign(shaderError->GetStringPointer(), shaderError->GetStringLength());
 		Log(errorMessage);
 	}

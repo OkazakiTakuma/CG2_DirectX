@@ -24,12 +24,14 @@ public:
 		const float frameScale = GameTime::GetFrameScale60();
 		UpdateHitCooldowns(deltaTime);
 		if (motionType_ == PlayerProjectileMotionType::Orbit) {
+			// 周回中心は所有しないため、プレイヤーが先に破棄された場合は弾も即座に終了する。
 			if (!motionAnchor_) {
 				lifeTime_ = 0.0f;
 				return;
 			}
 			orbitAngleRadians_ += orbitAngularSpeed_ * deltaTime;
 			const Vector3 anchorPosition = motionAnchor_->GetTransform().translate;
+			// 発射時に弾ごとに算出した半径・高さ・開始角度を保ち、移動中のプレイヤーを中心に周回する。
 			owner->GetTransform().translate = {
 				anchorPosition.x + std::cos(orbitAngleRadians_) * orbitRadius_,
 				anchorPosition.y + orbitHeight_,
@@ -37,6 +39,7 @@ public:
 			};
 			owner->GetTransform().rotate.y = -orbitAngleRadians_;
 			lifeTime_ -= deltaTime;
+			// 寿命の最後0.75秒は表示と当たり判定を同じ割合で縮小し、自然に消滅させる。
 			constexpr float kOrbitShrinkDurationSeconds = 0.75f;
 			visualScaleRate_ = (std::clamp)(lifeTime_ / kOrbitShrinkDurationSeconds, 0.0f, 1.0f);
 			const float visualSize = size_ * visualScaleRate_;
@@ -128,6 +131,7 @@ public:
 		if (!object || HasHitObject(object)) {
 			return;
 		}
+		// 再ヒット間隔0では履歴を寿命まで保持し、周回弾などは指定秒数後に履歴を破棄する。
 		hitRecords_.push_back({object, repeatHitIntervalSeconds_ > 0.0f ? repeatHitIntervalSeconds_ : -1.0f});
 		if (infinitePierce_) {
 			return;
@@ -147,6 +151,7 @@ private:
 	};
 
 	void UpdateHitCooldowns(float deltaTime) {
+		// 再ヒット対応弾だけ履歴の残り時間を進め、期限切れの敵を再び命中可能にする。
 		if (repeatHitIntervalSeconds_ <= 0.0f) {
 			return;
 		}
@@ -168,6 +173,7 @@ private:
 
 		Vector3& position = owner->GetTransform().translate;
 		if (!returning_) {
+			// 発射位置から水平距離がTravel Distanceへ達した瞬間に、帰還方向を一度だけ確定する。
 			Vector3 traveled = position - travelOrigin_;
 			traveled.y = 0.0f;
 			if (Length(traveled) >= travelDistance_) {
@@ -185,6 +191,7 @@ private:
 
 		const float movement = speed_ * frameScale;
 		if (returning_) {
+			// 帰還開始時に保存した位置へ直進し、1フレームの移動量以内まで近づいたら消滅する。
 			const Vector3 toReturnTarget = returnTarget_ - position;
 			if (Length(toReturnTarget) <= (std::max)(movement, 0.05f)) {
 				position = returnTarget_;
@@ -207,17 +214,20 @@ private:
 		lifeTime_ -= deltaTime;
 		const float duration = (std::max)(0.01f, initialLifeTime_);
 		const float progress = (std::clamp)(1.0f - lifeTime_ / duration, 0.0f, 1.0f);
+		// 発動途中でプレイヤーが旋回しても爪同士の配置が回転しないよう、初回の向きを固定する。
 		if (!isClawSlashYawInitialized_) {
 			clawSlashYaw_ = motionAnchor_->GetTransform().rotate.y;
 			isClawSlashYawInitialized_ = true;
 		}
 		const Vector3 forward{std::sin(clawSlashYaw_), 0.0f, std::cos(clawSlashYaw_)};
 		const Vector3 right{std::cos(clawSlashYaw_), 0.0f, -std::sin(clawSlashYaw_)};
+		// 爪番号を中央基準（3本なら-1, 0, 1）へ変換し、各爪を平行にずらす。
 		const float centeredIndex = static_cast<float>(clawSlashIndex_) - (static_cast<float>(clawSlashCount_) - 1.0f) * 0.5f;
 		const float localX = -0.9f + 1.8f * progress + centeredIndex * 0.34f;
 		const float localY = 1.15f - 0.70f * progress + centeredIndex * 0.18f;
 		const float localZ = 1.55f + std::abs(centeredIndex) * 0.03f;
 
+		// 向きは固定する一方、基準位置は毎フレーム取得してプレイヤーの移動には追従させる。
 		owner->GetTransform().translate = motionAnchor_->GetTransform().translate +
 		    localX * right + Vector3{0.0f, localY, 0.0f} + localZ * forward;
 		owner->GetTransform().rotate.y = clawSlashYaw_;
@@ -225,19 +235,33 @@ private:
 	}
 
 	std::string attackName_;
+	/// <summary>生成元攻撃のレベルです。デバッグ表示や将来の分岐用に保持します。</summary>
 	std::string level_ = "1";
+	/// <summary>正規化済みの現在進行方向です。</summary>
 	Vector3 direction_{0.0f, 0.0f, 1.0f};
+	/// <summary>60FPS時の1フレームあたりの移動量です。</summary>
 	float speed_ = 0.3f;
+	/// <summary>敵へ命中したときに与えるダメージ量です。</summary>
 	float attack_ = 100.0f;
+	/// <summary>表示と当たり判定に使う基本サイズです。</summary>
 	float size_ = 1.0f;
+	/// <summary>消滅演出などで一時的に弾の見た目と判定を縮小する倍率です。</summary>
 	float visualScaleRate_ = 1.0f;
+	/// <summary>残り寿命です。0以下になると削除対象になります。</summary>
 	float lifeTime_ = 3.0f;
+	/// <summary>生成時の寿命です。爪攻撃などの進行率計算に使用します。</summary>
 	float initialLifeTime_ = 3.0f;
+	/// <summary>残り貫通回数です。</summary>
 	int pierceCount_ = 0;
+	/// <summary>trueの場合、貫通回数を消費せず同一対象の再ヒット制御だけ行います。</summary>
 	bool infinitePierce_ = false;
+	/// <summary>追尾補正を有効にするかを保持します。</summary>
 	bool homingEnabled_ = false;
+	/// <summary>1フレームごとに目標方向へ寄せる強さです。</summary>
 	float homingAccuracy_ = 1.0f;
+	/// <summary>アークホーミングの追尾力を時間で強めるための経過秒数です。</summary>
 	float arcHomingElapsedSeconds_ = 0.0f;
+	/// <summary>直進、周回、ブーメランなどの移動方式です。</summary>
 	PlayerProjectileMotionType motionType_ = PlayerProjectileMotionType::Linear;
 	/// <summary>周回弾などの中心として使用する非所有参照です。</summary>
 	GameObject* motionAnchor_ = nullptr;
@@ -245,13 +269,20 @@ private:
 	float orbitRadius_ = 2.2f;
 	float orbitHeight_ = 0.65f;
 	float orbitAngularSpeed_ = 2.2f;
+	/// <summary>ブーメランが帰還へ切り替わるまでの直進距離です。</summary>
 	float travelDistance_ = 6.0f;
+	/// <summary>ブーメランが直進距離を測るための発射位置です。</summary>
 	Vector3 travelOrigin_{};
+	/// <summary>ブーメランが戻る目標位置です。帰還開始時に固定します。</summary>
 	Vector3 returnTarget_{};
+	/// <summary>ブーメランが帰還フェーズへ入ったかを表します。</summary>
 	bool returning_ = false;
+	/// <summary>複数の爪を中央基準で並べるための番号と総数です。</summary>
 	int clawSlashIndex_ = 0;
 	int clawSlashCount_ = 3;
+	/// <summary>爪の位置関係を維持するため、発動時に固定したY軸方向です。</summary>
 	float clawSlashYaw_ = 0.0f;
+	/// <summary>爪攻撃の基準向きを初回更新で固定済みかを表します。</summary>
 	bool isClawSlashYawInitialized_ = false;
 	/// <summary>追尾対象となるGameObjectへの非所有参照です。</summary>
 	GameObject* homingTarget_ = nullptr;

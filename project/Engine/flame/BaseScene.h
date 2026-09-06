@@ -80,6 +80,8 @@ public:
 /// 2D要素を描画します。
 /// </summary>
 	virtual void Draw2D();
+	/// <summary>HUDより手前へ表示するシーン固有の2Dオーバーレイを描画します。</summary>
+	virtual void DrawOverlay2D() {}
 /// <summary>
 /// 3D要素を描画します。
 /// </summary>
@@ -91,6 +93,7 @@ public:
 	virtual ~BaseScene();
 
 	virtual void SetSceneManager(SceneManager* manager) { sceneManager = manager; }
+	/// SceneManagerが共通描画するパーティクルの表示可否を返します。
 	virtual bool IsParticleRenderingEnabled() const { return true; }
 /// <summary>
 /// シーン内オブジェクトの更新と当たり判定を行います。
@@ -121,6 +124,7 @@ public:
 	/// <summary>現在読み書きする配置JSONファイルパスを返します。</summary>
 	std::string GetSceneObjectFilePath() const;
 	void SetFallbackCamera(Camera* camera) { fallbackCamera_ = camera; }
+	/// <summary>配置JSONのPlayer設定を上書きする、ゲーム開始時の選択タイプを設定します。</summary>
 	void SetPlayerTypeOverride(const std::string& playerTypeName) { playerTypeOverride_ = playerTypeName; }
 	bool IsLevelUpSelectionActive() const { return isLevelUpSelectionActive_; }
 	/// <summary>最終ボスを倒し、ステージクリア条件を満たしたかを返します。</summary>
@@ -238,18 +242,29 @@ private:
 	void ResolveEnemySpawnPointLinks();
 	void ResolveEnemyLinks();
 	void UpdateEnemySpawning();
+	/// <summary>ループステージで動的オブジェクト群の座標を連続したまま折り返します。</summary>
+	void UpdateStageBoundaryWrapping();
 	void UpdateEnemyAttacks();
 	void UpdateEnemyProjectileHits();
 	void UpdatePlayerAttacks();
 	void UpdatePlayerProjectileHits();
+	/// <summary>近接する同単位の通常経験値を、合計値を保ったまま次の単位へ圧縮します。</summary>
 	void UpdateExperienceCompression();
 	void UpdateItemDrops();
 	void UpdateBossUpgradeRewards();
 	void CleanupExpiredPlayerProjectiles();
 	void UpdatePlayerHealthHud();
+	/// <summary>ステージ中に回収したGの累計を左上HUDへ反映します。</summary>
+	void UpdateChallengeMoneyHud();
+	/// <summary>ステージ中の今回獲得Gを左上へ描画します。</summary>
+	void DrawChallengeMoneyHud();
+	/// <summary>現在レベル内の経験値進捗を計算し、画面下部のバーと表示文字列を更新します。</summary>
 	void UpdatePlayerExperienceHud();
+	/// <summary>画面下部へ次のレベルアップまでの経験値バーを描画します。</summary>
 	void DrawPlayerExperienceHud();
+	/// <summary>攻撃・ステータススロットの背景、画像、表示キャッシュを更新します。</summary>
 	void UpdatePlayerSlotHud();
+	/// <summary>右上へ攻撃5枠とステータス5枠を描画します。</summary>
 	void DrawPlayerSlotHud();
 	void UpdateLevelUpSelection();
 	bool BuildLevelUpChoices(Player* player);
@@ -275,10 +290,14 @@ private:
 	GameObject* CreateRuntimeEnemy(const std::string& enemyTypeName, const Vector3& position, GameObject* target);
 	GameObject* CreateRuntimeEnemyProjectile(const EnemyShotRequest& request);
 	GameObject* CreateRuntimeExperience(const EnemyStats& enemyStats, const Vector3& position, GameObject* target);
-	GameObject* CreateRuntimeItemDrop(ItemDropType type, const Vector3& position, GameObject* target, float healAmount = 0.0f);
+	GameObject* CreateRuntimeItemDrop(ItemDropType type, const Vector3& position, GameObject* target, float healAmount = 0.0f, int moneyAmount = 0);
+	/// <summary>指定回数の強化を内包したボス報酬を1個だけ生成します。</summary>
 	void CreateRuntimeBossUpgradeDrop(const Vector3& position, GameObject* target, int upgradeCount);
+	/// <summary>装備中の攻撃・アイテムから強化可能な対象を抽選し、実際に適用できた回数を返します。</summary>
 	int ApplyRandomBossUpgrades(Player* player, int upgradeCount);
+	/// <summary>強化先がなかった残り回数について、未所持装備の取得確認を予約します。</summary>
 	void QueueBossAcquisitionOffers(Player* player, int offerCount);
+	/// <summary>予約された取得候補を1件ずつ確認画面へ表示します。</summary>
 	bool ShowNextBossAcquisitionOffer();
 	GameObject* CreateRuntimePlayerProjectile(const PlayerAttackShotRequest& request);
 	GameObject* FindNearestEnemy(const Vector3& position) const;
@@ -292,12 +311,18 @@ private:
 	SceneManager* sceneManager = nullptr;
 	std::string sceneName_ = "None";
 	std::string sceneObjectFilePathOverride_;
+	/// <summary>空でない場合、Playerの能力・モデル・初期装備をこのタイプから読み込みます。</summary>
 	std::string playerTypeOverride_;
 	std::vector<std::unique_ptr<GameObject>> sceneObjects_;
 	/// <summary>生存中のボス戦用ランタイム敵名です。空なら通常スポーンを再開します。</summary>
 	std::string activeBossEncounterObjectName_;
+	/// <summary>最終ボス撃破後、リザルトへ遷移するまで保持するクリアフラグです。</summary>
 	bool isStageCleared_ = false;
+	/// <summary>今回のゲームプレイでHPを0にした敵の累計です。</summary>
 	int defeatedEnemyCount_ = 0;
+	/// <summary>現在のゲームプレイで回収済みのコインとボス報酬の合計金額です。</summary>
+	int challengeMoneyEarned_ = 0;
+	/// <summary>GameTimeが進行しているフレームだけ加算する生存時間です。</summary>
 	float survivalTimeSeconds_ = 0.0f;
 	int selectedObjectIndex_ = -1;
 	int nextObjectId_ = 1;
@@ -332,17 +357,24 @@ private:
 	std::unique_ptr<Sprite> playerHealthBarBackground_;
 	std::unique_ptr<Sprite> playerHealthBarFill_;
 	bool isPlayerHealthHudVisible_ = false;
+	/// <summary>今回の挑戦で取得した、全体強化適用後のG累計を表示するHUD文字です。</summary>
+	std::unique_ptr<GameObject> challengeMoneyTextObject_;
+	bool isChallengeMoneyHudVisible_ = false;
+	/// <summary>経験値バーの背景、進捗部分、レベル・経験値表示を構成するHUD要素です。</summary>
 	std::unique_ptr<Sprite> playerExperienceBarBackground_;
 	std::unique_ptr<Sprite> playerExperienceBarFill_;
 	std::unique_ptr<GameObject> playerExperienceTextObject_;
+	/// <summary>現在レベル開始時を0、次レベル到達時を1とした経験値進捗率です。</summary>
 	float playerExperienceRate_ = 0.0f;
 	bool isPlayerExperienceHudVisible_ = false;
+	/// <summary>上段の攻撃5枠、下段のステータス5枠を構成する背景とアイコンです。</summary>
 	std::array<std::unique_ptr<Sprite>, 5> playerAttackSlotBackgroundSprites_;
 	std::array<std::unique_ptr<Sprite>, 5> playerAttackSlotIconSprites_;
 	std::array<std::unique_ptr<Sprite>, 5> playerStatusSlotBackgroundSprites_;
 	std::array<std::unique_ptr<Sprite>, 5> playerStatusSlotIconSprites_;
 	std::array<bool, 5> playerAttackSlotIconVisible_{};
 	std::array<bool, 5> playerStatusSlotIconVisible_{};
+	/// <summary>名前とレベルが変化したスロットだけJSONを再読込するためのキャッシュです。</summary>
 	std::array<std::string, 5> playerAttackSlotTextureKeys_{};
 	std::array<std::string, 5> playerAttackSlotTexturePaths_{};
 	std::array<std::string, 5> playerStatusSlotTextureKeys_{};
@@ -354,8 +386,11 @@ private:
 	Player* levelUpPlayer_ = nullptr;
 	int selectedLevelUpChoiceIndex_ = 0;
 	std::vector<LevelUpChoice> levelUpChoices_;
+	/// <summary>ボス報酬で提示する未所持攻撃・アイテムの待機列です。</summary>
 	std::vector<LevelUpChoice> bossAcquisitionOfferQueue_;
+	/// <summary>取得確認の反映先となるプレイヤーへの非所有参照です。</summary>
 	Player* bossAcquisitionPlayer_ = nullptr;
+	/// <summary>通常レベルアップ画面とボス報酬確認画面を区別します。</summary>
 	bool isBossAcquisitionOfferActive_ = false;
 	std::unique_ptr<Sprite> levelUpOverlaySprite_;
 	std::unique_ptr<Sprite> levelUpPanelSprite_;

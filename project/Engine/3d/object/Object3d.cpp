@@ -311,6 +311,10 @@ void Object3d::SetModelTexture(const std::string& textureFilePath) {
 	}
 }
 
+/// <summary>
+/// 共有Modelの設定は変更せず、このObject3dだけに適用する描画テクスチャを設定します。
+/// </summary>
+/// <param name="textureFilePath">描画時に優先して使用するテクスチャのパスを指定します。</param>
 void Object3d::SetModelTextureOverride(const std::string& textureFilePath) {
 	modelTextureOverridePath_ = textureFilePath;
 	if (!modelTextureOverridePath_.empty()) {
@@ -334,6 +338,7 @@ void Object3d::Update() {
 		return;
 	}
 
+	// 装備品などは外部で合成済みの行列を優先し、通常オブジェクトは自身のTransformから生成する。
 	Matrix4x4 worldMatrix = hasWorldMatrixOverride_
 	                           ? worldMatrixOverride_
 	                           : MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
@@ -391,6 +396,7 @@ void Object3d::Update() {
 }
 
 bool Object3d::GetJointSkeletonSpaceMatrix(const std::string& jointName, Matrix4x4& jointMatrix) const {
+	// jointMapを使って名前から現在のアニメーション姿勢のボーンを検索する。
 	const auto jointIterator = skeleton.jointMap.find(jointName);
 	if (jointIterator == skeleton.jointMap.end()) {
 		return false;
@@ -401,6 +407,7 @@ bool Object3d::GetJointSkeletonSpaceMatrix(const std::string& jointName, Matrix4
 		return false;
 	}
 
+	// ワールド変換を含まないため、呼び出し側で任意の親行列と安全に合成できる。
 	jointMatrix = skeleton.joints[jointIndex].skeletonSpaceMatrix;
 	return true;
 }
@@ -411,6 +418,7 @@ bool Object3d::GetJointWorldMatrix(const std::string& jointName, Matrix4x4& join
 		return false;
 	}
 
+	// Object3d自身のTransformを最後に一度だけ合成してボーンのワールド行列を作る。
 	const Matrix4x4 objectWorldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 	jointWorldMatrix = Multiply(jointMatrix, objectWorldMatrix);
 	return true;
@@ -421,6 +429,7 @@ bool Object3d::HasAnimation() const {
 }
 
 bool Object3d::SetAnimation(const std::string& animationName, bool restart) {
+	// 同じModelを共有するObject3d同士でも、選択中クリップと再生時刻は個別に保持する。
 	if (!model) {
 		return false;
 	}
@@ -434,6 +443,7 @@ bool Object3d::SetAnimation(const std::string& animationName, bool restart) {
 	animation = *selectedAnimation;
 	activeAnimationName_ = animationName;
 	if (restart) {
+		// インスペクターなど明示的な切り替えでは、新クリップを初期姿勢から再生する。
 		animationTime = 0.0f;
 		useInitialSkinningPose_ = false;
 		isAnimationPlaying_ = true;
@@ -543,6 +553,9 @@ void Object3d::Draw() {
 }
 
 void Object3d::DrawDebugSkeleton() {
+#ifndef USE_IMGUI
+	return;
+#else
 	if (!isDrawSkeleton_ || !hasSkeleton || skeleton.joints.empty()) {
 		return;
 	}
@@ -567,6 +580,7 @@ void Object3d::DrawDebugSkeleton() {
 		const Vector3 parentPosition = GetTranslateFromMatrix(parentWorldMatrix);
 		LineDrawer::GetInstance()->DrawLine(parentPosition, jointPosition, boneColor, true);
 	}
+#endif
 }
 
 void Object3d::SetModel(Model* newModel) {
@@ -578,6 +592,7 @@ void Object3d::SetModel(Model* newModel) {
 	useInitialSkinningPose_ = false;
 	animation = {};
 	if (model && model->GetIsAnimation() && !model->GetAnimationNames().empty()) {
+		// 保存された指定がないオブジェクトでも、従来どおり先頭クリップを自動再生する。
 		SetAnimation(model->GetAnimationNames().front(), true);
 	}
 	if (model) {

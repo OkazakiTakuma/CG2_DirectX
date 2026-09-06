@@ -26,6 +26,7 @@ public:
 
 	void SetGroupName(const std::string& name) { groupName_ = name; }
 	void SetTranslate(const Vector3& translate) { transform_.translate = translate; }
+	/// 発生周期を変更した直後に、変更前の経過時間による連続発生が起きないようタイマーも初期化します。
 	void SetFrequency(float frequency) {
 		frequency_ = frequency;
 		frequencyTimer_ = 0.0f;

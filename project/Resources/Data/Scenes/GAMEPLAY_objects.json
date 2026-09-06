@@ -197,6 +197,54 @@
             "type": "LoadedModel"
         },
         {
+            "children": [], "model": "terrain.obj", "name": "terrain_loop_n",
+            "object3d": {"enabled": true, "modelTextureFilePath": "Resources/terrain/grass.png"},
+            "parent": "", "transform": {"rotate": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "translate": [0.0, -1.1952309608459473, 20.0]},
+            "type": "LoadedModel"
+        },
+        {
+            "children": [], "model": "terrain.obj", "name": "terrain_loop_s",
+            "object3d": {"enabled": true, "modelTextureFilePath": "Resources/terrain/grass.png"},
+            "parent": "", "transform": {"rotate": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "translate": [0.0, -1.1952309608459473, -20.0]},
+            "type": "LoadedModel"
+        },
+        {
+            "children": [], "model": "terrain.obj", "name": "terrain_loop_e",
+            "object3d": {"enabled": true, "modelTextureFilePath": "Resources/terrain/grass.png"},
+            "parent": "", "transform": {"rotate": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "translate": [20.0, -1.1952309608459473, 0.0]},
+            "type": "LoadedModel"
+        },
+        {
+            "children": [], "model": "terrain.obj", "name": "terrain_loop_w",
+            "object3d": {"enabled": true, "modelTextureFilePath": "Resources/terrain/grass.png"},
+            "parent": "", "transform": {"rotate": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "translate": [-20.0, -1.1952309608459473, 0.0]},
+            "type": "LoadedModel"
+        },
+        {
+            "children": [], "model": "terrain.obj", "name": "terrain_loop_ne",
+            "object3d": {"enabled": true, "modelTextureFilePath": "Resources/terrain/grass.png"},
+            "parent": "", "transform": {"rotate": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "translate": [20.0, -1.1952309608459473, 20.0]},
+            "type": "LoadedModel"
+        },
+        {
+            "children": [], "model": "terrain.obj", "name": "terrain_loop_nw",
+            "object3d": {"enabled": true, "modelTextureFilePath": "Resources/terrain/grass.png"},
+            "parent": "", "transform": {"rotate": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "translate": [-20.0, -1.1952309608459473, 20.0]},
+            "type": "LoadedModel"
+        },
+        {
+            "children": [], "model": "terrain.obj", "name": "terrain_loop_se",
+            "object3d": {"enabled": true, "modelTextureFilePath": "Resources/terrain/grass.png"},
+            "parent": "", "transform": {"rotate": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "translate": [20.0, -1.1952309608459473, -20.0]},
+            "type": "LoadedModel"
+        },
+        {
+            "children": [], "model": "terrain.obj", "name": "terrain_loop_sw",
+            "object3d": {"enabled": true, "modelTextureFilePath": "Resources/terrain/grass.png"},
+            "parent": "", "transform": {"rotate": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "translate": [-20.0, -1.1952309608459473, -20.0]},
+            "type": "LoadedModel"
+        },
+        {
             "children": [],
             "enemySpawnPoint": {
                 "cameraName": "",
