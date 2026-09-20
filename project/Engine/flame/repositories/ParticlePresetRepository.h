@@ -136,4 +136,4 @@ inline void Save(const std::string& presetName, ParticleEmitterComponent* emitte
 	}
 }
 
-} // namespace ParticlePresetRepository
+} // 名前空間 ParticlePresetRepository

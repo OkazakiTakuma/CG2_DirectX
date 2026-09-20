@@ -146,4 +146,4 @@ inline OBBColliderShape MakePickOBB(GameObject* object) {
 	return obb;
 }
 
-} // namespace BaseSceneEditorGeometry
+} // 名前空間 BaseSceneEditorGeometry

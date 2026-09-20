@@ -219,7 +219,7 @@
         ]
     },
     "猫": {
-        "attack": 140.0,
+        "attack": 150.0,
         "attackSize": 100.0,
         "attackSlots": [
             {
@@ -249,8 +249,8 @@
             }
         ],
         "attackSpeed": 130.0,
-        "baseHealth": 140.0,
-        "baseSpeed": 0.23000004887580872,
+        "baseHealth": 160.0,
+        "baseSpeed": 0.24000005424022675,
         "damageInvincibilityDuration": 1.0,
         "defense": 6.0,
         "experience": 0,
@@ -260,8 +260,9 @@
         "initialAttackLevel": "1",
         "isAnimationModel": true,
         "level": 1,
-        "model": "walk.gltf",
+        "model": "neko.gltf",
         "name": "猫",
+        "sizeScale": 0.48500001430511475,
         "speed": 100.0,
         "statusSlots": [
             {

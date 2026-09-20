@@ -16,6 +16,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include "../flame/repositories/EnemyStatusRepository.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #endif
@@ -126,6 +127,8 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 
 	ImGui_ImplDX12_Init(&initInfo);
 	performanceMonitor_.Initialize();
+	nextHotReloadScanTime_ = {};
+	hotReloadScanRunning_ = false;
 #endif
 }
 
@@ -188,6 +191,11 @@ void ImGuiManager::LoadGameFonts() {
 /// </summary>
 void ImGuiManager::Finalize() {
 #ifdef USE_IMGUI
+	if (hotReloadScanFuture_.valid()) {
+		hotReloadScanFuture_.wait();
+		hotReloadScanFuture_.get();
+	}
+	hotReloadScanRunning_ = false;
 	performanceMonitor_.Finalize();
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
@@ -710,15 +718,41 @@ bool ImGuiManager::UpdateHotReload(const std::string& sceneJsonPath, const std::
 	// futureをブロックせず確認し、ビルド中も毎フレームUIを更新する。
 	PollCppBuild();
 
-	// 種別ごとに監視表を分離し、自動リロード設定を独立して切り替えられるようにする。
-	const bool shaderChanged = DetectFileChanges("Resources/Shader", {".hlsl", ".hlsli"}, shaderTimestamps_);
-	const bool sceneChanged = !sceneJsonPath.empty() && DetectFileChanges(sceneJsonPath, {".json"}, sceneTimestamps_);
-	const bool textureChanged = DetectFileChanges("Resources", {".png", ".jpg", ".jpeg", ".bmp", ".tga", ".dds"}, textureTimestamps_);
-	bool cppChanged = false;
-	cppChanged |= DetectFileChanges("Engine", {".h", ".hpp", ".cpp"}, cppTimestamps_);
-	cppChanged |= DetectFileChanges("Player", {".h", ".hpp", ".cpp"}, cppTimestamps_);
-	cppChanged |= DetectFileChanges("scene", {".h", ".hpp", ".cpp"}, cppTimestamps_);
-	cppChanged |= DetectFileChanges("main.cpp", {".cpp"}, cppTimestamps_);
+	// NTFSの再帰列挙と更新日時取得は描画スレッドを止めないよう、500msごとに非同期実行する。
+	const auto now = std::chrono::steady_clock::now();
+	uint32_t detectedChanges = 0;
+	if (hotReloadScanRunning_ && hotReloadScanFuture_.valid() &&
+		hotReloadScanFuture_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+		detectedChanges = hotReloadScanFuture_.get();
+		hotReloadScanRunning_ = false;
+	}
+	if (!hotReloadScanRunning_ && now >= nextHotReloadScanTime_) {
+		nextHotReloadScanTime_ = now + std::chrono::milliseconds(500);
+		hotReloadScanRunning_ = true;
+		hotReloadScanFuture_ = std::async(std::launch::async, [this, sceneJsonPath]() {
+			uint32_t changes = 0;
+			if (DetectFileChanges("Resources/Shader", {".hlsl", ".hlsli"}, shaderTimestamps_)) changes |= 1u << 0;
+			if (!sceneJsonPath.empty() && DetectFileChanges(sceneJsonPath, {".json"}, sceneTimestamps_)) changes |= 1u << 1;
+			if (DetectFileChanges("Resources", {".png", ".jpg", ".jpeg", ".bmp", ".tga", ".dds"}, textureTimestamps_)) changes |= 1u << 2;
+			if (DetectFileChanges("Resources/Data/enemy_status.json", {".json"}, enemyStatusTimestamps_)) changes |= 1u << 3;
+			bool sourceChanged = false;
+			sourceChanged |= DetectFileChanges("Engine", {".h", ".hpp", ".cpp"}, cppTimestamps_);
+			sourceChanged |= DetectFileChanges("Player", {".h", ".hpp", ".cpp"}, cppTimestamps_);
+			sourceChanged |= DetectFileChanges("scene", {".h", ".hpp", ".cpp"}, cppTimestamps_);
+			sourceChanged |= DetectFileChanges("main.cpp", {".cpp"}, cppTimestamps_);
+			if (sourceChanged) changes |= 1u << 4;
+			return changes;
+		});
+	}
+
+	const bool shaderChanged = (detectedChanges & (1u << 0)) != 0;
+	const bool sceneChanged = (detectedChanges & (1u << 1)) != 0;
+	const bool textureChanged = (detectedChanges & (1u << 2)) != 0;
+	const bool enemyStatusChanged = (detectedChanges & (1u << 3)) != 0;
+	const bool cppChanged = (detectedChanges & (1u << 4)) != 0;
+	if (enemyStatusChanged) {
+		InvalidateEnemyStatsCache();
+	}
 
 	// ファイル変更による自動実行と、下のImGuiボタンによる手動実行は同じ処理へ集約する。
 	if (autoReloadShaders_ && shaderChanged) {

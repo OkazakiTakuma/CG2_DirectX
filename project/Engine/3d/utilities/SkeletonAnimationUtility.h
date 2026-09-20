@@ -12,4 +12,4 @@ Skeleton CreateSkeleton(const Node& rootNode);
 void ApplyAnimation(Skeleton& skeleton, const Animation& animation, float time, float blendWeight);
 void UpdateMatrices(Skeleton& skeleton);
 
-} // namespace SkeletonAnimationUtility
+} // 名前空間 SkeletonAnimationUtility

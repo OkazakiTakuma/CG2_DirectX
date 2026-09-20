@@ -20,6 +20,37 @@ constexpr unsigned int kAssimpModelImportFlags =
     aiProcess_FlipUVs |
     aiProcess_LimitBoneWeights;
 
+int HexDigitValue(char character) {
+	if (character >= '0' && character <= '9') {
+		return character - '0';
+	}
+	if (character >= 'a' && character <= 'f') {
+		return character - 'a' + 10;
+	}
+	if (character >= 'A' && character <= 'F') {
+		return character - 'A' + 10;
+	}
+	return -1;
+}
+
+std::string DecodeUriPath(const std::string& uriPath) {
+	std::string decodedPath;
+	decodedPath.reserve(uriPath.size());
+	for (size_t index = 0; index < uriPath.size(); ++index) {
+		if (uriPath[index] == '%' && index + 2 < uriPath.size()) {
+			const int high = HexDigitValue(uriPath[index + 1]);
+			const int low = HexDigitValue(uriPath[index + 2]);
+			if (high >= 0 && low >= 0) {
+				decodedPath.push_back(static_cast<char>((high << 4) | low));
+				index += 2;
+				continue;
+			}
+		}
+		decodedPath.push_back(uriPath[index]);
+	}
+	return decodedPath;
+}
+
 /// <summary>
 /// AffineMatrix を生成して返します。
 /// </summary>
@@ -322,13 +353,13 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 		if (material->GetTextureCount(aiTextureType_DIFFUSE) != 0) {
 			aiString texturePath;
 			material->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath);
-			modelData.material.textureFilePath = directoryPath + "/" + texturePath.C_Str();
+			modelData.material.textureFilePath = directoryPath + "/" + DecodeUriPath(texturePath.C_Str());
 			break;
 		}
 		if (material->GetTextureCount(aiTextureType_BASE_COLOR) != 0) {
 			aiString texturePath;
 			material->GetTexture(aiTextureType_BASE_COLOR, 0, &texturePath);
-			modelData.material.textureFilePath = directoryPath + "/" + texturePath.C_Str();
+			modelData.material.textureFilePath = directoryPath + "/" + DecodeUriPath(texturePath.C_Str());
 			break;
 		}
 	}

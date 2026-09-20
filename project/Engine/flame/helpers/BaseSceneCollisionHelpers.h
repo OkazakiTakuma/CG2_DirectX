@@ -211,4 +211,4 @@ inline void ApplyColliderPushBack(GameObject* objectA, bool isPushBackA, GameObj
 	objectB->ApplyCollisionResponse(directionAToB);
 }
 
-} // namespace BaseSceneCollisionHelpers
+} // 名前空間 BaseSceneCollisionHelpers

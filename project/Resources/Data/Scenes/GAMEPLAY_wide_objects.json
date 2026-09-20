@@ -4,10 +4,10 @@
         {
             "name": "terrain_7",
             "transform": {
-                "scale": [1.8, 1.0, 1.8]
+                "scale": [18.0, 1.0, 18.0]
             },
             "obbCollider": {
-                "halfSize": [18.0, 0.05, 18.0]
+                "halfSize": [18.0, 1.0, 18.0]
             }
         },
         {

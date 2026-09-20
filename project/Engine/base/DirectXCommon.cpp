@@ -56,8 +56,8 @@ void DirectXCommon::BeginFrame() {
 		return;
 	}
 
-	// Dynamic upload buffers are still shared by all back buffers. Wait for the
-	// previous frame before CPU-side updates overwrite data the GPU may read.
+	// 動的アップロードバッファーは全バックバッファーで共有しているため、GPUが参照する可能性のある
+	// データをCPU側の更新で上書きしないよう、前フレームの完了を待ちます。
 	WaitForFenceValue(lastSubmittedFenceValue_);
 	ResizeIfNeeded();
 	currentFrameIndex_ = swapChain->GetCurrentBackBufferIndex();
@@ -165,7 +165,9 @@ void DirectXCommon::PostDraw() {
 			static_cast<uint32_t>(renderWidth_),
 			static_cast<uint32_t>(renderHeight_));
 	}
-	hr = swapChain->Present(1, 0);
+	// 60fps上限は直後の高精度タイマーへ一本化する。Present側でもVSync待ちすると、
+	// リフレッシュ周期とsleep_untilの位相差で定期的に1フレーム余分に待つことがある。
+	hr = swapChain->Present(0, 0);
 	assert(SUCCEEDED(hr));
 
 	const uint64_t submittedFenceValue = ++fenceValue;
@@ -217,7 +219,7 @@ void DirectXCommon::LimitFrameRate() {
 	if (now < nextFrameTime_) {
 		std::this_thread::sleep_until(nextFrameTime_);
 	} else if (now - nextFrameTime_ >= kFrameDuration) {
-		// Do not try to make up multiple delayed frames at once.
+		// 遅延した複数フレームを一度に取り戻そうとしないようにします。
 		nextFrameTime_ = now;
 	}
 }

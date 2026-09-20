@@ -58,7 +58,7 @@ void InstancingModelCommon::CreateRootSignature() {
 
     D3D12_ROOT_PARAMETER rootParameters[7] = {};
 
-    // [0] b0: Material
+    // [0] b0: マテリアル
     rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     rootParameters[0].Descriptor.ShaderRegister = 0;
@@ -72,17 +72,17 @@ void InstancingModelCommon::CreateRootSignature() {
     rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
     rootParameters[2].Descriptor.ShaderRegister = 2;
 
-    // [3] b2: DirectionalLight
+    // [3] b2: 平行光源
     rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     rootParameters[3].Descriptor.ShaderRegister = 2;
 
-    // [4] b3: CameraInfo
+    // [4] b3: カメラ情報
     rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     rootParameters[4].Descriptor.ShaderRegister = 3;
 
-    // [5] b4: PointLight
+    // [5] b4: 点光源
     rootParameters[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameters[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     rootParameters[5].Descriptor.ShaderRegister = 4;
@@ -125,7 +125,7 @@ void InstancingModelCommon::CreatePipelineState() {
     assert(vertexShaderBlob != nullptr);
     assert(pixelShaderBlob != nullptr);
 
-    // InputLayout
+    // 入力レイアウト
     D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
     inputElementDescs[0].SemanticName = "POSITION";
     inputElementDescs[0].SemanticIndex = 0;
@@ -151,7 +151,7 @@ void InstancingModelCommon::CreatePipelineState() {
     const D3D12_DEPTH_STENCIL_DESC depthStencilDesc =
         PipelineStateUtility::MakeDepthStencilDesc(TRUE, D3D12_DEPTH_WRITE_MASK_ALL);
 
-    // PSO
+    // パイプラインステート
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
     psoDesc.pRootSignature = rootSignature_.Get();
     psoDesc.InputLayout = inputLayoutDesc;

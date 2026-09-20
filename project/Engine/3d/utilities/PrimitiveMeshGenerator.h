@@ -16,4 +16,4 @@ struct MeshData {
 
 MeshData GenerateCylinder(float radius, float height, uint32_t subdivision, bool createTopCap, bool createBottomCap);
 
-} // namespace PrimitiveMeshGenerator
+} // 名前空間 PrimitiveMeshGenerator

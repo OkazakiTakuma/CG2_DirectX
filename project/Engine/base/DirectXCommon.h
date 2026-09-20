@@ -33,7 +33,7 @@ public:
 		Matrix4x4 world;
 	};
 
-	// Creates a descriptor heap for RTV, DSV, or shader-visible descriptors.
+	// RTV、DSV、またはシェーダーから参照可能なディスクリプターヒープを作成します。
 	/// <summary>
 	/// DescriptorHeap を作成し、利用できる状態にします。
 	/// </summary>

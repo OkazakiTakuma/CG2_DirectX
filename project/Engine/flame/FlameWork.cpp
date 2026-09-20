@@ -80,7 +80,6 @@ void FlameWork::Initialize() {
 	SrvManager::GetInstance()->Initialize(dxCommon.get());
 	ImGuiManager::GetInstance()->Initialize(winApp.get(), dxCommon.get());
 	TextureManager::GetInstance()->Initialize(dxCommon.get());
-	TextureManager::GetInstance()->SetDirectXCommon(dxCommon.get());
 	PostEffect::GetInstance()->Initialize(dxCommon.get());
 	SpriteCommon::GetInstance()->Initialize(dxCommon.get());
 	SkyBoxCommon::GetInstance()->Initialize(dxCommon.get());

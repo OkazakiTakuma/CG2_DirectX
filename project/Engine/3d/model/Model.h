@@ -11,7 +11,7 @@
 #include <vector>
 #include <wrl.h>
 
-// Forward declaration for Assimp node type to avoid including Assimp headers in this header
+// このヘッダーからAssimpのヘッダーを除外するため、ノード型を前方宣言します。
 
 class ModelCommon;
 class Model {

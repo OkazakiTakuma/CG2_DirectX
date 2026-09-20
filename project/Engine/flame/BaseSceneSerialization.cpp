@@ -412,6 +412,10 @@ void BaseScene::LoadEditorObjects() {
 			player->SetGlobalExperienceBonusPercent(
 			    sceneManager ? sceneManager->GetGlobalExperienceBonusPercent() : 0.0f);
 			player->ApplyStats(playerStats, ApplyPlayerStatusItems(playerStats));
+			// ゲーム開始時に選択したプレイヤータイプ固有のサイズを、表示と当たり判定へ反映する。
+			if (!playerTypeOverride_.empty()) {
+				transform.scale = {playerStats.sizeScale, playerStats.sizeScale, playerStats.sizeScale};
+			}
 			PlayerAttackComponent* attack = object->GetComponent<PlayerAttackComponent>();
 			if (!attack) {
 				attack = object->AddComponent<PlayerAttackComponent>();

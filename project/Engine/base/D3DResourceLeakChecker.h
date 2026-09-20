@@ -1,5 +1,5 @@
 #pragma once
-/// Reports live D3D12/DXGI objects when the engine shuts down.
+/// エンジン終了時に解放されていないD3D12/DXGIオブジェクトを報告します。
 class D3DResourceLeakChecker {
 public:
 	/// <summary>

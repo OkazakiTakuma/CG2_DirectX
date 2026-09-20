@@ -6,7 +6,9 @@
 #include "Vector.h"
 #include <Windows.h>
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <functional>
 #include <memory>
@@ -16,6 +18,9 @@
 /// <summary>文字列をGDIでRGBAテクスチャへ変換し、Spriteとして2D描画します。</summary>
 class TextComponent : public Component {
 public:
+	TextComponent()
+		: runtimeTextureKey_("__runtime_text_component_" + std::to_string(nextRuntimeTextureId_.fetch_add(1, std::memory_order_relaxed))) {}
+
 	enum class Anchor {
 		TopLeft,
 		TopCenter,
@@ -148,11 +153,9 @@ private:
 		DeleteObject(font);
 		DeleteDC(measureDc);
 
-		const std::string cacheSource = text_ + "|" + fontName_ + "|" + std::to_string(static_cast<int>(std::round(fontSize_)));
-		const std::string textureKey = "__runtime_text_" + std::to_string(std::hash<std::string>{}(cacheSource));
-		TextureManager::GetInstance()->CreateTextureFromRGBA(textureKey, static_cast<uint32_t>(width), static_cast<uint32_t>(height), rgbaPixels);
+		TextureManager::GetInstance()->CreateTextureFromRGBA(runtimeTextureKey_, static_cast<uint32_t>(width), static_cast<uint32_t>(height), rgbaPixels);
 		textSprite_ = std::make_unique<Sprite>();
-		textSprite_->Initialize(textureKey);
+		textSprite_->Initialize(runtimeTextureKey_);
 		textSprite_->SetSize({static_cast<float>(width), static_cast<float>(height)});
 		isTextureDirty_ = false;
 	}
@@ -167,4 +170,6 @@ private:
 	bool isTextureDirty_ = true;
 	/// <summary>生成済み文字テクスチャを表示するSpriteです。</summary>
 	std::unique_ptr<Sprite> textSprite_;
+	std::string runtimeTextureKey_;
+	static inline std::atomic<uint64_t> nextRuntimeTextureId_ = 0;
 };

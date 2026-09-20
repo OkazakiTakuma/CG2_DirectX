@@ -16,6 +16,11 @@
 /// <summary>
 /// 敵ステータスのJSON変換・読み込み・保存を担当します。
 /// </summary>
+namespace EnemyStatusCacheDetail {
+inline nlohmann::json root;
+inline bool initialized = false;
+}
+
 namespace {
 
 inline constexpr const char* kFilePath = "Resources/Data/enemy_status.json";
@@ -219,12 +224,33 @@ inline EnemyStats FromJson(const nlohmann::json& json, const EnemyStats& fallbac
 	return stats;
 }
 
-inline nlohmann::json LoadRoot() {
+inline nlohmann::json& CachedRoot() {
+	return EnemyStatusCacheDetail::root;
+}
+
+inline bool& IsCacheInitialized() {
+	return EnemyStatusCacheDetail::initialized;
+}
+
+inline void InvalidateEnemyStatsCache() {
+	CachedRoot() = nlohmann::json();
+	IsCacheInitialized() = false;
+}
+
+inline const nlohmann::json& LoadRoot() {
+	// 敵生成のたびにファイルを開いてJSON全体を解析すると周期的なフレーム落ちになるため、
+	// 明示的に保存・無効化されるまではメモリ上のスナップショットを返す。
+	if (IsCacheInitialized()) {
+		return CachedRoot();
+	}
+
 	std::ifstream ifs(kFilePath);
 	if (!ifs) {
 		nlohmann::json root;
 		root["Default"] = ToJson(MakeDefaultStats());
-		return root;
+		CachedRoot() = root;
+		IsCacheInitialized() = true;
+		return CachedRoot();
 	}
 
 	nlohmann::json root;
@@ -235,12 +261,14 @@ inline nlohmann::json LoadRoot() {
 	if (!root.contains("Default")) {
 		root["Default"] = ToJson(MakeDefaultStats());
 	}
-	return root;
+	CachedRoot() = root;
+	IsCacheInitialized() = true;
+	return CachedRoot();
 }
 
 inline std::vector<std::string> LoadEnemyTypeNames() {
 	std::vector<std::string> names;
-	const nlohmann::json root = LoadRoot();
+	const nlohmann::json& root = LoadRoot();
 	for (auto it = root.begin(); it != root.end(); ++it) {
 		names.push_back(it.key());
 	}
@@ -253,7 +281,7 @@ inline std::vector<std::string> LoadEnemyTypeNames() {
 
 inline EnemyStats LoadEnemyStats(const std::string& enemyTypeName) {
 	const std::string typeName = enemyTypeName.empty() ? "Default" : enemyTypeName;
-	const nlohmann::json root = LoadRoot();
+	const nlohmann::json& root = LoadRoot();
 	const EnemyStats fallback = MakeDefaultStats();
 	return root.contains(typeName) ? FromJson(root.at(typeName), fallback) : fallback;
 }
@@ -267,6 +295,9 @@ inline void SaveEnemyStats(const std::string& enemyTypeName, const EnemyStats& s
 	std::ofstream ofs(kFilePath);
 	if (ofs) {
 		ofs << std::setw(4) << root << std::endl;
+		// エディタ保存直後から、次回の敵生成も同じ内容を参照する。
+		CachedRoot() = root;
+		IsCacheInitialized() = true;
 	}
 }
 
