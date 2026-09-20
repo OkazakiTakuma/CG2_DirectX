@@ -80,4 +80,4 @@ inline Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature(
 	return rootSignature;
 }
 
-} // namespace PipelineStateUtility
+} // 名前空間 PipelineStateUtility

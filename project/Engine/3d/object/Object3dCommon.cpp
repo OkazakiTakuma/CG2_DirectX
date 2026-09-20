@@ -167,11 +167,11 @@ void Object3dCommon::CreatePipelineState() {
 	assert(vertexShaderBlob != nullptr);
 	assert(pixelShaderBlob != nullptr);
 
-	// DepthStencilState
+	// 深度ステンシルステート
 	const D3D12_DEPTH_STENCIL_DESC depthStencilDesc =
 	    PipelineStateUtility::MakeDepthStencilDesc(TRUE, D3D12_DEPTH_WRITE_MASK_ALL);
 
-	// PSO
+	// パイプラインステート
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
 	psoDesc.pRootSignature = rootSignature.Get();
 	psoDesc.InputLayout = inputLayoutDesc;

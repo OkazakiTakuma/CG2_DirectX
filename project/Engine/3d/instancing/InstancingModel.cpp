@@ -91,20 +91,20 @@ void InstancingModel::Draw(Camera* camera) {
 
     SrvManager::GetInstance()->PreDraw();
 
-    // [2] t2: Instancing Data (SRV)
+    // [2] t2: インスタンシングデータ（SRV）
     commandList->SetGraphicsRootShaderResourceView(2, instanceBuffer_->GetGPUVirtualAddress());
 
     commandList->IASetVertexBuffers(0, 1, &model_->vertexBufferView);
-    // [0] b0: Material
+    // [0] b0: マテリアル
     commandList->SetGraphicsRootConstantBufferView(0, model_->materialResource->GetGPUVirtualAddress());
-    // [1] t0: Texture
+    // [1] t0: テクスチャ
     commandList->SetGraphicsRootDescriptorTable(1, TextureManager::GetInstance()->GetSRVHandleGPU(model_->modelData.material.textureFilePath));
 
-    // [3] b2: DirectionalLight
+    // [3] b2: 平行光源
     commandList->SetGraphicsRootConstantBufferView(3, lightResource_->GetGPUVirtualAddress());
-    // [4] b3: CameraInfo
+    // [4] b3: カメラ情報
     commandList->SetGraphicsRootConstantBufferView(4, cameraResource_->GetGPUVirtualAddress());
-    // [5] b4: PointLight
+    // [5] b4: 点光源
     commandList->SetGraphicsRootConstantBufferView(5, pointLightResource_->GetGPUVirtualAddress());
 
     std::string envPath = envMapTexturePath_.empty()

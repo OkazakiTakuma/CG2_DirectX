@@ -80,7 +80,7 @@ int32_t CreateJoint(
 	return joint.index;
 }
 
-} // namespace
+} // 無名名前空間
 
 namespace SkeletonAnimationUtility {
 
@@ -132,4 +132,4 @@ void UpdateMatrices(Skeleton& skeleton) {
 	}
 }
 
-} // namespace SkeletonAnimationUtility
+} // 名前空間 SkeletonAnimationUtility

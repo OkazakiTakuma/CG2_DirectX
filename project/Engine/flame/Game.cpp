@@ -105,43 +105,38 @@ void Game::Update() {
 void Game::Draw() {
 #pragma region Setup
 
-	if (PostEffect::GetInstance()->IsActive()) {
-		PostEffect::GetInstance()->PreDrawScene();
-
+	const auto drawScene = [this]() {
 		SkyBoxCommon::GetInstance()->SetDraw();
 		sceneManager->DrawSkyBox();
 
 		Object3dCommon::GetInstance()->SetDraw();
 		sceneManager->Draw3D();
-		TrailRenderer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
-		LineDrawer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
+		Camera* defaultCamera = Object3dCommon::GetInstance()->GetDefaultCamera();
+		TrailRenderer::GetInstance()->Draw(defaultCamera);
+		LineDrawer::GetInstance()->Draw(defaultCamera);
 
 		SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeNone);
 		sceneManager->Draw2D();
+	};
 
-		PostEffect::GetInstance()->PostDrawScene();
+	PostEffect* postEffect = PostEffect::GetInstance();
+	if (postEffect->IsActive()) {
+		postEffect->PreDrawScene();
+		drawScene();
+
+		postEffect->PostDrawScene();
 
 		SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
 		ImGuiManager::GetInstance()->ApplyGameViewRenderArea();
 
-		PostEffect::GetInstance()->Draw();
+		postEffect->Draw();
 	} else {
 		SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
 		ImGuiManager::GetInstance()->ApplyGameViewRenderArea();
-
-		SkyBoxCommon::GetInstance()->SetDraw();
-		sceneManager->DrawSkyBox();
-
-		Object3dCommon::GetInstance()->SetDraw();
-		sceneManager->Draw3D();
-		TrailRenderer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
-		LineDrawer::GetInstance()->Draw(Object3dCommon::GetInstance()->GetDefaultCamera());
-
-		SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeNone);
-		sceneManager->Draw2D();
+		drawScene();
 	}
 	ImGuiManager::GetInstance()->RestoreFullRenderArea();
-	PostEffect::GetInstance()->DrawImGui();
+	postEffect->DrawImGui();
 	ImGuiManager::GetInstance()->End();
 	ImGuiManager::GetInstance()->Draw();
 

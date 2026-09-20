@@ -64,7 +64,7 @@ struct MaterialData {
 	uint32_t textureIndex = 0;
 };
 
-// Define Node before ModelData so it is a complete type when used
+// ModelData内で完全型として扱えるよう、Nodeを先に定義します。
 struct Node {
 	QuaternionTransform transform;
 	Matrix4x4 localMatrix;

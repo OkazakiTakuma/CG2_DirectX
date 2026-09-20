@@ -1,4 +1,3 @@
-// TextureManager.h
 #pragma once
 #include "DirectXTex.h"
 #include "d3dx12.h"
@@ -29,11 +28,11 @@ public:
 	/// 確保したリソースを解放し、終了処理を行います。
 	/// </summary>
 	void Finalize();
-	void Release();
 	/// <summary>
 	/// Texture を読み込み、内部データへ反映します。
 	/// </summary>
-	void LoadTexture(const std::string& filepath);
+	/// <returns>既に読み込み済み、または新規読み込みに成功した場合は true を返します。</returns>
+	bool LoadTexture(const std::string& filepath);
 	/// <summary>
 	/// RGBA8形式のピクセル列から実行時テクスチャを生成します。
 	/// </summary>
@@ -59,23 +58,11 @@ public:
 		assert(textureDatas.contains(filePath));
 		return textureDatas.at(filePath).srvHandleGPU;
 	}
-	void SetDirectXCommon(DirectXCommon* dxCommon) { dxCommon_ = dxCommon; }
 	const DirectX::TexMetadata& GetTextureMetadata(const std::string& filePath) {
 		assert(!SrvManager::GetInstance()->IsOverAllocated());
 		assert(textureDatas.contains(filePath));
 		return textureDatas.at(filePath).metadata;
 	}
-	uint32_t GetSrvIndex(const std::string& filePath) {
-		assert(!SrvManager::GetInstance()->IsOverAllocated());
-		assert(textureDatas.contains(filePath));
-		return textureDatas.at(filePath).srvIndex;
-	}
-	Microsoft::WRL::ComPtr<ID3D12Resource> GetResource(const std::string& filePath) 
-	{
-		assert(!SrvManager::GetInstance()->IsOverAllocated());
-		assert(textureDatas.contains(filePath));
-		return textureDatas.at(filePath).resource;
-	};
 	/// <summary>
 	/// 読み込み済みテクスチャのファイルパス一覧を取得します。
 	/// </summary>

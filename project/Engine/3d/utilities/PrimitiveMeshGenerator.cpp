@@ -76,4 +76,4 @@ MeshData GenerateCylinder(float radius, float height, uint32_t subdivision, bool
 	return mesh;
 }
 
-} // namespace PrimitiveMeshGenerator
+} // 名前空間 PrimitiveMeshGenerator

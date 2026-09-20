@@ -19,6 +19,7 @@ void PerformanceMonitor::Initialize() {
 	gpu3DUsagePercent_ = 0.0f;
 	isGpuUsageAvailable_ = false;
 	previousUpdateTime_ = std::chrono::steady_clock::now() - kUpdateInterval;
+	isUpdateRunning_ = false;
 
 	if (PdhOpenQueryW(nullptr, 0, &gpuQuery_) != ERROR_SUCCESS) {
 		gpuQuery_ = nullptr;
@@ -37,6 +38,12 @@ void PerformanceMonitor::Initialize() {
 }
 
 void PerformanceMonitor::Finalize() {
+	// PDHハンドルを閉じる前に、実行中の収集処理だけは完了させる。
+	if (updateFuture_.valid()) {
+		updateFuture_.wait();
+		updateFuture_.get();
+	}
+	isUpdateRunning_ = false;
 	// PDHハンドルは生成と逆順に閉じ、再初期化できる状態へ戻す。
 	if (gpuQuery_) {
 		PdhCloseQuery(gpuQuery_);
@@ -48,15 +55,24 @@ void PerformanceMonitor::Finalize() {
 }
 
 void PerformanceMonitor::Update() {
-	// カウンター取得コストを抑えるため、一定間隔に達したときだけ更新する。
+	// 完了確認はブロックせず行い、PDHの重いインスタンス列挙を描画スレッドへ持ち込まない。
+	if (isUpdateRunning_ && updateFuture_.valid() &&
+		updateFuture_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+		updateFuture_.get();
+		isUpdateRunning_ = false;
+	}
+
+	// カウンター取得コストを抑えるため、一定間隔に達したときだけ1処理を起動する。
 	const auto now = std::chrono::steady_clock::now();
-	if (now - previousUpdateTime_ < kUpdateInterval) {
+	if (isUpdateRunning_ || now - previousUpdateTime_ < kUpdateInterval) {
 		return;
 	}
 	previousUpdateTime_ = now;
-
-	UpdateCpuUsage();
-	UpdateGpuUsage();
+	isUpdateRunning_ = true;
+	updateFuture_ = std::async(std::launch::async, [this]() {
+		UpdateCpuUsage();
+		UpdateGpuUsage();
+	});
 }
 
 void PerformanceMonitor::UpdateCpuUsage() {
@@ -83,7 +99,7 @@ void PerformanceMonitor::UpdateCpuUsage() {
 
 	if (total > 0) {
 		const double used = static_cast<double>(total - idle) / static_cast<double>(total) * kPercentMax;
-		cpuUsagePercent_ = static_cast<float>(std::clamp(used, 0.0, kPercentMax));
+		cpuUsagePercent_.store(static_cast<float>(std::clamp(used, 0.0, kPercentMax)), std::memory_order_relaxed);
 	}
 
 	previousIdleTime_ = idleTime;
@@ -133,9 +149,9 @@ void PerformanceMonitor::UpdateGpuUsage() {
 		}
 	}
 
-	gpuUsagePercent_ = static_cast<float>(std::clamp(totalUsage, 0.0, kPercentMax));
-	gpu3DUsagePercent_ = static_cast<float>(std::clamp(usage3D, 0.0, kPercentMax));
-	isGpuUsageAvailable_ = true;
+	gpuUsagePercent_.store(static_cast<float>(std::clamp(totalUsage, 0.0, kPercentMax)), std::memory_order_relaxed);
+	gpu3DUsagePercent_.store(static_cast<float>(std::clamp(usage3D, 0.0, kPercentMax)), std::memory_order_relaxed);
+	isGpuUsageAvailable_.store(true, std::memory_order_relaxed);
 }
 
 unsigned long long PerformanceMonitor::FileTimeToUint64(const FILETIME& fileTime) {

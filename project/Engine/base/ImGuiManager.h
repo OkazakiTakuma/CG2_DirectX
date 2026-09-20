@@ -4,6 +4,7 @@
 #include "SrvManager.h"
 #include "WinApp.h"
 #include <string>
+#include <chrono>
 #include <unordered_map>
 #include <vector>
 #include <filesystem>
@@ -130,4 +131,9 @@ private:
 	std::unordered_map<std::string, std::filesystem::file_time_type> sceneTimestamps_;
 	std::unordered_map<std::string, std::filesystem::file_time_type> textureTimestamps_;
 	std::unordered_map<std::string, std::filesystem::file_time_type> cppTimestamps_;
+	std::unordered_map<std::string, std::filesystem::file_time_type> enemyStatusTimestamps_;
+	// 再帰的なファイル列挙を毎フレーム行わず、操作感を損なわない範囲でまとめて監視する。
+	std::chrono::steady_clock::time_point nextHotReloadScanTime_{};
+	std::future<uint32_t> hotReloadScanFuture_;
+	bool hotReloadScanRunning_ = false;
 };

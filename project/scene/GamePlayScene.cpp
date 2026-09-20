@@ -150,7 +150,8 @@ void GamePlayScene::Initialize() {
 			"Resources/monsterball.png",
 			"Resources/rostock_laage_airport_4k.dds",
 			"Resources/gradationLine.png",
-			"Resources/terrain/grass.png"
+			"Resources/terrain/grass.png",
+			"Resources/sand/sand.png"
 	};
 
 	availableTextures_.clear();
@@ -179,9 +180,11 @@ void GamePlayScene::LoadSceneModels() {
 	ModelManager::GetInstance()->LoadModel("simpleSkin.gltf", true, "/simpleSkin");
 	ModelManager::GetInstance()->LoadModel("sneakWalk.gltf", true, "/human");
 	ModelManager::GetInstance()->LoadModel("walk.gltf", true, "/human");
+	ModelManager::GetInstance()->LoadModel("neko.gltf", true, "/cat");
 	ModelManager::GetInstance()->LoadModel("axis.obj");
 	ModelManager::GetInstance()->LoadModel("sphere.obj");
 	ModelManager::GetInstance()->LoadModel("terrain.obj", false, "/terrain");
+	ModelManager::GetInstance()->LoadModel("sand.obj", false, "/sand");
 	// 烏天狗の右手へ装備する刀を専用フォルダから事前読み込みする。
 	ModelManager::GetInstance()->LoadModel("brade.obj", false, "/brade");
 }

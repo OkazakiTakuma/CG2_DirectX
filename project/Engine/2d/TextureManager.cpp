@@ -1,4 +1,3 @@
-// TextureManager.cpp
 #include "TextureManager.h"
 #include "particle/ParticleManager.h"
 #include "StringUtility.h"
@@ -33,8 +32,6 @@ TextureManager* TextureManager::GetInstance() {
 void TextureManager::Finalize() {
 	textureDatas.clear();
 }
-
-void TextureManager::Release() {}
 
 uint32_t TextureManager::GetTextureIndexByFilePath(const std::string& filepath) {
 	assert(!SrvManager::GetInstance()->IsOverAllocated());
@@ -106,16 +103,15 @@ void TextureManager::UploadAndTransition(TextureData& textureData, const DirectX
 /// <summary>
 /// Texture を読み込み、内部データへ反映します。
 /// </summary>
-void TextureManager::LoadTexture(const std::string& filepath) {
+bool TextureManager::LoadTexture(const std::string& filepath) {
 	// 同じファイルを複数回ロードしてSRVを浪費しないようにする。
 	if (textureDatas.contains(filepath)) {
-		return;
+		return true;
 	}
 	DirectX::ScratchImage mipImages;
 	const bool loaded = LoadTextureImage(filepath, mipImages);
-	assert(loaded);
 	if (!loaded) {
-		return;
+		return false;
 	}
 
 	// CPU側の画像情報を基にGPUリソースと対応するSRVをまとめて構築する。
@@ -125,11 +121,12 @@ void TextureManager::LoadTexture(const std::string& filepath) {
 	AllocateSrv(textureData);
 	CreateSrv(textureData);
 	UploadAndTransition(textureData, mipImages);
+	return true;
 }
 
 void TextureManager::CreateTextureFromRGBA(const std::string& key, uint32_t width, uint32_t height, const std::vector<uint8_t>& pixels) {
 	// RGBA8として必要なデータ量を満たさない入力はGPUへ送らない。
-	if (textureDatas.contains(key) || !dxCommon_ || width == 0 || height == 0 || pixels.size() < static_cast<size_t>(width) * height * 4) {
+	if (!dxCommon_ || width == 0 || height == 0 || pixels.size() < static_cast<size_t>(width) * height * 4) {
 		return;
 	}
 	DirectX::ScratchImage image;
@@ -141,12 +138,24 @@ void TextureManager::CreateTextureFromRGBA(const std::string& key, uint32_t widt
 		std::memcpy(destination->pixels + destination->rowPitch * row, pixels.data() + static_cast<size_t>(width) * row * 4, static_cast<size_t>(width) * 4);
 	}
 
-	TextureData& textureData = textureDatas[key];
-	textureData.metadata = image.GetMetadata();
-	textureData.resource = dxCommon_->CreateTextureResource(textureData.metadata);
-	AllocateSrv(textureData);
-	CreateSrv(textureData);
-	UploadAndTransition(textureData, image);
+	auto textureIt = textureDatas.find(key);
+	if (textureIt == textureDatas.end()) {
+		TextureData& textureData = textureDatas[key];
+		textureData.metadata = image.GetMetadata();
+		textureData.resource = dxCommon_->CreateTextureResource(textureData.metadata);
+		AllocateSrv(textureData);
+		CreateSrv(textureData);
+		UploadAndTransition(textureData, image);
+		return;
+	}
+
+	// 動的文字列は同じSRVを維持してリソースだけを差し替え、値の種類だけSRVを消費しない。
+	TextureData replacement = textureIt->second;
+	replacement.metadata = image.GetMetadata();
+	replacement.resource = dxCommon_->CreateTextureResource(replacement.metadata);
+	CreateSrv(replacement);
+	UploadAndTransition(replacement, image);
+	textureIt->second = std::move(replacement);
 }
 
 bool TextureManager::ReloadTexture(const std::string& filepath) {

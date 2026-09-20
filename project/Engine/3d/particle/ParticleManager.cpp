@@ -90,7 +90,7 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon) {
 	std::random_device seedGenerator;
 	randomEngine_ = std::mt19937(seedGenerator());
 
-	// POSITION(float4), TEXCOORD(float2), NORMAL(float3)
+	// 頂点レイアウト: POSITION(float4)、TEXCOORD(float2)、NORMAL(float3)
 
 	vertices_.resize(6);
 
@@ -149,19 +149,18 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon) {
 /// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
 /// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 void ParticleManager::CreateParticleGroup(const std::string& groupName, const std::string& textureFilePath, ParticleMeshType meshtype) {
-
-	if (particleGroups_.find(groupName) != particleGroups_.end()) {
+	const auto [groupIt, inserted] = particleGroups_.try_emplace(groupName);
+	if (!inserted) {
 		assert(false && "ParticleGroup name already exists!");
 		return;
 	}
 
-	ParticleGroup newGroup{};
-	particleGroups_[groupName] = std::move(newGroup);
-	ParticleGroup& group = particleGroups_[groupName];
+	ParticleGroup& group = groupIt->second;
 
 	group.material.textureFilePath = textureFilePath;
-	TextureManager::GetInstance()->LoadTexture(textureFilePath);
-	group.material.textureIndex = TextureManager::GetInstance()->GetSrvIndex(textureFilePath);
+	TextureManager* textureManager = TextureManager::GetInstance();
+	textureManager->LoadTexture(textureFilePath);
+	group.material.textureIndex = textureManager->GetTextureIndexByFilePath(textureFilePath);
 	group.meshType = meshtype;
 
 	// =========================================================
@@ -217,13 +216,6 @@ void ParticleManager::CreateParticleGroup(const std::string& groupName, const st
 	srvManager_->CreateSRVforStructuredBuffer(group.instanceSrvIndex, group.instanceResource.Get(), srvDesc.Buffer.NumElements, srvDesc.Buffer.StructureByteStride);
 
 	group.instanceCount = 0;
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Transition.pResource = TextureManager::GetInstance()->GetResource(textureFilePath).Get();
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-
 }
 // ==========================================
 // ==========================================
@@ -237,7 +229,7 @@ void ParticleManager::CreateRootSignature() {
 	descriptorRangeTexture[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRangeTexture[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	// [1] StructuredBuffer (t1)
+	// [1] 構造化バッファー（t1）
 	D3D12_DESCRIPTOR_RANGE descriptorRangeData[1] = {};
 	descriptorRangeData[0].BaseShaderRegister = 1;
 	descriptorRangeData[0].NumDescriptors = 1;
@@ -246,19 +238,19 @@ void ParticleManager::CreateRootSignature() {
 
 	D3D12_ROOT_PARAMETER rootParameters[3] = {};
 
-	// Param 0: Texture
+	// ルートパラメーター0: テクスチャ
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[0].DescriptorTable.pDescriptorRanges = descriptorRangeTexture;
 	rootParameters[0].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeTexture);
 
-	// Param 1: Instancing Data
+	// ルートパラメーター1: インスタンシングデータ
 	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	rootParameters[1].DescriptorTable.pDescriptorRanges = descriptorRangeData;
 	rootParameters[1].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeData);
 
-	// Param 2: Camera matrices
+	// ルートパラメーター2: カメラ行列
 	rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	rootParameters[2].Descriptor.ShaderRegister = 0;
@@ -304,7 +296,7 @@ void ParticleManager::CreatePipelineState() {
 	    TRUE, D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_INV_SRC_ALPHA);
 	const D3D12_RASTERIZER_DESC rasterizerDesc = PipelineStateUtility::MakeRasterizerDesc(D3D12_CULL_MODE_BACK);
 
-	// Shader Compile
+	// シェーダーをコンパイル
 	Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Particle.VS.hlsl", L"vs_6_0");
 	assert(vertexShaderBlob != nullptr);
 	Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = dxCommon_->CompileShader(L"Resources/Shader/Particle.PS.hlsl", L"ps_6_0");
@@ -437,9 +429,9 @@ void ParticleManager::Draw(Camera* camera) {
 		group.instanceCount = numInstance;
 
 		if (group.instanceCount > 0) {
-			// [0] Texture
+			// [0] テクスチャ
 			commandList->SetGraphicsRootDescriptorTable(0, srvManager_->GetGPUDescriptorHandle(group.material.textureIndex));
-			// [1] Data
+			// [1] インスタンシングデータ
 			commandList->SetGraphicsRootDescriptorTable(1, srvManager_->GetGPUDescriptorHandle(group.instanceSrvIndex));
 
 			commandList->DrawInstanced(group.vertexCount, group.instanceCount, 0, 0);
@@ -451,6 +443,8 @@ void ParticleManager::Draw(Camera* camera) {
 /// 毎フレームの状態更新を行います。
 /// </summary>
 void ParticleManager::Update() {
+	const float deltaTime = GameTime::GetDeltaTime();
+	const float frameScale = GameTime::GetFrameScale60();
 	for (auto& groupPair : particleGroups_) {
 		ParticleGroup& group = groupPair.second;
 		group.instanceCount = 0;
@@ -465,8 +459,6 @@ void ParticleManager::Update() {
 			}
 
 			auto& p = group.particles[i];
-			const float deltaTime = GameTime::GetDeltaTime();
-			const float frameScale = GameTime::GetFrameScale60();
 
 			// 渦運動では後段でXZ座標を円軌道から求め直すため、通常の水平速度加算は行わない。
 			if (!p.isVortex) {
@@ -494,13 +486,7 @@ void ParticleManager::Update() {
 				p.transform.translate.z = p.vortexCenter.z + std::sin(p.vortexAngle) * radius;
 			}
 
-			float t = p.currentTime / p.lifeTime;
-			if (t < 0.0f) {
-				t = 0.0f;
-			}
-			else if (t > 1.0f) {
-				t = 1.0f;
-			}
+			const float t = std::clamp(p.currentTime / p.lifeTime, 0.0f, 1.0f);
 
 			p.transform.scale.x = p.startScale.x + (p.endScale.x - p.startScale.x) * t;
 			p.transform.scale.y = p.startScale.y + (p.endScale.y - p.startScale.y) * t;
@@ -524,10 +510,12 @@ void ParticleManager::Update() {
 /// <param name="position">位置を指定します。</param>
 /// <param name="count">処理する個数を指定します。</param>
 void ParticleManager::Emit(const std::string& groupName, const Vector3& position, uint32_t count, const ParticleEmitParam& emitParam) {
-	if (particleGroups_.find(groupName) == particleGroups_.end())
+	const auto groupIt = particleGroups_.find(groupName);
+	if (groupIt == particleGroups_.end()) {
 		return;
+	}
 
-	ParticleGroup& group = particleGroups_[groupName];
+	ParticleGroup& group = groupIt->second;
 	// JSONや外部コードから上限を超える生成要求が来ても、GPUバッファの容量を超えないよう制限します。
 	const uint32_t currentParticleCount = static_cast<uint32_t>(group.particles.size());
 	const uint32_t availableParticleCount =
@@ -600,15 +588,17 @@ void ParticleManager::Emit(const std::string& groupName, const Vector3& position
 /// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>
 /// <param name="textureFilePath">使用するテクスチャまたはモデルのファイルパスを指定します。</param>
 void ParticleManager::SetGroupTexture(const std::string& groupName, const std::string& textureFilePath) {
-	if (particleGroups_.find(groupName) == particleGroups_.end()) {
+	const auto groupIt = particleGroups_.find(groupName);
+	if (groupIt == particleGroups_.end()) {
 		return;
 	}
 
-	ParticleGroup& group = particleGroups_[groupName];
+	ParticleGroup& group = groupIt->second;
 
 	group.material.textureFilePath = textureFilePath;
-	TextureManager::GetInstance()->LoadTexture(textureFilePath);
-	group.material.textureIndex = TextureManager::GetInstance()->GetSrvIndex(textureFilePath);
+	TextureManager* textureManager = TextureManager::GetInstance();
+	textureManager->LoadTexture(textureFilePath);
+	group.material.textureIndex = textureManager->GetTextureIndexByFilePath(textureFilePath);
 }
 
 /// <param name="groupName">対象となるパーティクルグループ名を指定します。</param>

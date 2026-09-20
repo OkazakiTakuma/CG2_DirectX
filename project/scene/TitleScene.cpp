@@ -63,7 +63,7 @@ void TitleScene::CreateUi() {
 	shopTextObject_ = CreateTextObject("SHOP", 30.0f, {0.82f, 0.87f, 0.94f, 1.0f});
 	moneyTextObject_ = CreateTextObject("", 21.0f, {1.0f, 0.80f, 0.22f, 1.0f});
 	instructionTextObject_ = CreateTextObject(
-	    "上下キー・Pad上下: 選択    Enter・Pad A: 決定    Space: ゲーム開始    S・Pad X: ショップ", 18.0f,
+	    "上下キー・Pad上下: 選択    Enter・Pad A: 決定", 18.0f,
 	    {0.68f, 0.75f, 0.86f, 1.0f});
 	versionTextObject_ = CreateTextObject("PRESS ENTER / A BUTTON", 17.0f, {0.45f, 0.63f, 0.76f, 1.0f});
 	confirmationTextObject_ = CreateTextObject("本当にゲームデータを初期化しますか？", 27.0f, {1.0f, 0.92f, 0.82f, 1.0f});
@@ -80,7 +80,7 @@ void TitleScene::Update() {
 	// 選択中ボタンの明滅に使用する時間。タイトル演出なので固定刻みで十分とする。
 	pulseTime_ += 1.0f / 60.0f;
 	if (isResetConfirmationOpen_) {
-		// 確認中は通常メニューのショートカットを無効にし、誤操作による別画面への遷移を防ぐ。
+		// 確認中は通常メニューの操作を無効にし、誤操作による別画面への遷移を防ぐ。
 		if (input->TriggerKey(DIK_ESCAPE) || input->TriggerGamepadButton(XINPUT_GAMEPAD_B)) {
 			isResetConfirmationOpen_ = false;
 			return;
@@ -97,16 +97,6 @@ void TitleScene::Update() {
 	}
 	if (input->TriggerKey(DIK_DOWN) || input->TriggerGamepadDown()) {
 		selectedMenuIndex_ = (selectedMenuIndex_ + 1) % 3;
-	}
-	if (input->TriggerKey(DIK_SPACE) || input->TriggerGamepadButton(XINPUT_GAMEPAD_START)) {
-		// Space / START は選択位置に関係なくゲーム開始へ進むショートカットとする。
-		sceneManager->ChangeScene("PLAYER_SELECT");
-		return;
-	}
-	if (input->TriggerKey(DIK_S) || input->TriggerGamepadButton(XINPUT_GAMEPAD_X)) {
-		// メニュー選択を経由しないショップ用ショートカット。
-		sceneManager->ChangeScene("SHOP");
-		return;
 	}
 	if (input->TriggerKey(DIK_RETURN) || input->TriggerGamepadButton(XINPUT_GAMEPAD_A)) {
 		// Enter / Pad A は通常の決定操作として、現在選択中の項目を実行する。

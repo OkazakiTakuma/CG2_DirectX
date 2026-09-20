@@ -54,10 +54,8 @@ void ModelManager::LoadModel(const std::string& filePath, bool isAnimation, cons
 /// Model を検索して取得します。
 /// </summary>
 Model* ModelManager::FindModel(const std::string& filePath) {
-	if (models.contains(filePath)) {
-		return models.at(filePath).get();
-	}
-	return nullptr;
+	const auto modelIt = models.find(filePath);
+	return modelIt != models.end() ? modelIt->second.get() : nullptr;
 }
 
 std::vector<std::string> ModelManager::GetLoadedModelNames() const {

@@ -55,9 +55,13 @@ void DrawProjectAssetDragSource(const std::string& label, const char* payloadTyp
 }
 
 void DrawProjectTextureDragSource(const std::string& texturePath) {
-	TextureManager::GetInstance()->LoadTexture(texturePath);
-	const D3D12_GPU_DESCRIPTOR_HANDLE textureHandle = TextureManager::GetInstance()->GetSRVHandleGPU(texturePath);
-	const DirectX::TexMetadata& metadata = TextureManager::GetInstance()->GetTextureMetadata(texturePath);
+	TextureManager* textureManager = TextureManager::GetInstance();
+	if (!textureManager->LoadTexture(texturePath)) {
+		ImGui::TextDisabled("%s (load failed)", texturePath.c_str());
+		return;
+	}
+	const D3D12_GPU_DESCRIPTOR_HANDLE textureHandle = textureManager->GetSRVHandleGPU(texturePath);
+	const DirectX::TexMetadata& metadata = textureManager->GetTextureMetadata(texturePath);
 	const float width = static_cast<float>(metadata.width);
 	const float height = static_cast<float>(metadata.height);
 	const float maxSide = (std::max)(width, height);
@@ -231,6 +235,7 @@ GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::stri
 		Player* player = object->AddComponent<Player>();
 		player->SetPlayerTypeName(playerTypeName);
 		player->ApplyStats(playerStats, ApplyPlayerStatusItems(playerStats));
+		object->GetTransform().scale = {playerStats.sizeScale, playerStats.sizeScale, playerStats.sizeScale};
 		player->SetSpawnPoint(object->GetTransform().translate);
 		PlayerAttackComponent* attack = object->AddComponent<PlayerAttackComponent>();
 		ApplyPlayerAttackSlots(attack, playerStats);
@@ -1459,6 +1464,7 @@ void BaseScene::DrawPlayerInspector() {
 			std::memcpy(playerTypeNameBuffer_.data(), selectedTypeName.data(), copyLength);
 			PlayerStats stats = LoadPlayerStats(selectedTypeName);
 			player->ApplyStats(stats, ApplyPlayerStatusItems(stats));
+			selectedObject->GetTransform().scale = {stats.sizeScale, stats.sizeScale, stats.sizeScale};
 			if (PlayerAttackComponent* attack = selectedObject->GetComponent<PlayerAttackComponent>()) {
 				ApplyPlayerAttackSlots(attack, stats);
 			}
@@ -1512,6 +1518,10 @@ void BaseScene::DrawPlayerStatsInspector(GameObject* selectedObject, Player* pla
 	statsChanged |= ImGui::DragFloat("Speed %", &stats.speed, 1.0f, 0.0f, 100000.0f);
 	statsChanged |= ImGui::DragFloat("Attack Speed", &stats.attackSpeed, 1.0f, 0.0f, 100000.0f);
 	statsChanged |= ImGui::DragFloat("Attack Size", &stats.attackSize, 1.0f, 0.0f, 100000.0f);
+	if (ImGui::DragFloat("Size Scale", &stats.sizeScale, 0.05f, 0.1f, 10.0f)) {
+		selectedObject->GetTransform().scale = {stats.sizeScale, stats.sizeScale, stats.sizeScale};
+		statsChanged = true;
+	}
 	statsChanged |= ImGui::DragFloat("Damage Invincibility (sec)", &stats.damageInvincibilityDuration, 0.05f, 0.0f, 60.0f);
 	statsChanged |= ImGui::DragInt("Level", &stats.level, 1.0f, 1, 100000);
 	statsChanged |= ImGui::DragInt("Experience", &stats.experience, 1.0f, 0, 100000000);
@@ -1648,6 +1658,7 @@ void BaseScene::DrawPlayerStatsInspector(GameObject* selectedObject, Player* pla
 		ImGui::Text("Effective Speed: %.3f", appliedStatusStats.baseSpeed * (appliedStatusStats.speed / 100.0f));
 		ImGui::Text("Attack Speed: %.1f", appliedStatusStats.attackSpeed);
 		ImGui::Text("Attack Size: %.1f", appliedStatusStats.attackSize);
+		ImGui::Text("Size Scale: %.2f", appliedStatusStats.sizeScale);
 		ImGui::Text("Damage Invincibility: %.2f sec", appliedStatusStats.damageInvincibilityDuration);
 		ImGui::Text("Experience Correction %%: %.1f", appliedStatusStats.experienceCorrection);
 	}

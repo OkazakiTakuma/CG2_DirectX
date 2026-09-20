@@ -339,7 +339,7 @@ Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float botto
 Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip) {
 	Matrix4x4 m{};
 
-	float f = 1.0f / tanf(fovY / 2.0f); // cotangent
+	float f = 1.0f / tanf(fovY / 2.0f); // 余接
 
 	m.m[0][0] = f / aspectRatio;
 	m.m[1][1] = f;

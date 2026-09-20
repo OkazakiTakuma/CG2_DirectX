@@ -78,11 +78,11 @@ PixelShaderOutput main(VertexShaderOutput input)
         float3 L_dir = normalize(-gDirectionalLight.direction);
         float3 H_dir = normalize(L_dir + V);
 
-        // Diffuse
+        // 拡散反射
         float NdotL_dir = saturate(dot(N, L_dir));
         float3 diffuse = gMaterial.color.rgb * textureColor.rgb * gDirectionalLight.color.rgb * NdotL_dir * gDirectionalLight.intensity;
 
-        // Specular (Blinn-Phong)
+        // 鏡面反射（Blinn-Phong）
         float NdotH_dir = saturate(dot(N, H_dir));
         float specularPow_dir = pow(NdotH_dir, gMaterial.shininess);
         float3 specular = gDirectionalLight.color.rgb * gDirectionalLight.intensity * specularPow_dir;
@@ -103,11 +103,11 @@ PixelShaderOutput main(VertexShaderOutput input)
         {
             float3 H_point = normalize(L_point + V);
 
-            // Diffuse
+            // 拡散反射
             float NdotL_point = saturate(dot(N, L_point));
             float3 diffuse_point = gMaterial.color.rgb * textureColor.rgb * gPointLight.color.rgb * NdotL_point * gPointLight.intensity * factor;
 
-            // Specular (Blinn-Phong)
+            // 鏡面反射（Blinn-Phong）
             float NdotH_point = saturate(dot(N, H_point));
             float specularPow_point = pow(NdotH_point, gMaterial.shininess);
             float3 specular_point = gPointLight.color.rgb * gPointLight.intensity * specularPow_point * factor;

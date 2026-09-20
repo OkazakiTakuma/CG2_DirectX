@@ -48,6 +48,8 @@ struct PlayerStats {
 	float attackSpeed = 100.0f;
 	/// <summary>攻撃弾サイズに掛ける倍率です。100で等倍です。</summary>
 	float attackSize = 100.0f;
+	/// <summary>プレイヤーモデルとコライダーに掛ける一様なサイズ倍率です。</summary>
+	float sizeScale = 1.0f;
 	/// <summary>被ダメージ後に再度ダメージを受けない時間です。</summary>
 	float damageInvincibilityDuration = 1.0f;
 	/// <summary>現在レベルです。</summary>

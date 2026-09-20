@@ -17,14 +17,14 @@ public:
 	/// </summary>
 	static SpriteCommon* GetInstance();
 
-	// Prepares the sprite rendering pipeline with shared DirectX resources.
+	// 共通のDirectXリソースを使用して、スプライト描画パイプラインを準備します。
 	/// <summary>
 	/// 必要なリソースを準備し、オブジェクトを初期化します。
 	/// </summary>
 	/// <param name="dxCommon">DirectX 共通処理へアクセスするための参照を指定します。</param>
 	void Initialize(DirectXCommon* dxCommon);
 
-	// Releases GPU-side pipeline objects.
+	// GPU側のパイプラインオブジェクトを解放します。
 	/// <summary>
 	/// 確保したリソースを解放し、終了処理を行います。
 	/// </summary>
@@ -32,7 +32,7 @@ public:
 	/// <summary>変更されたHLSLを反映するため、スプライト用PSOを再生成します。</summary>
 	void ReloadPipelineState() { CreatePipelineState(); }
 
-	// Sets the pipeline state used for sprite rendering.
+	// スプライト描画に使用するパイプラインステートを設定します。
 	/// <param name="blendMode">描画時に使用するブレンドモードを指定します。</param>
 	void SetDraw(uint32_t blendMode = kBlendModeNormal);
 
@@ -58,6 +58,6 @@ private:
 private:
 	DirectXCommon* dxCommon_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = nullptr;
-	// Pipeline states are cached by blend mode.
+	// ブレンドモードごとにパイプラインステートをキャッシュします。
 	std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, kBlendCountblend> graphicsPipelineStates;
 };
