@@ -2,6 +2,7 @@
 
 #include "../../3d/particle/ParticleEmitterComponent.h"
 #include "../helpers/SceneJsonUtility.h"
+#include "../../base/StringUtility.h"
 
 #include <filesystem>
 #include <fstream>
@@ -17,7 +18,7 @@ namespace ParticlePresetRepository {
 inline constexpr const char* kFilePath = "Resources/Data/emit_status.json";
 
 inline nlohmann::json LoadRoot() {
-	std::ifstream ifs(kFilePath);
+	std::ifstream ifs(StringUtility::Utf8ToPath(kFilePath));
 	if (!ifs) {
 		return nlohmann::json::object();
 	}
@@ -129,8 +130,8 @@ inline void Save(const std::string& presetName, ParticleEmitterComponent* emitte
 	preset["emitParam"]["scale"] = SceneJsonUtility::Vector3ToJson(param.scale);
 	root[presetName] = preset;
 
-	std::filesystem::create_directories(std::filesystem::path(kFilePath).parent_path());
-	std::ofstream ofs(kFilePath);
+	std::filesystem::create_directories(StringUtility::Utf8ToPath(kFilePath).parent_path());
+	std::ofstream ofs(StringUtility::Utf8ToPath(kFilePath));
 	if (ofs) {
 		ofs << std::setw(4) << root << std::endl;
 	}

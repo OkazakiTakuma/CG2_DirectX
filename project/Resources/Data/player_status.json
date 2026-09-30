@@ -77,7 +77,7 @@
         "attackSize": 100.0,
         "attackSlots": [
             {
-                "attack": "ArcHoming",
+                "attack": "勾玉",
                 "enabled": true,
                 "level": "1"
             },
@@ -106,16 +106,17 @@
         "baseHealth": 150.0,
         "baseSpeed": 0.15000000596046448,
         "damageInvincibilityDuration": 1.0,
-        "defense": 10.0,
+        "defense": 12.0,
         "experience": 0,
         "experienceCorrection": 100.0,
         "health": 100.0,
-        "initialAttack": "ArcHoming",
+        "initialAttack": "勾玉",
         "initialAttackLevel": "1",
         "isAnimationModel": true,
         "level": 1,
-        "model": "walk.gltf",
+        "model": "miko.gltf",
         "name": "巫女",
+        "sizeScale": 0.455,
         "speed": 100.0,
         "statusSlots": [
             {
@@ -146,7 +147,7 @@
         ]
     },
     "烏天狗": {
-        "attack": 105.0,
+        "attack": 155.0,
         "attackSize": 120.0,
         "attackSlots": [
             {
@@ -177,7 +178,7 @@
         ],
         "attackSpeed": 100.0,
         "baseHealth": 130.0,
-        "baseSpeed": 0.3100000023841858,
+        "baseSpeed": 0.3399999737739563,
         "damageInvincibilityDuration": 1.0,
         "defense": 8.0,
         "experience": 0,
@@ -187,8 +188,9 @@
         "initialAttackLevel": "1",
         "isAnimationModel": true,
         "level": 1,
-        "model": "walk.gltf",
+        "model": "doppelganger.gltf",
         "name": "烏天狗",
+        "sizeScale": 0.47,
         "speed": 100.0,
         "statusSlots": [
             {
@@ -219,7 +221,7 @@
         ]
     },
     "猫": {
-        "attack": 150.0,
+        "attack": 175.0,
         "attackSize": 100.0,
         "attackSlots": [
             {
@@ -249,10 +251,10 @@
             }
         ],
         "attackSpeed": 130.0,
-        "baseHealth": 160.0,
+        "baseHealth": 200.0,
         "baseSpeed": 0.24000005424022675,
         "damageInvincibilityDuration": 1.0,
-        "defense": 6.0,
+        "defense": 12.0,
         "experience": 0,
         "experienceCorrection": 100.0,
         "health": 100.0,

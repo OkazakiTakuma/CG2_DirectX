@@ -44,6 +44,8 @@ struct Material {
 	Matrix4x4 uvTransform;
 	float shininess;
 	float padding2[3];
+	Vector3 emissiveColor;
+	float emissiveIntensity;
 };
 
 struct VertexWeightData

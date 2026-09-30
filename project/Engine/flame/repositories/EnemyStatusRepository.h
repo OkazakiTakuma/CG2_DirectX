@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../EnemyComponent.h"
+#include "../../base/StringUtility.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -244,7 +245,7 @@ inline const nlohmann::json& LoadRoot() {
 		return CachedRoot();
 	}
 
-	std::ifstream ifs(kFilePath);
+	std::ifstream ifs(StringUtility::Utf8ToPath(kFilePath));
 	if (!ifs) {
 		nlohmann::json root;
 		root["Default"] = ToJson(MakeDefaultStats());
@@ -291,8 +292,8 @@ inline void SaveEnemyStats(const std::string& enemyTypeName, const EnemyStats& s
 	nlohmann::json root = LoadRoot();
 	root[typeName] = ToJson(stats);
 
-	std::filesystem::create_directories(std::filesystem::path(kFilePath).parent_path());
-	std::ofstream ofs(kFilePath);
+	std::filesystem::create_directories(StringUtility::Utf8ToPath(kFilePath).parent_path());
+	std::ofstream ofs(StringUtility::Utf8ToPath(kFilePath));
 	if (ofs) {
 		ofs << std::setw(4) << root << std::endl;
 		// エディタ保存直後から、次回の敵生成も同じ内容を参照する。

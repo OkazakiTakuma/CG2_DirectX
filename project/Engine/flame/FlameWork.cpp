@@ -7,6 +7,7 @@
 #include <wrl/client.h>
 #include <excpt.h>
 #include <memory>
+#include <filesystem>
 #include <particle/ParticleManager.h>
 #include <SpriteCommon.h>
 #include <TextureManager.h>
@@ -20,6 +21,7 @@
 #include "instancing/InstancingModelCommon.h"
 #include <DirectXCommon.h>
 #include <ImGuiManager.h>
+#include <FontManager.h>
 #include <Input.h>
 #include <SrvManager.h>
 #include <WinApp.h>
@@ -27,13 +29,19 @@
 #include "GameTime.h"
 using namespace Logger;
 using namespace StringUtility;
+
+static std::wstring GetExecutableDirectory() {
+	wchar_t buffer[MAX_PATH]{};
+	GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+	return std::filesystem::path(buffer).parent_path().wstring();
+}
 using namespace Microsoft::WRL;
 static LONG WINAPI ExportDump(EXCEPTION_POINTERS* exception) {
 	SYSTEMTIME time;
 	GetLocalTime(&time);
 	wchar_t filepath[MAX_PATH] = { 0 };
 	StringCchPrintfW(filepath, MAX_PATH, L"Dump\\%04d-%02d-%02d_%02d%02d.dmp", time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute);
-	HANDLE dumpFileHandle = CreateFile(filepath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_WRITE | FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
+	HANDLE dumpFileHandle = CreateFileW(filepath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_WRITE | FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
 	DWORD processID = GetCurrentProcessId();
 	DWORD threadID = GetCurrentThreadId();
 	MINIDUMP_EXCEPTION_INFORMATION minidumpInformation = { 0 };
@@ -56,6 +64,15 @@ void FlameWork::Initialize() {
 	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 	winApp = std::make_unique<WinApp>();
 	winApp->Initialize();
+	// シーンやTextComponentを生成する前に、DirectWriteから参照できるよう
+	// 配布物に含めたフォントをプロセス専用で登録する。
+	std::filesystem::path fontDirectory = std::filesystem::path(GetExecutableDirectory()) / L"Resources" / L"Fonts";
+	// 開発環境では作業ディレクトリがproject直下になるため、
+	// 出力先にFontsが無い場合はそちらも確認する。
+	if (!std::filesystem::exists(fontDirectory)) {
+		fontDirectory = std::filesystem::current_path() / L"Resources" / L"Fonts";
+	}
+	FontManager::GetInstance()->LoadFromDirectory(fontDirectory.wstring());
 
 
 #if defined(_DEBUG)
@@ -163,6 +180,8 @@ void FlameWork::Finalize() {
 	SpriteCommon::GetInstance()->Finalize();
 	PostEffect::GetInstance()->Finalize();
 	TextureManager::GetInstance()->Finalize();
+	// TextComponentが使い終わった後、登録したフォントを解放する。
+	FontManager::GetInstance()->Finalize();
 
 	ImGuiManager::GetInstance()->Finalize();
 	SrvManager::GetInstance()->Finalize();

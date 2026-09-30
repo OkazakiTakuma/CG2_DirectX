@@ -95,12 +95,6 @@ std::string StageSelectScene::MakeStageDescription(const std::string& stageId) c
 	if (stageId == "default") {
 		return displayName + "\n\n無限平原\n全方向へループする広いフィールド";
 	}
-	if (stageId == "wide") {
-		return displayName + "\n\n広域ステージ\n広いフィールドで戦う配置";
-	}
-	if (stageId == "rush") {
-		return displayName + "\n\nラッシュステージ\n敵が高密度で出現する配置";
-	}
 	if (stageId == "stage2") {
 		return displayName + "\n\n横長回廊\n上下は壁、左右は無限にループ";
 	}

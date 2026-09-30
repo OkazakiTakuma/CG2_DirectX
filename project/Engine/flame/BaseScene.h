@@ -18,6 +18,7 @@
 #include "Resource.h"
 #include "sky/SkyBox.h"
 #include "sky/SkyBoxCommon.h"
+#include "sky/AtmosphereSystem.h"
 #include "Sprite.h"
 #include "SpriteCommon.h"
 #include "SrvManager.h"
@@ -25,8 +26,10 @@
 #include "struct.h"
 #include <object/Object3d.h>
 #include "object/Object3dComponent.h"
+#include "object/PointLightComponent.h"
 #include "collision/OBBColliderComponent.h"
 #include "particle/ParticleEmitterComponent.h"
+#include "particle/GlowBillboardComponent.h"
 #include "PlayerAttackComponent.h"
 #include "PlayerProjectileComponent.h"
 #include "../../Player/Player.h"
@@ -142,6 +145,10 @@ public:
 /// </summary>
 	void LoadEditorObjects();
 
+protected:
+	/// <summary>派生シーン固有の演出で配置オブジェクトを参照するための読み取り専用一覧です。</summary>
+	const std::vector<std::unique_ptr<GameObject>>& GetSceneObjects() const { return sceneObjects_; }
+
 private:
 	enum class LevelUpChoiceType {
 		AttackLevelUp,
@@ -211,6 +218,10 @@ private:
 /// コライダーコンポーネントの編集UIを描画します。
 /// </summary>
 	void DrawOBBColliderInspector(GameObject* selectedObject);
+	/// <summary>PointLightComponentの追加、削除、光源設定を描画します。</summary>
+	void DrawPointLightInspector(GameObject* selectedObject);
+	/// <summary>GlowBillboardComponentの追加、削除、Halo設定を描画します。</summary>
+	void DrawGlowBillboardInspector(GameObject* selectedObject);
 /// <summary>
 /// パーティクルエミッターコンポーネントの編集UIを描画します。
 /// </summary>
@@ -235,6 +246,8 @@ private:
 /// 現在選択されているアクティブカメラを反映します。
 /// </summary>
 	void ApplyActiveCamera();
+	/// <summary>シーン内の有効なPointLightComponentを全3Dオブジェクトへ反映します。</summary>
+	void ApplyScenePointLight();
 /// <summary>
 /// カメラの追従対象リンクを名前から解決します。
 /// </summary>
@@ -287,7 +300,9 @@ private:
 /// 既存名と重複しないオブジェクト名を生成します。
 /// </summary>
 	std::string MakeUniqueObjectName(const std::string& baseName) const;
-	GameObject* CreateRuntimeEnemy(const std::string& enemyTypeName, const Vector3& position, GameObject* target);
+	GameObject* CreateRuntimeEnemy(
+		const std::string& enemyTypeName, const Vector3& position, GameObject* target,
+		const EnemySpawnPointComponent::EnemyStatMultipliers& statMultipliers = {});
 	GameObject* CreateRuntimeEnemyProjectile(const EnemyShotRequest& request);
 	GameObject* CreateRuntimeExperience(const EnemyStats& enemyStats, const Vector3& position, GameObject* target);
 	GameObject* CreateRuntimeItemDrop(ItemDropType type, const Vector3& position, GameObject* target, float healAmount = 0.0f, int moneyAmount = 0);

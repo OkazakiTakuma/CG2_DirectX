@@ -1,6 +1,7 @@
 #pragma once
 #include "DirectXCommon.h"
 #include "struct.h"
+#include <array>
 #include <d3d12.h>
 #include <string>
 #include <vector>
@@ -69,6 +70,8 @@ private:
 	/// Srv を作成し、利用できる状態にします。
 	/// </summary>
 	void CreateSrv();
+	/// <summary>半解像度Bloomで使用する2枚のHDR描画先とSRVを作成します。</summary>
+	void CreateBloomResources();
 	void CreateDissolveMask();
 	/// <summary>
 	/// RootSignature を作成し、利用できる状態にします。
@@ -78,6 +81,10 @@ private:
 	/// PipelineState を作成し、利用できる状態にします。
 	/// </summary>
 	void CreatePipelineState();
+	/// <summary>輝度抽出と縦横ぼかしに共通使用するBloomパイプラインを作成します。</summary>
+	void CreateBloomPipelineState();
+	/// <summary>HDRシーンから明部を抽出し、半解像度で縦横にぼかします。</summary>
+	void DrawBloom();
 
 	/// <summary>
 	/// ColorBuffer を作成し、利用できる状態にします。
@@ -105,13 +112,21 @@ private:
 	D3D12_GPU_DESCRIPTOR_HANDLE srvHandleGPU_{};
 	D3D12_GPU_DESCRIPTOR_HANDLE depthSrvHandleGPU_{};
 	D3D12_GPU_DESCRIPTOR_HANDLE dissolveMaskSrvHandleGPU_{};
+	std::array<uint32_t, 2> bloomSrvIndices_{UINT32_MAX, UINT32_MAX};
+	std::array<D3D12_GPU_DESCRIPTOR_HANDLE, 2> bloomSrvHandlesGPU_{};
 	int32_t renderWidth_ = 1;
 	int32_t renderHeight_ = 1;
+	int32_t bloomWidth_ = 1;
+	int32_t bloomHeight_ = 1;
 	bool sceneTextureReadyAsSrv_ = false;
 	bool depthTextureReadyAsSrv_ = false;
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState_ = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> bloomRootSignature_ = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> bloomPipelineState_ = nullptr;
+	std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, 2> bloomResources_{};
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> bloomRtvHeap_ = nullptr;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> colorBuffer_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> dissolveMaskResource_ = nullptr;
@@ -148,8 +163,16 @@ private:
 		float damageVignetteRadius;
 		float damageVignetteSoftness;
 		float paddingDamageVignette;
+		int32_t enableBloom;
+		float bloomThreshold;
+		float bloomIntensity;
+		float bloomRadius;
+		float exposure;
+		int32_t enableToneMapping;
+		float bloomKnee;
+		float paddingHdr;
 	};
-	static_assert(sizeof(ColorData) == 160, "ColorData must match the FullScreen.PS.hlsl constant buffer layout");
+	static_assert(sizeof(ColorData) == 192, "ColorData must match the FullScreen.PS.hlsl constant buffer layout");
 
 	ColorData* colorData_ = nullptr;
 
@@ -184,4 +207,12 @@ private:
 	float damageVignetteCurrentIntensity_ = 0.0f;
 	float damageVignetteRadius_ = 0.24f;
 	float damageVignetteSoftness_ = 0.24f;
+	bool enableBloom_ = true;
+	// HDRでは1.0を通常白の基準とし、それを越える太陽や発光を主なBloom対象にします。
+	float bloomThreshold_ = 1.0f;
+	float bloomIntensity_ = 0.40f;
+	float bloomRadius_ = 1.5f;
+	float bloomKnee_ = 0.50f;
+	float exposure_ = 1.0f;
+	bool enableToneMapping_ = true;
 };

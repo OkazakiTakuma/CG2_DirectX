@@ -126,6 +126,8 @@ void BaseScene::UpdateSceneObjects() {
 	for (const auto& object : sceneObjects_) {
 		object->Update();
 	}
+	// Object3dの更新後に上書きし、光源所有者ではなくシーン全体へ同じライトを適用する。
+	ApplyScenePointLight();
 	UpdateEnemyAttacks();
 	UpdateEnemyProjectileHits();
 	UpdatePlayerAttacks();
@@ -163,7 +165,45 @@ void BaseScene::UpdateEditorTools() {
 	UpdatePlayerSlotHud();
 	UpdateEditorObjectPicking();
 	UpdateEditorCameraControl();
+	ApplyScenePointLight();
 	ApplyActiveCamera();
+}
+
+void BaseScene::ApplyScenePointLight() {
+	PointLightComponent* activeLight = nullptr;
+	GameObject* lightOwner = nullptr;
+	for (const auto& object : sceneObjects_) {
+		PointLightComponent* candidate = object->GetComponent<PointLightComponent>();
+		if (candidate && candidate->IsEnabled()) {
+			activeLight = candidate;
+			lightOwner = object.get();
+			break;
+		}
+	}
+	if (!activeLight || !lightOwner) {
+		return;
+	}
+
+	Vector4 lightColor = activeLight->GetColor();
+	if (activeLight->GetUseMaterialEmissionColor()) {
+		if (Object3dComponent* sourceObject3d = lightOwner->GetComponent<Object3dComponent>()) {
+			const Vector3 emissionColor = sourceObject3d->GetEmissionColor();
+			lightColor = {emissionColor.x, emissionColor.y, emissionColor.z, 1.0f};
+		}
+	}
+	const Vector3 lightPosition = lightOwner->GetTransform().translate + activeLight->GetPositionOffset();
+
+	for (const auto& object : sceneObjects_) {
+		if (Object3dComponent* object3d = object->GetComponent<Object3dComponent>()) {
+			object3d->SetPointLight(
+			    lightColor,
+			    lightPosition,
+			    activeLight->GetIntensity(),
+			    activeLight->GetRadius(),
+			    activeLight->GetDecay()
+			);
+		}
+	}
 }
 
 /// <summary>

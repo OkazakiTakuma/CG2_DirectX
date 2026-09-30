@@ -19,4 +19,12 @@ std::wstring ConvertString(const std::string& str) {
 	MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.size(), result.data(), sizeNeeded);
 	return result;
 }
+
+std::filesystem::path Utf8ToPath(std::string_view utf8Path) {
+	return std::filesystem::path(ConvertString(std::string(utf8Path)));
+}
+
+std::string PathToUtf8(const std::filesystem::path& path) {
+	return ConvertString(path.generic_wstring());
+}
 }

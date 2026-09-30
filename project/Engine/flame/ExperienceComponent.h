@@ -69,7 +69,7 @@ private:
 	float collectDistance_ = 0.6f;
 	/// <summary>1フレームで目標まで進む割合です。</summary>
 	float attractSpeed_ = 0.08f;
-	std::string modelFilePath_ = "sphere.obj";
+	std::string modelFilePath_ = "enemy_drop.obj";
 	/// <summary>吸着対象となるGameObjectへの非所有参照です。</summary>
 	GameObject* target_ = nullptr;
 	/// <summary>通常の接触回収が完了したかを表します。</summary>

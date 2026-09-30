@@ -9,6 +9,7 @@
 #include "TextureManager.h"
 #include "sky/SkyBoxCommon.h"
 #include "GameTime.h"
+#include "StringUtility.h"
 
 #include <assert.h>
 #include <algorithm>
@@ -81,7 +82,7 @@ SceneManager::SceneManager() {
 }
 
 void SceneManager::LoadGameProgress() {
-	std::ifstream input(kGameProgressFilePath);
+	std::ifstream input(StringUtility::Utf8ToPath(kGameProgressFilePath));
 	if (!input) {
 		// 初回起動など、セーブファイルがない場合はメンバーの初期値（所持金0・未購入）を使う。
 		return;
@@ -144,7 +145,7 @@ void SceneManager::LoadGameProgress() {
 
 void SceneManager::SaveGameProgress() const {
 	// 初回保存時にも書き込めるよう、Resources/Dataが存在しなければ生成する。
-	std::filesystem::create_directories(std::filesystem::path(kGameProgressFilePath).parent_path());
+	std::filesystem::create_directories(StringUtility::Utf8ToPath(kGameProgressFilePath).parent_path());
 	nlohmann::json root;
 	// unordered_mapはJSONオブジェクトへ変換されるため、商品ごとのレベルをキー付きで復元できる。
 	root["money"] = money_;
@@ -160,7 +161,7 @@ void SceneManager::SaveGameProgress() const {
 	// 実行結果に影響しないunordered_setの順序差で、セーブJSONの差分が毎回変わらないよう整列する。
 	std::sort(unlockedPlayerTypes.begin(), unlockedPlayerTypes.end());
 	root["unlockedPlayerTypes"] = unlockedPlayerTypes;
-	std::ofstream output(kGameProgressFilePath);
+	std::ofstream output(StringUtility::Utf8ToPath(kGameProgressFilePath));
 	if (output) {
 		output << std::setw(4) << root << std::endl;
 	}
@@ -191,7 +192,7 @@ void SceneManager::UnlockPlayerType(const std::string& playerTypeName) {
 }
 
 void SceneManager::LoadStageUnlockConditions() {
-	std::ifstream input(kStageUnlockConditionsFilePath);
+	std::ifstream input(StringUtility::Utf8ToPath(kStageUnlockConditionsFilePath));
 	if (!input) {
 		// 設定ファイル追加前と同じく、defaultクリアでstage2を開放する既定値を使用する。
 		return;
@@ -221,7 +222,7 @@ void SceneManager::LoadStageUnlockConditions() {
 }
 
 void SceneManager::SaveStageUnlockConditions() const {
-	std::filesystem::create_directories(std::filesystem::path(kStageUnlockConditionsFilePath).parent_path());
+	std::filesystem::create_directories(StringUtility::Utf8ToPath(kStageUnlockConditionsFilePath).parent_path());
 	nlohmann::json root;
 	root["stageUnlockPrerequisites"] = nlohmann::json::object();
 	std::vector<std::string> stageIds;
@@ -234,7 +235,7 @@ void SceneManager::SaveStageUnlockConditions() const {
 	for (const std::string& stageId : stageIds) {
 		root["stageUnlockPrerequisites"][stageId] = stageUnlockPrerequisites_.at(stageId);
 	}
-	std::ofstream output(kStageUnlockConditionsFilePath);
+	std::ofstream output(StringUtility::Utf8ToPath(kStageUnlockConditionsFilePath));
 	if (output) {
 		output << std::setw(4) << root << std::endl;
 	}
@@ -642,7 +643,7 @@ void SceneManager::DrawEditorImGui() {
 			const std::string newStageId = newGameplayStageIdBuffer_.data();
 			if (!IsValidGameplayStageId(newStageId) || newStageId == "default") {
 				gameplayStageMessage_ = "Use letters, numbers, '-' or '_' (not 'default').";
-			} else if (std::filesystem::exists(GetGameplayStageJsonPath(newStageId))) {
+			} else if (std::filesystem::exists(StringUtility::Utf8ToPath(GetGameplayStageJsonPath(newStageId)))) {
 				gameplayStageMessage_ = "Pattern already exists: " + newStageId;
 			} else {
 				selectedGameplayStageId_ = newStageId;
@@ -692,13 +693,13 @@ void SceneManager::RefreshGameplayStagePatterns() {
 	gameplayStageIds_.clear();
 	gameplayStageIds_.push_back("default");
 
-	const std::filesystem::path sceneDirectory = "Resources/Data/Scenes";
+	const std::filesystem::path sceneDirectory = StringUtility::Utf8ToPath("Resources/Data/Scenes");
 	std::error_code error;
 	for (std::filesystem::directory_iterator iterator(sceneDirectory, error), end; !error && iterator != end; iterator.increment(error)) {
 		if (!iterator->is_regular_file() || iterator->path().extension() != ".json") {
 			continue;
 		}
-		const std::string fileName = iterator->path().filename().string();
+		const std::string fileName = StringUtility::PathToUtf8(iterator->path().filename());
 		constexpr const char* prefix = "GAMEPLAY_";
 		constexpr const char* suffix = "_objects.json";
 		if (fileName == "GAMEPLAY_objects.json" || fileName.size() <= std::strlen(prefix) + std::strlen(suffix)) {

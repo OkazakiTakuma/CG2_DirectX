@@ -7,6 +7,7 @@
 #include "model/ModelManager.h"
 #include "repositories/PlayerStatusRepository.h"
 #include "SceneManager.h"
+#include "StringUtility.h"
 #include "../3d/particle/TrailRenderer.h"
 #include <cmath>
 #include <filesystem>
@@ -208,6 +209,151 @@ private:
 	float size_ = 1.0f;
 };
 
+// 竜巻弾専用の描画。パーティクルの隙間を複数の螺旋帯で結び、円錐状の回転流を常に読めるようにする。
+class TornadoVisualComponent final : public Component {
+public:
+	TornadoVisualComponent(bool isContracting, bool isGiant)
+	    : rotationDirection_(isContracting ? -1.0f : 1.0f) {
+		if (isGiant) {
+			outerColor_ = {0.12f, 0.86f, 0.40f, 0.32f};
+			coreColor_ = {0.78f, 1.00f, 0.84f, 0.86f};
+		} else if (isContracting) {
+			outerColor_ = {0.54f, 0.16f, 0.88f, 0.30f};
+			coreColor_ = {0.94f, 0.76f, 1.00f, 0.84f};
+		} else {
+			outerColor_ = {0.16f, 0.66f, 0.92f, 0.30f};
+			coreColor_ = {0.82f, 0.98f, 1.00f, 0.86f};
+		}
+	}
+
+	void Update() override {
+		elapsedSeconds_ += GameTime::GetDeltaTime();
+	}
+
+	void Draw3D() override {
+		GameObject* owner = GetOwner();
+		const auto* projectile = owner ? owner->GetComponent<EnemyProjectileComponent>() : nullptr;
+		if (!owner || !projectile || projectile->IsExpired()) {
+			return;
+		}
+
+		const float size = projectile->GetSize();
+		const float height = (std::max)(1.8f, size * 3.6f);
+		const float baseRadius = (std::max)(0.10f, size * 0.16f);
+		const float topRadius = (std::max)(0.65f, size * 1.45f);
+		const Vector3 center = owner->GetTransform().translate;
+		constexpr float kTwoPi = 6.28318530717958647692f;
+		constexpr int kHelixSegments = 30;
+
+		// 位相の異なる三本の螺旋を下から上へ巻き上げ、点群ではなく連続した風の筋として見せる。
+		for (int strand = 0; strand < 3; ++strand) {
+			std::vector<TrailRenderPoint> helix;
+			helix.reserve(kHelixSegments + 1);
+			for (int index = 0; index <= kHelixSegments; ++index) {
+				const float t = static_cast<float>(index) / kHelixSegments;
+				const float angle = rotationDirection_ *
+				    (elapsedSeconds_ * 8.5f + t * kTwoPi * 2.7f) + strand * kTwoPi / 3.0f;
+				const float radius = baseRadius + (topRadius - baseRadius) * t;
+				const float flutter = 1.0f + 0.07f * std::sin(t * kTwoPi * 4.0f + elapsedSeconds_ * 11.0f + strand);
+				const float taper = 0.22f + 0.78f * std::sin(MathConstants::kPi * t);
+				helix.push_back({
+				    center + Vector3{std::cos(angle) * radius * flutter, height * t, std::sin(angle) * radius * flutter},
+				    taper
+				});
+			}
+
+			Vector4 outerTail = outerColor_;
+			outerTail.w = 0.03f;
+			TrailRenderer::GetInstance()->Submit(
+			    helix, (std::max)(0.08f, size * 0.23f), outerColor_, outerTail);
+			Vector4 coreTail = coreColor_;
+			coreTail.w = 0.05f;
+			TrailRenderer::GetInstance()->Submit(
+			    helix, (std::max)(0.025f, size * 0.065f), coreColor_, coreTail);
+		}
+
+		// 高さの異なる横渦を重ね、漏斗の段差と高速回転を上方視点からも読み取れるようにする。
+		constexpr std::array<float, 3> kBandHeights = {0.18f, 0.48f, 0.78f};
+		constexpr int kRingSegments = 32;
+		for (size_t bandIndex = 0; bandIndex < kBandHeights.size(); ++bandIndex) {
+			const float t = kBandHeights[bandIndex];
+			const float radius = (baseRadius + (topRadius - baseRadius) * t) *
+			    (1.0f + 0.06f * std::sin(elapsedSeconds_ * 9.0f + static_cast<float>(bandIndex) * 2.1f));
+			std::vector<TrailRenderPoint> ring;
+			ring.reserve(kRingSegments + 1);
+			for (int index = 0; index <= kRingSegments; ++index) {
+				const float angle = rotationDirection_ * elapsedSeconds_ * (5.0f + bandIndex) +
+				    kTwoPi * static_cast<float>(index) / kRingSegments;
+				const float verticalRipple = size * 0.05f * std::sin(angle * 3.0f + elapsedSeconds_ * 7.0f);
+				ring.push_back({
+				    center + Vector3{std::cos(angle) * radius, height * t + verticalRipple, std::sin(angle) * radius},
+				    1.0f
+				});
+			}
+			Vector4 bandColor = coreColor_;
+			bandColor.w *= 0.48f;
+			TrailRenderer::GetInstance()->Submit(
+			    ring, (std::max)(0.035f, size * 0.085f), bandColor, bandColor);
+		}
+
+		// 接地部の低い環状流で、竜巻の中心と危険範囲を地面上に固定して見せる。
+		std::vector<TrailRenderPoint> baseRing;
+		baseRing.reserve(kRingSegments + 1);
+		const float dustRadius = (std::max)(size * 0.72f, baseRadius * 1.8f);
+		for (int index = 0; index <= kRingSegments; ++index) {
+			const float angle = kTwoPi * static_cast<float>(index) / kRingSegments - rotationDirection_ * elapsedSeconds_ * 5.5f;
+			const float ripple = 1.0f + 0.10f * std::sin(angle * 4.0f + elapsedSeconds_ * 8.0f);
+			baseRing.push_back({center + Vector3{std::cos(angle) * dustRadius * ripple, 0.05f, std::sin(angle) * dustRadius * ripple}, 1.0f});
+		}
+		Vector4 dustColor = outerColor_;
+		dustColor.w = 0.42f;
+		TrailRenderer::GetInstance()->Submit(
+		    baseRing, (std::max)(0.06f, size * 0.14f), dustColor, dustColor);
+	}
+
+private:
+	float rotationDirection_ = 1.0f;
+	float elapsedSeconds_ = 0.0f;
+	Vector4 outerColor_{};
+	Vector4 coreColor_{};
+};
+
+// 弾の前回位置から現在位置までを球の半径分だけ太らせ、球形の対象との連続衝突を判定する。
+bool IsSweptSphereToSphere(
+	const Vector3& start, const Vector3& end, float movingRadius, const SphereColliderShape& target) {
+	const Vector3 movement = end - start;
+	const float movementLengthSquared = Dot(movement, movement);
+	float t = 0.0f;
+	if (movementLengthSquared > MathConstants::kDirectionEpsilon * MathConstants::kDirectionEpsilon) {
+		t = (std::clamp)(Dot(target.center - start, movement) / movementLengthSquared, 0.0f, 1.0f);
+	}
+	const Vector3 closestPoint = start + t * movement;
+	const Vector3 separation = target.center - closestPoint;
+	const float combinedRadius = movingRadius + target.radius;
+	return Dot(separation, separation) <= combinedRadius * combinedRadius;
+}
+
+// OBB のローカル空間へ弾の移動区間を移し、弾半径分だけ広げた AABB と判定する。
+bool IsSweptSphereToOBB(
+	const Vector3& start, const Vector3& end, float movingRadius, const OBBColliderShape& target) {
+	auto toLocal = [&target](const Vector3& worldPosition) {
+		const Vector3 offset = worldPosition - target.center;
+		return Vector3{
+			Dot(offset, target.orientation[0]),
+			Dot(offset, target.orientation[1]),
+			Dot(offset, target.orientation[2])
+		};
+	};
+
+	const Vector3 localStart = toLocal(start);
+	const Vector3 localEnd = toLocal(end);
+	const AABBColliderShape expandedTarget{
+		{-target.halfSize.x - movingRadius, -target.halfSize.y - movingRadius, -target.halfSize.z - movingRadius},
+		{ target.halfSize.x + movingRadius,  target.halfSize.y + movingRadius,  target.halfSize.z + movingRadius}
+	};
+	return IsCollisionAABBToSegment(expandedTarget, {localStart, localEnd - localStart});
+}
+
 // 投射物の命中は専用処理で解決するため、汎用コライダー処理による押し戻しや二重判定を行わない。
 bool ShouldSkipColliderPair(GameObject* objectA, GameObject* objectB) {
 	if (!objectA || !objectB || objectA == objectB) {
@@ -232,8 +378,19 @@ struct EnemyPlayerContact {
 
 // 通常経験値の表示単位です。隣り合う値の比が、その段階を1個上へ圧縮するための必要個数になります。
 constexpr std::array<int, 4> kExperienceDenominations = {1, 10, 50, 100};
+constexpr const char* kEnemyDropModelFilePath = "enemy_drop.obj";
 // 同じ経験値単位をまとめる際、基準オブジェクトから候補として扱う最大距離です。
 constexpr float kExperienceCompressionDistance = 1.5f;
+
+// 小さなドロップでも多面体と外周リングの陰影が読めるよう、待機中から一定速度で回転させる。
+class DropItemVisualComponent final : public Component {
+public:
+	void Update() override {
+		if (GameObject* owner = GetOwner()) {
+			owner->GetTransform().rotate.y += GameTime::GetDeltaTime() * 2.4f;
+		}
+	}
+};
 
 // 圧縮後も経験値の段階を見た目で判別できるよう、単位ごとの表示色を返します。
 Vector4 GetExperienceColor(int denomination) {
@@ -246,7 +403,7 @@ Vector4 GetExperienceColor(int denomination) {
 }
 
 // 発射順に赤・青・緑・黄・白・紫を循環させる。
-Vector4 GetArcHomingProjectileColor(int colorIndex) {
+Vector4 GetMagatamaProjectileColor(int colorIndex) {
 	static const std::array<Vector4, 6> kColors = {{
 	    {1.0f, 0.08f, 0.04f, 1.0f},
 	    {0.08f, 0.35f, 1.0f, 1.0f},
@@ -258,8 +415,8 @@ Vector4 GetArcHomingProjectileColor(int colorIndex) {
 	return kColors[static_cast<size_t>((std::max)(0, colorIndex)) % kColors.size()];
 }
 
-Vector4 GetArcHomingTrailTailColor(int colorIndex) {
-	Vector4 color = GetArcHomingProjectileColor(colorIndex);
+Vector4 GetMagatamaTrailTailColor(int colorIndex) {
+	Vector4 color = GetMagatamaProjectileColor(colorIndex);
 	color.x *= 0.42f;
 	color.y *= 0.42f;
 	color.z *= 0.42f;
@@ -554,6 +711,7 @@ void BaseScene::UpdateEnemySpawning() {
 		std::string enemyTypeName;
 		Vector3 position;
 		GameObject* target = nullptr;
+		EnemySpawnPointComponent::EnemyStatMultipliers statMultipliers{};
 	};
 	std::vector<SpawnRequest> spawnRequests;
 	EnemySpawnPointComponent* triggeredBossSpawnPoint = nullptr;
@@ -571,14 +729,14 @@ void BaseScene::UpdateEnemySpawning() {
 		if (!spawnPoint->GetSpawnSchedules().empty()) {
 			const std::vector<EnemySpawnPointComponent::ScheduledSpawnRequest> scheduledRequests = spawnPoint->ConsumeScheduledSpawnRequests();
 			for (const EnemySpawnPointComponent::ScheduledSpawnRequest& request : scheduledRequests) {
-				spawnRequests.push_back({request.enemyTypeName, request.position, spawnPoint->GetTarget()});
+				spawnRequests.push_back({request.enemyTypeName, request.position, spawnPoint->GetTarget(), request.statMultipliers});
 			}
 		} else {
 			const std::string enemyTypeName = spawnPoint->GetEnemyTypeName();
 			const EnemyStats stats = LoadEnemyStats(enemyTypeName);
 			Vector3 spawnPosition{};
 			if (spawnPoint->ConsumeSpawnRequest(stats.spawnsPerMinute, spawnPosition)) {
-				spawnRequests.push_back({enemyTypeName, spawnPosition, spawnPoint->GetTarget()});
+				spawnRequests.push_back({enemyTypeName, spawnPosition, spawnPoint->GetTarget(), spawnPoint->GetCurrentTimeScaling()});
 			}
 		}
 	}
@@ -623,7 +781,7 @@ void BaseScene::UpdateEnemySpawning() {
 			constexpr float kStage2SpawnLimitZ = 8.5f;
 			spawnPosition.z = std::clamp(spawnPosition.z, -kStage2SpawnLimitZ, kStage2SpawnLimitZ);
 		}
-		CreateRuntimeEnemy(request.enemyTypeName, spawnPosition, request.target);
+		CreateRuntimeEnemy(request.enemyTypeName, spawnPosition, request.target, request.statMultipliers);
 	}
 }
 
@@ -736,10 +894,17 @@ void BaseScene::UpdatePlayerAttacks() {
 	}
 }
 
-GameObject* BaseScene::CreateRuntimeEnemy(const std::string& enemyTypeName, const Vector3& position, GameObject* target) {
+GameObject* BaseScene::CreateRuntimeEnemy(
+	const std::string& enemyTypeName, const Vector3& position, GameObject* target,
+	const EnemySpawnPointComponent::EnemyStatMultipliers& statMultipliers) {
 	auto object = std::make_unique<GameObject>();
 	const std::string resolvedTypeName = enemyTypeName.empty() ? "Default" : enemyTypeName;
-	const EnemyStats stats = LoadEnemyStats(resolvedTypeName);
+	EnemyStats stats = LoadEnemyStats(resolvedTypeName);
+	// 時間帯倍率は生成時に固定し、戦闘中の最大HPや移動速度が突然変化しないようにする。
+	stats.health *= (std::max)(0.0f, statMultipliers.healthMultiplier);
+	stats.speed *= (std::max)(0.0f, statMultipliers.speedMultiplier);
+	stats.experience = (std::max)(0, static_cast<int>(std::lround(
+		static_cast<float>(stats.experience) * (std::max)(0.0f, statMultipliers.experienceMultiplier))));
 	object->SetName(MakeUniqueObjectName(resolvedTypeName));
 	object->SetEditorType("Enemy");
 	object->GetTransform().translate = position;
@@ -757,9 +922,41 @@ GameObject* BaseScene::CreateRuntimeEnemy(const std::string& enemyTypeName, cons
 		enemy->SetTargetName(target->GetName());
 	}
 
-	ModelManager::GetInstance()->LoadModel("sphere.obj");
+	// ステージ1の最終ボスは猫、ステージ2の最終ボスはドッペルゲンガーを使い、
+	// それ以外は行動タイプごとの外見を割り当てる。
+	const char* enemyModelFilePath = "enemy_chaser.gltf";
+	switch (stats.behavior) {
+	case EnemyBehaviorType::Shooter:
+	case EnemyBehaviorType::BurstShooter:
+	case EnemyBehaviorType::TornadoBoss:
+		enemyModelFilePath = "enemy_shooter.gltf";
+		break;
+	case EnemyBehaviorType::Charger:
+	case EnemyBehaviorType::NightSlashBoss:
+		enemyModelFilePath = "enemy_charger.gltf";
+		break;
+	case EnemyBehaviorType::SelfDestruct:
+		enemyModelFilePath = "enemy_bomber.gltf";
+		break;
+	case EnemyBehaviorType::Chase:
+	default:
+		break;
+	}
+	if (resolvedTypeName == "Stage2Boss") {
+		enemyModelFilePath = "doppelganger.gltf";
+		if (!ModelManager::GetInstance()->FindModel(enemyModelFilePath)) {
+			ModelManager::GetInstance()->LoadModel(enemyModelFilePath, true, "/doppelganger");
+		}
+	} else if (resolvedTypeName == "MidBoss") {
+		enemyModelFilePath = "neko.gltf";
+		if (!ModelManager::GetInstance()->FindModel(enemyModelFilePath)) {
+			ModelManager::GetInstance()->LoadModel(enemyModelFilePath, true, "/cat");
+		}
+	} else {
+		ModelManager::GetInstance()->LoadModel(enemyModelFilePath);
+	}
 	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
-	object3d->SetModel("sphere.obj");
+	object3d->SetModel(enemyModelFilePath);
 
 	OBBColliderComponent* collider = object->AddComponent<OBBColliderComponent>();
 	collider->SetHalfSize({0.4f, 0.4f, 0.4f});
@@ -793,14 +990,18 @@ GameObject* BaseScene::CreateRuntimeExperience(const EnemyStats& enemyStats, con
 		}
 	}
 
-	const std::string modelFilePath = enemyStats.experienceModelFilePath.empty() ? "sphere.obj" : enemyStats.experienceModelFilePath;
+	const std::string modelFilePath = enemyStats.experienceModelFilePath.empty()
+	    ? kEnemyDropModelFilePath
+	    : enemyStats.experienceModelFilePath;
 	if (!ModelManager::GetInstance()->FindModel(modelFilePath)) {
 		ModelManager::GetInstance()->LoadModel(modelFilePath);
 	}
 	if (!ModelManager::GetInstance()->FindModel(modelFilePath)) {
-		ModelManager::GetInstance()->LoadModel("sphere.obj");
+		ModelManager::GetInstance()->LoadModel(kEnemyDropModelFilePath);
 	}
-	const std::string resolvedModelFilePath = ModelManager::GetInstance()->FindModel(modelFilePath) ? modelFilePath : "sphere.obj";
+	const std::string resolvedModelFilePath = ModelManager::GetInstance()->FindModel(modelFilePath)
+	    ? modelFilePath
+	    : kEnemyDropModelFilePath;
 	GameObject* firstExperienceObject = nullptr;
 	int remainingExperience = enemyStats.experience;
 	int particleIndex = 0;
@@ -826,10 +1027,14 @@ GameObject* BaseScene::CreateRuntimeExperience(const EnemyStats& enemyStats, con
 			experience->SetExperience(denomination);
 			experience->SetModelFilePath(resolvedModelFilePath);
 			experience->SetTarget(target);
+			object->AddComponent<DropItemVisualComponent>();
 
 			Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
 			object3d->SetModel(resolvedModelFilePath);
-			object3d->SetColor(GetExperienceColor(denomination));
+			const Vector4 experienceColor = GetExperienceColor(denomination);
+			object3d->SetColor(experienceColor);
+			object3d->SetEmission(
+				{experienceColor.x, experienceColor.y, experienceColor.z}, 0.45f);
 
 			object->Update();
 			GameObject* createdObject = object.get();
@@ -860,7 +1065,7 @@ GameObject* BaseScene::CreateRuntimeItemDrop(
 		}
 	}
 
-	ModelManager::GetInstance()->LoadModel("sphere.obj");
+	ModelManager::GetInstance()->LoadModel(kEnemyDropModelFilePath);
 	auto object = std::make_unique<GameObject>();
 	const bool isHealthItem = type == ItemDropType::Health;
 	const bool isMoneyItem = type == ItemDropType::Money;
@@ -876,13 +1081,19 @@ GameObject* BaseScene::CreateRuntimeItemDrop(
 	item->SetTarget(target);
 	item->SetHealAmount(healAmount);
 	item->SetMoneyAmount(moneyAmount);
+	object->AddComponent<DropItemVisualComponent>();
 
 	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
-	object3d->SetModel("sphere.obj");
+	object3d->SetModel(kEnemyDropModelFilePath);
 	object3d->SetColor(isHealthItem
 		? Vector4{0.15f, 1.0f, 0.25f, 1.0f}
 		: isMoneyItem ? Vector4{1.0f, 0.55f, 0.05f, 1.0f}
 		: Vector4{1.0f, 0.85f, 0.10f, 1.0f});
+	object3d->SetEmission(
+		isHealthItem ? Vector3{0.08f, 0.55f, 0.12f}
+		             : isMoneyItem ? Vector3{0.65f, 0.28f, 0.03f}
+		                           : Vector3{0.65f, 0.48f, 0.05f},
+		0.55f);
 
 	object->Update();
 	sceneObjects_.push_back(std::move(object));
@@ -904,7 +1115,7 @@ void BaseScene::CreateRuntimeBossUpgradeDrop(const Vector3& position, GameObject
 		}
 	}
 
-	ModelManager::GetInstance()->LoadModel("sphere.obj");
+	ModelManager::GetInstance()->LoadModel(kEnemyDropModelFilePath);
 	auto object = std::make_unique<GameObject>();
 	object->SetName(MakeUniqueObjectName("BossUpgradeReward"));
 	object->SetEditorType("BossUpgradeReward");
@@ -918,10 +1129,12 @@ void BaseScene::CreateRuntimeBossUpgradeDrop(const Vector3& position, GameObject
 	reward->SetTarget(target);
 	reward->SetAttractDistance(12.0f);
 	reward->SetAttractSpeed(0.06f);
+	object->AddComponent<DropItemVisualComponent>();
 
 	Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
-	object3d->SetModel("sphere.obj");
+	object3d->SetModel(kEnemyDropModelFilePath);
 	object3d->SetColor({1.0f, 0.72f, 0.08f, 1.0f});
+	object3d->SetEmission({0.85f, 0.48f, 0.04f}, 0.75f);
 
 	object->Update();
 	sceneObjects_.push_back(std::move(object));
@@ -1320,26 +1533,37 @@ GameObject* BaseScene::CreateRuntimeEnemyProjectile(const EnemyShotRequest& requ
 	// 竜巻弾は球モデルではなく、上方へ広がる渦パーティクルを本体表示として使う。
 	object3d->SetEnabled(!isTornado);
 	if (isTornado) {
+		// パーティクルだけでは途切れて見える円錐輪郭を、回転する螺旋帯と接地リングで補完する。
+		object->AddComponent<TornadoVisualComponent>(isContractingTornado, isGiantTornado);
 		// 全竜巻で同じ描画グループを共有し、竜巻ごとのGPUバッファ生成を避ける。
-		constexpr const char* kTornadoParticleGroup = "RuntimeTornadoParticle";
+		constexpr const char* kTornadoParticleGroup = "RuntimeTornadoWispParticle";
 		if (!ParticleManager::GetInstance()->GetGroup(kTornadoParticleGroup)) {
 			ParticleManager::GetInstance()->CreateParticleGroup(
-			    kTornadoParticleGroup, "Resources/circle.png", kMeshTypeQuad);
+			    kTornadoParticleGroup, "Resources/tornado_wisp.png", kMeshTypeQuad);
 		}
 
 		ParticleEmitterComponent* tornadoEmitter = object->AddComponent<ParticleEmitterComponent>();
 		tornadoEmitter->SetGroupName(kTornadoParticleGroup);
 		// 色や生成周期などの共通値をプリセットから読み、攻撃サイズ依存値だけ下で上書きする。
 		ParticlePresetRepository::Apply("Tornado", tornadoEmitter);
+		tornadoEmitter->SetFrequency(isGiantTornado ? 0.040f : 0.055f);
 
 		ParticleEmitParam tornadoParam = tornadoEmitter->GetParam();
 		// 当たり判定サイズに比例させ、通常・収束・巨大竜巻でシルエットの比率を統一する。
 		tornadoParam.vortexBaseRadius = (std::max)(0.10f, request.size * 0.16f);
 		tornadoParam.vortexTopRadius = (std::max)(0.65f, request.size * 1.45f);
 		tornadoParam.vortexHeight = (std::max)(1.8f, request.size * 3.6f);
-		tornadoParam.scale = {request.size * 0.24f, request.size * 0.24f, request.size * 0.24f};
+		// 三日月状の風テクスチャを少し横長にし、短い煙粒ではなく旋回する帯として重ねる。
+		tornadoParam.scale = {request.size * 0.62f, request.size * 0.44f, request.size * 0.44f};
+		tornadoParam.endScale = {request.size * 0.78f, request.size * 0.58f, request.size * 0.58f};
 		tornadoParam.randomScaleRange = {
-		    request.size * 0.08f, request.size * 0.08f, 0.0f};
+		    request.size * 0.14f, request.size * 0.10f, 0.0f};
+		tornadoParam.count = isGiantTornado ? 7u : 4u;
+		tornadoParam.lifeTime = isGiantTornado ? 1.65f : 1.35f;
+		tornadoParam.baseVelocity.y = tornadoParam.vortexHeight / (tornadoParam.lifeTime * 60.0f) * 0.62f;
+		tornadoParam.randomVelocityRange.y = tornadoParam.baseVelocity.y * 0.30f;
+		tornadoParam.acceleration.y = 0.00035f;
+		tornadoParam.vortexAngularSpeed = isContractingTornado ? -12.5f : isGiantTornado ? 9.5f : 12.5f;
 		// 攻撃パターンを見分けられるよう、巨大は緑、収束は紫、通常は水色にする。
 		tornadoParam.color = isGiantTornado
 		    ? Vector4{0.38f, 1.0f, 0.58f, 0.78f}
@@ -1350,8 +1574,8 @@ GameObject* BaseScene::CreateRuntimeEnemyProjectile(const EnemyShotRequest& requ
 		tornadoEmitter->SetParam(tornadoParam);
 	}
 	TrailRendererComponent* trail = object->AddComponent<TrailRendererComponent>();
-	trail->SetWidth((std::max)(0.10f, request.size * (isTornado ? 1.6f : 0.8f)));
-	trail->SetLifeTime(isTornado ? 1.15f : 0.28f);
+	trail->SetWidth((std::max)(0.10f, request.size * (isTornado ? 0.72f : 0.8f)));
+	trail->SetLifeTime(isTornado ? 0.62f : 0.28f);
 	trail->SetHeadColor(isGiantTornado
 	    ? Vector4{0.72f, 1.0f, 0.82f, 0.98f}
 	    : isContractingTornado
@@ -1388,17 +1612,21 @@ void BaseScene::UpdateEnemyProjectileHits() {
 			const SphereColliderShape projectileSphere = projectileCollider
 			    ? projectileCollider->GetWorldSphere()
 			    : SphereColliderShape{projectileObject->GetTransform().translate, projectile->GetSize()};
+			const Vector3 projectileStart = projectile->GetPreviousPosition();
+			const Vector3 projectileEnd = projectileSphere.center;
 
 			bool isHit = false;
 			// プレイヤーの実形状を優先し、OBB と球のどちらの構成にも対応する。
 			if (const OBBColliderComponent* playerCollider = playerObject->GetComponent<OBBColliderComponent>();
 			    playerCollider && playerCollider->IsEnabled()) {
-				isHit = IsCollisionOBBToSphere(playerCollider->GetWorldOBB(), projectileSphere);
+				isHit = IsSweptSphereToOBB(
+				    projectileStart, projectileEnd, projectileSphere.radius, playerCollider->GetWorldOBB());
 			}
 			if (!isHit) {
 				if (const SphereColliderComponent* playerCollider = playerObject->GetComponent<SphereColliderComponent>();
 				    playerCollider && playerCollider->IsEnabled()) {
-					isHit = IsCollisionSphereToSphere(playerCollider->GetWorldSphere(), projectileSphere);
+					isHit = IsSweptSphereToSphere(
+					    projectileStart, projectileEnd, projectileSphere.radius, playerCollider->GetWorldSphere());
 				}
 			}
 			// コライダーを持たないプレイヤーでも従来どおり最低限の命中判定を行う。
@@ -1406,7 +1634,8 @@ void BaseScene::UpdateEnemyProjectileHits() {
 			    !playerObject->GetComponent<OBBColliderComponent>() &&
 			    !playerObject->GetComponent<SphereColliderComponent>()) {
 				const SphereColliderShape fallbackPlayerSphere{playerObject->GetTransform().translate, 0.5f};
-				isHit = IsCollisionSphereToSphere(fallbackPlayerSphere, projectileSphere);
+				isHit = IsSweptSphereToSphere(
+				    projectileStart, projectileEnd, projectileSphere.radius, fallbackPlayerSphere);
 			}
 
 			if (isHit) {
@@ -1612,11 +1841,9 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 		ModelManager::GetInstance()->LoadModel("sphere.obj");
 		object3d->SetModel("sphere.obj");
 	}
-	if (request.motionType == PlayerProjectileMotionType::ArcHoming) {
-		// sphere.obj本来の絵柄を白テクスチャで置き換え、頂点色を6色そのまま表示する。
-		// 共有Modelのテクスチャ自体は変更せず、この弾の描画時だけ上書きする。
-		object3d->SetModelTextureOverride("Resources/human/white.png");
-		object3d->SetColor(GetArcHomingProjectileColor(request.colorIndex));
+	if (request.motionType == PlayerProjectileMotionType::Magatama) {
+		// 白い玉部分だけを6色に染め、黒い孔の象嵌は輪郭として残す。
+		object3d->SetColor(GetMagatamaProjectileColor(request.colorIndex));
 	} else if (request.motionType == PlayerProjectileMotionType::Orbit) {
 		object3d->SetColor({0.35f, 0.75f, 1.0f, 1.0f});
 	} else if (request.motionType == PlayerProjectileMotionType::SkyLaser) {
@@ -1641,11 +1868,11 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 		        ? 0.45f
 		        : request.motionType == PlayerProjectileMotionType::ClawSlash ? 0.24f : 0.32f);
 		trail->SetMinSegmentLength((std::max)(0.025f, request.size * 0.08f));
-		if (request.motionType == PlayerProjectileMotionType::ArcHoming) {
-			Vector4 headColor = GetArcHomingProjectileColor(request.colorIndex);
+		if (request.motionType == PlayerProjectileMotionType::Magatama) {
+			Vector4 headColor = GetMagatamaProjectileColor(request.colorIndex);
 			headColor.w = 0.95f;
 			trail->SetHeadColor(headColor);
-			trail->SetTailColor(GetArcHomingTrailTailColor(request.colorIndex));
+			trail->SetTailColor(GetMagatamaTrailTailColor(request.colorIndex));
 		} else if (request.motionType == PlayerProjectileMotionType::Boomerang) {
 			trail->SetHeadColor({1.0f, 0.72f, 0.20f, 0.95f});
 			trail->SetTailColor({1.0f, 0.12f, 0.02f, 0.0f});
@@ -1673,9 +1900,9 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 			coreTrail->SetTailColor({1.0f, 0.28f, 0.02f, 0.0f});
 		}
 	}
-	if (request.motionType == PlayerProjectileMotionType::ArcHoming) {
+	if (request.motionType == PlayerProjectileMotionType::Magatama) {
 		// 環境反射ではなく、加算合成パーティクルを弾から漏れ出す光として連続発生させる。
-		constexpr const char* kGlowParticleGroup = "ArcHomingGlow";
+		constexpr const char* kGlowParticleGroup = "MagatamaGlow";
 		constexpr const char* kGlowTexture = "Resources/circle.png";
 		if (!ParticleManager::GetInstance()->GetGroup(kGlowParticleGroup)) {
 			ParticleManager::GetInstance()->CreateParticleGroup(kGlowParticleGroup, kGlowTexture, kMeshTypeQuad);
@@ -1687,7 +1914,7 @@ GameObject* BaseScene::CreateRuntimePlayerProjectile(const PlayerAttackShotReque
 		glowEmitter->SetBlendMode(kBlendModeAdd);
 		glowEmitter->SetFrequency(0.020f);
 
-		Vector4 glowColor = GetArcHomingProjectileColor(request.colorIndex);
+		Vector4 glowColor = GetMagatamaProjectileColor(request.colorIndex);
 		glowColor.x *= 1.35f;
 		glowColor.y *= 1.35f;
 		glowColor.z *= 1.35f;
@@ -1931,7 +2158,7 @@ void BaseScene::CleanupExpiredPlayerProjectiles() {
 			    // 周回弾や反射弾は専用挙動を維持し、画面外へ飛び去る弾だけを破棄する。
 			    const bool shouldExpireOutsideView =
 			        motionType == PlayerProjectileMotionType::Linear ||
-			        motionType == PlayerProjectileMotionType::ArcHoming;
+			        motionType == PlayerProjectileMotionType::Magatama;
 			    if (projectile->IsExpired() ||
 				    (shouldExpireOutsideView && IsPointOutsideView(object->GetTransform().translate, viewMargin))) {
 				    return true;
@@ -2248,8 +2475,8 @@ void BaseScene::UpdatePlayerSlotHud() {
 			sprite->Update();
 		};
 		// 未設定または存在しない画像は描画せず、背景だけでスロット状態を示す。
-		playerAttackSlotIconVisible_[index] = hasAttack && !attackTexture.empty() && std::filesystem::exists(attackTexture);
-		playerStatusSlotIconVisible_[index] = hasStatus && !statusTexture.empty() && std::filesystem::exists(statusTexture);
+		playerAttackSlotIconVisible_[index] = hasAttack && !attackTexture.empty() && std::filesystem::exists(StringUtility::Utf8ToPath(attackTexture));
+		playerStatusSlotIconVisible_[index] = hasStatus && !statusTexture.empty() && std::filesystem::exists(StringUtility::Utf8ToPath(statusTexture));
 		if (playerAttackSlotIconVisible_[index]) updateIcon(playerAttackSlotIconSprites_[index].get(), attackY, attackTexture, attackSlot.enabled);
 		if (playerStatusSlotIconVisible_[index]) updateIcon(playerStatusSlotIconSprites_[index].get(), statusY, statusTexture, statusSlot.enabled);
 	}
@@ -2871,7 +3098,7 @@ void BaseScene::DrawLevelUpSelection2D() {
 		}
 		drawSprite(levelUpChoiceSprites_[index].get(), cardX, cardY, cardWidth, cardHeight, color);
 		const std::string& textureFilePath = levelUpChoices_[index].textureFilePath;
-		const bool hasTexture = !textureFilePath.empty() && std::filesystem::exists(textureFilePath);
+		const bool hasTexture = !textureFilePath.empty() && std::filesystem::exists(StringUtility::Utf8ToPath(textureFilePath));
 		if (hasTexture) {
 			Sprite* iconSprite = levelUpChoiceIconSprites_[index].get();
 			if (iconSprite->GetTextureFilePath() != textureFilePath) {

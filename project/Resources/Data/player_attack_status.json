@@ -1,5 +1,5 @@
 {
-    "ArcHoming": {
+    "勾玉": {
         "levels": {
             "1": {
                 "angles": [
@@ -7,13 +7,13 @@
                 ],
                 "attack": 30.0,
                 "attackInterval": 0.8999999761581421,
-                "description": "敵へ向かって弧を描きながら追尾する赤い弾",
+                "description": "敵へ向かって弧を描きながら追尾する赤い勾玉",
                 "homing": true,
                 "homingAccuracy": 0.11999999731779099,
                 "infinitePierce": false,
                 "level": "1",
                 "lifeTime": 5.0,
-                "model": "sphere.obj",
+                "model": "magatama.gltf",
                 "pierceCount": 0,
                 "shotCount": 1,
                 "size": 60.0,
@@ -31,7 +31,7 @@
                 "angles": [
                     -42.0
                 ],
-                "attack": 40.0,
+                "attack": 35.0,
                 "attackInterval": 0.7200000286102295,
                 "description": "攻撃力と攻撃速度が上昇する",
                 "homing": true,
@@ -39,7 +39,7 @@
                 "infinitePierce": false,
                 "level": "2",
                 "lifeTime": 5.0,
-                "model": "sphere.obj",
+                "model": "magatama.gltf",
                 "pierceCount": 0,
                 "shotCount": 1,
                 "size": 60.0,
@@ -59,15 +59,15 @@
                     120.0,
                     -120.0
                 ],
-                "attack": 40.0,
+                "attack": 35.0,
                 "attackInterval": 0.7200000286102295,
-                "description": "赤・青・緑の3発が別々の弧を描く",
+                "description": "赤・青・緑の勾玉が別々の弧を描く",
                 "homing": true,
                 "homingAccuracy": 0.125,
                 "infinitePierce": false,
                 "level": "3",
                 "lifeTime": 5.0,
-                "model": "sphere.obj",
+                "model": "magatama.gltf",
                 "pierceCount": 0,
                 "shotCount": 3,
                 "size": 60.0,
@@ -97,7 +97,7 @@
                     120.0,
                     -120.0
                 ],
-                "attack": 55.0,
+                "attack": 43.0,
                 "attackInterval": 0.7200000286102295,
                 "description": "弾が大きくなり、攻撃力が上昇する",
                 "homing": true,
@@ -105,7 +105,7 @@
                 "infinitePierce": false,
                 "level": "4",
                 "lifeTime": 5.0,
-                "model": "sphere.obj",
+                "model": "magatama.gltf",
                 "pierceCount": 0,
                 "shotCount": 3,
                 "size": 82.0,
@@ -136,15 +136,15 @@
                     180.0,
                     -90.0
                 ],
-                "attack": 55.0,
+                "attack": 43.0,
                 "attackInterval": 0.7200000286102295,
-                "description": "赤・青・緑・黄色の4発を撃ち出す",
+                "description": "赤・青・緑・黄色の勾玉を撃ち出す",
                 "homing": true,
                 "homingAccuracy": 0.12999999523162842,
                 "infinitePierce": false,
                 "level": "5",
                 "lifeTime": 5.0,
-                "model": "sphere.obj",
+                "model": "magatama.gltf",
                 "pierceCount": 0,
                 "shotCount": 4,
                 "size": 82.0,
@@ -182,15 +182,15 @@
                     -120.0,
                     -60.0
                 ],
-                "attack": 78.0,
+                "attack": 54.0,
                 "attackInterval": 0.6200000047683716,
-                "description": "6色の巨大な弾が敵へ向かって弧を描く",
+                "description": "6色の巨大な勾玉が敵へ向かって弧を描く",
                 "homing": true,
                 "homingAccuracy": 0.14499999582767487,
                 "infinitePierce": false,
                 "level": "super",
                 "lifeTime": 5.5,
-                "model": "sphere.obj",
+                "model": "magatama.gltf",
                 "pierceCount": 1,
                 "shotCount": 6,
                 "size": 105.0,
@@ -231,7 +231,7 @@
                 "travelDistance": 6.0
             }
         },
-        "name": "ArcHoming",
+        "name": "勾玉",
         "superCondition": {
             "level": "5",
             "status": "DefenceUp"
@@ -270,7 +270,7 @@
                 "angles": [
                     0.0
                 ],
-                "attack": 48.0,
+                "attack": 43.0,
                 "attackInterval": 1.149999976158142,
                 "description": "威力・速度・大きさが上昇する",
                 "homing": false,
@@ -296,7 +296,7 @@
                 "angles": [
                     0.0
                 ],
-                "attack": 60.0,
+                "attack": 49.0,
                 "attackInterval": 1.100000023841858,
                 "description": "さらに威力が上がり、より遠くの敵を切り裂く",
                 "homing": false,
@@ -322,7 +322,7 @@
                 "angles": [
                     0.0
                 ],
-                "attack": 74.0,
+                "attack": 56.0,
                 "attackInterval": 1.0499999523162842,
                 "description": "攻撃範囲と戻ってくる速度が上昇する",
                 "homing": false,
@@ -348,7 +348,7 @@
                 "angles": [
                     0.0
                 ],
-                "attack": 90.0,
+                "attack": 64.0,
                 "attackInterval": 1.0,
                 "description": "巨大なブーメランが素早く往復する",
                 "homing": false,
@@ -374,7 +374,7 @@
                 "angles": [
                     0.0
                 ],
-                "attack": 120.0,
+                "attack": 79.0,
                 "attackInterval": 0.800000011920929,
                 "description": "超巨大なブーメランが高速で敵を切り裂く",
                 "homing": false,
@@ -703,7 +703,7 @@
                     0.0,
                     0.0
                 ],
-                "attack": 23.0,
+                "attack": 21.0,
                 "attackInterval": 4.0,
                 "description": "周回弾の威力・速度・大きさが上昇する",
                 "homing": false,
@@ -743,7 +743,7 @@
                     0.0,
                     0.0
                 ],
-                "attack": 25.0,
+                "attack": 22.0,
                 "attackInterval": 4.5,
                 "description": "周回弾が4個に増え、持続時間が延びる",
                 "homing": false,
@@ -788,7 +788,7 @@
                     0.0,
                     0.0
                 ],
-                "attack": 32.0,
+                "attack": 25.0,
                 "attackInterval": 4.5,
                 "description": "4個の周回弾がさらに強力になる",
                 "homing": false,
@@ -834,7 +834,7 @@
                     0.0,
                     0.0
                 ],
-                "attack": 36.0,
+                "attack": 27.0,
                 "attackInterval": 5.0,
                 "description": "5個の周回弾が長時間プレイヤーを守る",
                 "homing": false,
@@ -886,7 +886,7 @@
                     0.0,
                     0.0
                 ],
-                "attack": 45.0,
+                "attack": 32.0,
                 "attackInterval": 5.5,
                 "description": "6個の巨大な周回弾が高速で敵を阻む",
                 "homing": false,
@@ -974,7 +974,7 @@
                 "angles": [
                     0.0
                 ],
-                "attack": 30.0,
+                "attack": 27.0,
                 "attackInterval": 1.2999999523162842,
                 "description": "反射弾の威力・速度・持続時間が上昇する",
                 "homing": false,
@@ -1001,7 +1001,7 @@
                 "angles": [
                     0.0
                 ],
-                "attack": 38.0,
+                "attack": 31.0,
                 "attackInterval": 1.2000000476837158,
                 "description": "反射弾がさらに強くなり、長時間跳ね回る",
                 "homing": false,
@@ -1028,7 +1028,7 @@
                 "angles": [
                     0.0
                 ],
-                "attack": 48.0,
+                "attack": 36.0,
                 "attackInterval": 1.100000023841858,
                 "description": "攻撃範囲が広がり、発射間隔が短くなる",
                 "homing": false,
@@ -1055,7 +1055,7 @@
                 "angles": [
                     0.0
                 ],
-                "attack": 60.0,
+                "attack": 42.0,
                 "attackInterval": 1.0,
                 "description": "強力な反射弾が長時間画面内を跳ね回る",
                 "homing": false,
@@ -1084,7 +1084,7 @@
                     0.0,
                     18.0
                 ],
-                "attack": 75.0,
+                "attack": 50.0,
                 "attackInterval": 0.800000011920929,
                 "description": "3発の巨大な反射弾を同時に撃ち出す",
                 "homing": false,
@@ -1157,7 +1157,7 @@
                 "angles": [
                     0.0
                 ],
-                "attack": 70.0,
+                "attack": 63.0,
                 "attackInterval": 2.5999999046325684,
                 "description": "レーザーの威力と攻撃範囲が上昇する",
                 "homing": false,
@@ -1185,7 +1185,7 @@
                     0.0,
                     0.0
                 ],
-                "attack": 85.0,
+                "attack": 70.0,
                 "attackInterval": 2.4000000953674316,
                 "description": "画面内の敵2体へ同時にレーザーを落とす",
                 "homing": false,
@@ -1218,7 +1218,7 @@
                     0.0,
                     0.0
                 ],
-                "attack": 105.0,
+                "attack": 80.0,
                 "attackInterval": 2.200000047683716,
                 "description": "2本のレーザーがさらに強力になる",
                 "homing": false,
@@ -1252,7 +1252,7 @@
                     0.0,
                     0.0
                 ],
-                "attack": 125.0,
+                "attack": 90.0,
                 "attackInterval": 2.0,
                 "description": "画面内の敵3体へ巨大なレーザーを落とす",
                 "homing": false,
@@ -1293,7 +1293,7 @@
                     0.0,
                     0.0
                 ],
-                "attack": 165.0,
+                "attack": 110.0,
                 "attackInterval": 1.600000023841858,
                 "description": "画面内の敵5体へ超強力なレーザーを落とす",
                 "homing": false,
@@ -1376,7 +1376,7 @@
                 "angles": [
                     0.0
                 ],
-                "attack": 36.0,
+                "attack": 32.0,
                 "attackInterval": 0.5199999809265137,
                 "description": "弾の威力・速度・大きさが上昇する",
                 "homing": false,
@@ -1405,7 +1405,7 @@
                     0.0,
                     12.0
                 ],
-                "attack": 32.0,
+                "attack": 30.0,
                 "attackInterval": 0.5,
                 "description": "貫通する弾を前方3方向へ撃ち出す",
                 "homing": false,
@@ -1444,7 +1444,7 @@
                     0.0,
                     18.0
                 ],
-                "attack": 42.0,
+                "attack": 35.0,
                 "attackInterval": 0.44999998807907104,
                 "description": "3方向弾の威力と貫通回数が上昇する",
                 "homing": false,
@@ -1485,7 +1485,7 @@
                     12.0,
                     24.0
                 ],
-                "attack": 48.0,
+                "attack": 38.0,
                 "attackInterval": 0.41999998688697815,
                 "description": "強力な貫通弾を前方5方向へ撃ち出す",
                 "homing": false,
@@ -1537,7 +1537,7 @@
                     -60.0,
                     -120.0
                 ],
-                "attack": 55.0,
+                "attack": 42.0,
                 "attackInterval": 0.3499999940395355,
                 "description": "敵を追尾する6発の弾を全方向へ撃ち出す",
                 "homing": true,

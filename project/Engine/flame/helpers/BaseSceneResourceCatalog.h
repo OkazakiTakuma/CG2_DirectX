@@ -3,6 +3,7 @@
 #include "../../2d/TextureManager.h"
 #include "../../3d/model/Model.h"
 #include "../../3d/model/ModelManager.h"
+#include "../../base/StringUtility.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -16,17 +17,17 @@ namespace {
 
 inline std::vector<std::string> CollectResourceTexturePaths() {
 	std::vector<std::string> paths = TextureManager::GetInstance()->GetLoadedTextureNames();
-	const std::filesystem::path resourceRoot = "Resources";
+	const std::filesystem::path resourceRoot = StringUtility::Utf8ToPath("Resources");
 	if (std::filesystem::exists(resourceRoot)) {
 		for (const auto& entry : std::filesystem::recursive_directory_iterator(resourceRoot)) {
 			if (!entry.is_regular_file()) {
 				continue;
 			}
-			const std::string extension = entry.path().extension().string();
+			const std::string extension = StringUtility::PathToUtf8(entry.path().extension());
 			if (extension != ".png" && extension != ".jpg" && extension != ".jpeg" && extension != ".dds") {
 				continue;
 			}
-			std::string path = entry.path().generic_string();
+			std::string path = StringUtility::PathToUtf8(entry.path());
 			if (std::find(paths.begin(), paths.end(), path) == paths.end()) {
 				paths.push_back(path);
 			}
@@ -39,7 +40,7 @@ inline std::vector<std::string> CollectResourceTexturePaths() {
 inline std::vector<std::string> CollectResourceDdsTexturePaths() {
 	std::vector<std::string> paths;
 	for (const std::string& path : CollectResourceTexturePaths()) {
-		if (std::filesystem::path(path).extension() == ".dds") {
+		if (StringUtility::Utf8ToPath(path).extension() == L".dds") {
 			paths.push_back(path);
 		}
 	}

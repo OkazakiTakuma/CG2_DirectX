@@ -147,7 +147,6 @@ void GamePlayScene::Initialize() {
 	std::vector<std::string> allTextures = {
 			"Resources/circle.png",
 			"Resources/uvChecker.png",
-			"Resources/monsterball.png",
 			"Resources/rostock_laage_airport_4k.dds",
 			"Resources/gradationLine.png",
 			"Resources/terrain/grass.png",
@@ -176,12 +175,12 @@ void GamePlayScene::Initialize() {
 /// SceneModels を読み込み、内部データへ反映します。
 /// </summary>
 void GamePlayScene::LoadSceneModels() {
-	ModelManager::GetInstance()->LoadModel("AnimatedCube.gltf", true, "/Cube");
-	ModelManager::GetInstance()->LoadModel("simpleSkin.gltf", true, "/simpleSkin");
-	ModelManager::GetInstance()->LoadModel("sneakWalk.gltf", true, "/human");
 	ModelManager::GetInstance()->LoadModel("walk.gltf", true, "/human");
+	ModelManager::GetInstance()->LoadModel("miko.gltf", true, "/human");
 	ModelManager::GetInstance()->LoadModel("neko.gltf", true, "/cat");
-	ModelManager::GetInstance()->LoadModel("axis.obj");
+	// 烏天狗とステージ2ボスで共有する歩行アニメーション付きモデル。
+	ModelManager::GetInstance()->LoadModel("doppelganger.gltf", true, "/doppelganger");
+	ModelManager::GetInstance()->LoadModel("enemy_drop.obj");
 	ModelManager::GetInstance()->LoadModel("sphere.obj");
 	ModelManager::GetInstance()->LoadModel("terrain.obj", false, "/terrain");
 	ModelManager::GetInstance()->LoadModel("sand.obj", false, "/sand");
