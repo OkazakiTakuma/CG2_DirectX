@@ -1,4 +1,5 @@
 #include "BaseScene.h"
+#include "StringUtility.h"
 #include "helpers/BaseSceneEditorGeometry.h"
 #include "helpers/BaseSceneResourceCatalog.h"
 #include "repositories/EnemyStatusRepository.h"
@@ -68,7 +69,7 @@ void DrawProjectTextureDragSource(const std::string& texturePath) {
 	const ImVec2 imageSize = maxSide > 0.0f
 	    ? ImVec2(kProjectThumbnailSize * width / maxSide, kProjectThumbnailSize * height / maxSide)
 	    : ImVec2(kProjectThumbnailSize, kProjectThumbnailSize);
-	const std::string fileName = std::filesystem::path(texturePath).filename().string();
+	const std::string fileName = StringUtility::PathToUtf8(StringUtility::Utf8ToPath(texturePath).filename());
 	const std::string buttonId = "##SpriteTexture_" + texturePath;
 
 	ImGui::BeginGroup();
@@ -100,7 +101,7 @@ void DrawProjectTextureDragSource(const std::string& texturePath) {
 }
 
 bool IsSpriteTexturePath(const std::string& path) {
-	std::string extension = std::filesystem::path(path).extension().string();
+	std::string extension = StringUtility::PathToUtf8(StringUtility::Utf8ToPath(path).extension());
 	std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char value) {
 		return static_cast<char>(std::tolower(value));
 	});
@@ -139,7 +140,7 @@ GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::stri
 		break;
 	}
 	case EditorCreateType::Sprite: {
-		const std::string spriteBaseName = modelFilePath.empty() ? "Sprite" : std::filesystem::path(modelFilePath).stem().string();
+		const std::string spriteBaseName = modelFilePath.empty() ? "Sprite" : StringUtility::PathToUtf8(StringUtility::Utf8ToPath(modelFilePath).stem());
 		object->SetName(MakeUniqueObjectName(spriteBaseName.empty() ? "Sprite" : spriteBaseName));
 		SpriteComponent* sprite = object->AddComponent<SpriteComponent>();
 		const std::vector<std::string> textures = CollectResourceTexturePaths();
@@ -165,7 +166,7 @@ GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::stri
 		if (modelFilePath.empty() || !ModelManager::GetInstance()->FindModel(modelFilePath)) {
 			return nullptr;
 		}
-		object->SetName(MakeUniqueObjectName(std::filesystem::path(modelFilePath).stem().string()));
+		object->SetName(MakeUniqueObjectName(StringUtility::PathToUtf8(StringUtility::Utf8ToPath(modelFilePath).stem())));
 		object->SetEditorType("LoadedModel:" + modelFilePath);
 		Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
 		object3d->SetModel(modelFilePath);
@@ -175,7 +176,7 @@ GameObject* BaseScene::CreateEditorObject(EditorCreateType type, const std::stri
 		if (modelFilePath.empty() || !ModelManager::GetInstance()->FindModel(modelFilePath)) {
 			return nullptr;
 		}
-		object->SetName(MakeUniqueObjectName(std::filesystem::path(modelFilePath).stem().string()));
+		object->SetName(MakeUniqueObjectName(StringUtility::PathToUtf8(StringUtility::Utf8ToPath(modelFilePath).stem())));
 		object->SetEditorType("AnimatedModel:" + modelFilePath);
 		Object3dComponent* object3d = object->AddComponent<Object3dComponent>();
 		object3d->SetModel(modelFilePath);
@@ -682,6 +683,12 @@ void BaseScene::DrawEditorInspector() {
 	if (selectedObject->GetComponent<Object3dComponent>()) {
 		componentLabels.push_back("Object3d");
 	}
+	if (selectedObject->GetComponent<PointLightComponent>()) {
+		componentLabels.push_back("PointLight");
+	}
+	if (selectedObject->GetComponent<GlowBillboardComponent>()) {
+		componentLabels.push_back("GlowBillboard");
+	}
 	if (selectedObject->GetComponent<SpriteComponent>()) {
 		componentLabels.push_back("Sprite");
 	}
@@ -751,6 +758,8 @@ void BaseScene::DrawEditorInspector() {
 	ImGui::Separator();
 	ImGui::Text("Component Enabled");
 	drawComponentEnabledCheckbox("Object3d Enabled", selectedObject->GetComponent<Object3dComponent>());
+	drawComponentEnabledCheckbox("PointLight Enabled", selectedObject->GetComponent<PointLightComponent>());
+	drawComponentEnabledCheckbox("GlowBillboard Enabled", selectedObject->GetComponent<GlowBillboardComponent>());
 	drawComponentEnabledCheckbox("Sprite Enabled", selectedObject->GetComponent<SpriteComponent>());
 	drawComponentEnabledCheckbox("Text Enabled", selectedObject->GetComponent<TextComponent>());
 	drawComponentEnabledCheckbox("Camera Enabled", selectedObject->GetComponent<CameraComponent>());
@@ -779,6 +788,8 @@ void BaseScene::DrawEditorInspector() {
 		ImGui::Text("No optional components");
 	}
 	DrawSelectedComponentInspector(selectedObject, selectedComponentLabel);
+	DrawPointLightInspector(selectedObject);
+	DrawGlowBillboardInspector(selectedObject);
 	DrawEnemySpawnPointInspector(selectedObject);
 	DrawOBBColliderInspector(selectedObject);
 
@@ -793,6 +804,25 @@ void BaseScene::DrawSelectedComponentInspector(GameObject* selectedObject, const
 			ImGui::Separator();
 			const bool object3dHeaderOpen = ImGui::CollapsingHeader("Object3d / Model Settings", ImGuiTreeNodeFlags_DefaultOpen);
 			if (object3dHeaderOpen) {
+				Vector4 materialColor = object3dComponent->GetColor();
+				if (ImGui::ColorEdit4("Material Color", &materialColor.x)) {
+					object3dComponent->SetColor(materialColor);
+				}
+				Vector3 emissionColor = object3dComponent->GetEmissionColor();
+				float emissionIntensity = object3dComponent->GetEmissionIntensity();
+				bool emissionChanged = ImGui::ColorEdit3("Emission Color", &emissionColor.x);
+				emissionChanged |= ImGui::DragFloat("Emission Intensity", &emissionIntensity, 0.05f, 0.0f, 100.0f);
+				if (emissionChanged) {
+					object3dComponent->SetEmission(emissionColor, emissionIntensity);
+				}
+				bool receiveLighting = object3dComponent->GetLightingEnabled();
+				if (ImGui::Checkbox("Receive Lighting", &receiveLighting)) {
+					object3dComponent->SetLightingEnabled(receiveLighting);
+				}
+				bool castShadow = object3dComponent->GetShadowEnabled();
+				if (ImGui::Checkbox("Cast Shadow", &castShadow)) {
+					object3dComponent->SetShadowEnabled(castShadow);
+				}
 				if (object3dComponent->HasSkeleton()) {
 					ImGui::Text("Skeleton: Available");
 					bool isDrawSkeleton = object3dComponent->GetDrawSkeleton();
@@ -1106,6 +1136,9 @@ void BaseScene::DrawEnemySpawnPointInspector(GameObject* selectedObject) {
 					schedule.spawnAmount = std::clamp(schedule.spawnAmount, 1, 64);
 					scheduleChanged = true;
 				}
+				if (ImGui::Checkbox("Apply Time Scaling", &schedule.applyTimeScaling)) {
+					scheduleChanged = true;
+				}
 				// 中ボスのような時刻イベントは、一度だけ生成する設定にできる。
 				if (ImGui::Checkbox("Spawn Once", &schedule.spawnOnce)) {
 					scheduleChanged = true;
@@ -1127,6 +1160,44 @@ void BaseScene::DrawEnemySpawnPointInspector(GameObject* selectedObject) {
 				ImGui::TextDisabled("No schedules: legacy enemy Spawns Per Minute is used.");
 			} else {
 				ImGui::TextDisabled("Schedule mode overrides legacy Spawn Enemy Type / Spawns Per Minute.");
+			}
+		}
+
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("Enemy Time Scaling", ImGuiTreeNodeFlags_DefaultOpen)) {
+			ImGui::TextDisabled("Multipliers are fixed when an enabled schedule spawns an enemy.");
+			auto& tiers = enemySpawnPoint->GetTimeScalingTiers();
+			if (ImGui::Button("Add Scaling Tier")) {
+				EnemySpawnPointComponent::TimeScalingTier tier;
+				if (!tiers.empty()) {
+					tier = tiers.back();
+					tier.startTimeSeconds += 60.0f;
+				}
+				tiers.push_back(tier);
+			}
+
+			int removeTierIndex = -1;
+			bool tiersChanged = false;
+			for (int tierIndex = 0; tierIndex < static_cast<int>(tiers.size()); ++tierIndex) {
+				auto& tier = tiers[tierIndex];
+				ImGui::PushID(10000 + tierIndex);
+				ImGui::Separator();
+				ImGui::Text("Tier %d", tierIndex + 1);
+				tiersChanged |= ImGui::DragFloat("Start Time (sec)", &tier.startTimeSeconds, 1.0f, 0.0f, 36000.0f);
+				tiersChanged |= ImGui::DragFloat("Health Multiplier", &tier.multipliers.healthMultiplier, 0.01f, 0.0f, 100.0f);
+				tiersChanged |= ImGui::DragFloat("Speed Multiplier", &tier.multipliers.speedMultiplier, 0.01f, 0.0f, 100.0f);
+				tiersChanged |= ImGui::DragFloat("Experience Multiplier", &tier.multipliers.experienceMultiplier, 0.01f, 0.0f, 100.0f);
+				if (ImGui::Button("Remove Scaling Tier")) {
+					removeTierIndex = tierIndex;
+				}
+				ImGui::PopID();
+			}
+			if (removeTierIndex >= 0) {
+				tiers.erase(tiers.begin() + removeTierIndex);
+				tiersChanged = true;
+			}
+			if (tiersChanged) {
+				enemySpawnPoint->SetTimeScalingTiers(tiers);
 			}
 		}
 
@@ -2242,6 +2313,130 @@ void BaseScene::DrawParticleEmitterInspector(GameObject* selectedObject) {
 }
 
 /// <summary>
+/// PointLightComponentの編集UIを描画します。
+/// </summary>
+void BaseScene::DrawPointLightInspector(GameObject* selectedObject) {
+#ifdef USE_IMGUI
+	if (!selectedObject) {
+		return;
+	}
+
+	PointLightComponent* pointLight = selectedObject->GetComponent<PointLightComponent>();
+	ImGui::Separator();
+	if (!pointLight) {
+		if (ImGui::Button("Create Point Light Component")) {
+			selectedObject->AddComponent<PointLightComponent>();
+		}
+		return;
+	}
+
+	ImGui::Text("PointLightComponent");
+	if (ImGui::Button("Destroy Point Light Component")) {
+		selectedObject->RemoveComponent<PointLightComponent>();
+		return;
+	}
+
+	bool useMaterialColor = pointLight->GetUseMaterialEmissionColor();
+	if (ImGui::Checkbox("Use Material Emission Color", &useMaterialColor)) {
+		pointLight->SetUseMaterialEmissionColor(useMaterialColor);
+	}
+	Vector4 color = pointLight->GetColor();
+	if (!useMaterialColor && ImGui::ColorEdit4("Light Color", &color.x)) {
+		pointLight->SetColor(color);
+	}
+	float intensity = pointLight->GetIntensity();
+	if (ImGui::DragFloat("Light Intensity", &intensity, 0.05f, 0.0f, 100.0f)) {
+		pointLight->SetIntensity(intensity);
+	}
+	float radius = pointLight->GetRadius();
+	if (ImGui::DragFloat("Light Radius", &radius, 0.1f, 0.01f, 1000.0f)) {
+		pointLight->SetRadius(radius);
+	}
+	float decay = pointLight->GetDecay();
+	if (ImGui::DragFloat("Light Decay", &decay, 0.01f, 0.0f, 10.0f)) {
+		pointLight->SetDecay(decay);
+	}
+	Vector3 positionOffset = pointLight->GetPositionOffset();
+	if (ImGui::DragFloat3("Light Position Offset", &positionOffset.x, 0.05f)) {
+		pointLight->SetPositionOffset(positionOffset);
+	}
+#else
+	(void)selectedObject;
+#endif
+}
+
+/// <summary>
+/// 夕日や魔法球など、発光物の周囲へ重ねる2層Haloを編集します。
+/// </summary>
+void BaseScene::DrawGlowBillboardInspector(GameObject* selectedObject) {
+#ifdef USE_IMGUI
+	if (!selectedObject) {
+		return;
+	}
+
+	GlowBillboardComponent* glow = selectedObject->GetComponent<GlowBillboardComponent>();
+	ImGui::Separator();
+	if (!glow) {
+		if (ImGui::Button("Create Glow Billboard Component")) {
+			selectedObject->AddComponent<GlowBillboardComponent>();
+		}
+		return;
+	}
+
+	ImGui::Text("GlowBillboardComponent");
+	if (ImGui::Button("Destroy Glow Billboard Component")) {
+		selectedObject->RemoveComponent<GlowBillboardComponent>();
+		return;
+	}
+
+	// 内側は輪郭の明るいにじみ、外側は大きく薄い光輪として個別調整する。
+	Vector4 innerColor = glow->GetInnerColor();
+	if (ImGui::ColorEdit4("Halo Inner Color", &innerColor.x)) {
+		glow->SetInnerColor(innerColor);
+	}
+	Vector4 outerColor = glow->GetOuterColor();
+	if (ImGui::ColorEdit4("Halo Outer Color", &outerColor.x)) {
+		glow->SetOuterColor(outerColor);
+	}
+
+	float innerSize = glow->GetInnerSize();
+	if (ImGui::DragFloat("Halo Inner Size", &innerSize, 0.05f, 0.01f, 1000.0f)) {
+		glow->SetInnerSize(innerSize);
+	}
+	float outerSize = glow->GetOuterSize();
+	if (ImGui::DragFloat("Halo Outer Size", &outerSize, 0.05f, 0.01f, 1000.0f)) {
+		glow->SetOuterSize(outerSize);
+	}
+
+	float innerIntensity = glow->GetInnerIntensity();
+	if (ImGui::DragFloat("Halo Inner Intensity", &innerIntensity, 0.005f, 0.0f, 4.0f)) {
+		glow->SetInnerIntensity(innerIntensity);
+	}
+	float outerIntensity = glow->GetOuterIntensity();
+	if (ImGui::DragFloat("Halo Outer Intensity", &outerIntensity, 0.005f, 0.0f, 4.0f)) {
+		glow->SetOuterIntensity(outerIntensity);
+	}
+
+	// 脈動量を小さく保つと、魔法球ではなく静かな夕日の揺らぎとして見える。
+	float pulseAmount = glow->GetPulseAmount();
+	if (ImGui::DragFloat("Halo Pulse Amount", &pulseAmount, 0.001f, 0.0f, 0.5f)) {
+		glow->SetPulseAmount(pulseAmount);
+	}
+	float pulseSpeed = glow->GetPulseSpeed();
+	if (ImGui::DragFloat("Halo Pulse Speed", &pulseSpeed, 0.01f, 0.0f, 20.0f)) {
+		glow->SetPulseSpeed(pulseSpeed);
+	}
+
+	Vector3 positionOffset = glow->GetPositionOffset();
+	if (ImGui::DragFloat3("Halo Position Offset", &positionOffset.x, 0.01f)) {
+		glow->SetPositionOffset(positionOffset);
+	}
+#else
+	(void)selectedObject;
+#endif
+}
+
+/// <summary>
 /// コライダーコンポーネントの編集UIを描画します。
 /// </summary>
 void BaseScene::DrawOBBColliderInspector(GameObject* selectedObject) {
@@ -2522,6 +2717,33 @@ void BaseScene::DrawEditorSkyBoxControls() {
 	if (!ImGui::CollapsingHeader("SkyBox", ImGuiTreeNodeFlags_DefaultOpen)) {
 		return;
 	}
+
+	AtmosphereSettings& atmosphere = AtmosphereSystem::GetInstance()->GetSettings();
+	ImGui::TextUnformatted("Procedural Atmosphere");
+	ImGui::Checkbox("Enable Atmosphere", &atmosphere.enabled);
+	if (!atmosphere.enabled) {
+		ImGui::BeginDisabled();
+	}
+	// 方向は常に単位ベクトルへ戻し、円盤位置と平行光源の強度計算を安定させます。
+	if (ImGui::DragFloat3("Sun Direction", &atmosphere.sunDirection.x, 0.005f, -1.0f, 1.0f)) {
+		atmosphere.sunDirection = NormalizeReturnVector(atmosphere.sunDirection);
+	}
+	ImGui::SliderFloat("Sun Angular Radius", &atmosphere.sunAngularRadius, 0.002f, 0.06f, "%.3f");
+	ImGui::SliderFloat("Sun HDR Intensity", &atmosphere.sunIntensity, 0.0f, 30.0f);
+	ImGui::ColorEdit3("Rayleigh Color", &atmosphere.rayleighColor.x);
+	ImGui::SliderFloat("Rayleigh Strength", &atmosphere.rayleighStrength, 0.0f, 4.0f);
+	ImGui::ColorEdit3("Mie Color", &atmosphere.mieColor.x);
+	ImGui::SliderFloat("Mie Strength", &atmosphere.mieStrength, 0.0f, 0.5f);
+	ImGui::SliderFloat("Mie Directionality", &atmosphere.mieG, 0.0f, 0.98f);
+	ImGui::SliderFloat("Atmosphere Density", &atmosphere.atmosphereDensity, 0.0f, 4.0f);
+	ImGui::ColorEdit3("Horizon Fog Color", &atmosphere.horizonColor.x);
+	ImGui::SliderFloat("Distance Fog Density", &atmosphere.distanceFogDensity, 0.0f, 0.08f, "%.3f");
+	ImGui::SliderFloat("Height Fog Density", &atmosphere.heightFogDensity, 0.0f, 1.0f);
+	ImGui::SliderFloat("Aerial Perspective", &atmosphere.aerialPerspectiveStrength, 0.0f, 2.0f);
+	if (!atmosphere.enabled) {
+		ImGui::EndDisabled();
+	}
+	ImGui::Separator();
 
 	ImGui::Checkbox("Enable SkyBox", &isEditorSkyBoxEnabled_);
 

@@ -1,0 +1,7 @@
+newmtl SpiritDropMaterial
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.700000 0.700000 0.700000
+Ns 72.000000
+illum 2
+map_Kd enemy_drop_texture.png

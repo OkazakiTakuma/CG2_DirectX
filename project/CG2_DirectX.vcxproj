@@ -87,7 +87,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)..\generated\Outputs\$(Configuration)\;$(SolutionDir)externals\assimp\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>imgui.lib;assimp-vc143-mdd.lib</AdditionalDependencies>
+      <AdditionalDependencies>imgui.lib;assimp-vc143-mdd.lib;dwrite.lib</AdditionalDependencies>
       <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
@@ -115,7 +115,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)..\generated\Outputs\$(Configuration)\;$(SolutionDir)externals\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>user32.lib;assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>user32.lib;assimp-vc143-mt.lib;dwrite.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
@@ -146,7 +146,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <LinkTimeCodeGeneration />
       <AdditionalLibraryDirectories>$(SolutionDir)..\generated\Outputs\$(Configuration)\;$(SolutionDir)externals\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>imgui.lib;assimp-vc143-mt.lib</AdditionalDependencies>
+      <AdditionalDependencies>imgui.lib;assimp-vc143-mt.lib;dwrite.lib</AdditionalDependencies>
       <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
@@ -167,16 +167,24 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
 	<ClCompile Include="Engine\3d\particle\TrailRenderer.cpp" />
     <ClCompile Include="Engine\3d\sky\SkyBox.cpp" />
     <ClCompile Include="Engine\3d\sky\SkyBoxCommon.cpp" />
+    <ClCompile Include="Engine\3d\sky\AtmosphereSky.cpp" />
     <ClCompile Include="Engine\3d\utilities\SkeletonAnimationUtility.cpp" />
     <ClCompile Include="Engine\flame\BaseScene.cpp" />
     <ClCompile Include="Engine\flame\BaseSceneEditor.cpp" />
     <ClCompile Include="Engine\flame\BaseSceneRuntime.cpp" />
     <ClCompile Include="Engine\flame\BaseSceneSerialization.cpp" />
+    <ClCompile Include="Engine\flame\PlayerAttackComponent.cpp" />
+    <ClCompile Include="Engine\flame\PlayerProjectileComponent.cpp" />
+    <ClCompile Include="Engine\flame\EnemyComponent.cpp" />
+    <ClCompile Include="Engine\flame\EnemySpawnPointComponent.cpp" />
+    <ClCompile Include="Engine\flame\EnemyProjectileComponent.cpp" />
+    <ClCompile Include="Engine\flame\repositories\PlayerStatusRepository.cpp" />
     <ClCompile Include="Engine\audio\Audio.cpp" />
     <ClCompile Include="Engine\base\D3DResourceLeakChecker.cpp" />
     <ClCompile Include="Engine\base\DirectXCommon.cpp" />
     <ClCompile Include="Engine\base\ScreenCapture.cpp" />
     <ClCompile Include="Engine\base\Input.cpp" />
+    <ClCompile Include="Engine\base\FontManager.cpp" />
     <ClCompile Include="Engine\base\Logger.cpp" />
     <ClCompile Include="Engine\base\ImGuiManager.cpp" />
     <ClCompile Include="Engine\base\PerformanceMonitor.cpp" />
@@ -286,6 +294,21 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <FxCompile Include="Resources\Shader\AtmosphereSky.PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\AtmosphereSky.VS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\Bloom.PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="Resources\Shader\Sprite.VS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -305,6 +328,8 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\3d\utilities\PrimitiveMeshGenerator.h" />
     <ClInclude Include="Engine\3d\sky\SkyBox.h" />
     <ClInclude Include="Engine\3d\sky\SkyBoxCommon.h" />
+    <ClInclude Include="Engine\3d\sky\AtmosphereSky.h" />
+    <ClInclude Include="Engine\3d\sky\AtmosphereSystem.h" />
     <ClInclude Include="Engine\3d\utilities\SkeletonAnimationUtility.h" />
     <ClInclude Include="Engine\math\algorithm.h" />
     <ClInclude Include="Engine\flame\AbstractSceneFactory.h" />
@@ -335,6 +360,7 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\math\Screen.h" />
     <ClInclude Include="Engine\math\Vector.h" />
     <ClInclude Include="Engine\base\Input.h" />
+    <ClInclude Include="Engine\base\FontManager.h" />
     <ClInclude Include="Engine\base\Resource.h" />
     <ClInclude Include="Engine\base\WinApp.h" />
     <ClInclude Include="Engine\base\Logger.h" />
@@ -357,7 +383,9 @@ copy  "$(WindowsSdkDir)bin\$(TargetPlatFormVersion)\x64\dxil.dll" "$(TargetDir)d
     <ClInclude Include="Engine\3d\instancing\InstancingModelCommon.h" />
     <ClInclude Include="Engine\3d\collision\OBBColliderComponent.h" />
     <ClInclude Include="Engine\3d\object\Object3dComponent.h" />
+    <ClInclude Include="Engine\3d\object\PointLightComponent.h" />
     <ClInclude Include="Engine\3d\particle\ParticleEmitterComponent.h" />
+	<ClInclude Include="Engine\3d\particle\GlowBillboardComponent.h" />
 	<ClInclude Include="Engine\3d\particle\TrailRenderer.h" />
 	<ClInclude Include="Engine\3d\particle\TrailRendererComponent.h" />
     <ClInclude Include="Engine\3d\collision\SphereColliderComponent.h" />

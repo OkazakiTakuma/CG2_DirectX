@@ -2,11 +2,14 @@
 #include "LineDrawer.h"
 #include "ParticleManager.h"
 #include "algorithm.h"
+#include "StringUtility.h"
 #include <algorithm>
 #include <fstream>
 #include <cmath>
 #include <cstdlib>
 #include <iomanip>
+
+using StringUtility::Utf8ToPath;
 
 
 namespace {
@@ -213,7 +216,7 @@ void ParticleEmitter::SetTexture(const std::string& textureFilePath) {
 void ParticleEmitter::SaveToJson(const std::string& filePath) {
 	nlohmann::json root;
 
-	std::ifstream ifs(filePath);
+	std::ifstream ifs(Utf8ToPath(filePath));
 	if (ifs.is_open()) {
 		ifs >> root;
 		ifs.close();
@@ -258,7 +261,7 @@ void ParticleEmitter::SaveToJson(const std::string& filePath) {
 
 	root[groupName_] = groupJson;
 
-	std::ofstream ofs(filePath);
+	std::ofstream ofs(Utf8ToPath(filePath));
 	if (ofs.is_open()) {
 		ofs << std::setw(4) << root << std::endl;
 		ofs.close();
@@ -299,7 +302,7 @@ void ParticleEmitter::LoadFromJson(const std::string& filePath) {
 	emitParam_.vortexTopRadius = 3.0f;
 	emitParam_.vortexHeight = 6.0f;
 
-	std::ifstream ifs(filePath);
+	std::ifstream ifs(Utf8ToPath(filePath));
 	if (!ifs.is_open()) {
 		return;
 	}

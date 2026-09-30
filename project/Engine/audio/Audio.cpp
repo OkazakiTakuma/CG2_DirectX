@@ -1,4 +1,5 @@
 #include "Audio.h"
+#include "StringUtility.h"
 
 #include <cstring>
 
@@ -56,6 +57,10 @@ void Audio::Finalize() {
 /// <summary>
 /// Wave を読み込み、内部データへ反映します。
 /// </summary>
+bool Audio::LoadWave(const std::string& filename, SoundData& outData) {
+	return LoadWave(StringUtility::Utf8ToPath(filename).wstring(), outData);
+}
+
 bool Audio::LoadWave(const std::wstring& filename, SoundData& outData) {
 	Microsoft::WRL::ComPtr<IMFSourceReader> pReader = nullptr;
 	HRESULT hr = MFCreateSourceReaderFromURL(filename.c_str(), nullptr, &pReader);

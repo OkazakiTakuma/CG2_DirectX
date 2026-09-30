@@ -129,6 +129,9 @@
     <ClCompile Include="Engine\3d\sky\SkyBoxCommon.cpp">
       <Filter>Engine\3d\sky</Filter>
     </ClCompile>
+    <ClCompile Include="Engine\3d\sky\AtmosphereSky.cpp">
+      <Filter>Engine\3d\sky</Filter>
+    </ClCompile>
     <ClCompile Include="Engine\3d\utilities\SkeletonAnimationUtility.cpp">
       <Filter>Engine\3d\utilities</Filter>
     </ClCompile>
@@ -287,6 +290,9 @@
     <ClInclude Include="Engine\3d\object\Object3dComponent.h">
       <Filter>Engine\3d\object</Filter>
     </ClInclude>
+    <ClInclude Include="Engine\3d\object\PointLightComponent.h">
+      <Filter>Engine\3d\object</Filter>
+    </ClInclude>
     <ClInclude Include="Engine\3d\particle\ParticleEmitter.h">
       <Filter>Engine\3d\particle</Filter>
     </ClInclude>
@@ -299,6 +305,9 @@
 	<ClInclude Include="Engine\3d\particle\TrailRendererComponent.h">
 	  <Filter>Engine\3d\particle</Filter>
 	</ClInclude>
+	<ClInclude Include="Engine\3d\particle\GlowBillboardComponent.h">
+	  <Filter>Engine\3d\particle</Filter>
+	</ClInclude>
     <ClInclude Include="Engine\3d\particle\ParticleManager.h">
       <Filter>Engine\3d\particle</Filter>
     </ClInclude>
@@ -309,6 +318,12 @@
       <Filter>Engine\3d\sky</Filter>
     </ClInclude>
     <ClInclude Include="Engine\3d\sky\SkyBoxCommon.h">
+      <Filter>Engine\3d\sky</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\3d\sky\AtmosphereSky.h">
+      <Filter>Engine\3d\sky</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\3d\sky\AtmosphereSystem.h">
       <Filter>Engine\3d\sky</Filter>
     </ClInclude>
     <ClInclude Include="Engine\3d\utilities\SkeletonAnimationUtility.h">
@@ -506,6 +521,15 @@
       <Filter>Resources\Shader</Filter>
     </FxCompile>
     <FxCompile Include="Resources\Shader\SkyBox.VS.hlsl">
+      <Filter>Resources\Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\AtmosphereSky.PS.hlsl">
+      <Filter>Resources\Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\AtmosphereSky.VS.hlsl">
+      <Filter>Resources\Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\Shader\Bloom.PS.hlsl">
       <Filter>Resources\Shader</Filter>
     </FxCompile>
     <FxCompile Include="Resources\Shader\Sprite.VS.hlsl">

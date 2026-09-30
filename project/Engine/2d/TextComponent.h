@@ -5,6 +5,7 @@
 #include "TextureManager.h"
 #include "Vector.h"
 #include <Windows.h>
+#include <dwrite.h>
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -14,8 +15,11 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <wrl/client.h>
 
-/// <summary>文字列をGDIでRGBAテクスチャへ変換し、Spriteとして2D描画します。</summary>
+#pragma comment(lib, "dwrite.lib")
+
+/// <summary>DirectWriteで文字列をRGBAテクスチャへ変換し、Spriteとして2D描画します。</summary>
 class TextComponent : public Component {
 public:
 	TextComponent()
@@ -90,6 +94,77 @@ public:
 	void Finalize() override { textSprite_.reset(); }
 
 private:
+	/// <summary>DirectWriteの文字描画結果をBitmapRenderTargetへ渡すレンダラーです。</summary>
+	class BitmapTextRenderer final : public IDWriteTextRenderer {
+	public:
+		// DirectWriteのレイアウト描画を、既存のSpriteへ渡せるビットマップへ変換する。
+		explicit BitmapTextRenderer(IDWriteBitmapRenderTarget* target, IDWriteRenderingParams* renderingParams) {
+			target_ = target;
+			renderingParams_ = renderingParams;
+		}
+		HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** object) override {
+			if (!object) return E_POINTER;
+			*object = nullptr;
+			if (riid == __uuidof(IUnknown) || riid == __uuidof(IDWriteTextRenderer)) {
+				*object = static_cast<IDWriteTextRenderer*>(this);
+				AddRef();
+				return S_OK;
+			}
+			if (riid == __uuidof(IDWritePixelSnapping)) {
+				*object = static_cast<IDWritePixelSnapping*>(this);
+				AddRef();
+				return S_OK;
+			}
+			return E_NOINTERFACE;
+		}
+		ULONG STDMETHODCALLTYPE AddRef() override { return ++refCount_; }
+		ULONG STDMETHODCALLTYPE Release() override {
+			const ULONG value = --refCount_;
+			if (value == 0) delete this;
+			return value;
+		}
+		HRESULT STDMETHODCALLTYPE IsPixelSnappingDisabled(void*, BOOL* disabled) override {
+			if (!disabled) return E_POINTER;
+			*disabled = FALSE;
+			return S_OK;
+		}
+		HRESULT STDMETHODCALLTYPE GetCurrentTransform(void*, DWRITE_MATRIX* transform) override {
+			if (!transform) return E_POINTER;
+			transform->m11 = 1.0f; transform->m12 = 0.0f;
+			transform->m21 = 0.0f; transform->m22 = 1.0f;
+			transform->dx = 0.0f; transform->dy = 0.0f;
+			return S_OK;
+		}
+		HRESULT STDMETHODCALLTYPE GetPixelsPerDip(void*, FLOAT* pixelsPerDip) override {
+			if (!pixelsPerDip) return E_POINTER;
+			*pixelsPerDip = 1.0f;
+			return S_OK;
+		}
+		HRESULT STDMETHODCALLTYPE DrawGlyphRun(void*, FLOAT baselineOriginX, FLOAT baselineOriginY,
+			DWRITE_MEASURING_MODE measuringMode, const DWRITE_GLYPH_RUN* glyphRun,
+			const DWRITE_GLYPH_RUN_DESCRIPTION* glyphRunDescription, IUnknown*) override {
+			// DirectWriteのグリフ単位の描画結果をGDI互換のターゲットへ書き込む。
+			return target_->DrawGlyphRun(baselineOriginX, baselineOriginY,
+				measuringMode, glyphRun, renderingParams_.Get(), RGB(255, 255, 255), nullptr);
+		}
+		HRESULT STDMETHODCALLTYPE DrawUnderline(void*, FLOAT, FLOAT, const DWRITE_UNDERLINE*, IUnknown*) override { return S_OK; }
+		HRESULT STDMETHODCALLTYPE DrawStrikethrough(void*, FLOAT, FLOAT, const DWRITE_STRIKETHROUGH*, IUnknown*) override { return S_OK; }
+		HRESULT STDMETHODCALLTYPE DrawInlineObject(void*, FLOAT, FLOAT, IDWriteInlineObject*, BOOL, BOOL, IUnknown*) override { return S_OK; }
+
+	private:
+		std::atomic<ULONG> refCount_{1};
+		Microsoft::WRL::ComPtr<IDWriteBitmapRenderTarget> target_;
+		Microsoft::WRL::ComPtr<IDWriteRenderingParams> renderingParams_;
+	};
+
+	static IDWriteFactory* GetDirectWriteFactory() {
+		// DirectWriteのファクトリは全TextComponentで共有し、毎回の生成コストを避ける。
+		static Microsoft::WRL::ComPtr<IDWriteFactory> factory;
+		static const HRESULT result = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
+			reinterpret_cast<IUnknown**>(factory.GetAddressOf()));
+		return SUCCEEDED(result) ? factory.Get() : nullptr;
+	}
+
 	/// <summary>UTF-8文字列をWindows描画APIで使用するUTF-16へ変換します。</summary>
 	static std::wstring ToWideString(const std::string& text) {
 		if (text.empty()) return {};
@@ -100,7 +175,7 @@ private:
 		return result;
 	}
 
-	/// <summary>設定変更時に文字テクスチャと描画Spriteを再構築します。</summary>
+	/// <summary>設定変更時にDirectWriteで文字テクスチャと描画Spriteを再構築します。</summary>
 	void EnsureTextSprite() {
 		if (!isTextureDirty_ && textSprite_) return;
 		const std::wstring wideText = ToWideString(text_);
@@ -109,17 +184,39 @@ private:
 			isTextureDirty_ = false;
 			return;
 		}
-		// 文字の描画範囲を測定し、必要な大きさだけビットマップを確保する。
-		HDC measureDc = CreateCompatibleDC(nullptr);
+		// DirectWriteはフォント名からフォントフェイスを解決するため、
+		// FontManagerが登録済みのリソースフォントも通常のファミリー名で利用できる。
+		IDWriteFactory* factory = GetDirectWriteFactory();
+		if (!factory) return;
 		const std::wstring requestedFont = fontName_ == "Default" ? L"Meiryo" : ToWideString(fontName_);
-		HFONT font = CreateFontW(-static_cast<int>(std::round(fontSize_)), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-			DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, requestedFont.c_str());
-		HGDIOBJ previousFont = SelectObject(measureDc, font);
-		RECT measuredRect{0, 0, 2048, 0};
-		DrawTextW(measureDc, wideText.c_str(), static_cast<int>(wideText.size()), &measuredRect, DT_CALCRECT | DT_LEFT | DT_NOPREFIX);
-		const int width = (std::max)(1L, measuredRect.right - measuredRect.left + 4);
-		const int height = (std::max)(1L, measuredRect.bottom - measuredRect.top + 4);
+		Microsoft::WRL::ComPtr<IDWriteTextFormat> format;
+		if (FAILED(factory->CreateTextFormat(requestedFont.c_str(), nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+			DWRITE_FONT_STRETCH_NORMAL, fontSize_, L"ja-jp", &format))) return;
+		format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+		Microsoft::WRL::ComPtr<IDWriteTextLayout> layout;
+		if (FAILED(factory->CreateTextLayout(wideText.c_str(), static_cast<UINT32>(wideText.size()), format.Get(), 4096.0f, 4096.0f, &layout))) return;
+		// 先にレイアウトを計測し、文字列に必要な大きさだけのRenderTargetを確保する。
+		DWRITE_TEXT_METRICS metrics{};
+		if (FAILED(layout->GetMetrics(&metrics))) return;
+		const int width = (std::max)(1L, static_cast<LONG>(std::ceil(metrics.widthIncludingTrailingWhitespace)) + 6);
+		const int height = (std::max)(1L, static_cast<LONG>(std::ceil(metrics.height)) + 6);
+		Microsoft::WRL::ComPtr<IDWriteGdiInterop> gdiInterop;
+		if (FAILED(factory->GetGdiInterop(&gdiInterop))) return;
+		Microsoft::WRL::ComPtr<IDWriteBitmapRenderTarget> renderTarget;
+		if (FAILED(gdiInterop->CreateBitmapRenderTarget(nullptr, width, height, &renderTarget))) return;
+		Microsoft::WRL::ComPtr<IDWriteRenderingParams> renderingParams;
+		if (FAILED(factory->CreateRenderingParams(&renderingParams))) return;
+		// BitmapRenderTargetはDirectWriteで描画できるメモリDCを提供する。
+		HDC renderDc = renderTarget->GetMemoryDC();
+		PatBlt(renderDc, 0, 0, width, height, BLACKNESS);
+		BitmapTextRenderer* renderer = new BitmapTextRenderer(renderTarget.Get(), renderingParams.Get());
+		const HRESULT drawResult = layout->Draw(nullptr, renderer, 3.0f, 3.0f);
+		renderer->Release();
+		if (FAILED(drawResult)) return;
 
+		// BitmapRenderTargetの内容を32bit DIBへコピーし、GPU転送用RGBAへ変換する。
+		// Sprite/TextureManagerを既存のまま利用するため、ここがDirectWriteと2D描画の境界になる。
+		HDC copyDc = CreateCompatibleDC(renderDc);
 		BITMAPINFO bitmapInfo{};
 		bitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 		bitmapInfo.bmiHeader.biWidth = width;
@@ -128,15 +225,12 @@ private:
 		bitmapInfo.bmiHeader.biBitCount = 32;
 		bitmapInfo.bmiHeader.biCompression = BI_RGB;
 		void* bitmapPixels = nullptr;
-		HBITMAP bitmap = CreateDIBSection(measureDc, &bitmapInfo, DIB_RGB_COLORS, &bitmapPixels, nullptr, 0);
-		HGDIOBJ previousBitmap = SelectObject(measureDc, bitmap);
-		std::memset(bitmapPixels, 0, static_cast<size_t>(width) * height * 4);
-		SetBkMode(measureDc, TRANSPARENT);
-		SetTextColor(measureDc, RGB(255, 255, 255));
-		RECT drawRect{2, 2, width - 2, height - 2};
-		DrawTextW(measureDc, wideText.c_str(), static_cast<int>(wideText.size()), &drawRect, DT_LEFT | DT_TOP | DT_NOPREFIX);
+		HBITMAP bitmap = CreateDIBSection(copyDc, &bitmapInfo, DIB_RGB_COLORS, &bitmapPixels, nullptr, 0);
+		if (!bitmap || !bitmapPixels) { if (bitmap) DeleteObject(bitmap); DeleteDC(copyDc); return; }
+		HGDIOBJ previousBitmap = SelectObject(copyDc, bitmap);
+		PatBlt(copyDc, 0, 0, width, height, BLACKNESS);
+		BitBlt(copyDc, 0, 0, width, height, renderDc, 0, 0, SRCCOPY);
 
-		// GDIのBGRAデータをエンジンが使用するRGBA順へ並べ替える。
 		std::vector<uint8_t> rgbaPixels(static_cast<size_t>(width) * height * 4);
 		const uint8_t* bgraPixels = static_cast<const uint8_t*>(bitmapPixels);
 		for (size_t pixel = 0; pixel < static_cast<size_t>(width) * height; ++pixel) {
@@ -147,11 +241,9 @@ private:
 			rgbaPixels[pixel * 4 + 3] = coverage;
 		}
 
-		SelectObject(measureDc, previousBitmap);
-		SelectObject(measureDc, previousFont);
+		SelectObject(copyDc, previousBitmap);
 		DeleteObject(bitmap);
-		DeleteObject(font);
-		DeleteDC(measureDc);
+		DeleteDC(copyDc);
 
 		TextureManager::GetInstance()->CreateTextureFromRGBA(runtimeTextureKey_, static_cast<uint32_t>(width), static_cast<uint32_t>(height), rgbaPixels);
 		textSprite_ = std::make_unique<Sprite>();

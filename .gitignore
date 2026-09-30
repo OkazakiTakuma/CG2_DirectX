@@ -34,6 +34,7 @@ x86/
 
 # Native C/C++ and MSBuild intermediate files
 *.obj
+!/project/Resources/enemy_drop.obj
 *.idb
 *.ilk
 *.exp

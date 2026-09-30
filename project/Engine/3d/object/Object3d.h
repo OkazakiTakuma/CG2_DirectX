@@ -98,6 +98,26 @@ public:
 	void SetPointLight(const Vector4& color, const Vector3& position, float intensity, float radius, float decay);
 	void SetEnvironmentMultiplier(float multiplier);
 	void SetColor(const Vector4& color) { if (materialOverrideData_) materialOverrideData_->color = color; }
+	void SetEmission(const Vector3& color, float intensity) {
+		if (materialOverrideData_) {
+			materialOverrideData_->emissiveColor = color;
+			materialOverrideData_->emissiveIntensity = intensity;
+		}
+	}
+	Vector3 GetEmissionColor() const {
+		return materialOverrideData_ ? materialOverrideData_->emissiveColor : Vector3{0.0f, 0.0f, 0.0f};
+	}
+	float GetEmissionIntensity() const {
+		return materialOverrideData_ ? materialOverrideData_->emissiveIntensity : 0.0f;
+	}
+	void SetLightingEnabled(bool enabled) {
+		if (materialOverrideData_) materialOverrideData_->enableLighting = enabled ? 1 : 0;
+	}
+	bool GetLightingEnabled() const {
+		return materialOverrideData_ && materialOverrideData_->enableLighting != 0;
+	}
+	void SetShadowEnabled(bool enabled) { isShadowEnabled_ = enabled; }
+	bool GetShadowEnabled() const { return isShadowEnabled_; }
 	Vector4 GetColor() const { return materialOverrideData_ ? materialOverrideData_->color : Vector4{1.0f, 1.0f, 1.0f, 1.0f}; }
 	void IsPointLightSet(bool isSet) { isPointLightSet = isSet; }
 
@@ -119,6 +139,13 @@ private:
 	struct CameraForGPU {
 		Vector3 worldPosition;
 		float environmentMultiplier;
+		// 既存のカメラCBへ大気遠近法もまとめ、RootSignatureを増やさず全Object3dへ共有します。
+		Vector3 horizonColor;
+		float distanceFogDensity;
+		float heightFogDensity;
+		float aerialPerspectiveStrength;
+		int32_t enableAerialPerspective;
+		float paddingAtmosphere;
 	};
 	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource;
 	CameraForGPU* cameraData = nullptr;
@@ -173,6 +200,8 @@ private:
 		Matrix4x4 uvTransform;
 		float shininess;
 		float padding2[3];
+		Vector3 emissiveColor;
+		float emissiveIntensity;
 	};
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceCylinder;
 	MaterialData* materialDataCylinder = nullptr;

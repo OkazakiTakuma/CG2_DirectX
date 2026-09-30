@@ -3,6 +3,7 @@
 Texture2D<float4> gTexture : register(t0);
 Texture2D<float> gDepthTexture : register(t1);
 Texture2D<float> maskTexture : register(t2);
+Texture2D<float4> gBloomTexture : register(t3);
 SamplerState gSampler : register(s0);
 
 cbuffer ColorInfo : register(b0)
@@ -36,6 +37,14 @@ cbuffer ColorInfo : register(b0)
     float damageVignetteRadius;
     float damageVignetteSoftness;
     float paddingDamageVignette;
+    int enableBloom;
+    float bloomThreshold;
+    float bloomIntensity;
+    float bloomRadius;
+    float exposure;
+    int enableToneMapping;
+    float bloomKnee;
+    float paddingHdr;
 };
 
 struct PixelShaderOutPut
@@ -88,6 +97,17 @@ float4 ApplyGaussianFilter(float2 uv)
     }
 
     return color / 16.0f;
+}
+
+// HDRの広い輝度範囲を、ハイライトの色を残しながら表示可能な0～1へ圧縮します。
+float3 AcesToneMap(float3 color)
+{
+    const float a = 2.51f;
+    const float b = 0.03f;
+    const float c = 2.43f;
+    const float d = 0.59f;
+    const float e = 0.14f;
+    return saturate((color * (a * color + b)) / (color * (c * color + d) + e));
 }
 
 float4 ApplyRadialBlur(float2 uv)
@@ -197,6 +217,12 @@ PixelShaderOutPut main(VertexShaderOutput input)
         resultColor = ApplyRadialBlur(input.uv);
     }
 
+    if (enableBloom != 0)
+    {
+        // 明部抽出とぼかしは半解像度の別パスで完了しているため、ここでは加算だけを行います。
+        resultColor.rgb += gBloomTexture.Sample(gSampler, input.uv).rgb * bloomIntensity;
+    }
+
     if (enableGrayscale != 0)
     {
         float gray = dot(resultColor.rgb, float3(0.299f, 0.587f, 0.114f));
@@ -242,6 +268,12 @@ PixelShaderOutPut main(VertexShaderOutput input)
         resultColor.rgb = lerp(resultColor.rgb, float3(0.72f, 0.0f, 0.0f), damageBlend);
     }
 
-    output.color = resultColor * tintColor;
+    resultColor *= tintColor;
+    resultColor.rgb = max(resultColor.rgb * max(exposure, 0.0f), 0.0f);
+    if (enableToneMapping != 0)
+    {
+        resultColor.rgb = AcesToneMap(resultColor.rgb);
+    }
+    output.color = resultColor;
     return output;
 }

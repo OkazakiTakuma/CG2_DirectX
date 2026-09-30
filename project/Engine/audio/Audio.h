@@ -37,6 +37,8 @@ public:
 	/// <summary>
 	/// Wave を読み込み、内部データへ反映します。
 	/// </summary>
+	bool LoadWave(const std::string& filename, SoundData& outData);
+	// Windowsネイティブパスを直接渡す既存コード向けのオーバーロードです。
 	bool LoadWave(const std::wstring& filename, SoundData& outData);
 	/// <summary>
 	/// 読み込まれた音声データを再生します。

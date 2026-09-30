@@ -1,4 +1,5 @@
 #include "ImGuiManager.h"
+#include "StringUtility.h"
 #include <algorithm>
 #include <cmath>
 
@@ -56,7 +57,7 @@ ImFont* LoadJapaneseFont() {
 	fontConfig.OversampleV = 2;
 
 	for (const char* fontPath : fontPaths) {
-		if (!std::filesystem::exists(fontPath)) {
+		if (!std::filesystem::exists(StringUtility::Utf8ToPath(fontPath))) {
 			continue;
 		}
 
@@ -162,24 +163,24 @@ void ImGuiManager::LoadGameFonts() {
 	    std::pair<const char*, const char*>{"Meiryo Bold", "C:/Windows/Fonts/meiryob.ttc"},
 	};
 	for (const auto& [name, path] : windowsFonts) {
-		if (!std::filesystem::exists(path)) {
+		if (!std::filesystem::exists(StringUtility::Utf8ToPath(path))) {
 			continue;
 		}
 		registerFont(name, io.Fonts->AddFontFromFileTTF(path, 32.0f, &fontConfig, io.Fonts->GetGlyphRangesJapanese()));
 	}
 
-	const std::filesystem::path fontDirectory = "Resources/Fonts";
+	const std::filesystem::path fontDirectory = StringUtility::Utf8ToPath("Resources/Fonts");
 	if (std::filesystem::exists(fontDirectory)) {
 		for (const auto& entry : std::filesystem::recursive_directory_iterator(fontDirectory)) {
 			if (!entry.is_regular_file()) {
 				continue;
 			}
-			const std::string extension = entry.path().extension().string();
+			const std::string extension = StringUtility::PathToUtf8(entry.path().extension());
 			if (extension != ".ttf" && extension != ".otf" && extension != ".ttc") {
 				continue;
 			}
-			const std::string name = entry.path().stem().string();
-			const std::string path = entry.path().generic_string();
+			const std::string name = StringUtility::PathToUtf8(entry.path().stem());
+			const std::string path = StringUtility::PathToUtf8(entry.path());
 			registerFont(name, io.Fonts->AddFontFromFileTTF(path.c_str(), 32.0f, &fontConfig, io.Fonts->GetGlyphRangesJapanese()));
 		}
 	}
@@ -530,7 +531,7 @@ bool ImGuiManager::DetectFileChanges(
 	bool changed = false;
 	auto inspectPath = [&](const std::filesystem::path& path) {
 		if (!extensions.empty()) {
-			const std::string extension = path.extension().string();
+			const std::string extension = StringUtility::PathToUtf8(path.extension());
 			if (std::find(extensions.begin(), extensions.end(), extension) == extensions.end()) {
 				return;
 			}
@@ -540,7 +541,7 @@ bool ImGuiManager::DetectFileChanges(
 			error.clear();
 			return;
 		}
-		const std::string key = path.lexically_normal().generic_string();
+		const std::string key = StringUtility::PathToUtf8(path.lexically_normal());
 		// 初回発見時は監視開始時点の基準値として登録し、起動直後の一斉リロードを防ぐ。
 		auto [it, inserted] = timestamps.emplace(key, writeTime);
 		if (!inserted && it->second != writeTime) {
@@ -701,7 +702,7 @@ bool ImGuiManager::PollCppBuild() {
 	}
 	if (!LaunchRebuiltExecutable()) {
 		hotReloadStatus_ = "Build succeeded, restart failed";
-		hotReloadError_ = "Could not launch: " + rebuiltExecutablePath_.generic_string();
+		hotReloadError_ = "Could not launch: " + StringUtility::PathToUtf8(rebuiltExecutablePath_);
 		return false;
 	}
 	hotReloadStatus_ = "Restarting rebuilt application...";

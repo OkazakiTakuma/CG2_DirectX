@@ -10,6 +10,8 @@ struct Material
     int enableLighting;
     float4x4 uvTransform;
     float shininess; // 光沢の強さ
+    float3 emissiveColor;
+    float emissiveIntensity;
 };
 
 struct DirectionalLight
@@ -24,6 +26,13 @@ struct CameraInfo
 {
     float3 worldPosition;
     float environmentMultiplier; // ★追加：環境マップの強さ (0.0f で無効、1.0f で等倍)
+    // 空と同じ色へ遠景を溶かすための大気遠近法設定。
+    float3 horizonColor;
+    float distanceFogDensity;
+    float heightFogDensity;
+    float aerialPerspectiveStrength;
+    int enableAerialPerspective;
+    float paddingAtmosphere;
 };
 
 // ★追加：ポイントライト用の構造体
@@ -126,12 +135,28 @@ PixelShaderOutput main(VertexShaderOutput input)
         // ★修正：環境マップの色に強度（environmentMultiplier）を掛け合わせて足す
         output.color.rgb += environmentColor.rgb * gCamera.environmentMultiplier;
 
+        // 発光はライティング結果に依存せず、ブルーム抽出用の明るい値として加算する。
+        output.color.rgb += textureColor.rgb * gMaterial.emissiveColor * gMaterial.emissiveIntensity;
+
         // 最終的な色を計算
         output.color.a = gMaterial.color.a * textureColor.a;
     }
     else
     {
         output.color = gMaterial.color * textureColor;
+        output.color.rgb += textureColor.rgb * gMaterial.emissiveColor * gMaterial.emissiveIntensity;
+    }
+
+    if (gCamera.enableAerialPerspective != 0)
+    {
+        // 遠距離ほど指数的に霞を増やし、近景のコントラストは保ちます。
+        const float distanceFromCamera = length(input.worldPosition - gCamera.worldPosition);
+        const float distanceFog = 1.0f - exp(-distanceFromCamera * max(gCamera.distanceFogDensity, 0.0f));
+        // 地表付近へ霞を集め、高い場所まで一様に白くなることを避けます。
+        const float heightFog = exp(-max(input.worldPosition.y, 0.0f) * max(gCamera.heightFogDensity, 0.0f));
+        const float fogAmount = saturate(
+            distanceFog * heightFog * max(gCamera.aerialPerspectiveStrength, 0.0f));
+        output.color.rgb = lerp(output.color.rgb, gCamera.horizonColor, fogAmount);
     }
     return output;
 }

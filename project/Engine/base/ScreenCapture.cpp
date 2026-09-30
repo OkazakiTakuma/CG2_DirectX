@@ -1,6 +1,7 @@
 #include "ScreenCapture.h"
 
 #include "Logger.h"
+#include "StringUtility.h"
 #include <Windows.h>
 #include <d3d12.h>
 #include <wincodec.h>
@@ -86,7 +87,7 @@ void ScreenCapture::ProcessFrame(
 			GUID_ContainerFormatPng,
 			path.c_str());
 		if (SUCCEEDED(saveResult)) {
-			Logger::Log("Screenshot saved: " + path.string() + "\n");
+			Logger::Log("Screenshot saved: " + StringUtility::PathToUtf8(path) + "\n");
 		} else {
 			Logger::Log(std::format("Screenshot save failed: 0x{:08X}\n", static_cast<uint32_t>(saveResult)));
 		}
@@ -164,7 +165,7 @@ bool ScreenCapture::StartRecording(uint32_t width, uint32_t height) {
 	lastSampleTime_ = -1;
 	recordingStartTime_ = std::chrono::steady_clock::now();
 	recording_ = true;
-	Logger::Log("Screen recording started: " + path.string() + "\n");
+	Logger::Log("Screen recording started: " + StringUtility::PathToUtf8(path) + "\n");
 	return true;
 }
 

@@ -2,17 +2,80 @@
 #include "../../2d/TextureManager.h"
 #include "ModelCommon.h"
 #include "../../base/Logger.h"
+#include "../../base/StringUtility.h"
 #include <assimp/Importer.hpp>
+#include <assimp/IOStream.hpp>
+#include <assimp/IOSystem.hpp>
 #include <assimp/config.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <algorithm>
 #include <cassert>
+#include <cstdio>
 #include <fstream>
 #include <sstream>
 using namespace Logger;
+using StringUtility::PathToUtf8;
+using StringUtility::Utf8ToPath;
 
 namespace {
+class Utf8AssimpStream final : public Assimp::IOStream {
+public:
+	explicit Utf8AssimpStream(FILE* file) : file_(file) {}
+	~Utf8AssimpStream() override {
+		if (file_) {
+			std::fclose(file_);
+		}
+	}
+
+	size_t Read(void* buffer, size_t size, size_t count) override { return std::fread(buffer, size, count, file_); }
+	size_t Write(const void* buffer, size_t size, size_t count) override { return std::fwrite(buffer, size, count, file_); }
+	aiReturn Seek(size_t offset, aiOrigin origin) override {
+		const int origins[] = {SEEK_SET, SEEK_CUR, SEEK_END};
+		return _fseeki64(file_, static_cast<__int64>(offset), origins[origin]) == 0 ? aiReturn_SUCCESS : aiReturn_FAILURE;
+	}
+	size_t Tell() const override { return static_cast<size_t>(_ftelli64(file_)); }
+	size_t FileSize() const override {
+		const __int64 position = _ftelli64(file_);
+		_fseeki64(file_, 0, SEEK_END);
+		const __int64 size = _ftelli64(file_);
+		_fseeki64(file_, position, SEEK_SET);
+		return size >= 0 ? static_cast<size_t>(size) : 0;
+	}
+	void Flush() override { std::fflush(file_); }
+
+private:
+	FILE* file_ = nullptr;
+};
+
+// Assimp's default Windows backend uses fopen(), which interprets filenames in
+// the active code page.  Its public path contract remains UTF-8, while this
+// adapter converts to UTF-16 only at the Windows file boundary.
+class Utf8AssimpIOSystem final : public Assimp::IOSystem {
+public:
+	bool Exists(const char* file) const override {
+		std::error_code error;
+		return file && std::filesystem::exists(Utf8ToPath(file), error);
+	}
+	char getOsSeparator() const override { return '\\'; }
+	Assimp::IOStream* Open(const char* file, const char* mode = "rb") override {
+		if (!file || !mode) {
+			return nullptr;
+		}
+		FILE* handle = nullptr;
+		const std::wstring nativeMode = StringUtility::ConvertString(std::string(mode));
+		if (_wfopen_s(&handle, Utf8ToPath(file).c_str(), nativeMode.c_str()) != 0) {
+			return nullptr;
+		}
+		return new Utf8AssimpStream(handle);
+	}
+	void Close(Assimp::IOStream* file) override { delete file; }
+};
+
+void EnableUtf8Paths(Assimp::Importer& importer) {
+	importer.SetIOHandler(new Utf8AssimpIOSystem());
+}
+
 // OBJの四角形・多角形も既存の三角形描画処理で扱えるよう、読み込み時に三角形化する。
 constexpr unsigned int kAssimpModelImportFlags =
     aiProcess_Triangulate |
@@ -287,7 +350,9 @@ void Model::SetTextureFilePath(const std::string& textureFilePath) {
 ModelData Model::LoadModelFile(const std::string& directoryPath, const std::string& filename) {
 	ModelData modelData;
 	Assimp::Importer importer;
-	std::string filePath = directoryPath + "/" + filename;
+	EnableUtf8Paths(importer);
+	const std::filesystem::path nativeFilePath = Utf8ToPath(directoryPath) / Utf8ToPath(filename);
+	const std::string filePath = PathToUtf8(nativeFilePath);
 	importer.SetPropertyInteger(AI_CONFIG_PP_LBW_MAX_WEIGHTS, 4);
 
 	const aiScene* scene = importer.ReadFile(filePath.c_str(), kAssimpModelImportFlags);
@@ -353,13 +418,13 @@ ModelData Model::LoadModelFile(const std::string& directoryPath, const std::stri
 		if (material->GetTextureCount(aiTextureType_DIFFUSE) != 0) {
 			aiString texturePath;
 			material->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath);
-			modelData.material.textureFilePath = directoryPath + "/" + DecodeUriPath(texturePath.C_Str());
+			modelData.material.textureFilePath = PathToUtf8(Utf8ToPath(directoryPath) / Utf8ToPath(DecodeUriPath(texturePath.C_Str())));
 			break;
 		}
 		if (material->GetTextureCount(aiTextureType_BASE_COLOR) != 0) {
 			aiString texturePath;
 			material->GetTexture(aiTextureType_BASE_COLOR, 0, &texturePath);
-			modelData.material.textureFilePath = directoryPath + "/" + DecodeUriPath(texturePath.C_Str());
+			modelData.material.textureFilePath = PathToUtf8(Utf8ToPath(directoryPath) / Utf8ToPath(DecodeUriPath(texturePath.C_Str())));
 			break;
 		}
 	}
@@ -384,7 +449,8 @@ std::map<std::string, Animation> Model::LoadAnimations(const std::string& direct
 	std::map<std::string, Animation> loadedAnimations;
 	animationNames_.clear();
 	Assimp::Importer importer;
-	std::string filePath = directoryPath + "/" + filename;
+	EnableUtf8Paths(importer);
+	const std::string filePath = PathToUtf8(Utf8ToPath(directoryPath) / Utf8ToPath(filename));
 
 	importer.SetPropertyInteger(AI_CONFIG_PP_LBW_MAX_WEIGHTS, 4);
 	const aiScene* scene = importer.ReadFile(filePath.c_str(), kAssimpModelImportFlags);
@@ -480,7 +546,7 @@ Node Model::ReadNode(aiNode* aiNode) {
 MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename) {
 	MaterialData materialData;
 	std::string line;
-	std::ifstream file(directoryPath + "/" + filename);
+	std::ifstream file(Utf8ToPath(directoryPath) / Utf8ToPath(filename));
 	assert(file.is_open());
 
 	while (std::getline(file, line)) {
@@ -491,7 +557,7 @@ MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, c
 		if (idenfire == "map_Kd") {
 			std::string textureFilename;
 			s >> textureFilename;
-			materialData.textureFilePath = directoryPath + "/" + textureFilename;
+			materialData.textureFilePath = PathToUtf8(Utf8ToPath(directoryPath) / Utf8ToPath(textureFilename));
 		}
 	}
 	return materialData;
@@ -543,6 +609,8 @@ void Model::CreateMaterialData() {
 	materialData->uvTransform = MakeIdentity4x4();
 
 	materialData->shininess = 20.0f;
+	materialData->emissiveColor = {0.0f, 0.0f, 0.0f};
+	materialData->emissiveIntensity = 0.0f;
 }
 
 uint32_t Model::GetSkinningPaletteSize() const {

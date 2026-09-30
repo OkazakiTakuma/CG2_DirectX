@@ -104,6 +104,18 @@ public:
 	}
 	void SetEnvironmentMultiplier(float multiplier) { object3d_->SetEnvironmentMultiplier(multiplier); }
 	void SetColor(const Vector4& color) { if (object3d_) object3d_->SetColor(color); }
+	/// <summary>ライトの影響を受けない自己発光色と強度を設定します。</summary>
+	void SetEmission(const Vector3& color, float intensity) {
+		if (object3d_) object3d_->SetEmission(color, intensity);
+	}
+	Vector3 GetEmissionColor() const {
+		return object3d_ ? object3d_->GetEmissionColor() : Vector3{0.0f, 0.0f, 0.0f};
+	}
+	float GetEmissionIntensity() const { return object3d_ ? object3d_->GetEmissionIntensity() : 0.0f; }
+	void SetLightingEnabled(bool enabled) { if (object3d_) object3d_->SetLightingEnabled(enabled); }
+	bool GetLightingEnabled() const { return object3d_ && object3d_->GetLightingEnabled(); }
+	void SetShadowEnabled(bool enabled) { if (object3d_) object3d_->SetShadowEnabled(enabled); }
+	bool GetShadowEnabled() const { return object3d_ && object3d_->GetShadowEnabled(); }
 	Vector4 GetColor() const { return object3d_ ? object3d_->GetColor() : Vector4{1.0f, 1.0f, 1.0f, 1.0f}; }
 	void IsPointLightSet(bool isSet) { object3d_->IsPointLightSet(isSet); }
 	void SetEnvironmentMap(const std::string& textureFilePath) { object3d_->SetEnvironmentMap(textureFilePath); }

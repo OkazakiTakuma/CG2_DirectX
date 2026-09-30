@@ -8,6 +8,7 @@
 #include "../../base/Logger.h"
 #include "../model/Model.h"
 #include "../model/ModelManager.h"
+#include "../sky/AtmosphereSystem.h"
 #include "Object3dCommon.h"
 #include <algorithm>
 #include <cmath>
@@ -110,12 +111,16 @@ void Object3d::Initialize() {
 	shadowMaterialData->enableLighting = -1;
 	shadowMaterialData->uvTransform = MakeIdentity4x4();
 	shadowMaterialData->shininess = 1.0f;
+	shadowMaterialData->emissiveColor = {0.0f, 0.0f, 0.0f};
+	shadowMaterialData->emissiveIntensity = 0.0f;
 	materialOverrideResource_ = dxCommon_->CreateBufferResource(sizeof(MaterialData));
 	materialOverrideResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialOverrideData_));
 	materialOverrideData_->color = {1.0f, 1.0f, 1.0f, 1.0f};
 	materialOverrideData_->enableLighting = 1;
 	materialOverrideData_->uvTransform = MakeIdentity4x4();
 	materialOverrideData_->shininess = 20.0f;
+	materialOverrideData_->emissiveColor = {0.0f, 0.0f, 0.0f};
+	materialOverrideData_->emissiveIntensity = 0.0f;
 
 	transform = {
 		{1.0f, 1.0f, 1.0f},
@@ -153,6 +158,12 @@ void Object3d::CreateCameraResource() {
 	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
 	cameraData->worldPosition = {0.0f, 0.0f, 0.0f};
 	cameraData->environmentMultiplier = environmentMultiplier;
+	cameraData->horizonColor = {0.0f, 0.0f, 0.0f};
+	cameraData->distanceFogDensity = 0.0f;
+	cameraData->heightFogDensity = 0.0f;
+	cameraData->aerialPerspectiveStrength = 0.0f;
+	cameraData->enableAerialPerspective = 0;
+	cameraData->paddingAtmosphere = 0.0f;
 }
 
 /// <summary>
@@ -291,6 +302,8 @@ void Object3d::CreateCylinder(float radius, float height, uint32_t subdivision, 
 		materialDataCylinder->enableLighting = 1;
 		materialDataCylinder->uvTransform = MakeIdentity4x4();
 		materialDataCylinder->shininess = 50.0f;
+		materialDataCylinder->emissiveColor = {0.0f, 0.0f, 0.0f};
+		materialDataCylinder->emissiveIntensity = 0.0f;
 	}
 }
 
@@ -393,6 +406,13 @@ void Object3d::Update() {
 
 
 	cameraData->environmentMultiplier = environmentMultiplier;
+	// 空と3Dモデルが同じ地平線色を参照することで、遠景が背景へ自然に溶けます。
+	const AtmosphereSettings& atmosphere = AtmosphereSystem::GetInstance()->GetSettings();
+	cameraData->horizonColor = atmosphere.horizonColor;
+	cameraData->distanceFogDensity = atmosphere.distanceFogDensity;
+	cameraData->heightFogDensity = atmosphere.heightFogDensity;
+	cameraData->aerialPerspectiveStrength = atmosphere.aerialPerspectiveStrength;
+	cameraData->enableAerialPerspective = atmosphere.enabled ? 1 : 0;
 }
 
 bool Object3d::GetJointSkeletonSpaceMatrix(const std::string& jointName, Matrix4x4& jointMatrix) const {

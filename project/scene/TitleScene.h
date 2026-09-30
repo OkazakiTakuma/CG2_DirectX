@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BaseScene.h"
+#include "sky/AtmosphereSky.h"
 /// <summary>ゲーム開始とショップへの入口を表示するタイトルシーンです。</summary>
 class TitleScene: public BaseScene {
 public:
@@ -12,6 +13,8 @@ public:
 	/// 毎フレームの状態更新を行います。
 	/// </summary>
 	void Update() override;
+	/// <summary>物理モデルを簡略化した大気散乱Skyと太陽円盤を描画します。</summary>
+	void DrawSkyBox() override;
 	/// <summary>
 	/// 2D 要素の描画処理を行います。
 	/// </summary>
@@ -28,6 +31,19 @@ public:
 	void SetSceneManager(SceneManager* manager) override { sceneManager = manager; }
 
 private:
+	enum class TitlePhase {
+		FadeIn,
+		Slash,
+		LogoReveal,
+		WaitingForInput,
+		Menu
+	};
+	/// <summary>経過時間から現在のタイトル演出段階を更新します。</summary>
+	void UpdateTitlePhase();
+	/// <summary>タイトル背景で使用する3DモデルをシーンJSONの読込前に登録します。</summary>
+	void LoadTitleModels();
+	/// <summary>勾玉と妖怪へタイトル画面用の待機モーションを与えます。</summary>
+	void UpdateTitlePresentation();
 	/// <summary>タイトル画面用の2D UIを生成します。</summary>
 	void CreateUi();
 	/// <summary>
@@ -36,8 +52,14 @@ private:
 	void ImGuiUpdate();
 	/// <summary>SceneManagerが所有するインスタンスへの非所有参照です。</summary>
 	SceneManager* sceneManager = nullptr;
+	/// <summary>球体モデルを使わず、空の散乱計算から太陽を描くタイトル専用Skyです。</summary>
+	std::unique_ptr<AtmosphereSky> atmosphereSky_;
 	/// <summary>画面全体を塗る背景です。</summary>
 	std::unique_ptr<Sprite> backgroundSprite_;
+	/// <summary>導入時に3Dシーンを黒から浮かび上がらせるフェードです。</summary>
+	std::unique_ptr<Sprite> fadeSprite_;
+	/// <summary>ロゴ出現直前の斬撃フラッシュを描く単色スプライトです。</summary>
+	std::unique_ptr<Sprite> slashSprite_;
 	/// <summary>画面上下のアクセントライン描画に使い回す単色スプライトです。</summary>
 	std::unique_ptr<Sprite> accentSprite_;
 	/// <summary>開始・初めから・ショップボタンをまとめる中央パネルです。</summary>
@@ -54,8 +76,8 @@ private:
 	std::unique_ptr<Sprite> confirmationPanelSprite_;
 	/// <summary>タイトルロゴ文字です。</summary>
 	std::unique_ptr<GameObject> titleTextObject_;
-	/// <summary>タイトル直下の副題です。</summary>
-	std::unique_ptr<GameObject> subtitleTextObject_;
+	/// <summary>タイトルロゴの背後へ重ねる簡易発光文字です。</summary>
+	std::unique_ptr<GameObject> titleGlowTextObject_;
 	/// <summary>ゲーム開始メニューの文字です。</summary>
 	std::unique_ptr<GameObject> startTextObject_;
 	/// <summary>進行をリセットして始めるメニューの文字です。</summary>
@@ -78,4 +100,8 @@ private:
 	bool isResetConfirmationOpen_ = false;
 	/// <summary>選択中ボタンの明滅に使う累積秒数です。</summary>
 	float pulseTime_ = 0.0f;
+	/// <summary>タイトル導入演出の開始からの経過秒数です。</summary>
+	float presentationTime_ = 0.0f;
+	/// <summary>現在の導入演出またはメニュー段階です。</summary>
+	TitlePhase titlePhase_ = TitlePhase::FadeIn;
 };

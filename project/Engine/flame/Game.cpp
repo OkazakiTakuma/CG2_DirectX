@@ -105,7 +105,7 @@ void Game::Update() {
 void Game::Draw() {
 #pragma region Setup
 
-	const auto drawScene = [this]() {
+	const auto drawHdrScene = [this]() {
 		SkyBoxCommon::GetInstance()->SetDraw();
 		sceneManager->DrawSkyBox();
 
@@ -114,27 +114,21 @@ void Game::Draw() {
 		Camera* defaultCamera = Object3dCommon::GetInstance()->GetDefaultCamera();
 		TrailRenderer::GetInstance()->Draw(defaultCamera);
 		LineDrawer::GetInstance()->Draw(defaultCamera);
-
-		SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeNone);
-		sceneManager->Draw2D();
 	};
 
 	PostEffect* postEffect = PostEffect::GetInstance();
-	if (postEffect->IsActive()) {
-		postEffect->PreDrawScene();
-		drawScene();
+	// 3Dは常にHDRへ描画します。Master OFF時も表示にはHDRからsRGBへの変換が必要です。
+	postEffect->PreDrawScene();
+	drawHdrScene();
+	postEffect->PostDrawScene();
 
-		postEffect->PostDrawScene();
+	SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
+	ImGuiManager::GetInstance()->ApplyGameViewRenderArea();
+	postEffect->Draw();
 
-		SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
-		ImGuiManager::GetInstance()->ApplyGameViewRenderArea();
-
-		postEffect->Draw();
-	} else {
-		SkyBoxCommon::GetInstance()->GetDxCommon()->PreDraw();
-		ImGuiManager::GetInstance()->ApplyGameViewRenderArea();
-		drawScene();
-	}
+	// UIはトーンマッピング後に描き、文字やメニューがBloomでにじむことを防ぎます。
+	SpriteCommon::GetInstance()->SetDraw(BlendMode::kBlendModeNone);
+	sceneManager->Draw2D();
 	ImGuiManager::GetInstance()->RestoreFullRenderArea();
 	postEffect->DrawImGui();
 	ImGuiManager::GetInstance()->End();

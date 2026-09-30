@@ -33,9 +33,11 @@ void PostEffect::Initialize(DirectXCommon* dxCommon) {
 	CreateRtv();
 	CreateDsv();
 	CreateSrv();
+	CreateBloomResources();
 	CreateDissolveMask();
 	CreateRootSignature();
 	CreatePipelineState();
+	CreateBloomPipelineState();
 
 	CreateColorBuffer();
 }
@@ -49,7 +51,8 @@ void PostEffect::CreateTextureResource() {
 	textureDesc.Height = renderHeight_;
 	textureDesc.MipLevels = 1;
 	textureDesc.DepthOrArraySize = 1;
-	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	// 1.0を超える太陽輝度をBloomまで保持するため、3DシーンはFP16 HDRへ描画します。
+	textureDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	textureDesc.SampleDesc.Count = 1;
 	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
@@ -58,7 +61,7 @@ void PostEffect::CreateTextureResource() {
 	heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
 
 	D3D12_CLEAR_VALUE clearValue{};
-	clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	clearValue.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	clearValue.Color[0] = 0.1f;
 	clearValue.Color[1] = 0.25f;
 	clearValue.Color[2] = 0.5f;
@@ -75,7 +78,7 @@ void PostEffect::CreateRtv() {
 	rtvHeap_ = dxCommon_->CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1, false);
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
-	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	rtvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 	dxCommon_->GetDevice()->CreateRenderTargetView(textureResource_.Get(), &rtvDesc, rtvHeap_->GetCPUDescriptorHandleForHeapStart());
@@ -124,7 +127,7 @@ void PostEffect::CreateSrv() {
 	}
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	srvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
@@ -143,6 +146,56 @@ void PostEffect::CreateSrv() {
 	depthSrvDesc.Texture2D.MipLevels = 1;
 	dxCommon_->GetDevice()->CreateShaderResourceView(depthBuffer_.Get(), &depthSrvDesc, srvManager->GetCPUDescriptorHandle(depthSrvIndex_));
 	depthSrvHandleGPU_ = srvManager->GetGPUDescriptorHandle(depthSrvIndex_);
+}
+
+void PostEffect::CreateBloomResources() {
+	bloomWidth_ = (std::max)(renderWidth_ / 2, 1);
+	bloomHeight_ = (std::max)(renderHeight_ / 2, 1);
+	bloomRtvHeap_ = dxCommon_->CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
+	const UINT rtvIncrement = dxCommon_->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	SrvManager* srvManager = SrvManager::GetInstance();
+
+	for (uint32_t index = 0; index < bloomResources_.size(); ++index) {
+		D3D12_RESOURCE_DESC description{};
+		description.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		description.Width = static_cast<uint64_t>(bloomWidth_);
+		description.Height = static_cast<uint32_t>(bloomHeight_);
+		description.DepthOrArraySize = 1;
+		description.MipLevels = 1;
+		description.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		description.SampleDesc.Count = 1;
+		description.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+		D3D12_HEAP_PROPERTIES heapProperties{};
+		heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+		D3D12_CLEAR_VALUE clearValue{};
+		clearValue.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		const HRESULT result = dxCommon_->GetDevice()->CreateCommittedResource(
+		    &heapProperties, D3D12_HEAP_FLAG_NONE, &description,
+		    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clearValue,
+		    IID_PPV_ARGS(&bloomResources_[index]));
+		assert(SUCCEEDED(result));
+
+		D3D12_RENDER_TARGET_VIEW_DESC rtvDescription{};
+		rtvDescription.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		rtvDescription.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv = bloomRtvHeap_->GetCPUDescriptorHandleForHeapStart();
+		rtv.ptr += static_cast<SIZE_T>(index) * rtvIncrement;
+		dxCommon_->GetDevice()->CreateRenderTargetView(bloomResources_[index].Get(), &rtvDescription, rtv);
+
+		if (bloomSrvIndices_[index] == UINT32_MAX) {
+			bloomSrvIndices_[index] = srvManager->Allocate();
+		}
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDescription{};
+		srvDescription.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		srvDescription.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDescription.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDescription.Texture2D.MipLevels = 1;
+		dxCommon_->GetDevice()->CreateShaderResourceView(
+		    bloomResources_[index].Get(), &srvDescription,
+		    srvManager->GetCPUDescriptorHandle(bloomSrvIndices_[index]));
+		bloomSrvHandlesGPU_[index] = srvManager->GetGPUDescriptorHandle(bloomSrvIndices_[index]);
+	}
 }
 
 void PostEffect::CreateDissolveMask() {
@@ -207,7 +260,7 @@ void PostEffect::CreateDissolveMask() {
 /// RootSignature を作成し、利用できる状態にします。
 /// </summary>
 void PostEffect::CreateRootSignature() {
-	D3D12_DESCRIPTOR_RANGE descriptorRanges[3] = {};
+	D3D12_DESCRIPTOR_RANGE descriptorRanges[4] = {};
 	for (uint32_t index = 0; index < _countof(descriptorRanges); ++index) {
 		descriptorRanges[index].BaseShaderRegister = index;
 		descriptorRanges[index].NumDescriptors = 1;
@@ -215,7 +268,7 @@ void PostEffect::CreateRootSignature() {
 		descriptorRanges[index].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	}
 
-	D3D12_ROOT_PARAMETER rootParameters[4] = {};
+	D3D12_ROOT_PARAMETER rootParameters[5] = {};
 
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -235,6 +288,12 @@ void PostEffect::CreateRootSignature() {
 	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[3].DescriptorTable.pDescriptorRanges = &descriptorRanges[2];
 	rootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
+
+	// 半解像度でぼかしたBloom結果をt3から最終合成します。
+	rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[4].DescriptorTable.pDescriptorRanges = &descriptorRanges[3];
+	rootParameters[4].DescriptorTable.NumDescriptorRanges = 1;
 
 	D3D12_STATIC_SAMPLER_DESC staticSamplers[1] = {};
 	staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -288,6 +347,61 @@ void PostEffect::CreatePipelineState() {
 
 	HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&graphicsPipelineState_));
 	assert(SUCCEEDED(hr));
+}
+
+void PostEffect::CreateBloomPipelineState() {
+	D3D12_DESCRIPTOR_RANGE sourceRange{};
+	sourceRange.BaseShaderRegister = 0;
+	sourceRange.NumDescriptors = 1;
+	sourceRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	sourceRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	D3D12_ROOT_PARAMETER parameters[2]{};
+	parameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	parameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	parameters[0].DescriptorTable.pDescriptorRanges = &sourceRange;
+	parameters[0].DescriptorTable.NumDescriptorRanges = 1;
+	// パスごとの値はRoot Constantsとしてコマンドへコピーし、同じCBを上書きする競合を避けます。
+	parameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+	parameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	parameters[1].Constants.ShaderRegister = 0;
+	parameters[1].Constants.Num32BitValues = 8;
+
+	D3D12_STATIC_SAMPLER_DESC sampler{};
+	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.ShaderRegister = 0;
+	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	D3D12_ROOT_SIGNATURE_DESC rootDescription{};
+	rootDescription.pParameters = parameters;
+	rootDescription.NumParameters = _countof(parameters);
+	rootDescription.pStaticSamplers = &sampler;
+	rootDescription.NumStaticSamplers = 1;
+	bloomRootSignature_ = PipelineStateUtility::CreateRootSignature(dxCommon_->GetDevice().Get(), rootDescription);
+
+	auto vertexShader = dxCommon_->CompileShader(L"Resources/Shader/CopyImage.VS.hlsl", L"vs_6_0");
+	auto pixelShader = dxCommon_->CompileShader(L"Resources/Shader/Bloom.PS.hlsl", L"ps_6_0");
+	assert(vertexShader && pixelShader);
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineDescription{};
+	pipelineDescription.pRootSignature = bloomRootSignature_.Get();
+	pipelineDescription.VS = {vertexShader->GetBufferPointer(), vertexShader->GetBufferSize()};
+	pipelineDescription.PS = {pixelShader->GetBufferPointer(), pixelShader->GetBufferSize()};
+	pipelineDescription.BlendState = PipelineStateUtility::MakeBlendDesc();
+	pipelineDescription.RasterizerState = PipelineStateUtility::MakeRasterizerDesc(D3D12_CULL_MODE_NONE);
+	pipelineDescription.DepthStencilState = PipelineStateUtility::MakeDepthStencilDesc(
+	    FALSE, D3D12_DEPTH_WRITE_MASK_ZERO, D3D12_COMPARISON_FUNC_NEVER);
+	pipelineDescription.NumRenderTargets = 1;
+	pipelineDescription.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	pipelineDescription.SampleDesc.Count = 1;
+	pipelineDescription.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+	pipelineDescription.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	const HRESULT result = dxCommon_->GetDevice()->CreateGraphicsPipelineState(
+	    &pipelineDescription, IID_PPV_ARGS(&bloomPipelineState_));
+	assert(SUCCEEDED(result));
 }
 
 /// <summary>
@@ -344,15 +458,16 @@ void PostEffect::ApplySettingsToBuffer() {
 	colorData_->b = tintColor_[2];
 	colorData_->a = tintColor_[3];
 
-	colorData_->enableGrayscale = enableGrayscale_ ? 1 : 0;
-	colorData_->enableVignetting = enableVignetting_ ? 1 : 0;
-	colorData_->enableSmoothing = enableSmoothing_ ? 1 : 0;
-	colorData_->enableGaussianFilter = enableGaussianFilter_ ? 1 : 0;
-	colorData_->enableRadialBlur = enableRadialBlur_ ? 1 : 0;
-	colorData_->enableRandom = enableRandom_ ? 1 : 0;
+	// HDRから画面へ変換する処理は常時必要ですが、Master OFF時は演出系だけを停止します。
+	colorData_->enableGrayscale = isActive_ && enableGrayscale_ ? 1 : 0;
+	colorData_->enableVignetting = isActive_ && enableVignetting_ ? 1 : 0;
+	colorData_->enableSmoothing = isActive_ && enableSmoothing_ ? 1 : 0;
+	colorData_->enableGaussianFilter = isActive_ && enableGaussianFilter_ ? 1 : 0;
+	colorData_->enableRadialBlur = isActive_ && enableRadialBlur_ ? 1 : 0;
+	colorData_->enableRandom = isActive_ && enableRandom_ ? 1 : 0;
 	colorData_->radialBlurSamples = radialBlurSamples_;
-	colorData_->enableOutline = enableOutline_ ? 1 : 0;
-	colorData_->enableDissolve = enableDissolve_ ? 1 : 0;
+	colorData_->enableOutline = isActive_ && enableOutline_ ? 1 : 0;
+	colorData_->enableDissolve = isActive_ && enableDissolve_ ? 1 : 0;
 	colorData_->vignetteIntensity = vignetteIntensity_;
 	colorData_->vignetteRadius = vignetteRadius_;
 	colorData_->vignetteSoftness = vignetteSoftness_;
@@ -386,6 +501,14 @@ void PostEffect::ApplySettingsToBuffer() {
 	colorData_->damageVignetteRadius = damageVignetteRadius_;
 	colorData_->damageVignetteSoftness = damageVignetteSoftness_;
 	colorData_->paddingDamageVignette = 0.0f;
+	colorData_->enableBloom = isActive_ && enableBloom_ ? 1 : 0;
+	colorData_->bloomThreshold = bloomThreshold_;
+	colorData_->bloomIntensity = bloomIntensity_;
+	colorData_->bloomRadius = bloomRadius_;
+	colorData_->exposure = exposure_;
+	colorData_->enableToneMapping = enableToneMapping_ ? 1 : 0;
+	colorData_->bloomKnee = bloomKnee_;
+	colorData_->paddingHdr = 0.0f;
 }
 
 void PostEffect::ResizeIfNeeded() {
@@ -413,13 +536,18 @@ void PostEffect::ResizeResources(int32_t width, int32_t height) {
 	depthTextureReadyAsSrv_ = false;
 	textureResource_.Reset();
 	depthBuffer_.Reset();
+	for (auto& resource : bloomResources_) {
+		resource.Reset();
+	}
 	rtvHeap_.Reset();
 	dsvHeap_.Reset();
+	bloomRtvHeap_.Reset();
 
 	CreateTextureResource();
 	CreateRtv();
 	CreateDsv();
 	CreateSrv();
+	CreateBloomResources();
 	ApplySettingsToBuffer();
 }
 
@@ -548,6 +676,80 @@ void PostEffect::PostDrawScene() {
 	depthBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	commandList->ResourceBarrier(1, &depthBarrier);
 	depthTextureReadyAsSrv_ = true;
+
+	// シーンがHDR SRVへ遷移した直後にBloomを生成し、最終合成時は読み取りだけにします。
+	if (isActive_ && enableBloom_) {
+		DrawBloom();
+	}
+}
+
+void PostEffect::DrawBloom() {
+	if (!bloomPipelineState_ || !bloomResources_[0] || !bloomResources_[1]) {
+		return;
+	}
+
+	auto commandList = dxCommon_->GetCommandList();
+	SrvManager::GetInstance()->PreDraw();
+	commandList->SetGraphicsRootSignature(bloomRootSignature_.Get());
+	commandList->SetPipelineState(bloomPipelineState_.Get());
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	D3D12_VIEWPORT viewport{};
+	viewport.Width = static_cast<float>(bloomWidth_);
+	viewport.Height = static_cast<float>(bloomHeight_);
+	viewport.MaxDepth = 1.0f;
+	commandList->RSSetViewports(1, &viewport);
+	D3D12_RECT scissor{0, 0, bloomWidth_, bloomHeight_};
+	commandList->RSSetScissorRects(1, &scissor);
+
+	const UINT rtvIncrement = dxCommon_->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	const auto transition = [commandList](ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+		D3D12_RESOURCE_BARRIER barrier{};
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Transition.pResource = resource;
+		barrier.Transition.StateBefore = before;
+		barrier.Transition.StateAfter = after;
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		commandList->ResourceBarrier(1, &barrier);
+	};
+
+	struct BloomConstants {
+		float threshold;
+		float knee;
+		float radius;
+		float padding;
+		float texelSize[2];
+		int32_t mode;
+		float padding2;
+	};
+	static_assert(sizeof(BloomConstants) == sizeof(uint32_t) * 8);
+
+	const auto drawPass = [&](uint32_t targetIndex, D3D12_GPU_DESCRIPTOR_HANDLE source,
+	                          int32_t mode, float sourceWidth, float sourceHeight) {
+		transition(bloomResources_[targetIndex].Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		    D3D12_RESOURCE_STATE_RENDER_TARGET);
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv = bloomRtvHeap_->GetCPUDescriptorHandleForHeapStart();
+		rtv.ptr += static_cast<SIZE_T>(targetIndex) * rtvIncrement;
+		commandList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
+
+		BloomConstants constants{};
+		constants.threshold = bloomThreshold_;
+		constants.knee = bloomKnee_;
+		constants.radius = bloomRadius_;
+		constants.texelSize[0] = 1.0f / (std::max)(sourceWidth, 1.0f);
+		constants.texelSize[1] = 1.0f / (std::max)(sourceHeight, 1.0f);
+		constants.mode = mode;
+		commandList->SetGraphicsRootDescriptorTable(0, source);
+		commandList->SetGraphicsRoot32BitConstants(1, 8, &constants, 0);
+		commandList->DrawInstanced(3, 1, 0, 0);
+		transition(bloomResources_[targetIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET,
+		    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	};
+
+	// 0: HDR明部を半解像度へ縮小、1: 横ぼかし、2: 縦ぼかし。
+	drawPass(0, srvHandleGPU_, 0, static_cast<float>(renderWidth_), static_cast<float>(renderHeight_));
+	drawPass(1, bloomSrvHandlesGPU_[0], 1, static_cast<float>(bloomWidth_), static_cast<float>(bloomHeight_));
+	drawPass(0, bloomSrvHandlesGPU_[1], 2, static_cast<float>(bloomWidth_), static_cast<float>(bloomHeight_));
 }
 
 /// <summary>
@@ -569,6 +771,7 @@ void PostEffect::Draw() {
 	commandList->SetGraphicsRootConstantBufferView(1, colorBuffer_->GetGPUVirtualAddress());
 	commandList->SetGraphicsRootDescriptorTable(2, depthSrvHandleGPU_);
 	commandList->SetGraphicsRootDescriptorTable(3, dissolveMaskSrvHandleGPU_);
+	commandList->SetGraphicsRootDescriptorTable(4, bloomSrvHandlesGPU_[0]);
 
 	commandList->DrawInstanced(3, 1, 0, 0);
 }
@@ -618,6 +821,28 @@ void PostEffect::DrawImGui() {
 		enabledEffectCount
 	);
 	ImGui::TextDisabled("Hotkeys: 1 Master / 2-9 Effects");
+	ImGui::Separator();
+	if (ImGui::CollapsingHeader("Bloom Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+		if (drawEffectToggle("Apply Bloom", &enableBloom_)) {
+			colorData_->enableBloom = enableBloom_ ? 1 : 0;
+		}
+		if (!enableBloom_) {
+			ImGui::BeginDisabled();
+		}
+		ImGui::SliderFloat("Bloom Threshold", &bloomThreshold_, 0.0f, 1.5f);
+		ImGui::SliderFloat("Bloom Intensity", &bloomIntensity_, 0.0f, 2.0f);
+		ImGui::SliderFloat("Bloom Radius", &bloomRadius_, 0.5f, 4.0f);
+		ImGui::SliderFloat("Bloom Soft Knee", &bloomKnee_, 0.01f, 1.0f);
+		if (!enableBloom_) {
+			ImGui::EndDisabled();
+		}
+	}
+	ImGui::Separator();
+	if (ImGui::CollapsingHeader("HDR / Tone Mapping", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Enable ACES Tone Mapping", &enableToneMapping_);
+		ImGui::SliderFloat("Exposure", &exposure_, 0.1f, 4.0f);
+		ImGui::TextDisabled("Tone mapping remains available when the effect master is off.");
+	}
 	ImGui::Separator();
 
 	// 小さいウィンドウでも見つけやすいよう、アウトライン設定を先頭の展開セクションに配置します。
@@ -750,10 +975,16 @@ void PostEffect::DrawImGui() {
 void PostEffect::Finalize() {
 	textureResource_.Reset();
 	depthBuffer_.Reset();
+	for (auto& resource : bloomResources_) {
+		resource.Reset();
+	}
 	dissolveMaskResource_.Reset();
 	rtvHeap_.Reset();
+	bloomRtvHeap_.Reset();
 	dsvHeap_.Reset();
 	rootSignature_.Reset();
 	graphicsPipelineState_.Reset();
+	bloomRootSignature_.Reset();
+	bloomPipelineState_.Reset();
 	colorBuffer_.Reset();
 }

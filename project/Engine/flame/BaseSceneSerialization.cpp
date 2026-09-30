@@ -5,6 +5,7 @@
 #include "repositories/PlayerStatusRepository.h"
 #include "helpers/SceneJsonUtility.h"
 #include "SceneManager.h"
+#include "StringUtility.h"
 
 #include <filesystem>
 #include <fstream>
@@ -13,6 +14,7 @@ using SceneJsonUtility::JsonToVector3;
 using SceneJsonUtility::JsonToVector4;
 using SceneJsonUtility::Vector3ToJson;
 using SceneJsonUtility::Vector4ToJson;
+using StringUtility::Utf8ToPath;
 
 namespace {
 bool ApplyObjectOverride(nlohmann::json& objects, const nlohmann::json& objectOverride) {
@@ -56,7 +58,7 @@ bool LoadSceneJsonWithInheritance(const std::filesystem::path& filePath, nlohman
 		return true;
 	}
 
-	const std::filesystem::path extendsPath(extendsFile);
+	const std::filesystem::path extendsPath = Utf8ToPath(extendsFile);
 	if (extendsPath.filename() != extendsPath || extendsPath.extension() != ".json") {
 		return false;
 	}
@@ -105,6 +107,21 @@ void BaseScene::SaveEditorObjects() {
 	root["activeCamera"] = activeCameraObjectName_;
 	root["skyBox"]["enabled"] = isEditorSkyBoxEnabled_;
 	root["skyBox"]["textureFilePath"] = skyBoxTextureFilePath_;
+	const AtmosphereSettings& atmosphere = AtmosphereSystem::GetInstance()->GetSettings();
+	root["atmosphere"]["enabled"] = atmosphere.enabled;
+	root["atmosphere"]["sunDirection"] = Vector3ToJson(atmosphere.sunDirection);
+	root["atmosphere"]["sunAngularRadius"] = atmosphere.sunAngularRadius;
+	root["atmosphere"]["sunIntensity"] = atmosphere.sunIntensity;
+	root["atmosphere"]["rayleighColor"] = Vector3ToJson(atmosphere.rayleighColor);
+	root["atmosphere"]["rayleighStrength"] = atmosphere.rayleighStrength;
+	root["atmosphere"]["mieColor"] = Vector3ToJson(atmosphere.mieColor);
+	root["atmosphere"]["mieStrength"] = atmosphere.mieStrength;
+	root["atmosphere"]["mieG"] = atmosphere.mieG;
+	root["atmosphere"]["atmosphereDensity"] = atmosphere.atmosphereDensity;
+	root["atmosphere"]["horizonColor"] = Vector3ToJson(atmosphere.horizonColor);
+	root["atmosphere"]["distanceFogDensity"] = atmosphere.distanceFogDensity;
+	root["atmosphere"]["heightFogDensity"] = atmosphere.heightFogDensity;
+	root["atmosphere"]["aerialPerspectiveStrength"] = atmosphere.aerialPerspectiveStrength;
 	root["objects"] = nlohmann::json::array();
 
 	std::function<nlohmann::json(GameObject*)> makeObjectJson = [&](GameObject* object) {
@@ -197,6 +214,11 @@ void BaseScene::SaveEditorObjects() {
 		if (Object3dComponent* object3dComponent = object->GetComponent<Object3dComponent>()) {
 			objectJson["object3d"]["enabled"] = object3dComponent->IsEnabled();
 			SaveComponentGravity(objectJson["object3d"], object3dComponent);
+			objectJson["object3d"]["material"]["color"] = Vector4ToJson(object3dComponent->GetColor());
+			objectJson["object3d"]["material"]["emissionColor"] = Vector3ToJson(object3dComponent->GetEmissionColor());
+			objectJson["object3d"]["material"]["emissionIntensity"] = object3dComponent->GetEmissionIntensity();
+			objectJson["object3d"]["material"]["receiveLighting"] = object3dComponent->GetLightingEnabled();
+			objectJson["object3d"]["castShadow"] = object3dComponent->GetShadowEnabled();
 			objectJson["object3d"]["modelTextureFilePath"] = object3dComponent->GetModelTextureFilePath();
 			objectJson["object3d"]["drawSkeleton"] = object3dComponent->GetDrawSkeleton();
 			objectJson["object3d"]["animationPlaying"] = object3dComponent->GetAnimationPlaying();
@@ -208,6 +230,28 @@ void BaseScene::SaveEditorObjects() {
 			objectJson["object3d"]["pointLight"]["intensity"] = object3dComponent->GetPointLightIntensity();
 			objectJson["object3d"]["pointLight"]["radius"] = object3dComponent->GetPointLightRadius();
 			objectJson["object3d"]["pointLight"]["decay"] = object3dComponent->GetPointLightDecay();
+		}
+		if (PointLightComponent* pointLight = object->GetComponent<PointLightComponent>()) {
+			objectJson["pointLightComponent"]["enabled"] = pointLight->IsEnabled();
+			objectJson["pointLightComponent"]["color"] = Vector4ToJson(pointLight->GetColor());
+			objectJson["pointLightComponent"]["intensity"] = pointLight->GetIntensity();
+			objectJson["pointLightComponent"]["radius"] = pointLight->GetRadius();
+			objectJson["pointLightComponent"]["decay"] = pointLight->GetDecay();
+			objectJson["pointLightComponent"]["positionOffset"] = Vector3ToJson(pointLight->GetPositionOffset());
+			objectJson["pointLightComponent"]["useMaterialEmissionColor"] = pointLight->GetUseMaterialEmissionColor();
+		}
+		if (GlowBillboardComponent* glow = object->GetComponent<GlowBillboardComponent>()) {
+			objectJson["glowBillboard"]["enabled"] = glow->IsEnabled();
+			objectJson["glowBillboard"]["textureFilePath"] = glow->GetTexture();
+			objectJson["glowBillboard"]["innerColor"] = Vector4ToJson(glow->GetInnerColor());
+			objectJson["glowBillboard"]["outerColor"] = Vector4ToJson(glow->GetOuterColor());
+			objectJson["glowBillboard"]["innerSize"] = glow->GetInnerSize();
+			objectJson["glowBillboard"]["outerSize"] = glow->GetOuterSize();
+			objectJson["glowBillboard"]["innerIntensity"] = glow->GetInnerIntensity();
+			objectJson["glowBillboard"]["outerIntensity"] = glow->GetOuterIntensity();
+			objectJson["glowBillboard"]["pulseAmount"] = glow->GetPulseAmount();
+			objectJson["glowBillboard"]["pulseSpeed"] = glow->GetPulseSpeed();
+			objectJson["glowBillboard"]["positionOffset"] = Vector3ToJson(glow->GetPositionOffset());
 		}
 		if (ParticleEmitterComponent* emitter = object->GetComponent<ParticleEmitterComponent>()) {
 			const ParticleEmitParam param = emitter->GetParam();
@@ -273,7 +317,17 @@ void BaseScene::SaveEditorObjects() {
 					{"enemyTypeName", schedule.enemyTypeName},
 					{"intervalFrames", schedule.spawnIntervalFrames},
 					{"spawnAmount", schedule.spawnAmount},
+					{"applyTimeScaling", schedule.applyTimeScaling},
 					{"spawnOnce", schedule.spawnOnce}
+				});
+			}
+			objectJson["enemySpawnPoint"]["timeScalingTiers"] = nlohmann::json::array();
+			for (const EnemySpawnPointComponent::TimeScalingTier& tier : enemySpawnPoint->GetTimeScalingTiers()) {
+				objectJson["enemySpawnPoint"]["timeScalingTiers"].push_back({
+					{"startTime", tier.startTimeSeconds},
+					{"healthMultiplier", tier.multipliers.healthMultiplier},
+					{"speedMultiplier", tier.multipliers.speedMultiplier},
+					{"experienceMultiplier", tier.multipliers.experienceMultiplier}
 				});
 			}
 		}
@@ -306,9 +360,10 @@ void BaseScene::SaveEditorObjects() {
 	}
 
 	const std::string filePath = GetSceneObjectFilePath();
-	std::filesystem::create_directories(std::filesystem::path(filePath).parent_path());
+	const std::filesystem::path nativeFilePath = Utf8ToPath(filePath);
+	std::filesystem::create_directories(nativeFilePath.parent_path());
 
-	std::ofstream ofs(filePath);
+	std::ofstream ofs(nativeFilePath);
 	if (!ofs) {
 		return;
 	}
@@ -321,7 +376,7 @@ void BaseScene::SaveEditorObjects() {
 void BaseScene::LoadEditorObjects() {
 	const std::string filePath = GetSceneObjectFilePath();
 	nlohmann::json root;
-	if (!LoadSceneJsonWithInheritance(filePath, root)) {
+	if (!LoadSceneJsonWithInheritance(Utf8ToPath(filePath), root)) {
 		return;
 	}
 
@@ -344,6 +399,31 @@ void BaseScene::LoadEditorObjects() {
 	skyBoxTextureFilePath_ = skyBoxJson.value("textureFilePath", std::string());
 	if (!skyBoxTextureFilePath_.empty()) {
 		CreateOrReloadEditorSkyBox(skyBoxTextureFilePath_);
+	}
+
+	// 大気設定がない旧シーンJSONでは、シーン側で用意した既定値をそのまま使用します。
+	if (root.contains("atmosphere")) {
+		const nlohmann::json& atmosphereJson = root["atmosphere"];
+		AtmosphereSettings& atmosphere = AtmosphereSystem::GetInstance()->GetSettings();
+		atmosphere.enabled = atmosphereJson.value("enabled", atmosphere.enabled);
+		atmosphere.sunDirection = NormalizeReturnVector(JsonToVector3(
+		    atmosphereJson.value("sunDirection", nlohmann::json::array()), atmosphere.sunDirection));
+		atmosphere.sunAngularRadius = atmosphereJson.value("sunAngularRadius", atmosphere.sunAngularRadius);
+		atmosphere.sunIntensity = atmosphereJson.value("sunIntensity", atmosphere.sunIntensity);
+		atmosphere.rayleighColor = JsonToVector3(
+		    atmosphereJson.value("rayleighColor", nlohmann::json::array()), atmosphere.rayleighColor);
+		atmosphere.rayleighStrength = atmosphereJson.value("rayleighStrength", atmosphere.rayleighStrength);
+		atmosphere.mieColor = JsonToVector3(
+		    atmosphereJson.value("mieColor", nlohmann::json::array()), atmosphere.mieColor);
+		atmosphere.mieStrength = atmosphereJson.value("mieStrength", atmosphere.mieStrength);
+		atmosphere.mieG = atmosphereJson.value("mieG", atmosphere.mieG);
+		atmosphere.atmosphereDensity = atmosphereJson.value("atmosphereDensity", atmosphere.atmosphereDensity);
+		atmosphere.horizonColor = JsonToVector3(
+		    atmosphereJson.value("horizonColor", nlohmann::json::array()), atmosphere.horizonColor);
+		atmosphere.distanceFogDensity = atmosphereJson.value("distanceFogDensity", atmosphere.distanceFogDensity);
+		atmosphere.heightFogDensity = atmosphereJson.value("heightFogDensity", atmosphere.heightFogDensity);
+		atmosphere.aerialPerspectiveStrength = atmosphereJson.value(
+		    "aerialPerspectiveStrength", atmosphere.aerialPerspectiveStrength);
 	}
 
 	std::vector<nlohmann::json> flatObjects;
@@ -500,6 +580,18 @@ void BaseScene::LoadEditorObjects() {
 			const nlohmann::json object3dJson = objectJson.value("object3d", nlohmann::json::object());
 			object3dComponent->SetEnabled(object3dJson.value("enabled", object3dComponent->IsEnabled()));
 			LoadComponentGravity(object3dJson, object3dComponent);
+			const nlohmann::json materialJson = object3dJson.value("material", nlohmann::json::object());
+			object3dComponent->SetColor(
+			    JsonToVector4(materialJson.value("color", nlohmann::json::array()), object3dComponent->GetColor())
+			);
+			object3dComponent->SetEmission(
+			    JsonToVector3(materialJson.value("emissionColor", nlohmann::json::array()), object3dComponent->GetEmissionColor()),
+			    materialJson.value("emissionIntensity", object3dComponent->GetEmissionIntensity())
+			);
+			object3dComponent->SetLightingEnabled(
+			    materialJson.value("receiveLighting", object3dComponent->GetLightingEnabled())
+			);
+			object3dComponent->SetShadowEnabled(object3dJson.value("castShadow", object3dComponent->GetShadowEnabled()));
 			const std::string textureFilePath = object3dJson.value("modelTextureFilePath", std::string());
 			if (!textureFilePath.empty()) {
 				object3dComponent->SetModelTexture(textureFilePath);
@@ -519,6 +611,44 @@ void BaseScene::LoadEditorObjects() {
 			    pointLightJson.value("intensity", object3dComponent->GetPointLightIntensity()),
 			    pointLightJson.value("radius", object3dComponent->GetPointLightRadius()),
 			    pointLightJson.value("decay", object3dComponent->GetPointLightDecay())
+			);
+		}
+		if (objectJson.contains("pointLightComponent")) {
+			const nlohmann::json pointLightJson = objectJson.value("pointLightComponent", nlohmann::json::object());
+			PointLightComponent* pointLight = object->GetComponent<PointLightComponent>();
+			if (!pointLight) {
+				pointLight = object->AddComponent<PointLightComponent>();
+			}
+			pointLight->SetEnabled(pointLightJson.value("enabled", pointLight->IsEnabled()));
+			pointLight->SetColor(JsonToVector4(pointLightJson.value("color", nlohmann::json::array()), pointLight->GetColor()));
+			pointLight->SetIntensity(pointLightJson.value("intensity", pointLight->GetIntensity()));
+			pointLight->SetRadius(pointLightJson.value("radius", pointLight->GetRadius()));
+			pointLight->SetDecay(pointLightJson.value("decay", pointLight->GetDecay()));
+			pointLight->SetPositionOffset(
+			    JsonToVector3(pointLightJson.value("positionOffset", nlohmann::json::array()), pointLight->GetPositionOffset())
+			);
+			pointLight->SetUseMaterialEmissionColor(
+			    pointLightJson.value("useMaterialEmissionColor", pointLight->GetUseMaterialEmissionColor())
+			);
+		}
+		if (objectJson.contains("glowBillboard")) {
+			const nlohmann::json glowJson = objectJson.value("glowBillboard", nlohmann::json::object());
+			GlowBillboardComponent* glow = object->GetComponent<GlowBillboardComponent>();
+			if (!glow) {
+				glow = object->AddComponent<GlowBillboardComponent>();
+			}
+			glow->SetEnabled(glowJson.value("enabled", glow->IsEnabled()));
+			glow->SetTexture(glowJson.value("textureFilePath", glow->GetTexture()));
+			glow->SetInnerColor(JsonToVector4(glowJson.value("innerColor", nlohmann::json::array()), glow->GetInnerColor()));
+			glow->SetOuterColor(JsonToVector4(glowJson.value("outerColor", nlohmann::json::array()), glow->GetOuterColor()));
+			glow->SetInnerSize(glowJson.value("innerSize", glow->GetInnerSize()));
+			glow->SetOuterSize(glowJson.value("outerSize", glow->GetOuterSize()));
+			glow->SetInnerIntensity(glowJson.value("innerIntensity", glow->GetInnerIntensity()));
+			glow->SetOuterIntensity(glowJson.value("outerIntensity", glow->GetOuterIntensity()));
+			glow->SetPulseAmount(glowJson.value("pulseAmount", glow->GetPulseAmount()));
+			glow->SetPulseSpeed(glowJson.value("pulseSpeed", glow->GetPulseSpeed()));
+			glow->SetPositionOffset(
+			    JsonToVector3(glowJson.value("positionOffset", nlohmann::json::array()), glow->GetPositionOffset())
 			);
 		}
 		if (CameraComponent* cameraComponent = object->GetComponent<CameraComponent>()) {
@@ -636,6 +766,23 @@ void BaseScene::LoadEditorObjects() {
 				    JsonToVector3(bossJson.value("playerWarpPosition", nlohmann::json::array()), bossSettings.playerWarpPosition);
 				enemySpawnPoint->SetBossEncounterSettings(bossSettings);
 			}
+			std::vector<EnemySpawnPointComponent::TimeScalingTier> timeScalingTiers;
+			const nlohmann::json tiersJson = spawnJson.value("timeScalingTiers", nlohmann::json::array());
+			if (tiersJson.is_array()) {
+				for (const nlohmann::json& tierJson : tiersJson) {
+					if (!tierJson.is_object()) {
+						continue;
+					}
+					EnemySpawnPointComponent::TimeScalingTier tier;
+					tier.startTimeSeconds = tierJson.value("startTime", tier.startTimeSeconds);
+					tier.multipliers.healthMultiplier = tierJson.value("healthMultiplier", tier.multipliers.healthMultiplier);
+					tier.multipliers.speedMultiplier = tierJson.value("speedMultiplier", tier.multipliers.speedMultiplier);
+					tier.multipliers.experienceMultiplier =
+						tierJson.value("experienceMultiplier", tier.multipliers.experienceMultiplier);
+					timeScalingTiers.push_back(tier);
+				}
+			}
+			enemySpawnPoint->SetTimeScalingTiers(timeScalingTiers);
 			std::vector<EnemySpawnPointComponent::SpawnSchedule> schedules;
 			const nlohmann::json schedulesJson = spawnJson.value("schedules", nlohmann::json::array());
 			if (schedulesJson.is_array()) {
@@ -649,6 +796,8 @@ void BaseScene::LoadEditorObjects() {
 					schedule.enemyTypeName = scheduleJson.value("enemyTypeName", schedule.enemyTypeName);
 					schedule.spawnIntervalFrames = scheduleJson.value("intervalFrames", schedule.spawnIntervalFrames);
 					schedule.spawnAmount = scheduleJson.value("spawnAmount", schedule.spawnAmount);
+					// 未設定の既存シーンでは倍率を適用せず、従来の敵能力を維持する。
+					schedule.applyTimeScaling = scheduleJson.value("applyTimeScaling", schedule.applyTimeScaling);
 					// spawnOnceがない旧データはfalseとなり、従来どおり繰り返し生成される。
 					schedule.spawnOnce = scheduleJson.value("spawnOnce", schedule.spawnOnce);
 					schedules.push_back(schedule);

@@ -308,7 +308,7 @@
                 0.78,
                 0.72
             ],
-            "count": 10,
+            "count": 5,
             "endColor": [
                 0.9,
                 0.92,
@@ -316,14 +316,14 @@
                 0.0
             ],
             "endScale": [
-                0.18,
-                0.18,
-                0.18
+                0.72,
+                0.52,
+                0.52
             ],
             "isBillboard": true,
             "isRandomRotate": true,
             "isVortex": true,
-            "lifeTime": 2.4,
+            "lifeTime": 1.4,
             "randomPositionRange": [
                 0.0,
                 0.0,
@@ -335,8 +335,8 @@
                 6.283185
             ],
             "randomScaleRange": [
-                0.14,
-                0.14,
+                0.12,
+                0.09,
                 0.0
             ],
             "randomVelocityRange": [
@@ -345,19 +345,19 @@
                 0.0
             ],
             "scale": [
-                0.48,
-                0.48,
-                0.48
+                0.58,
+                0.42,
+                0.42
             ],
-            "vortexAngularSpeed": 8.5,
+            "vortexAngularSpeed": 11.5,
             "vortexBaseRadius": 0.18,
             "vortexHeight": 6.0,
             "vortexTopRadius": 3.0
         },
-        "frequency": 0.035,
+        "frequency": 0.05,
         "isActive": true,
         "meshType": 0,
-        "textureFilePath": "Resources/circle.png"
+        "textureFilePath": "Resources/tornado_wisp.png"
     },
     "Slash": {
         "blendMode": 2,
